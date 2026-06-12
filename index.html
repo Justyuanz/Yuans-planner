@@ -90,58 +90,6 @@
       padding: 16px 0 24px;
     }
 
-    .eyebrow {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      margin-bottom: 12px;
-    }
-
-    .chip {
-      display: inline-flex;
-      align-items: center;
-      min-height: 28px;
-      padding: 4px 10px;
-      border: 1px solid var(--line);
-      border-radius: 999px;
-      background: rgba(255, 255, 255, 0.78);
-      color: var(--muted);
-      font-size: 0.82rem;
-      font-weight: 800;
-      white-space: nowrap;
-      box-shadow: var(--shadow-soft);
-    }
-
-    .chip.cpp {
-      border-color: rgba(185, 206, 240, 0.9);
-      color: var(--purple-dark);
-      background: var(--purple-soft);
-    }
-
-    .chip.python {
-      border-color: rgba(33, 166, 107, 0.32);
-      color: var(--green-dark);
-      background: var(--green-soft);
-    }
-
-    .chip.fso {
-      border-color: rgba(119, 103, 25, 0.2);
-      color: var(--amber-dark);
-      background: var(--amber-soft);
-    }
-
-    .chip.skate {
-      border-color: rgba(33, 166, 107, 0.32);
-      color: var(--teal-dark);
-      background: var(--teal-soft);
-    }
-
-    .chip.guitar {
-      border-color: rgba(255, 129, 135, 0.42);
-      color: var(--coral-dark);
-      background: var(--guitar-soft);
-    }
-
     h1,
     h2,
     h3,
@@ -897,7 +845,6 @@
     .section-head h2,
     .section-head h3,
     .calendar-title,
-    .chip,
     .tab-button,
     .goal label,
     .task-card,
@@ -955,14 +902,6 @@
     .subtitle {
       font-size: clamp(1rem, 1.8vw, 1.12rem);
       font-weight: 680;
-    }
-
-    .chip {
-      min-height: 30px;
-      padding: 5px 11px;
-      font-size: 0.8rem;
-      font-weight: 760;
-      box-shadow: none;
     }
 
     .tabs {
@@ -1257,7 +1196,6 @@
       font-weight: 560;
     }
 
-    .chip,
     .tab-button,
     .goal label,
     .task-title,
@@ -1577,19 +1515,6 @@
     .hero {
       grid-template-columns: minmax(0, 1fr) auto;
       padding: 0 0 28px;
-    }
-
-    .eyebrow {
-      margin-bottom: 10px;
-    }
-
-    .chip {
-      min-height: 24px;
-      padding: 3px 9px;
-      border: 0;
-      background: rgba(255, 255, 255, 0.74);
-      box-shadow: none;
-      font-size: 0.75rem;
     }
 
     h1 {
@@ -1933,6 +1858,91 @@
       grid-template-columns: 1fr;
     }
 
+    .goals-card {
+      background: rgba(255, 255, 255, 0.86);
+    }
+
+    .goal-list {
+      gap: 14px;
+    }
+
+    .goal {
+      position: relative;
+      overflow: hidden;
+      gap: 10px;
+      padding: 15px 16px 16px 18px;
+      border: 1px solid rgba(224, 219, 209, 0.72);
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.78);
+    }
+
+    .goal::before {
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 7px;
+      border-radius: 18px 0 0 18px;
+      content: "";
+      opacity: 0.72;
+    }
+
+    .goal.cpp {
+      background: linear-gradient(90deg, rgba(234, 242, 255, 0.88), rgba(255, 255, 255, 0.78) 48%);
+    }
+
+    .goal.python {
+      background: linear-gradient(90deg, rgba(240, 246, 211, 0.92), rgba(255, 255, 255, 0.78) 48%);
+    }
+
+    .goal.fso {
+      background: linear-gradient(90deg, rgba(255, 249, 204, 0.92), rgba(255, 255, 255, 0.78) 48%);
+    }
+
+    .goal.cpp::before {
+      background: var(--purple);
+    }
+
+    .goal.python::before {
+      background: var(--green);
+    }
+
+    .goal.fso::before {
+      background: var(--amber);
+    }
+
+    .goal label {
+      color: #6d7280;
+      font-size: 0.88rem;
+      font-weight: 560;
+    }
+
+    .goal .dot {
+      width: 10px;
+      height: 10px;
+      flex-basis: 10px;
+      box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.54);
+    }
+
+    .goal input {
+      min-height: 52px;
+      padding: 12px 14px;
+      border-color: rgba(185, 206, 240, 0.46);
+      border-radius: 15px;
+      background: rgba(255, 255, 255, 0.78);
+      color: #2d2f2b;
+      font-size: clamp(1rem, 1.5vw, 1.12rem);
+      font-weight: 470;
+      line-height: 1.25;
+    }
+
+    .goal input::placeholder {
+      color: rgba(86, 86, 94, 0.48);
+    }
+
+    .goal:focus-within {
+      border-color: rgba(126, 116, 255, 0.28);
+      box-shadow: 0 14px 30px rgba(126, 116, 255, 0.08);
+    }
+
     .tasks-card .panel-inner {
       padding: clamp(22px, 3vw, 32px);
     }
@@ -1961,8 +1971,8 @@
     }
 
     body {
-      font-family: "Avenir Next", "SF Pro Text", ui-rounded, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-      font-weight: 400;
+      font-family: ui-rounded, "SF Pro Rounded", "Nunito", "Avenir Next", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+      font-weight: 410;
     }
 
     html {
@@ -2001,7 +2011,6 @@
       font-weight: 450;
     }
 
-    .chip,
     .tab-button,
     .goal label,
     .task-title,
@@ -2142,6 +2151,70 @@
 
     .day-cell:active {
       transform: translateY(-3px) scale(1.01);
+    }
+
+    /* Rounded, warm typography: playful without getting loud. */
+    body,
+    button,
+    input,
+    textarea,
+    select {
+      font-family: ui-rounded, "SF Pro Rounded", "Nunito", "Avenir Next", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+    }
+
+    h1 {
+      font-weight: 610;
+      letter-spacing: 0;
+    }
+
+    .section-head h2,
+    .section-head h3,
+    .calendar-title {
+      font-weight: 570;
+      letter-spacing: 0;
+    }
+
+    .subtitle,
+    .small-note,
+    .hint,
+    .empty,
+    .form-row label,
+    .task-hours label,
+    .weekday,
+    .day-number {
+      font-weight: 430;
+    }
+
+    .tab-button,
+    .goal label,
+    .activity-badge,
+    .planned-title,
+    .planned-row,
+    .job-input-row,
+    .job-row,
+    .event-title-row,
+    .secondary-button,
+    .primary-button,
+    .icon-button,
+    .event-pill,
+    .tag,
+    .timer-button {
+      font-weight: 510;
+    }
+
+    .task-title,
+    .day-banner,
+    .progress-pill,
+    .pie-summary-row strong,
+    .breakdown-row strong {
+      font-weight: 560;
+    }
+
+    .goal input,
+    .task-hours input,
+    .planned-row input,
+    .job-input-row input {
+      font-weight: 430;
     }
 
     @media (max-width: 980px) {
@@ -2402,19 +2475,19 @@
       var tracks = [
         {
           id: "cpp",
-          label: "C++ / ft_irc goal this week",
+          label: "C++ / ft_irc",
           placeholder: "Ship one strong ft_irc step.",
           className: "cpp"
         },
         {
           id: "python",
-          label: "Python project goal this week",
+          label: "Python project",
           placeholder: "Move the side project forward gently.",
           className: "python"
         },
         {
           id: "fso",
-          label: "Full Stack Open goal this week",
+          label: "Full Stack Open",
           placeholder: "Keep the morning habit alive.",
           className: "fso"
         }
