@@ -207,8 +207,7 @@
       grid-template-columns: minmax(250px, 0.95fr) minmax(420px, 1.35fr) minmax(260px, 0.9fr);
       grid-template-areas:
         "goals tasks tasks"
-        "upcoming tasks tasks"
-        "life totals totals"
+        "life tasks tasks"
         "planned planned jobs"
         "backup backup backup";
       gap: 16px;
@@ -236,16 +235,8 @@
       grid-area: goals;
     }
 
-    .upcoming-card {
-      grid-area: upcoming;
-    }
-
     .life-card {
       grid-area: life;
-    }
-
-    .totals-card {
-      grid-area: totals;
     }
 
     .planned-card {
@@ -328,10 +319,8 @@
     }
 
     .goal input,
-    .notes textarea,
     .task-form input,
     .task-form select,
-    .hour-card input,
     .event-form input,
     .event-form textarea,
     .event-form select,
@@ -348,7 +337,6 @@
     .goal input,
     .task-form input,
     .task-form select,
-    .hour-card input,
     .event-form input,
     .event-form select,
     .backup-import {
@@ -356,7 +344,6 @@
       padding: 10px 12px;
     }
 
-    .notes textarea,
     .event-form textarea {
       min-height: 138px;
       padding: 12px;
@@ -364,10 +351,8 @@
     }
 
     .goal input:focus,
-    .notes textarea:focus,
     .task-form input:focus,
     .task-form select:focus,
-    .hour-card input:focus,
     .event-form input:focus,
     .event-form textarea:focus,
     .event-form select:focus,
@@ -517,33 +502,23 @@
       line-height: 1.1;
     }
 
-    .activity-badge.cpp,
-    .hour-card.cpp strong,
-    .total-row.cpp strong {
+    .activity-badge.cpp {
       color: var(--purple);
     }
 
-    .activity-badge.python,
-    .hour-card.python strong,
-    .total-row.python strong {
+    .activity-badge.python {
       color: var(--green-dark);
     }
 
-    .activity-badge.fso,
-    .hour-card.fso strong,
-    .total-row.fso strong {
+    .activity-badge.fso {
       color: var(--amber-dark);
     }
 
-    .activity-badge.skate,
-    .hour-card.skate strong,
-    .total-row.skate strong {
+    .activity-badge.skate {
       color: var(--teal-dark);
     }
 
-    .activity-badge.guitar,
-    .hour-card.guitar strong,
-    .total-row.guitar strong {
+    .activity-badge.guitar {
       color: var(--coral-dark);
     }
 
@@ -589,72 +564,6 @@
       transform: translateY(-1px);
     }
 
-    .hours-grid {
-      display: grid;
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: 10px;
-    }
-
-    .hour-card {
-      display: grid;
-      gap: 8px;
-      padding: 11px;
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      background: rgba(247, 248, 252, 0.95);
-      box-shadow: var(--shadow-soft);
-    }
-
-    .hour-card label {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      font-weight: 900;
-    }
-
-    .hour-card span {
-      color: var(--muted);
-      font-size: 0.82rem;
-      font-weight: 800;
-    }
-
-    .totals-grid {
-      display: grid;
-      gap: 10px;
-      margin-top: 14px;
-    }
-
-    .totals-box {
-      display: grid;
-      gap: 7px;
-      padding: 12px;
-      border: 1px solid var(--line);
-      border-radius: var(--radius);
-      background: rgba(255, 255, 255, 0.95);
-      box-shadow: var(--shadow-soft);
-    }
-
-    .totals-box h4 {
-      margin: 0;
-      color: var(--muted);
-      font-size: 0.92rem;
-      font-weight: 900;
-      text-transform: uppercase;
-    }
-
-    .total-row {
-      display: flex;
-      justify-content: space-between;
-      gap: 10px;
-      color: var(--muted);
-      font-weight: 800;
-    }
-
-    .total-row strong {
-      color: var(--ink);
-    }
-
     .backup-utility {
       grid-area: backup;
       display: flex;
@@ -680,12 +589,6 @@
 
     #backupStatus {
       margin-bottom: 0;
-    }
-
-    .backup-actions {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
     }
 
     .import-label {
@@ -799,10 +702,6 @@
       background: rgba(247, 248, 252, 0.86);
       color: var(--muted);
       font-weight: 750;
-    }
-
-    .notes textarea {
-      display: block;
     }
 
     .calendar-shell {
@@ -998,16 +897,11 @@
     .section-head h2,
     .section-head h3,
     .calendar-title,
-    .selectedDateHeading {
-      font-weight: 720;
-    }
-
     .chip,
     .tab-button,
     .goal label,
     .task-card,
     .activity-badge,
-    .total-row,
     .secondary-button,
     .primary-button,
     .icon-button,
@@ -1021,9 +915,7 @@
     .small-note,
     .hint,
     .form-row label,
-    .task-hours label,
-    .totals-box h4,
-    .hour-card span {
+    .task-hours label {
       font-weight: 720;
     }
 
@@ -1040,7 +932,6 @@
 
     .weekday,
     .day-number,
-    .total-row strong,
     .event-date {
       font-family: ui-rounded, "Avenir Next", "Trebuchet MS", system-ui, sans-serif;
       font-weight: 780;
@@ -1120,7 +1011,6 @@
 
     .goal,
     .task-card,
-    .totals-box,
     .upcoming-item,
     .empty {
       background: rgba(255, 255, 255, 0.72);
@@ -1128,7 +1018,6 @@
     }
 
     .goal input,
-    .notes textarea,
     .task-form input,
     .task-form select,
     .event-form input,
@@ -1212,25 +1101,12 @@
       box-shadow: none;
     }
 
-    .stuck-toggle {
-      width: 100%;
-      justify-content: center;
-    }
-
-    .stuck-panel {
-      display: grid;
-      gap: 10px;
-      margin-top: 12px;
-    }
-
-    .stuck-options,
     .mini-tabs {
       display: flex;
       flex-wrap: wrap;
       gap: 8px;
     }
 
-    .mini-button,
     .period-button {
       min-height: 34px;
       padding: 7px 10px;
@@ -1241,15 +1117,10 @@
       font-weight: 560;
     }
 
-    .mini-button.active,
     .period-button.active {
       border-color: rgba(104, 119, 67, 0.2);
       background: var(--green-soft);
       color: var(--leaf-dark);
-    }
-
-    .stuck-advice {
-      margin: 0;
     }
 
     .life-pie {
@@ -1382,8 +1253,7 @@
     .hint,
     .empty,
     .form-row label,
-    .task-hours label,
-    .totals-box h4 {
+    .task-hours label {
       font-weight: 560;
     }
 
@@ -1392,7 +1262,6 @@
     .goal label,
     .task-title,
     .activity-badge,
-    .total-row,
     .secondary-button,
     .primary-button,
     .icon-button,
@@ -1408,15 +1277,6 @@
       line-height: 1.6;
     }
 
-    .totals-box h4 {
-      letter-spacing: 0;
-      text-transform: none;
-    }
-
-    .total-row strong {
-      font-weight: 640;
-    }
-
     @media (max-width: 1040px) {
       .hero {
         grid-template-columns: 1fr;
@@ -1426,8 +1286,7 @@
         grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
         grid-template-areas:
           "tasks tasks"
-          "goals upcoming"
-          "life totals"
+          "goals life"
           "planned jobs"
           "backup backup";
       }
@@ -1448,9 +1307,7 @@
         grid-template-areas:
           "goals"
           "tasks"
-          "upcoming"
           "life"
-          "totals"
           "planned"
           "jobs"
           "backup";
@@ -1476,8 +1333,7 @@
         gap: 5px;
       }
 
-      .task-form,
-      .hours-grid {
+      .task-form {
         grid-template-columns: 1fr;
       }
 
@@ -1563,49 +1419,6 @@
       background: rgba(255, 255, 255, 0.9);
     }
 
-    .profile-chip {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      color: #6f68ff;
-      font-weight: 750;
-    }
-
-    .avatar {
-      display: grid;
-      place-items: center;
-      width: 38px;
-      height: 38px;
-      border: 3px solid #ffd6dd;
-      border-radius: 999px;
-      background: linear-gradient(135deg, #7d78ff, #8fcff1);
-      color: #ffffff;
-      box-shadow: 0 8px 20px rgba(125, 120, 255, 0.22);
-    }
-
-    .project-block {
-      display: grid;
-      gap: 9px;
-      color: #1f2028;
-      font-size: 1.05rem;
-    }
-
-    .project-block span {
-      color: #8d8d95;
-      font-size: 0.82rem;
-      font-weight: 650;
-      text-transform: uppercase;
-    }
-
-    .project-block strong {
-      width: fit-content;
-      padding: 9px 16px;
-      border-radius: 10px;
-      background: #fff7fb;
-      color: #55515d;
-      font-size: 0.86rem;
-    }
-
     .sidebar .tabs {
       display: grid;
       grid-template-columns: 1fr;
@@ -1635,20 +1448,124 @@
       box-shadow: none;
     }
 
-    .sidebar-note {
-      margin-top: 0;
+    .mascot-card {
+      margin-top: clamp(110px, 18vh, 240px);
       display: grid;
-      gap: 8px;
-      padding: 18px;
-      border-radius: 18px;
-      background: linear-gradient(135deg, #7e79ff, #918dff);
-      color: #ffffff;
-      box-shadow: 0 18px 34px rgba(126, 121, 255, 0.25);
+      justify-items: center;
+      gap: 12px;
+      min-height: 260px;
+      padding-bottom: 12px;
     }
 
-    .sidebar-note span {
-      color: rgba(255, 255, 255, 0.78);
-      font-size: 0.86rem;
+    .mascot-bubble {
+      width: min(180px, 100%);
+      min-height: 46px;
+      display: grid;
+      place-items: center;
+      padding: 10px 14px;
+      border: 1px solid rgba(126, 116, 255, 0.14);
+      border-radius: 22px 22px 22px 8px;
+      background: rgba(255, 255, 255, 0.52);
+      color: #6e6875;
+      box-shadow: 0 18px 36px rgba(114, 99, 135, 0.09);
+      font-size: 0.82rem;
+      font-weight: 560;
+      line-height: 1.34;
+      text-align: center;
+      backdrop-filter: blur(10px);
+      transform: translateY(var(--bubble-y, 0));
+      transition: transform 0.22s ease, background 0.22s ease, color 0.22s ease;
+    }
+
+    .soft-mascot {
+      --look-x: 0px;
+      --look-y: 0px;
+      --tilt: 0deg;
+      width: 178px;
+      height: 188px;
+      display: grid;
+      place-items: center;
+      border: 0;
+      border-radius: 36px;
+      background:
+        radial-gradient(circle at 50% 32%, rgba(255, 255, 255, 0.62), transparent 42%),
+        radial-gradient(circle at 50% 78%, rgba(255, 244, 168, 0.34), transparent 48%);
+      cursor: pointer;
+      transform: rotate(var(--tilt)) translateY(var(--mascot-hop, 0));
+      transform-origin: 50% 84%;
+      transition: transform 0.18s ease, filter 0.18s ease;
+    }
+
+    .soft-mascot:hover {
+      --mascot-hop: -5px;
+      filter: saturate(1.06);
+    }
+
+    .soft-mascot:focus-visible {
+      outline: 3px solid rgba(126, 116, 255, 0.42);
+      outline-offset: 5px;
+    }
+
+    .mascot-svg {
+      width: 100%;
+      height: 100%;
+      overflow: visible;
+      animation: mascotFloat 4.2s ease-in-out infinite;
+    }
+
+    .mascot-eye {
+      transform: translate(var(--look-x), var(--look-y));
+      transition: transform 0.08s linear;
+    }
+
+    .mascot-sprout {
+      animation: sproutSway 3.6s ease-in-out infinite;
+    }
+
+    .mascot-sparkles {
+      animation: sparklePulse 2.6s ease-in-out infinite;
+      transform-origin: 90px 90px;
+    }
+
+    .soft-mascot.is-excited .right-arm {
+      animation: mascotWave 0.75s ease-in-out 2;
+      transform-origin: 136px 126px;
+    }
+
+    .soft-mascot.is-excited .mascot-body-shape {
+      animation: mascotSquish 0.48s ease;
+      transform-origin: 90px 145px;
+    }
+
+    .mascot-card.is-near .mascot-bubble,
+    .mascot-card:hover .mascot-bubble {
+      background: rgba(255, 255, 255, 0.72);
+      color: #5e5866;
+    }
+
+    @keyframes mascotFloat {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-7px); }
+    }
+
+    @keyframes sproutSway {
+      0%, 100% { transform: rotate(-2deg); }
+      50% { transform: rotate(4deg); }
+    }
+
+    @keyframes sparklePulse {
+      0%, 100% { opacity: 0.55; transform: scale(0.96); }
+      50% { opacity: 1; transform: scale(1.04); }
+    }
+
+    @keyframes mascotWave {
+      0%, 100% { transform: rotate(0deg); }
+      50% { transform: rotate(-18deg) translateY(-4px); }
+    }
+
+    @keyframes mascotSquish {
+      0%, 100% { transform: scale(1); }
+      42% { transform: scale(1.04, 0.96); }
     }
 
     .workspace {
@@ -1739,7 +1656,6 @@
 
     .goal label,
     .task-card,
-    .total-row,
     .planned-row,
     .job-row,
     .event-title-row {
@@ -1759,8 +1675,7 @@
       grid-template-columns: minmax(240px, 0.9fr) minmax(420px, 1.35fr) minmax(280px, 0.9fr);
       grid-template-areas:
         "goals tasks tasks"
-        "upcoming tasks tasks"
-        "life totals totals"
+        "life tasks tasks"
         "planned planned jobs"
         "backup backup backup";
       gap: 22px;
@@ -1800,7 +1715,6 @@
     }
 
     .goal,
-    .totals-box,
     .planned-group,
     .upcoming-item {
       border: 1px solid #ececf1;
@@ -1898,7 +1812,7 @@
         padding: 18px;
       }
 
-      .sidebar-note {
+      .mascot-card {
         display: none;
       }
 
@@ -1912,8 +1826,7 @@
         grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
         grid-template-areas:
           "tasks tasks"
-          "goals upcoming"
-          "life totals"
+          "goals life"
           "planned jobs"
           "backup backup";
       }
@@ -1945,9 +1858,7 @@
         grid-template-areas:
           "goals"
           "tasks"
-          "upcoming"
           "life"
-          "totals"
           "planned"
           "jobs"
           "backup";
@@ -1966,17 +1877,12 @@
 
     .goal label,
     .task-card,
-    .total-row,
     .planned-row,
     .job-row,
     .event-title-row,
     .secondary-button,
     .timer-button {
       font-weight: 560;
-    }
-
-    .totals-card .empty {
-      display: none;
     }
 
     .panel {
@@ -2047,10 +1953,6 @@
       align-self: start;
     }
 
-    .totals-card {
-      display: none;
-    }
-
     .life-card .panel-inner,
     .planned-card .panel-inner,
     .jobs-card .panel-inner,
@@ -2104,7 +2006,6 @@
     .goal label,
     .task-title,
     .activity-badge,
-    .total-row,
     .planned-row,
     .job-row,
     .event-title-row,
@@ -2276,9 +2177,58 @@
         <button class="tab-button active" type="button" data-view-target="todayView">Planner</button>
         <button class="tab-button" type="button" data-view-target="calendarView">Calendar</button>
       </nav>
-      <div class="sidebar-note">
-        <strong>Study first</strong>
-        <span>Leisure keeps it sustainable.</span>
+      <div class="mascot-card" aria-label="Planner companion">
+        <div class="mascot-bubble" id="mascotBubble" aria-live="polite">tiny steps still count</div>
+        <button class="soft-mascot" id="softMascot" type="button" aria-label="Get a small encouraging note">
+          <svg class="mascot-svg" viewBox="0 0 180 190" role="img" aria-hidden="true">
+            <defs>
+              <radialGradient id="mascotGlow" cx="50%" cy="34%" r="70%">
+                <stop offset="0%" stop-color="#ffffff"/>
+                <stop offset="58%" stop-color="#fff1d9"/>
+                <stop offset="100%" stop-color="#f5cde0"/>
+              </radialGradient>
+              <linearGradient id="mascotBody" x1="25%" y1="10%" x2="75%" y2="95%">
+                <stop offset="0%" stop-color="#fffdf7"/>
+                <stop offset="52%" stop-color="#fff0c8"/>
+                <stop offset="100%" stop-color="#eec9dc"/>
+              </linearGradient>
+              <linearGradient id="mascotSprout" x1="15%" y1="15%" x2="95%" y2="95%">
+                <stop offset="0%" stop-color="#dbef96"/>
+                <stop offset="100%" stop-color="#8ac77f"/>
+              </linearGradient>
+              <filter id="mascotShadow" x="-25%" y="-25%" width="150%" height="160%">
+                <feDropShadow dx="0" dy="14" stdDeviation="10" flood-color="#8f7ad4" flood-opacity="0.18"/>
+              </filter>
+            </defs>
+            <ellipse cx="90" cy="166" rx="54" ry="10" fill="#9b8ad7" opacity="0.12"/>
+            <g class="mascot-sprout" transform-origin="90 58">
+              <path d="M88 61 C84 46 86 31 96 18" fill="none" stroke="#8f7948" stroke-width="7" stroke-linecap="round"/>
+              <path d="M95 18 C72 4 50 12 43 31 C61 38 82 35 95 18Z" fill="url(#mascotSprout)" stroke="#7aa765" stroke-width="2"/>
+              <path d="M96 18 C115 1 141 7 150 27 C132 39 109 36 96 18Z" fill="url(#mascotSprout)" stroke="#7aa765" stroke-width="2"/>
+              <path d="M62 24 C72 24 82 21 92 16" fill="none" stroke="#eff8b6" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+              <path d="M111 17 C122 20 132 22 143 25" fill="none" stroke="#eff8b6" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+            </g>
+            <g filter="url(#mascotShadow)">
+              <path class="mascot-body-shape" d="M38 90 C38 65 55 52 90 52 C125 52 142 65 142 90 L142 127 C142 150 122 162 90 162 C58 162 38 150 38 127Z" fill="url(#mascotBody)" stroke="#d6b986" stroke-width="4"/>
+              <path d="M48 96 C59 83 122 83 132 96" fill="none" stroke="#ffffff" stroke-width="4" opacity="0.5" stroke-linecap="round"/>
+              <circle class="mascot-eye left-eye" cx="70" cy="107" r="7" fill="#293442"/>
+              <circle class="mascot-eye right-eye" cx="110" cy="107" r="7" fill="#293442"/>
+              <circle cx="68" cy="104" r="2" fill="#ffffff" opacity="0.8"/>
+              <circle cx="108" cy="104" r="2" fill="#ffffff" opacity="0.8"/>
+              <path class="mascot-smile" d="M82 125 C87 130 94 130 99 125" fill="none" stroke="#8f715e" stroke-width="4" stroke-linecap="round"/>
+              <ellipse cx="56" cy="123" rx="12" ry="6" fill="#ff9fac" opacity="0.46"/>
+              <ellipse cx="124" cy="123" rx="12" ry="6" fill="#ff9fac" opacity="0.46"/>
+              <path class="mascot-arm left-arm" d="M42 124 C26 129 26 146 42 148" fill="none" stroke="#d6b986" stroke-width="10" stroke-linecap="round"/>
+              <path class="mascot-arm right-arm" d="M138 124 C154 129 154 146 138 148" fill="none" stroke="#d6b986" stroke-width="10" stroke-linecap="round"/>
+              <path d="M79 143 L89 132 L101 143 L90 151Z" fill="#b8d86d" stroke="#8eaf49" stroke-width="2"/>
+            </g>
+            <g class="mascot-sparkles">
+              <path d="M31 65 L35 74 L44 78 L35 82 L31 91 L27 82 L18 78 L27 74Z" fill="#fff4a8"/>
+              <path d="M148 74 L151 81 L158 84 L151 87 L148 94 L145 87 L138 84 L145 81Z" fill="#c5f1ef"/>
+              <circle cx="142" cy="48" r="4" fill="#f8c8dc"/>
+            </g>
+          </svg>
+        </button>
       </div>
     </aside>
 
@@ -2442,7 +2392,6 @@
         events: "hivePlanner.events",
         taskPrefix: "hivePlanner.tasks.",
         dailyTasksPrefix: "hivePlanner.dailyTasks.",
-        notePrefix: "hivePlanner.notes.",
         plannedPrefix: "hivePlanner.planned.",
         jobsPrefix: "hivePlanner.jobs."
       };
@@ -2543,27 +2492,19 @@
         "Python afternoon": "Python project"
       };
 
-      var stuckSuggestions = [
-        {
-          id: "overwhelmed",
-          label: "Overwhelmed",
-          text: "Ignore everything else. Choose the smallest study task. Work for 10 minutes."
-        },
-        {
-          id: "tired",
-          label: "Too tired",
-          text: "Today’s minimum: open the project. Read one page. That’s enough."
-        },
-        {
-          id: "avoiding",
-          label: "Avoiding something",
-          text: "Open the scary thing. Look at it for 2 minutes. No action required."
-        },
-        {
-          id: "start",
-          label: "Don’t know where to start",
-          text: "Work on this week’s highest-priority study task."
-        }
+      var mascotLines = [
+        "tiny steps still count",
+        "one gentle task, then snacks",
+        "C++ will blink first",
+        "ship a small piece today",
+        "future Yuan says thanks",
+        "ten minutes is a real start",
+        "hydrate, then compile",
+        "soft focus, sharp progress",
+        "you are allowed to begin messy",
+        "the bug is just being dramatic",
+        "skate brain, study heart",
+        "one tab, one task, go"
       ];
 
       var weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -2587,12 +2528,6 @@
         taskForm: document.getElementById("taskForm"),
         taskTitle: document.getElementById("taskTitle"),
         taskActivity: document.getElementById("taskActivity"),
-        todayHoursTotal: document.getElementById("todayHoursTotal"),
-        totalsMount: document.getElementById("totalsMount"),
-        stuckToggle: document.getElementById("stuckToggle"),
-        stuckPanel: document.getElementById("stuckPanel"),
-        stuckOptions: document.getElementById("stuckOptions"),
-        stuckAdvice: document.getElementById("stuckAdvice"),
         statsPeriodTabs: document.getElementById("statsPeriodTabs"),
         lifeDonut: document.getElementById("lifeDonut"),
         lifeDonutLabel: document.getElementById("lifeDonutLabel"),
@@ -2604,8 +2539,6 @@
         jobsSummary: document.getElementById("jobsSummary"),
         jobStats: document.getElementById("jobStats"),
         upcomingEvents: document.getElementById("upcomingEvents"),
-        notes: document.getElementById("todayNotes"),
-        notesDateLabel: document.getElementById("notesDateLabel"),
         calendarHeading: document.getElementById("calendarHeading"),
         calendarGrid: document.getElementById("calendarGrid"),
         prevMonth: document.getElementById("prevMonth"),
@@ -2618,7 +2551,10 @@
         formHint: document.getElementById("formHint"),
         exportData: document.getElementById("exportData"),
         importData: document.getElementById("importData"),
-        backupStatus: document.getElementById("backupStatus")
+        backupStatus: document.getElementById("backupStatus"),
+        mascotCard: document.querySelector(".mascot-card"),
+        softMascot: document.getElementById("softMascot"),
+        mascotBubble: document.getElementById("mascotBubble")
       };
 
       function isPlannerKey(key) {
@@ -3059,33 +2995,6 @@
         elements.progressText.textContent = doneCount + " / " + tasks.length + " tasks done today";
       }
 
-      function renderNotes() {
-        if (!elements.notes || !elements.notesDateLabel) {
-          return;
-        }
-        var todayKey = formatDate(today);
-        var noteKey = STORAGE.notePrefix + todayKey;
-        elements.notesDateLabel.textContent = humanDate(todayKey);
-        elements.notes.value = readText(noteKey, "");
-        elements.notes.addEventListener("input", function () {
-          writeText(noteKey, elements.notes.value);
-        });
-      }
-
-      function getHoursForDate(date) {
-        var hours = {};
-        activities.forEach(function (activity) {
-          hours[activity.id] = 0;
-        });
-        var tasks = normalizeTasks(readJson(dailyTaskStorageKey(date), []));
-        tasks.forEach(function (task) {
-          if (hours[task.activity] !== undefined) {
-            hours[task.activity] += effectiveTaskHours(task);
-          }
-        });
-        return hours;
-      }
-
       function sumHours(hours, group) {
         return activities.filter(function (activity) {
           return !group || activity.group === group;
@@ -3180,47 +3089,8 @@
       }
 
       function renderTotals() {
-        var todayHours = getHoursForDate(today);
-        var week = weekRange(today);
-        var monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-        var monthEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0);
-        var weekTotals = totalHoursForRange(week.start, week.end);
-        var monthTotals = totalHoursForRange(monthStart, monthEnd);
-
-        if (elements.todayHoursTotal && elements.totalsMount) {
-          elements.todayHoursTotal.textContent = "Study " + formatHours(sumHours(todayHours, "study")) + " · Fun " + formatHours(sumHours(todayHours, "leisure"));
-          elements.totalsMount.innerHTML = "";
-          elements.totalsMount.appendChild(renderTotalsBox("Study this week", weekTotals, "study"));
-          elements.totalsMount.appendChild(renderTotalsBox("Leisure this week", weekTotals, "leisure"));
-          elements.totalsMount.appendChild(renderTotalsBox("Study this month", monthTotals, "study"));
-          elements.totalsMount.appendChild(renderTotalsBox("Leisure this month", monthTotals, "leisure"));
-        }
         renderLifePie();
         renderPlannedActual();
-      }
-
-      function renderTotalsBox(title, totals, group) {
-        var box = document.createElement("div");
-        box.className = "totals-box";
-        var heading = document.createElement("h4");
-        heading.textContent = title + " · " + formatHours(sumHours(totals, group));
-        box.appendChild(heading);
-
-        activities.filter(function (activity) {
-          return activity.group === group;
-        }).forEach(function (activity) {
-          var row = document.createElement("div");
-          row.className = "total-row " + activity.className;
-          var label = document.createElement("strong");
-          label.textContent = activity.short;
-          var value = document.createElement("span");
-          value.textContent = formatHours(totals[activity.id] || 0);
-          row.appendChild(label);
-          row.appendChild(value);
-          box.appendChild(row);
-        });
-
-        return box;
       }
 
       function renderLifePie() {
@@ -3374,25 +3244,66 @@
         });
       }
 
-      function renderStuckHelper() {
-        if (!elements.stuckOptions || !elements.stuckAdvice) {
+      function setMascotBubble(text) {
+        if (!elements.mascotBubble) {
           return;
         }
-        elements.stuckOptions.innerHTML = "";
-        stuckSuggestions.forEach(function (suggestion) {
-          var button = document.createElement("button");
-          button.type = "button";
-          button.className = "mini-button";
-          button.textContent = suggestion.label;
-          button.addEventListener("click", function () {
-            elements.stuckOptions.querySelectorAll(".mini-button").forEach(function (item) {
-              item.classList.remove("active");
-            });
-            button.classList.add("active");
-            elements.stuckAdvice.textContent = suggestion.text;
-          });
-          elements.stuckOptions.appendChild(button);
+        elements.mascotBubble.textContent = text;
+      }
+
+      function randomMascotLine() {
+        var current = elements.mascotBubble ? elements.mascotBubble.textContent : "";
+        var next = current;
+        var attempts = 0;
+        while (next === current && attempts < 8) {
+          next = mascotLines[Math.floor(Math.random() * mascotLines.length)];
+          attempts += 1;
+        }
+        return next;
+      }
+
+      function bindSoftMascot() {
+        if (!elements.softMascot || !elements.mascotCard) {
+          return;
+        }
+
+        setMascotBubble(randomMascotLine());
+
+        elements.mascotCard.addEventListener("pointermove", function (event) {
+          var rect = elements.softMascot.getBoundingClientRect();
+          var centerX = rect.left + rect.width / 2;
+          var centerY = rect.top + rect.height / 2;
+          var dx = Math.max(-1, Math.min(1, (event.clientX - centerX) / (rect.width / 2)));
+          var dy = Math.max(-1, Math.min(1, (event.clientY - centerY) / (rect.height / 2)));
+          elements.softMascot.style.setProperty("--look-x", (dx * 3).toFixed(2) + "px");
+          elements.softMascot.style.setProperty("--look-y", (dy * 2).toFixed(2) + "px");
+          elements.softMascot.style.setProperty("--tilt", (dx * 3).toFixed(2) + "deg");
+          elements.mascotCard.classList.add("is-near");
         });
+
+        elements.mascotCard.addEventListener("pointerleave", function () {
+          elements.softMascot.style.setProperty("--look-x", "0px");
+          elements.softMascot.style.setProperty("--look-y", "0px");
+          elements.softMascot.style.setProperty("--tilt", "0deg");
+          elements.mascotCard.classList.remove("is-near");
+        });
+
+        elements.softMascot.addEventListener("click", function () {
+          setMascotBubble(randomMascotLine());
+          elements.softMascot.classList.remove("is-excited");
+          window.requestAnimationFrame(function () {
+            elements.softMascot.classList.add("is-excited");
+          });
+          window.setTimeout(function () {
+            elements.softMascot.classList.remove("is-excited");
+          }, 1600);
+        });
+
+        window.setInterval(function () {
+          if (!document.hidden) {
+            setMascotBubble(randomMascotLine());
+          }
+        }, 45000);
       }
 
       function updateLiveTimers() {
@@ -3702,11 +3613,6 @@
         elements.taskForm.addEventListener("submit", addTask);
         elements.exportData.addEventListener("click", exportBackup);
         elements.importData.addEventListener("change", importBackup);
-        if (elements.stuckToggle && elements.stuckPanel) {
-          elements.stuckToggle.addEventListener("click", function () {
-            elements.stuckPanel.hidden = !elements.stuckPanel.hidden;
-          });
-        }
         elements.jobsToday.addEventListener("input", function () {
           var value = Math.max(0, Math.floor(Number(elements.jobsToday.value) || 0));
           writeText(jobsStorageKey(today), String(value));
@@ -3717,16 +3623,15 @@
       async function init() {
         await hydrateStore();
         renderActivities();
-        renderStuckHelper();
         renderGoals();
         renderTasks();
-        renderNotes();
         renderHours();
         renderJobs();
         renderUpcoming();
         renderSelectedDate();
         renderCalendar();
         bindEvents();
+        bindSoftMascot();
         setActiveView("todayView");
         window.setInterval(updateLiveTimers, 1000);
       }
