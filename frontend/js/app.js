@@ -181,6 +181,7 @@
         prevMonth: document.getElementById("prevMonth"),
         nextMonth: document.getElementById("nextMonth"),
         selectedDateHeading: document.getElementById("selectedDateHeading"),
+        selectedDateEvents: document.getElementById("selectedDateEvents"),
         eventForm: document.getElementById("eventForm"),
         eventTitle: document.getElementById("eventTitle"),
         eventNote: document.getElementById("eventNote"),
@@ -1276,8 +1277,50 @@
       }
 
       function renderSelectedDate() {
+        var events = getEvents()
+          .filter(function (event) {
+            return event.date === selectedDate;
+          })
+          .sort(function (a, b) {
+            return String(a.createdAt).localeCompare(String(b.createdAt));
+          });
+
         elements.selectedDateHeading.textContent = "Add event for " + humanDate(selectedDate);
         elements.formHint.textContent = "Selected: " + selectedDate;
+        elements.selectedDateEvents.innerHTML = "";
+
+        if (events.length === 0) {
+          var empty = document.createElement("li");
+          empty.className = "selected-event empty";
+          empty.textContent = "No events on this date yet.";
+          elements.selectedDateEvents.appendChild(empty);
+          return;
+        }
+
+        events.forEach(function (event) {
+          var item = document.createElement("li");
+          item.className = "selected-event";
+
+          var title = document.createElement("div");
+          title.className = "selected-event-title";
+          title.textContent = event.title;
+
+          var tag = document.createElement("span");
+          tag.className = "tag " + categoryClass(event.category);
+          tag.textContent = event.category;
+
+          item.appendChild(title);
+          item.appendChild(tag);
+
+          if (event.note) {
+            var note = document.createElement("p");
+            note.className = "selected-event-note";
+            note.textContent = event.note;
+            item.appendChild(note);
+          }
+
+          elements.selectedDateEvents.appendChild(item);
+        });
       }
 
       function deleteEvent(id) {
@@ -1296,6 +1339,7 @@
         }));
         renderCalendar();
         renderUpcoming();
+        renderSelectedDate();
       }
 
       function addEvent(event) {
@@ -1326,6 +1370,7 @@
         elements.formHint.textContent = "Saved for " + humanDate(selectedDate) + ".";
         renderCalendar();
         renderUpcoming();
+        renderSelectedDate();
       }
 
       function addTask(event) {
