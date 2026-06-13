@@ -77,6 +77,13 @@
         </div>
         <div class="top-tools" aria-label="Dashboard tools">
           <div class="date-pill" id="dashboardDate">Today</div>
+          <div class="backup-utility" aria-label="Backup tools">
+            <span>Saved in planner.db</span>
+            <button class="secondary-button" type="button" id="exportData">Export backup</button>
+            <label class="secondary-button import-label" for="importData">Import backup</label>
+            <input class="backup-import" id="importData" type="file" accept="application/json">
+            <span class="hint" id="backupStatus"></span>
+          </div>
         </div>
       </header>
 
@@ -155,13 +162,6 @@
             </div>
           </article>
 
-          <div class="backup-utility" aria-label="Backup tools">
-            <span>Saved in planner.db</span>
-            <button class="secondary-button" type="button" id="exportData">Export backup</button>
-            <label class="secondary-button import-label" for="importData">Import backup</label>
-            <input class="backup-import" id="importData" type="file" accept="application/json">
-            <span class="hint" id="backupStatus"></span>
-          </div>
         </aside>
       </div>
     </section>
@@ -204,7 +204,7 @@
 
             <label class="form-row" for="skateWarmups">
               <span>Warm-up tricks</span>
-              <textarea id="skateWarmups" maxlength="360" placeholder="Ollie&#10;Manual&#10;Fakie rollie&#10;Roll down curb"></textarea>
+              <textarea id="skateWarmups" rows="2" maxlength="360" placeholder="Ollie, manual, fakie rollie, roll down curb"></textarea>
             </label>
 
             <div class="skate-checklist" id="skateChecklist"></div>
@@ -216,7 +216,6 @@
 
             <div class="form-actions">
               <button class="primary-button" type="button" id="finishSkateSession">Finish session</button>
-              <button class="secondary-button" type="button" id="resetSkateSession">Reset checklist</button>
               <span class="hint" id="skateSessionHint">Checklist resets when you finish a session.</span>
             </div>
           </div>

@@ -164,7 +164,6 @@
         skateChecklist: document.getElementById("skateChecklist"),
         skateSessionNote: document.getElementById("skateSessionNote"),
         finishSkateSession: document.getElementById("finishSkateSession"),
-        resetSkateSession: document.getElementById("resetSkateSession"),
         skateSessionHint: document.getElementById("skateSessionHint"),
         statsPeriodTabs: document.getElementById("statsPeriodTabs"),
         lifeDonut: document.getElementById("lifeDonut"),
@@ -472,7 +471,7 @@
         var doneCount = 0;
         var dashboardDate = document.getElementById("dashboardDate");
 
-        elements.todaySubtitle.textContent = humanDate(todayKey) + " · Graduation and job hunt are getting closer, one calm block at a time.";
+        elements.todaySubtitle.textContent = "Graduation and job hunt are getting closer, one calm block at a time.";
         if (dashboardDate) {
           dashboardDate.textContent = humanDate(todayKey);
         }
@@ -971,7 +970,7 @@
         saveCurrentSkateSession(session);
       }
 
-      function resetSkateSession(message) {
+      function resetSkateSessionState(message) {
         saveCurrentSkateSession(defaultSkateSession());
         renderSkatePage();
         elements.skateSessionHint.textContent = message || "Fresh session checklist ready.";
@@ -992,7 +991,7 @@
           finishedAt: new Date().toISOString()
         });
         saveSkateSessions(sessions);
-        resetSkateSession("Session saved. New checklist is ready.");
+        resetSkateSessionState("Session saved. New checklist is ready.");
       }
 
       function setMascotBubble(text) {
@@ -1467,9 +1466,6 @@
         });
 
         elements.finishSkateSession.addEventListener("click", finishSkateSession);
-        elements.resetSkateSession.addEventListener("click", function () {
-          resetSkateSession("Checklist reset for this session.");
-        });
       }
 
       async function init() {

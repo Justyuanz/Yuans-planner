@@ -190,8 +190,7 @@ h1 {
   grid-template-areas:
     "goals life"
     "tasks tasks"
-    "jobs planned"
-    "backup backup";
+    "jobs planned";
   gap: 32px 22px;
   align-items: stretch;
 }
@@ -241,7 +240,7 @@ h1 {
 }
 
 .backup-utility {
-  grid-area: backup;
+  margin-left: 8px;
 }
 
 .goals-card .panel-inner,
@@ -442,7 +441,33 @@ textarea {
 .task-check {
   width: 22px;
   height: 22px;
-  accent-color: var(--violet);
+  appearance: none;
+  display: grid;
+  place-items: center;
+  border: 1.5px solid rgba(118, 118, 129, 0.42);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.76);
+  transition: background 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.task-check::after {
+  width: 9px;
+  height: 5px;
+  border-bottom: 2px solid #ffffff;
+  border-left: 2px solid #ffffff;
+  content: "";
+  opacity: 0;
+  transform: rotate(-45deg) translateY(-1px);
+}
+
+.task-check:checked {
+  border-color: rgba(79, 136, 133, 0.36);
+  background: linear-gradient(135deg, var(--teal), var(--green));
+  box-shadow: 0 6px 14px rgba(79, 136, 133, 0.16);
+}
+
+.task-check:checked::after {
+  opacity: 1;
 }
 
 .task-content {
@@ -739,16 +764,28 @@ textarea {
 }
 
 .backup-utility {
-  min-height: 42px;
+  min-height: 0;
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
+  gap: 8px;
   align-items: center;
   color: var(--muted);
+  justify-content: flex-end;
+  opacity: 0.38;
+  font-size: 0.74rem;
+  transition: opacity 0.16s ease;
 }
 
 .backup-utility .secondary-button {
-  background: rgba(255, 255, 255, 0.86);
+  min-height: 32px;
+  padding: 7px 11px;
+  background: rgba(255, 255, 255, 0.54);
+  font-size: 0.74rem;
+}
+
+.backup-utility:hover,
+.backup-utility:focus-within {
+  opacity: 0.82;
 }
 
 .backup-import {
@@ -1006,6 +1043,13 @@ textarea {
   color: #3f3f47;
 }
 
+#skateWarmups {
+  min-height: 0;
+  height: calc(1.45em * 2 + 20px);
+  max-height: calc(1.45em * 2 + 20px);
+  resize: none;
+}
+
 .skate-count {
   margin-bottom: 14px;
   padding: 18px;
@@ -1072,6 +1116,12 @@ textarea {
 
 .skate-check-row input:checked::after {
   opacity: 1;
+}
+
+.skate-check-row input:checked + span {
+  color: var(--muted);
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
 }
 
 .skate-session-card .form-actions {
@@ -1258,8 +1308,7 @@ textarea {
       "life"
       "tasks"
       "jobs"
-      "planned"
-      "backup";
+      "planned";
   }
 
   .skate-page {
@@ -1368,7 +1417,9 @@ textarea {
   }
 
   .backup-utility {
-    font-size: 0.86rem;
+    margin-left: 0;
+    justify-content: flex-end;
+    font-size: 0.68rem;
   }
 
   .calendar-toolbar {
