@@ -1387,12 +1387,19 @@
     }
 
     .mascot-card {
+      --mascot-drift-x: 0px;
+      --mascot-drift-y: 0px;
       margin-top: clamp(110px, 18vh, 240px);
+      position: sticky;
+      top: 150px;
       display: grid;
       justify-items: center;
       gap: 12px;
       min-height: 260px;
       padding-bottom: 12px;
+      transform: translate3d(var(--mascot-drift-x), var(--mascot-drift-y), 0);
+      transition: transform 0.22s ease-out;
+      will-change: transform;
     }
 
     .mascot-bubble {
@@ -2225,7 +2232,7 @@
         "tasks tasks"
         "jobs planned"
         "backup backup";
-      gap: 18px 22px;
+      gap: 28px 22px;
       align-items: stretch;
     }
 
@@ -3483,24 +3490,38 @@
 
         setMascotBubble(randomMascotLine());
 
-        elements.mascotCard.addEventListener("pointermove", function (event) {
+        function moveMascot(event) {
           var rect = elements.softMascot.getBoundingClientRect();
           var centerX = rect.left + rect.width / 2;
           var centerY = rect.top + rect.height / 2;
-          var dx = Math.max(-1, Math.min(1, (event.clientX - centerX) / (rect.width / 2)));
-          var dy = Math.max(-1, Math.min(1, (event.clientY - centerY) / (rect.height / 2)));
+          var dx = Math.max(-1, Math.min(1, (event.clientX - centerX) / Math.max(rect.width * 1.7, 1)));
+          var dy = Math.max(-1, Math.min(1, (event.clientY - centerY) / Math.max(rect.height * 1.7, 1)));
           elements.softMascot.style.setProperty("--look-x", (dx * 3).toFixed(2) + "px");
           elements.softMascot.style.setProperty("--look-y", (dy * 2).toFixed(2) + "px");
-          elements.softMascot.style.setProperty("--tilt", (dx * 3).toFixed(2) + "deg");
+          elements.softMascot.style.setProperty("--tilt", (dx * 4).toFixed(2) + "deg");
+          elements.mascotCard.style.setProperty("--mascot-drift-x", (dx * 7).toFixed(2) + "px");
+          elements.mascotCard.style.setProperty("--mascot-drift-y", (dy * 5).toFixed(2) + "px");
           elements.mascotCard.classList.add("is-near");
-        });
+        }
 
-        elements.mascotCard.addEventListener("pointerleave", function () {
+        function scrollMascot() {
+          var y = Math.sin(window.scrollY / 180) * 8;
+          elements.mascotCard.style.setProperty("--mascot-drift-y", y.toFixed(2) + "px");
+        }
+
+        window.addEventListener("pointermove", moveMascot, { passive: true });
+        window.addEventListener("scroll", scrollMascot, { passive: true });
+
+        window.addEventListener("pointerleave", function () {
           elements.softMascot.style.setProperty("--look-x", "0px");
           elements.softMascot.style.setProperty("--look-y", "0px");
           elements.softMascot.style.setProperty("--tilt", "0deg");
+          elements.mascotCard.style.setProperty("--mascot-drift-x", "0px");
+          scrollMascot();
           elements.mascotCard.classList.remove("is-near");
         });
+
+        scrollMascot();
 
         elements.softMascot.addEventListener("click", function () {
           setMascotBubble(randomMascotLine());
