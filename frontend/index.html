@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Yuan's Planner</title>
+  <link rel="stylesheet" href="/css/styles.css">
+</head>
+<body>
+  <main class="app">
+    <aside class="sidebar" aria-label="Planner navigation">
+      <nav class="tabs" aria-label="Planner views">
+        <button class="tab-button active" type="button" data-view-target="todayView">Planner</button>
+        <button class="tab-button" type="button" data-view-target="skateView">Skate</button>
+        <button class="tab-button" type="button" data-view-target="calendarView">Calendar</button>
+      </nav>
+      <div class="mascot-card" aria-label="Planner companion">
+        <div class="mascot-bubble" id="mascotBubble" aria-live="polite">tiny steps still count</div>
+        <button class="soft-mascot" id="softMascot" type="button" aria-label="Get a small encouraging note">
+          <svg class="mascot-svg" viewBox="0 0 180 190" role="img" aria-hidden="true">
+            <defs>
+              <radialGradient id="mascotGlow" cx="50%" cy="34%" r="70%">
+                <stop offset="0%" stop-color="#ffffff"/>
+                <stop offset="58%" stop-color="#fff1d9"/>
+                <stop offset="100%" stop-color="#f5cde0"/>
+              </radialGradient>
+              <linearGradient id="mascotBody" x1="25%" y1="10%" x2="75%" y2="95%">
+                <stop offset="0%" stop-color="#fffdf7"/>
+                <stop offset="52%" stop-color="#fff0c8"/>
+                <stop offset="100%" stop-color="#eec9dc"/>
+              </linearGradient>
+              <linearGradient id="mascotSprout" x1="15%" y1="15%" x2="95%" y2="95%">
+                <stop offset="0%" stop-color="#dbef96"/>
+                <stop offset="100%" stop-color="#8ac77f"/>
+              </linearGradient>
+              <filter id="mascotShadow" x="-25%" y="-25%" width="150%" height="160%">
+                <feDropShadow dx="0" dy="14" stdDeviation="10" flood-color="#8f7ad4" flood-opacity="0.18"/>
+              </filter>
+            </defs>
+            <ellipse cx="90" cy="166" rx="54" ry="10" fill="#9b8ad7" opacity="0.12"/>
+            <g class="mascot-sprout" transform-origin="90 58">
+              <path d="M88 61 C84 46 86 31 96 18" fill="none" stroke="#8f7948" stroke-width="7" stroke-linecap="round"/>
+              <path d="M95 18 C72 4 50 12 43 31 C61 38 82 35 95 18Z" fill="url(#mascotSprout)" stroke="#7aa765" stroke-width="2"/>
+              <path d="M96 18 C115 1 141 7 150 27 C132 39 109 36 96 18Z" fill="url(#mascotSprout)" stroke="#7aa765" stroke-width="2"/>
+              <path d="M62 24 C72 24 82 21 92 16" fill="none" stroke="#eff8b6" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+              <path d="M111 17 C122 20 132 22 143 25" fill="none" stroke="#eff8b6" stroke-width="3" stroke-linecap="round" opacity="0.7"/>
+            </g>
+            <g filter="url(#mascotShadow)">
+              <path class="mascot-body-shape" d="M38 90 C38 65 55 52 90 52 C125 52 142 65 142 90 L142 127 C142 150 122 162 90 162 C58 162 38 150 38 127Z" fill="url(#mascotBody)" stroke="#d6b986" stroke-width="4"/>
+              <path d="M48 96 C59 83 122 83 132 96" fill="none" stroke="#ffffff" stroke-width="4" opacity="0.5" stroke-linecap="round"/>
+              <circle class="mascot-eye left-eye" cx="70" cy="107" r="7" fill="#293442"/>
+              <circle class="mascot-eye right-eye" cx="110" cy="107" r="7" fill="#293442"/>
+              <circle cx="68" cy="104" r="2" fill="#ffffff" opacity="0.8"/>
+              <circle cx="108" cy="104" r="2" fill="#ffffff" opacity="0.8"/>
+              <path class="mascot-smile" d="M82 125 C87 130 94 130 99 125" fill="none" stroke="#8f715e" stroke-width="4" stroke-linecap="round"/>
+              <ellipse cx="56" cy="123" rx="12" ry="6" fill="#ff9fac" opacity="0.46"/>
+              <ellipse cx="124" cy="123" rx="12" ry="6" fill="#ff9fac" opacity="0.46"/>
+              <path class="mascot-arm left-arm" d="M42 124 C26 129 26 146 42 148" fill="none" stroke="#d6b986" stroke-width="10" stroke-linecap="round"/>
+              <path class="mascot-arm right-arm" d="M138 124 C154 129 154 146 138 148" fill="none" stroke="#d6b986" stroke-width="10" stroke-linecap="round"/>
+              <path d="M79 143 L89 132 L101 143 L90 151Z" fill="#b8d86d" stroke="#8eaf49" stroke-width="2"/>
+            </g>
+            <g class="mascot-sparkles">
+              <path d="M31 65 L35 74 L44 78 L35 82 L31 91 L27 82 L18 78 L27 74Z" fill="#fff4a8"/>
+              <path d="M148 74 L151 81 L158 84 L151 87 L148 94 L145 87 L138 84 L145 81Z" fill="#c5f1ef"/>
+              <circle cx="142" cy="48" r="4" fill="#f8c8dc"/>
+            </g>
+          </svg>
+        </button>
+      </div>
+    </aside>
+
+    <div class="workspace">
+      <header class="hero">
+        <div>
+          <h1>Yuan's Planner</h1>
+          <p class="subtitle" id="todaySubtitle">A bright little morning map for Hive study days.</p>
+        </div>
+        <div class="top-tools" aria-label="Dashboard tools">
+          <div class="date-pill" id="dashboardDate">Today</div>
+        </div>
+      </header>
+
+    <section class="view active" id="todayView" aria-labelledby="todayHeading">
+      <div class="today-dashboard">
+        <div class="planner-main">
+          <article class="panel goals-card">
+            <div class="panel-inner">
+              <div class="section-head">
+                <h2 id="todayHeading">Weekly goals</h2>
+                <p class="small-note">Keep these until they feel done.</p>
+              </div>
+              <div class="goal-list" id="weeklyGoals"></div>
+            </div>
+          </article>
+
+          <article class="panel tasks-card">
+            <div class="panel-inner">
+              <div class="section-head">
+                <h2>Today's tasks</h2>
+                <p class="small-note" id="weekKeyLabel"></p>
+              </div>
+              <div class="day-banner">
+                <span id="dayMessage">Loading today's plan...</span>
+                <span class="progress-pill" id="progressText">0 / 0 tasks done today</span>
+              </div>
+              <div id="tasksMount"></div>
+              <form class="task-form" id="taskForm">
+                <input id="taskTitle" maxlength="90" autocomplete="off" placeholder="Add a task for today">
+                <select id="taskActivity" aria-label="Task activity"></select>
+                <button class="secondary-button" type="submit">Add</button>
+              </form>
+            </div>
+          </article>
+
+        </div>
+
+        <aside class="planner-side">
+          <article class="panel life-card">
+            <div class="panel-inner">
+              <div class="section-head">
+                <h3>Life pie</h3>
+                <div class="mini-tabs" id="statsPeriodTabs" aria-label="Statistics period"></div>
+              </div>
+              <div class="life-pie">
+                <div class="donut" id="lifeDonut" aria-label="Study and leisure time donut chart">
+                  <span id="lifeDonutLabel">0h</span>
+                </div>
+                <div class="pie-summary" id="lifeSummary"></div>
+              </div>
+              <div class="pie-breakdown" id="lifeBreakdown"></div>
+            </div>
+          </article>
+
+          <article class="panel planned-card">
+            <div class="panel-inner">
+              <div class="section-head">
+                <h3>Planned vs actual</h3>
+                <p class="small-note" id="plannedWeekLabel"></p>
+              </div>
+              <div class="planned-grid" id="plannedMount"></div>
+            </div>
+          </article>
+
+          <article class="panel jobs-card">
+            <div class="panel-inner">
+              <div class="section-head">
+                <h3>Job applications</h3>
+                <p class="small-note" id="jobsSummary">0 lately</p>
+              </div>
+              <label class="job-input-row" for="jobsToday">
+                <span>Applied today</span>
+                <input id="jobsToday" type="number" min="0" step="1" inputmode="numeric" placeholder="0">
+              </label>
+              <div class="job-stats" id="jobStats"></div>
+            </div>
+          </article>
+
+          <div class="backup-utility" aria-label="Backup tools">
+            <span>Saved in planner.db</span>
+            <button class="secondary-button" type="button" id="exportData">Export backup</button>
+            <label class="secondary-button import-label" for="importData">Import backup</label>
+            <input class="backup-import" id="importData" type="file" accept="application/json">
+            <span class="hint" id="backupStatus"></span>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="view" id="skateView" aria-labelledby="skateHeading">
+      <div class="skate-page">
+        <article class="panel skate-focus-card">
+          <div class="panel-inner">
+            <div class="section-head">
+              <h2 id="skateHeading">Skate focus</h2>
+              <p class="small-note">One trick at a time.</p>
+            </div>
+            <label class="form-row" for="skateFocusInput">
+              <span>Current trick focus</span>
+              <input id="skateFocusInput" maxlength="80" autocomplete="off" placeholder="Frontside 180, shove-it, half cab...">
+            </label>
+          </div>
+        </article>
+
+        <article class="panel skate-progress-card">
+          <div class="panel-inner">
+            <div class="section-head">
+              <h2>Weekly tracker</h2>
+              <p class="small-note" id="skateWeekLabel"></p>
+            </div>
+            <div class="skate-count" id="skateSessionCount">0 / 4</div>
+            <label class="job-input-row" for="skateTargetInput">
+              <span>Weekly target</span>
+              <input id="skateTargetInput" type="number" min="1" max="14" step="1" inputmode="numeric" placeholder="4">
+            </label>
+          </div>
+        </article>
+
+        <article class="panel skate-session-card">
+          <div class="panel-inner">
+            <div class="section-head">
+              <h2>Session planner</h2>
+              <p class="small-note">Make today intentional.</p>
+            </div>
+
+            <label class="form-row" for="skateWarmups">
+              <span>Warm-up tricks</span>
+              <textarea id="skateWarmups" maxlength="360" placeholder="Ollie&#10;Manual&#10;Fakie rollie&#10;Roll down curb"></textarea>
+            </label>
+
+            <div class="skate-checklist" id="skateChecklist"></div>
+
+            <label class="form-row" for="skateSessionNote">
+              <span>Optional note</span>
+              <textarea id="skateSessionNote" maxlength="220" placeholder="Landing with back foot only. Need to lean more forward."></textarea>
+            </label>
+
+            <div class="form-actions">
+              <button class="primary-button" type="button" id="finishSkateSession">Finish session</button>
+              <button class="secondary-button" type="button" id="resetSkateSession">Reset checklist</button>
+              <span class="hint" id="skateSessionHint">Checklist resets when you finish a session.</span>
+            </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="view" id="calendarView" aria-labelledby="calendarHeading">
+      <div class="calendar-shell">
+        <div class="calendar-toolbar">
+          <h2 class="calendar-title" id="calendarHeading">Calendar</h2>
+          <div class="month-controls" aria-label="Month controls">
+            <button class="icon-button" type="button" id="prevMonth" aria-label="Previous month">‹</button>
+            <button class="icon-button" type="button" id="nextMonth" aria-label="Next month">›</button>
+          </div>
+        </div>
+        <article class="panel upcoming-card">
+          <div class="panel-inner">
+            <div class="section-head">
+              <h3>Upcoming events</h3>
+              <p class="small-note">Next 3</p>
+            </div>
+            <ul class="upcoming-list" id="upcomingEvents"></ul>
+          </div>
+        </article>
+        <div class="calendar-grid" id="calendarGrid" aria-label="Monthly calendar"></div>
+        <article class="panel">
+          <div class="panel-inner">
+            <div class="section-head">
+              <h3 id="selectedDateHeading">Add an event</h3>
+              <p class="small-note">Click a date, then save.</p>
+            </div>
+            <form class="event-form" id="eventForm">
+              <div class="form-row">
+                <label for="eventTitle">Title</label>
+                <input id="eventTitle" name="eventTitle" maxlength="80" autocomplete="off" placeholder="Deadline, flight, coffee, study checkpoint">
+              </div>
+              <div class="form-row">
+                <label for="eventNote">Optional note</label>
+                <textarea id="eventNote" name="eventNote" maxlength="280" placeholder="A detail, link, or reminder."></textarea>
+              </div>
+              <div class="form-row">
+                <label for="eventCategory">Category</label>
+                <select id="eventCategory" name="eventCategory">
+                  <option value="Study deadline">Study deadline</option>
+                  <option value="Personal">Personal</option>
+                </select>
+              </div>
+              <div class="form-actions">
+                <button class="primary-button" type="submit">Save event</button>
+                <span class="hint" id="formHint">No date selected yet.</span>
+              </div>
+            </form>
+          </div>
+        </article>
+      </div>
+    </section>
+    </div>
+  </main>
+
+  <script src="/js/app.js"></script>
+</body>
+</html>

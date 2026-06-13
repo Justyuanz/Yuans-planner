@@ -1,0 +1,26 @@
+__pycache__/
+*.pyc
+*.log
+*.err
+planner.db
+*.db
+.DS_Store
+node_modules/
+dist/
+build/
+*.heapsnapshot
+backups/
+data/*.db
+data/*.sqlite
+data/*.sqlite3
+
+# Local macOS/runtime helpers. These stay on the laptop, not GitHub.
+*.command
+*.app/
+install-yuan-planner-*.sh
+local.yuan.planner*.plist
+open-yuan-planner-ui.sh
+run-planner-server.sh
+stress_*.py
+Yuan Planner crontab line.txt
+YuanPlanner_Archive/

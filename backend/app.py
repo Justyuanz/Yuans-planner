@@ -1,48 +1,34 @@
 #!/usr/bin/env python3
-"""Tiny local server for Yuan's Planner.
+"""Small local server for Yuan's Planner.
 
 Run with:
-  python3 server.py
+  python3 backend/app.py
 
 Then open:
   http://127.0.0.1:8765
 """
 
+# This file is run directly with `python3 backend/app.py`, so importing the
+# neighboring `db.py` module by name keeps the entry point beginner-friendly.
+
 from __future__ import annotations
 
 import json
 import mimetypes
+import os
 import socket
-import sqlite3
-from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
+from db import import_values, init_database, put_value, read_all_values
 
-ROOT = Path(__file__).resolve().parent
-DB_PATH = ROOT / "planner.db"
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+FRONTEND_DIR = PROJECT_ROOT / "frontend"
+DATA_DIR = PROJECT_ROOT / "data"
 HOST = "0.0.0.0"
-PORT = 8765
-
-
-def connect() -> sqlite3.Connection:
-    connection = sqlite3.connect(DB_PATH)
-    connection.execute(
-        """
-        CREATE TABLE IF NOT EXISTS kv_store (
-            key TEXT PRIMARY KEY,
-            value TEXT NOT NULL,
-            updated_at TEXT NOT NULL
-        )
-        """
-    )
-    connection.commit()
-    return connection
-
-
-def now_iso() -> str:
-    return datetime.now(timezone.utc).isoformat()
+PORT = int(os.environ.get("YUAN_PLANNER_PORT", "8765"))
 
 
 def local_network_ip() -> str:
@@ -60,15 +46,14 @@ class PlannerHandler(BaseHTTPRequestHandler):
     def do_GET(self) -> None:
         path = urlparse(self.path).path
         if path == "/api/kv":
-            self.send_json({"data": self.read_all_values()})
+            self.send_json({"data": read_all_values()})
             return
         if path == "/api/export":
             self.send_json(
                 {
                     "app": "Yuan's Planner",
                     "version": 2,
-                    "exportedAt": now_iso(),
-                    "data": self.read_all_values(),
+                    "data": read_all_values(),
                 },
                 headers={"Content-Disposition": 'attachment; filename="yuan-planner-backup.json"'},
             )
@@ -92,17 +77,7 @@ class PlannerHandler(BaseHTTPRequestHandler):
         if not isinstance(value, str):
             self.send_error(400, "Value must be a string")
             return
-        with connect() as connection:
-            connection.execute(
-                """
-                INSERT INTO kv_store (key, value, updated_at)
-                VALUES (?, ?, ?)
-                ON CONFLICT(key) DO UPDATE SET
-                    value = excluded.value,
-                    updated_at = excluded.updated_at
-                """,
-                (key, value, now_iso()),
-            )
+        put_value(key, value)
         self.send_json({"ok": True})
 
     def do_POST(self) -> None:
@@ -114,34 +89,21 @@ class PlannerHandler(BaseHTTPRequestHandler):
         if not isinstance(data, dict):
             self.send_error(400, "Import data must be an object")
             return
-        imported = 0
-        with connect() as connection:
-            for key, value in data.items():
-                if isinstance(key, str) and key.startswith("hivePlanner.") and isinstance(value, str):
-                    connection.execute(
-                        """
-                        INSERT INTO kv_store (key, value, updated_at)
-                        VALUES (?, ?, ?)
-                        ON CONFLICT(key) DO UPDATE SET
-                            value = excluded.value,
-                            updated_at = excluded.updated_at
-                        """,
-                        (key, value, now_iso()),
-                    )
-                    imported += 1
+        imported = import_values(data)
         self.send_json({"ok": True, "imported": imported})
 
     def serve_static(self, path: str) -> None:
         if path == "/":
             path = "/index.html"
         relative = Path(unquote(path.lstrip("/")))
-        target = (ROOT / relative).resolve()
-        if ROOT not in target.parents and target != ROOT:
+        target = (FRONTEND_DIR / relative).resolve()
+        if FRONTEND_DIR not in target.parents and target != FRONTEND_DIR:
             self.send_error(403)
             return
         if not target.is_file():
             self.send_error(404)
             return
+
         content_type = mimetypes.guess_type(str(target))[0] or "application/octet-stream"
         body = target.read_bytes()
         self.send_response(200)
@@ -149,11 +111,6 @@ class PlannerHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
-
-    def read_all_values(self) -> dict[str, str]:
-        with connect() as connection:
-            rows = connection.execute("SELECT key, value FROM kv_store ORDER BY key").fetchall()
-        return {key: value for key, value in rows}
 
     def read_json_body(self) -> dict:
         length = int(self.headers.get("Content-Length", "0"))
@@ -183,12 +140,13 @@ class PlannerHandler(BaseHTTPRequestHandler):
 
 
 def main() -> None:
-    connect().close()
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
+    init_database()
     server = ThreadingHTTPServer((HOST, PORT), PlannerHandler)
     lan_ip = local_network_ip()
     print(f"Yuan's Planner running on this laptop at http://127.0.0.1:{PORT}")
     print(f"Same-Wi-Fi phone URL: http://{lan_ip}:{PORT}")
-    print(f"SQLite database: {DB_PATH}")
+    print(f"SQLite database: {DATA_DIR / 'planner.db'}")
     server.serve_forever()
 
 
