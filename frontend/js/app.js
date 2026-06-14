@@ -330,7 +330,9 @@
       }
 
       function categoryClass(category) {
-        return category === "Personal" ? "personal" : "study";
+          if (category === "Personal") return "personal";
+          if (category === "Skate") return "skate-event";
+          return "study";
       }
 
       function setActiveView(viewId) {

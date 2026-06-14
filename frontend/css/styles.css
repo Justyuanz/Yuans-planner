@@ -955,6 +955,13 @@ textarea {
   color: #8a7650;
 }
 
+.tag.skate-event,
+.event-pill.skate-event {
+  border-color: rgba(102, 166, 102, 0.38);
+  background: #e8f8e8;
+  color: #4a8c4a;
+}
+
 .upcoming-list {
   padding: 0;
   margin: 0;
