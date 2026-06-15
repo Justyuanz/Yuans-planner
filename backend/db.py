@@ -17,33 +17,42 @@ def now_iso() -> str:
 
 def connect() -> sqlite3.Connection:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    connection = sqlite3.connect(DB_PATH)
-    connection.execute(
-        """
-        CREATE TABLE IF NOT EXISTS kv_store (
-            key TEXT PRIMARY KEY,
-            value TEXT NOT NULL,
-            updated_at TEXT NOT NULL
+    conn = sqlite3.connect(DB_PATH)
+    try:
+        conn.execute(
+            """
+            CREATE TABLE IF NOT EXISTS kv_store (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                updated_at TEXT NOT NULL
+            )
+            """
         )
-        """
-    )
-    connection.commit()
-    return connection
+        conn.commit()
+    except Exception:
+        conn.close()
+        raise
+    return conn
 
 
 def init_database() -> None:
-    connect().close()
+    conn = connect()
+    conn.close()
 
 
 def read_all_values() -> dict[str, str]:
-    with connect() as connection:
-        rows = connection.execute("SELECT key, value FROM kv_store ORDER BY key").fetchall()
+    conn = connect()
+    try:
+        rows = conn.execute("SELECT key, value FROM kv_store ORDER BY key").fetchall()
+    finally:
+        conn.close()
     return {key: value for key, value in rows}
 
 
 def put_value(key: str, value: str) -> None:
-    with connect() as connection:
-        connection.execute(
+    conn = connect()
+    try:
+        conn.execute(
             """
             INSERT INTO kv_store (key, value, updated_at)
             VALUES (?, ?, ?)
@@ -53,14 +62,18 @@ def put_value(key: str, value: str) -> None:
             """,
             (key, value, now_iso()),
         )
+        conn.commit()
+    finally:
+        conn.close()
 
 
 def import_values(data: dict) -> int:
     imported = 0
-    with connect() as connection:
+    conn = connect()
+    try:
         for key, value in data.items():
             if isinstance(key, str) and key.startswith("hivePlanner.") and isinstance(value, str):
-                connection.execute(
+                conn.execute(
                     """
                     INSERT INTO kv_store (key, value, updated_at)
                     VALUES (?, ?, ?)
@@ -71,4 +84,7 @@ def import_values(data: dict) -> int:
                     (key, value, now_iso()),
                 )
                 imported += 1
+        conn.commit()
+    finally:
+        conn.close()
     return imported
