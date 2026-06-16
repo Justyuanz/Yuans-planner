@@ -335,7 +335,7 @@ h1 {
   background: var(--green-dark);
 }
 
-.goal.fso .dot {
+.goal.lc .dot {
   background: var(--amber-dark);
 }
 
@@ -498,7 +498,7 @@ textarea {
   white-space: nowrap;
 }
 
-.activity-badge.fso {
+.activity-badge.lc {
   border-color: rgba(129, 118, 64, 0.48);
   color: var(--amber-dark);
   background: rgba(255, 249, 204, 0.7);
@@ -527,7 +527,7 @@ textarea {
   background: rgba(255, 231, 241, 0.7);
 }
 
-.breakdown-row.fso strong {
+.breakdown-row.lc strong {
   color: var(--amber-dark);
 }
 

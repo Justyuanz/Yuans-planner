@@ -33,10 +33,10 @@
           className: "python"
         },
         {
-          id: "fso",
-          label: "Full Stack Open",
+          id: "lc",
+          label: "Leetcode",
           placeholder: "Keep the morning habit alive.",
-          className: "fso"
+          className: "lc"
         }
       ];
 
@@ -44,7 +44,7 @@
         0: {
           message: "Sunday: solid C++ focus, then a tidy Python wrap up.",
           tasks: [
-            { id: "fso-morning", label: "Full Stack Open", activity: "fso" },
+            { id: "lc-morning", label: "Leetcode", activity: "lc" },
             { id: "cpp-solid", label: "C++ solid block", activity: "cpp" },
             { id: "python-wrap", label: "Python wrap up", activity: "python" }
           ]
@@ -52,7 +52,7 @@
         1: {
           message: "Monday: begin with the habit, then make the main C++ block count.",
           tasks: [
-            { id: "fso-morning", label: "Full Stack Open", activity: "fso" },
+            { id: "lc-morning", label: "Leetcode", activity: "lc" },
             { id: "cpp-main", label: "C++ main block", activity: "cpp" },
             { id: "python-project", label: "Python project", activity: "python" }
           ]
@@ -60,7 +60,7 @@
         2: {
           message: "Tuesday: small clear wins across all three tracks.",
           tasks: [
-            { id: "fso-morning", label: "Full Stack Open", activity: "fso" },
+            { id: "lc-morning", label: "Leetcode", activity: "lc" },
             { id: "cpp-one", label: "C++", activity: "cpp" },
             { id: "python-one", label: "Python one task", activity: "python" }
           ]
@@ -74,7 +74,7 @@
         4: {
           message: "Thursday: two C++ blocks with the morning habit as your warm-up.",
           tasks: [
-            { id: "fso-morning", label: "Full Stack Open", activity: "fso" },
+            { id: "lc-morning", label: "Leetcode", activity: "lc" },
             { id: "cpp-block-a", label: "C++ block one", activity: "cpp" },
             { id: "cpp-block-b", label: "C++ block two", activity: "cpp" },
             { id: "python-project", label: "Python project", activity: "python" }
@@ -83,7 +83,7 @@
         5: {
           message: "Friday: land one C++ task, then give Python the afternoon.",
           tasks: [
-            { id: "fso-morning", label: "Full Stack Open", activity: "fso" },
+            { id: "lc-morning", label: "Leetcode", activity: "lc" },
             { id: "cpp-one", label: "C++", activity: "cpp" },
             { id: "python-afternoon", label: "Python project", activity: "python" }
           ]
@@ -91,7 +91,7 @@
         6: {
           message: "Saturday: keep it light and keep the streak friendly.",
           tasks: [
-            { id: "fso-morning", label: "Full Stack Open", activity: "fso" },
+            { id: "lc-morning", label: "Leetcode", activity: "lc" },
             { id: "python-light", label: "Python light", activity: "python" },
             { id: "skate-session", label: "Skate session", activity: "skate" }
           ]
@@ -99,7 +99,7 @@
       };
 
       var activities = [
-        { id: "fso", label: "Full Stack Open", short: "FSO", className: "fso", group: "study" },
+        { id: "lc", label: "Leetcode", short: "lc", className: "lc", group: "study" },
         { id: "cpp", label: "C++ / ft_irc", short: "C++", className: "cpp", group: "study" },
         { id: "python", label: "Python", short: "Python", className: "python", group: "study" },
         { id: "skate", label: "Skate", short: "Skate", className: "skate", group: "leisure" },
@@ -107,7 +107,7 @@
       ];
 
       var routineLabelRenames = {
-        "Full Stack Open morning": "Full Stack Open",
+        "Leetcode morning": "Leetcode",
         "C++ one task": "C++",
         "Python afternoon": "Python project"
       };
@@ -401,7 +401,7 @@
             return {
               id: task.id || makeId("task"),
               label: routineLabelRenames[label] || label,
-              activity: task.activity || task.track || "fso",
+              activity: task.activity || task.track || "lc",
               hours: Math.max(0, Number(task.hours) || 0),
               timerSeconds: Math.max(0, Number(task.timerSeconds) || 0),
               timerStartedAt: typeof task.timerStartedAt === "string" ? task.timerStartedAt : null,
