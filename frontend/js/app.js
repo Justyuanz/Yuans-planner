@@ -705,6 +705,9 @@
 
       function totalsForStatsPeriod(period) {
         var week = weekRange(today);
+        if (period === "day") {
+          return totalHoursForRange(today, today);
+        }
         if (period === "week") {
           return totalHoursForRange(week.start, week.end);
         }
@@ -767,6 +770,7 @@
 
       function renderStatsPeriodTabs() {
         var periods = [
+          { id: "day", label: "Day" },
           { id: "week", label: "Week" },
           { id: "month", label: "Month" },
           { id: "all", label: "All" }
