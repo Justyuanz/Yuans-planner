@@ -103,6 +103,7 @@
         { id: "cpp", label: "C++ / ft_irc", short: "C++", className: "cpp", group: "study" },
         { id: "python", label: "Python", short: "Python", className: "python", group: "study" },
         { id: "skate", label: "Skate", short: "Skate", className: "skate", group: "leisure" },
+        { id: "p90x3", label: "P90X3", short: "P90X3", className: "p90x3", group: "leisure" },
         { id: "guitar", label: "Guitar", short: "Guitar", className: "guitar", group: "leisure" }
       ];
 

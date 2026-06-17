@@ -339,6 +339,10 @@ h1 {
   background: var(--amber-dark);
 }
 
+.goal.p90x3 .dot {
+  background: #b85c2a;
+}
+
 .goal input,
 .task-form input,
 .task-form select,
@@ -521,6 +525,12 @@ textarea {
   background: rgba(227, 251, 250, 0.7);
 }
 
+.activity-badge.p90x3 {
+  border-color: rgba(255, 140, 90, 0.42);
+  color: #b85c2a;
+  background: rgba(255, 225, 200, 0.7);
+}
+
 .activity-badge.guitar {
   border-color: rgba(167, 101, 106, 0.42);
   color: var(--guitar);
@@ -541,6 +551,10 @@ textarea {
 
 .breakdown-row.skate strong {
   color: var(--teal-dark);
+}
+
+.breakdown-row.p90x3 strong {
+  color: #b85c2a;
 }
 
 .breakdown-row.guitar strong {
