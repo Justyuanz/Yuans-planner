@@ -190,7 +190,7 @@ h1 {
   grid-template-areas:
     "goals life"
     "tasks tasks"
-    "jobs planned";
+    "study planned";
   gap: 32px 22px;
   align-items: stretch;
 }
@@ -213,7 +213,7 @@ h1 {
 
 .goals-card,
 .life-card,
-.jobs-card,
+.study-overview-card,
 .planned-card {
   align-self: stretch;
   height: 100%;
@@ -231,8 +231,8 @@ h1 {
   grid-area: tasks;
 }
 
-.jobs-card {
-  grid-area: jobs;
+.study-overview-card {
+  grid-area: study;
 }
 
 .planned-card {
@@ -248,7 +248,7 @@ h1 {
   min-height: 340px;
 }
 
-.jobs-card .panel-inner,
+.study-overview-card .panel-inner,
 .planned-card .panel-inner {
   min-height: 315px;
 }
@@ -282,11 +282,13 @@ h1 {
 .goal-list,
 .task-list,
 .planned-grid,
-.job-stats,
 .pie-summary,
 .pie-breakdown,
 .upcoming-list,
-.skate-checklist {
+.skate-checklist,
+.chart-stack,
+#studyOverview,
+.compact-metrics {
   display: grid;
   gap: 10px;
 }
@@ -352,6 +354,11 @@ h1 {
 .event-form select,
 .planned-row input,
 .job-input-row input,
+.body-log-form input,
+.body-log-form select,
+.rhythm-day input,
+.rhythm-item input,
+.rhythm-item select,
 .form-row input,
 .form-row textarea {
   width: 100%;
@@ -388,6 +395,11 @@ textarea {
 .event-form select:focus,
 .planned-row input:focus,
 .job-input-row input:focus,
+.body-log-form input:focus,
+.body-log-form select:focus,
+.rhythm-day input:focus,
+.rhythm-item input:focus,
+.rhythm-item select:focus,
 .form-row input:focus,
 .form-row textarea:focus {
   border-color: #8b86ff;
@@ -707,8 +719,7 @@ textarea {
 
 .pie-summary-row,
 .breakdown-row,
-.planned-row,
-.job-row {
+.planned-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -720,8 +731,7 @@ textarea {
 
 .pie-summary-row strong,
 .breakdown-row strong,
-.planned-row strong,
-.job-row strong {
+.planned-row strong {
   color: var(--ink);
   font-weight: 560;
 }
@@ -769,6 +779,95 @@ textarea {
 .planned-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) 72px 64px;
+}
+
+.overview-row,
+.soft-progress,
+.compact-metric,
+.quality-note,
+.mini-chart,
+.rhythm-day,
+.scale-field {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.overview-row,
+.compact-metric,
+.soft-progress-title {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 510;
+}
+
+.overview-row strong,
+.compact-metric strong,
+.soft-progress-title strong {
+  color: var(--ink);
+  font-weight: 560;
+}
+
+.overview-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.overview-chips span {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  padding: 5px 9px;
+  border: 1px solid rgba(185, 206, 240, 0.48);
+  border-radius: 999px;
+  background: rgba(234, 242, 255, 0.72);
+  color: #68728b;
+  font-size: 0.82rem;
+  font-weight: 510;
+}
+
+.soft-progress {
+  display: grid;
+  gap: 9px;
+}
+
+.soft-progress-track {
+  height: 9px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(185, 206, 240, 0.22);
+}
+
+.soft-progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--teal), var(--green));
+}
+
+.quality-note {
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.35;
+}
+
+.chart-title {
+  margin-bottom: 10px;
+  color: var(--ink);
+  font-size: 0.94rem;
+  font-weight: 560;
+}
+
+.trend-row em {
+  color: var(--muted);
+  font-style: normal;
+  text-align: right;
 }
 
 .job-input-row {
@@ -1014,6 +1113,12 @@ textarea {
   gap: 8px;
 }
 
+.event-time-grid {
+  display: grid;
+  grid-template-columns: minmax(150px, 1fr) repeat(2, minmax(110px, 0.5fr));
+  gap: 10px;
+}
+
 .selected-events {
   display: grid;
   gap: 8px;
@@ -1054,12 +1159,38 @@ textarea {
   line-height: 1.35;
 }
 
+.selected-event-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.selected-event-actions .secondary-button {
+  min-height: 32px;
+  padding: 6px 10px;
+  font-size: 0.82rem;
+}
+
+.quiet-danger {
+  background: rgba(255, 231, 241, 0.7);
+  color: #a7656a;
+}
+
+.event-time {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 510;
+}
+
 .skate-page {
   display: grid;
   grid-template-columns: minmax(0, 0.75fr) minmax(280px, 0.45fr);
   grid-template-areas:
     "focus progress"
-    "session session";
+    "rhythm rhythm"
+    "session session"
+    "body trends";
   gap: 22px;
 }
 
@@ -1073,6 +1204,18 @@ textarea {
 
 .skate-session-card {
   grid-area: session;
+}
+
+.weekly-rhythm-card {
+  grid-area: rhythm;
+}
+
+.body-log-card {
+  grid-area: body;
+}
+
+.skate-trends-card {
+  grid-area: trends;
 }
 
 .skate-session-card .panel-inner {
@@ -1123,6 +1266,149 @@ textarea {
   color: var(--teal-dark);
   font-size: clamp(1.2rem, 2.6vw, 1.65rem);
   font-weight: 570;
+}
+
+.compact-metrics {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.compact-metric {
+  display: grid;
+  gap: 3px;
+  min-height: 66px;
+  align-content: center;
+}
+
+.compact-metric span {
+  color: var(--teal-dark);
+  font-size: 1rem;
+  font-weight: 560;
+}
+
+.rhythm-strip {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.rhythm-day {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+}
+
+.rhythm-day > label {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 560;
+  text-transform: uppercase;
+}
+
+.rhythm-day > input {
+  min-height: 36px;
+  padding: 7px 9px;
+  border-radius: 12px;
+  font-size: 0.84rem;
+}
+
+.rhythm-items {
+  display: grid;
+  gap: 6px;
+}
+
+.rhythm-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 5px;
+  padding: 8px;
+  border: 1px solid rgba(224, 219, 209, 0.5);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.48);
+}
+
+.rhythm-item strong {
+  min-width: 0;
+  overflow: hidden;
+  color: #4a4a53;
+  font-size: 0.82rem;
+  font-weight: 560;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rhythm-item select,
+.rhythm-item input {
+  min-height: 32px;
+  padding: 5px 7px;
+  border-radius: 11px;
+  font-size: 0.78rem;
+}
+
+.rhythm-item.done {
+  border-color: rgba(79, 136, 133, 0.2);
+  background: rgba(227, 251, 250, 0.38);
+}
+
+.rhythm-item.modified {
+  border-color: rgba(129, 118, 64, 0.22);
+  background: rgba(255, 249, 204, 0.42);
+}
+
+.rhythm-item.skipped {
+  opacity: 0.74;
+}
+
+.body-log-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(120px, 0.7fr) minmax(90px, 0.5fr);
+  gap: 10px;
+  align-items: end;
+}
+
+.body-log-note,
+.body-log-form button {
+  grid-column: 1 / -1;
+}
+
+.trend-row {
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr) 86px;
+  gap: 9px;
+  align-items: end;
+  margin-top: 9px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.trend-row strong {
+  color: var(--ink);
+  font-weight: 540;
+}
+
+.trend-dots {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(5px, 1fr));
+  gap: 4px;
+  align-items: end;
+  min-height: 44px;
+  padding: 6px;
+  border-radius: 12px;
+  background: rgba(185, 206, 240, 0.12);
+}
+
+.trend-dots span {
+  min-height: 6px;
+  border-radius: 999px 999px 4px 4px;
+  background: var(--teal);
+}
+
+.trend-row.p90x3 .trend-dots span {
+  background: #f7b98e;
+}
+
+.trend-row.python .trend-dots span {
+  background: var(--green);
 }
 
 .skate-check-row {
@@ -1193,6 +1479,83 @@ textarea {
   margin-top: 14px;
   padding-top: 14px;
   border-top: 1px solid rgba(224, 219, 209, 0.48);
+}
+
+.feedback-dialog {
+  width: min(680px, calc(100vw - 28px));
+  padding: 0;
+  border: 1px solid rgba(126, 116, 255, 0.28);
+  border-radius: var(--radius);
+  background: transparent;
+  box-shadow: 0 28px 80px rgba(114, 99, 135, 0.22);
+}
+
+.feedback-dialog::backdrop {
+  background: rgba(70, 61, 82, 0.22);
+  backdrop-filter: blur(5px);
+}
+
+.feedback-panel {
+  display: grid;
+  gap: 14px;
+  padding: clamp(18px, 3vw, 24px);
+  border-radius: var(--radius);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(245, 202, 221, 0.2), transparent 34%),
+    rgba(255, 255, 255, 0.94);
+}
+
+.feedback-scales {
+  display: grid;
+  gap: 10px;
+}
+
+.scale-field {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.scale-field legend {
+  padding: 0;
+  color: var(--ink);
+  font-weight: 560;
+}
+
+.scale-options {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.scale-option {
+  display: grid;
+  min-width: 0;
+}
+
+.scale-option input {
+  position: absolute;
+  opacity: 0;
+}
+
+.scale-option span {
+  min-height: 36px;
+  display: grid;
+  place-items: center;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 510;
+  text-align: center;
+}
+
+.scale-option input:checked + span {
+  border-color: rgba(79, 136, 133, 0.2);
+  background: var(--green-soft);
+  color: var(--green-dark);
 }
 
 .mascot-card {
@@ -1372,7 +1735,7 @@ textarea {
       "goals"
       "life"
       "tasks"
-      "jobs"
+      "study"
       "planned";
   }
 
@@ -1380,7 +1743,14 @@ textarea {
     grid-template-areas:
       "focus"
       "progress"
-      "session";
+      "rhythm"
+      "session"
+      "body"
+      "trends";
+  }
+
+  .rhythm-strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .tasks-card .task-card,
@@ -1439,7 +1809,7 @@ textarea {
 
   .goals-card .panel-inner,
   .life-card .panel-inner,
-  .jobs-card .panel-inner,
+  .study-overview-card .panel-inner,
   .planned-card .panel-inner {
     min-height: auto;
   }
@@ -1601,8 +1971,23 @@ textarea {
     grid-template-columns: 1fr;
   }
 
+  .body-log-form,
+  .event-time-grid,
+  .compact-metrics,
+  .scale-options {
+    grid-template-columns: 1fr;
+  }
+
+  .rhythm-strip {
+    grid-template-columns: 1fr;
+  }
+
   .planned-row {
     grid-template-columns: minmax(0, 1fr) 68px 52px;
+  }
+
+  .trend-row {
+    grid-template-columns: 62px minmax(0, 1fr) 62px;
   }
 
   .skate-count {
