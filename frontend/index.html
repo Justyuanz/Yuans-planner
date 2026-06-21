@@ -225,17 +225,27 @@
               <p class="small-note">Make today intentional.</p>
             </div>
 
-            <label class="form-row" for="skateWarmups">
-              <span>Warm-up tricks</span>
-              <textarea id="skateWarmups" rows="2" maxlength="360" placeholder="Ollie, manual, fakie rollie, roll down curb"></textarea>
-            </label>
+            <section class="skate-template-section" aria-labelledby="skateWarmupHeading">
+              <div class="skate-template-head">
+                <div>
+                  <h3 id="skateWarmupHeading">Current warm-up tricks</h3>
+                  <p>Repeatable tricks to keep clean every session.</p>
+                </div>
+                <button class="tiny-button" type="button" id="addWarmupTrick">Add trick</button>
+              </div>
+              <div class="skate-template-list skate-warmup-list" id="skateWarmupList"></div>
+            </section>
 
-            <div class="skate-checklist" id="skateChecklist"></div>
-
-            <label class="form-row" for="skateSessionNote">
-              <span>Optional note</span>
-              <textarea id="skateSessionNote" maxlength="220" placeholder="Landing with back foot only. Need to lean more forward."></textarea>
-            </label>
+            <section class="skate-template-section" aria-labelledby="skateLearningHeading">
+              <div class="skate-template-head">
+                <div>
+                  <h3 id="skateLearningHeading">Focused learning tricks</h3>
+                  <p>Current learning tricks and what to focus on.</p>
+                </div>
+                <button class="tiny-button" type="button" id="addLearningTrick">Add trick</button>
+              </div>
+              <div class="skate-template-list skate-learning-list" id="skateLearningList"></div>
+            </section>
 
             <div class="form-actions">
               <button class="primary-button" type="button" id="finishSkateSession">Finish session</button>

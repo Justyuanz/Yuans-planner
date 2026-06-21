@@ -12,6 +12,8 @@
         skateTarget: "hivePlanner.skate.weeklyTarget",
         skateCurrentSession: "hivePlanner.skate.currentSession",
         skateSessions: "hivePlanner.skate.sessions",
+        skateWarmupItems: "hivePlanner.skate.warmupItems",
+        skateLearningItems: "hivePlanner.skate.learningItems",
         studyOverviewPrefix: "hivePlanner.weekOverview.study.",
         skateBodyOverviewPrefix: "hivePlanner.weekOverview.skateBody.",
         physicalPlanPrefix: "hivePlanner.physical.week.",
@@ -23,6 +25,7 @@
       var statsPeriod = "month";
       var skateTrendPeriod = "month";
       var editingEventId = null;
+      var editingTaskId = null;
 
       var tracks = [
         {
@@ -109,7 +112,8 @@
         { id: "python", label: "Python", short: "Python", className: "python", group: "study" },
         { id: "skate", label: "Skate", short: "Skate", className: "skate", group: "leisure" },
         { id: "p90x3", label: "P90X3", short: "P90X3", className: "p90x3", group: "leisure" },
-        { id: "guitar", label: "Guitar", short: "Guitar", className: "guitar", group: "leisure" }
+        { id: "guitar", label: "Guitar", short: "Guitar", className: "guitar", group: "leisure" },
+        { id: "other", label: "Other", short: "Other", className: "other", group: "other", showInStats: false }
       ];
 
       var routineLabelRenames = {
@@ -133,12 +137,46 @@
         "one tab, one task, go"
       ];
 
-      var skateChecklistItems = [
-        "Warm up with my selected tricks",
-        "Watch 5 minutes of tutorial or footage related to the current trick",
-        "Try the current trick at least 30 times during this session",
-        "Film at least one attempt or a short clip",
-        "Spend a few minutes just skating for fun without pressure"
+      var legacySkateWarmupItems = [
+        "Reverts all directions",
+        "Ollie",
+        "Fakie ollie",
+        "Ollie on bank",
+        "Revert on bank",
+        "Go up curb",
+        "Ride off curb",
+        "Hippie jump",
+        "Ollie over line / crack",
+        "Manual 1-2 seconds",
+        "Drop-ins",
+        "Ride in bowl",
+        "Wall ride / wall touch",
+        "Powerslide attempt"
+      ];
+
+      var defaultSkateWarmupItems = [
+        "Reverts all directions",
+        "Ollie",
+        "Fakie ollie",
+        "Ollie on bank",
+        "Revert on bank",
+        "Ride up bank and come back fakie",
+        "Go up curb",
+        "Ride off curb",
+        "Ride off small drop",
+        "Ollie over line / crack",
+        "Manual 1-2 seconds",
+        "Hippie jump",
+        "Drop-ins",
+        "Ride in bowl",
+        "Wall ride / wall touch",
+        "Powerslide attempt"
+      ];
+
+      var defaultSkateLearningItems = [
+        { name: "Fakie ollie consistency", note: "" },
+        { name: "Half-cab", note: "Turn shoulders first. Commit to rolling back fakie." },
+        { name: "Rock to fakey", note: "" }
       ];
 
       var physicalWorkoutNames = [
@@ -189,9 +227,10 @@
         skateWeekLabel: document.getElementById("skateWeekLabel"),
         skateSessionCount: document.getElementById("skateSessionCount"),
         skateTargetInput: document.getElementById("skateTargetInput"),
-        skateWarmups: document.getElementById("skateWarmups"),
-        skateChecklist: document.getElementById("skateChecklist"),
-        skateSessionNote: document.getElementById("skateSessionNote"),
+        skateWarmupList: document.getElementById("skateWarmupList"),
+        addWarmupTrick: document.getElementById("addWarmupTrick"),
+        skateLearningList: document.getElementById("skateLearningList"),
+        addLearningTrick: document.getElementById("addLearningTrick"),
         finishSkateSession: document.getElementById("finishSkateSession"),
         skateSessionHint: document.getElementById("skateSessionHint"),
         statsPeriodTabs: document.getElementById("statsPeriodTabs"),
@@ -357,6 +396,14 @@
         return activities.find(function (activity) {
           return activity.id === id;
         }) || activities[0];
+      }
+
+      function taskActivityTracksTime(activityId) {
+        return getActivity(activityId).trackTime !== false;
+      }
+
+      function activityShowsInStats(activity) {
+        return activity.showInStats !== false;
       }
 
       function formatHours(value) {
@@ -623,7 +670,9 @@
             return {
               id: task.id || makeId("task"),
               label: routineLabelRenames[label] || label,
-              activity: task.activity || task.track || "lc",
+              activity: activities.some(function (activity) {
+                return activity.id === (task.activity || task.track);
+              }) ? (task.activity || task.track) : "lc",
               hours: Math.max(0, Number(task.hours) || 0),
               timerSeconds: Math.max(0, Number(task.timerSeconds) || 0),
               timerStartedAt: typeof task.timerStartedAt === "string" ? task.timerStartedAt : null,
@@ -719,6 +768,7 @@
 
         tasks.forEach(function (task, index) {
           var activity = getActivity(task.activity);
+          var tracksTime = taskActivityTracksTime(task.activity);
           var item = document.createElement("li");
           item.className = "task";
 
@@ -739,18 +789,37 @@
 
           var content = document.createElement("div");
           content.className = "task-content";
+          content.tabIndex = 0;
 
-          var label = document.createElement("label");
-          label.className = "task-title";
-          label.setAttribute("for", checkbox.id);
-          label.textContent = task.label;
+          if (editingTaskId === task.id) {
+            renderTaskEditor(content, tasks, index);
+          } else {
+            var titleButton = document.createElement("button");
+            titleButton.type = "button";
+            titleButton.className = "task-title-button";
+            titleButton.addEventListener("click", function () {
+              editingTaskId = task.id;
+              renderTasks();
+            });
 
-          var badge = document.createElement("span");
-          badge.className = "activity-badge " + activity.className;
-          badge.textContent = activity.short;
+            var label = document.createElement("span");
+            label.className = "task-title";
+            label.textContent = task.label;
+
+            var badge = document.createElement("span");
+            badge.className = "activity-badge " + activity.className;
+            badge.textContent = activity.short;
+
+            titleButton.appendChild(label);
+            titleButton.appendChild(badge);
+            content.appendChild(titleButton);
+          }
 
           var hoursWrap = document.createElement("div");
           hoursWrap.className = "task-hours";
+          if (!tracksTime) {
+            hoursWrap.classList.add("is-passive");
+          }
 
           var hoursLabel = document.createElement("label");
           hoursLabel.setAttribute("for", "task-hours-" + task.id);
@@ -765,14 +834,17 @@
           hoursInput.inputMode = "decimal";
           hoursInput.value = effectiveTaskHours(task) ? String(effectiveTaskHours(task)) : "";
           hoursInput.placeholder = "0";
+          hoursInput.hidden = !tracksTime;
 
           var timerReadout = document.createElement("span");
           timerReadout.className = "timer-readout";
           timerReadout.dataset.timerId = task.id;
           timerReadout.textContent = formatTimer(elapsedTaskSeconds(task));
+          timerReadout.hidden = !tracksTime;
 
           var timerControls = document.createElement("div");
           timerControls.className = "timer-controls";
+          timerControls.hidden = !tracksTime;
 
           var startPauseButton = document.createElement("button");
           startPauseButton.className = "timer-button";
@@ -830,19 +902,24 @@
 
           deleteButton.addEventListener("click", function () {
             tasks.splice(index, 1);
+            if (editingTaskId === task.id) {
+              editingTaskId = null;
+            }
             saveTodayTasks(tasks);
             renderTasks();
             renderTotals();
           });
 
-          content.appendChild(label);
-          content.appendChild(badge);
-          hoursWrap.appendChild(hoursLabel);
-          hoursWrap.appendChild(hoursInput);
-          hoursWrap.appendChild(timerReadout);
-          timerControls.appendChild(startPauseButton);
-          timerControls.appendChild(endButton);
-          hoursWrap.appendChild(timerControls);
+          if (tracksTime) {
+            hoursWrap.appendChild(hoursLabel);
+            hoursWrap.appendChild(hoursInput);
+            hoursWrap.appendChild(timerReadout);
+            timerControls.appendChild(startPauseButton);
+            timerControls.appendChild(endButton);
+            hoursWrap.appendChild(timerControls);
+          } else {
+            hoursWrap.appendChild(document.createElement("span")).textContent = "Other task";
+          }
           card.appendChild(checkbox);
           card.appendChild(content);
           card.appendChild(hoursWrap);
@@ -853,6 +930,106 @@
 
         elements.tasksMount.appendChild(list);
         elements.progressText.textContent = doneCount + " / " + tasks.length + " tasks done today";
+      }
+
+      function renderTaskEditor(content, tasks, index) {
+        var task = tasks[index];
+        var editor = document.createElement("div");
+        editor.className = "task-editor";
+        var hasCommitted = false;
+
+        var titleInput = document.createElement("input");
+        titleInput.type = "text";
+        titleInput.className = "task-title-input";
+        titleInput.maxLength = 90;
+        titleInput.value = task.label;
+        titleInput.placeholder = "Task title";
+
+        var categorySelect = document.createElement("select");
+        categorySelect.className = "task-category-select";
+        activities.forEach(function (activity) {
+          var option = document.createElement("option");
+          option.value = activity.id;
+          option.textContent = activity.label;
+          option.selected = activity.id === task.activity;
+          categorySelect.appendChild(option);
+        });
+
+        function saveTaskEdit(keepEditing) {
+          if (hasCommitted) {
+            return;
+          }
+          hasCommitted = true;
+          var nextLabel = titleInput.value.trim() || task.label;
+          var nextActivity = categorySelect.value || task.activity;
+          tasks[index].label = nextLabel;
+          tasks[index].activity = nextActivity;
+          if (!taskActivityTracksTime(nextActivity)) {
+            tasks[index].timerStartedAt = null;
+          }
+          saveTodayTasks(tasks);
+          editingTaskId = keepEditing ? task.id : null;
+          renderTasks();
+          renderTotals();
+        }
+
+        function cancelTaskEdit() {
+          if (hasCommitted) {
+            return;
+          }
+          hasCommitted = true;
+          editingTaskId = null;
+          renderTasks();
+        }
+
+        titleInput.addEventListener("keydown", function (event) {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            saveTaskEdit(false);
+          }
+          if (event.key === "Escape") {
+            event.preventDefault();
+            cancelTaskEdit();
+          }
+        });
+        titleInput.addEventListener("blur", function () {
+          window.setTimeout(function () {
+            if (hasCommitted) {
+              return;
+            }
+            if (!editor.contains(document.activeElement)) {
+              saveTaskEdit(false);
+            }
+          }, 0);
+        });
+        categorySelect.addEventListener("change", function () {
+          saveTaskEdit(true);
+        });
+        categorySelect.addEventListener("keydown", function (event) {
+          if (event.key === "Escape") {
+            event.preventDefault();
+            cancelTaskEdit();
+          }
+        });
+        categorySelect.addEventListener("blur", function () {
+          window.setTimeout(function () {
+            if (hasCommitted) {
+              return;
+            }
+            if (!editor.contains(document.activeElement)) {
+              saveTaskEdit(false);
+            }
+          }, 0);
+        });
+
+        editor.appendChild(titleInput);
+        editor.appendChild(categorySelect);
+        content.appendChild(editor);
+
+        window.setTimeout(function () {
+          titleInput.focus();
+          titleInput.select();
+        }, 0);
       }
 
       function sumHours(hours, group) {
@@ -1007,7 +1184,7 @@
         });
 
         elements.lifeBreakdown.innerHTML = "";
-        activities.forEach(function (activity) {
+        activities.filter(activityShowsInStats).forEach(function (activity) {
           var value = totals[activity.id] || 0;
           var row = document.createElement("div");
           row.className = "breakdown-row " + activity.className;
@@ -1411,33 +1588,126 @@
         return chart;
       }
 
+      function createFrequencyChart(title, rows, emptyMessage) {
+        var chart = document.createElement("div");
+        chart.className = "mini-chart trend-chart";
+        chart.innerHTML = "<div class=\"chart-title\">" + title + "</div>";
+
+        if (!rows.length) {
+          var empty = document.createElement("p");
+          empty.className = "trend-empty";
+          empty.textContent = emptyMessage;
+          chart.appendChild(empty);
+          return chart;
+        }
+
+        var maxCount = rows.reduce(function (highest, row) {
+          return Math.max(highest, row.count);
+        }, 0) || 1;
+
+        rows.forEach(function (row) {
+          var item = document.createElement("div");
+          item.className = "frequency-row " + (row.className || "");
+
+          var label = document.createElement("strong");
+          label.textContent = row.label;
+
+          var bar = document.createElement("span");
+          bar.className = "frequency-bar";
+
+          var fill = document.createElement("span");
+          fill.className = "frequency-fill";
+          fill.style.width = Math.max(row.count ? 20 : 0, Math.round((row.count / maxCount) * 100)) + "%";
+          bar.appendChild(fill);
+
+          var summary = document.createElement("em");
+          summary.textContent = row.count + (row.count === 1 ? " session" : " sessions");
+
+          item.appendChild(label);
+          item.appendChild(bar);
+          item.appendChild(summary);
+          chart.appendChild(item);
+        });
+
+        return chart;
+      }
+
       function renderOverviewCards() {
         renderStudyOverview();
       }
 
-      // Skate sessions reset their checklist only after finishing a session.
+      function normalizeSkateWarmupItems(items) {
+        var source = Array.isArray(items) ? items : defaultSkateWarmupItems;
+        var cleaned = source.map(function (item) {
+          return typeof item === "string" ? item.trim() : "";
+        }).filter(Boolean);
+        if (!cleaned.length) {
+          return defaultSkateWarmupItems.slice();
+        }
+        if (cleaned.length === legacySkateWarmupItems.length && cleaned.every(function (item, index) {
+          return item === legacySkateWarmupItems[index];
+        })) {
+          return defaultSkateWarmupItems.slice();
+        }
+        return cleaned;
+      }
+
+      function getSkateWarmupItems() {
+        return normalizeSkateWarmupItems(readJson(STORAGE.skateWarmupItems, defaultSkateWarmupItems));
+      }
+
+      function saveSkateWarmupItems(items) {
+        writeJson(STORAGE.skateWarmupItems, normalizeSkateWarmupItems(items));
+      }
+
+      function normalizeSkateLearningItems(items) {
+        var source = Array.isArray(items) ? items : defaultSkateLearningItems;
+        var cleaned = source.map(function (item) {
+          if (typeof item === "string") {
+            return { name: item.trim(), note: "" };
+          }
+          return {
+            name: typeof item.name === "string" ? item.name.trim() : "",
+            note: typeof item.note === "string" ? item.note.trim() : ""
+          };
+        }).filter(function (item) {
+          return item.name;
+        });
+        return cleaned.length ? cleaned : defaultSkateLearningItems.slice();
+      }
+
+      function getSkateLearningItems() {
+        return normalizeSkateLearningItems(readJson(STORAGE.skateLearningItems, defaultSkateLearningItems));
+      }
+
+      function saveSkateLearningItems(items) {
+        writeJson(STORAGE.skateLearningItems, normalizeSkateLearningItems(items));
+      }
+
+      function normalizeSkateChecked(checked, length) {
+        return Array.from({ length: length }, function (_, index) {
+          return Boolean(Array.isArray(checked) && checked[index]);
+        });
+      }
+
       function defaultSkateSession() {
+        var warmupItems = getSkateWarmupItems();
         return {
-          warmups: "",
           note: "",
-          checked: skateChecklistItems.map(function () {
-            return false;
-          }),
+          checked: normalizeSkateChecked([], warmupItems.length),
           startedAt: new Date().toISOString()
         };
       }
 
       function getCurrentSkateSession() {
         var session = readJson(STORAGE.skateCurrentSession, null);
-        if (!session || !Array.isArray(session.checked)) {
+        var warmupItems = getSkateWarmupItems();
+        if (!session) {
           return defaultSkateSession();
         }
         return {
-          warmups: typeof session.warmups === "string" ? session.warmups : "",
-          note: typeof session.note === "string" ? session.note : "",
-          checked: skateChecklistItems.map(function (_, index) {
-            return Boolean(session.checked[index]);
-          }),
+          note: "",
+          checked: normalizeSkateChecked(session.checked, warmupItems.length),
           startedAt: session.startedAt || new Date().toISOString()
         };
       }
@@ -1495,6 +1765,7 @@
 
       function renderSkateTrendCharts() {
         var series = trendSeries(skateTrendPeriod);
+        var frequency = sessionFrequency(skateTrendPeriod);
         elements.skateTrendCharts.innerHTML = "";
         elements.skateTrendCharts.appendChild(createTrendChart("Skate quality over time", [
           { label: "Quality", values: series.quality, summary: scoreLabel(average(series.quality)), className: "skate" }
@@ -1502,18 +1773,8 @@
         elements.skateTrendCharts.appendChild(createTrendChart("Leg soreness over time", [
           { label: "Soreness", values: series.soreness, summary: scoreLabel(average(series.soreness)), className: "p90x3" }
         ]));
-        elements.skateTrendCharts.appendChild(createTrendChart("Skate / body hours", [
-          { label: "Skate", values: series.skateHours, summary: totalLabel(series.skateHours), className: "skate" },
-          { label: "Body", values: series.bodyHours, summary: totalLabel(series.bodyHours), className: "python" }
-        ]));
+        elements.skateTrendCharts.appendChild(createFrequencyChart("Session frequency", frequency.rows, "No sessions in this range yet."));
         renderSkateTrendPeriodTabs();
-      }
-
-      function totalLabel(values) {
-        var total = values.reduce(function (sum, value) {
-          return sum + (Number(value) || 0);
-        }, 0);
-        return total ? formatHours(Math.round(total * 10) / 10) : "No hours yet";
       }
 
       function trendSeries(period) {
@@ -1521,31 +1782,61 @@
         var series = {
           labels: [],
           quality: [],
-          soreness: [],
-          skateHours: [],
-          bodyHours: []
+          soreness: []
         };
 
         buckets.forEach(function (bucket) {
           var sessions = getSkateSessions().filter(function (session) {
             return session && session.finishedAt && bucket.matchDate(parseDate(session.finishedAt.slice(0, 10)));
           });
-          var bodyLogs = getPhysicalLogs().filter(function (log) {
-            return countsAsDone(log.status) && bucket.matchDate(parseDate(log.date));
-          });
 
           series.labels.push(bucket.label);
           series.quality.push(average(sessions.map(function (session) { return session.skateQuality; })));
           series.soreness.push(average(sessions.map(function (session) { return session.legSoreness; })));
-          series.skateHours.push(Math.round(sessions.reduce(function (sum, session) {
-            return sum + (Number(session.durationHours) || 0);
-          }, 0) * 10) / 10);
-          series.bodyHours.push(Math.round(bodyLogs.reduce(function (sum, log) {
-            return sum + ((Number(log.minutes) || 0) / 60);
-          }, 0) * 10) / 10);
         });
 
         return series;
+      }
+
+      function selectedTrendRange(period) {
+        if (period === "day") {
+          return { start: today, end: today };
+        }
+        if (period === "week") {
+          return weekRange(today);
+        }
+        if (period === "month") {
+          return {
+            start: new Date(today.getFullYear(), today.getMonth(), 1),
+            end: new Date(today.getFullYear(), today.getMonth() + 1, 0)
+          };
+        }
+        return {
+          start: new Date(2000, 0, 1),
+          end: new Date(2099, 11, 31)
+        };
+      }
+
+      function sessionFrequency(period) {
+        var range = selectedTrendRange(period);
+        var skateCount = getSkateSessions().filter(function (session) {
+          return session && session.finishedAt && dateInRange(parseDate(session.finishedAt.slice(0, 10)), range.start, range.end);
+        }).length;
+        var bodyCount = getPhysicalLogs().filter(function (log) {
+          return countsAsDone(log.status) && bucketlessBodySession(log) && dateInRange(parseDate(log.date), range.start, range.end);
+        }).length;
+        var totalCount = skateCount + bodyCount;
+        return {
+          rows: totalCount ? [
+            { label: "Skate", count: skateCount, className: "skate" },
+            { label: "Body", count: bodyCount, className: "python" },
+            { label: "Total", count: totalCount, className: "lc" }
+          ] : []
+        };
+      }
+
+      function bucketlessBodySession(log) {
+        return log && (log.note || log.name);
       }
 
       function buildTrendBuckets(period) {
@@ -1645,14 +1936,17 @@
         elements.skateTargetInput.value = target;
         elements.skateWeekLabel.textContent = isoWeekKey(today);
         elements.skateSessionCount.textContent = skateSessionsThisWeek + " / " + target;
-        elements.skateWarmups.value = session.warmups;
-        elements.skateSessionNote.value = session.note;
-        elements.skateChecklist.innerHTML = "";
+        elements.skateWarmupList.innerHTML = "";
+        elements.skateLearningList.innerHTML = "";
         renderSkateWeeklyMetrics();
         renderSkateTrendCharts();
+        renderWarmupTemplate(session);
+        renderLearningTemplate();
+      }
 
-        skateChecklistItems.forEach(function (label, index) {
-          var row = document.createElement("label");
+      function renderWarmupTemplate(session) {
+        getSkateWarmupItems().forEach(function (label, index) {
+          var row = document.createElement("div");
           row.className = "skate-check-row";
 
           var checkbox = document.createElement("input");
@@ -1666,16 +1960,126 @@
             saveCurrentSkateSession(latestSession);
           });
 
+          var textInput = document.createElement("input");
+          textInput.type = "text";
+          textInput.className = "skate-check-input";
+          textInput.maxLength = 80;
+          textInput.value = label;
+          textInput.placeholder = "Warm-up trick";
+          textInput.addEventListener("input", function () {
+            var nextItems = getSkateWarmupItems();
+            var nextValue = textInput.value.trim() || label;
+            nextItems[index] = nextValue;
+            saveSkateWarmupItems(nextItems);
+          });
+
+          var removeButton = createSkateTinyAction("Delete", function () {
+            removeWarmupTrick(index);
+          }, "quiet-danger");
+
           row.appendChild(checkbox);
-          row.appendChild(document.createElement("span")).textContent = label;
-          elements.skateChecklist.appendChild(row);
+          row.appendChild(textInput);
+          row.appendChild(removeButton);
+          elements.skateWarmupList.appendChild(row);
         });
       }
 
-      function updateCurrentSkateSessionField(field, value) {
+      function renderLearningTemplate() {
+        getSkateLearningItems().forEach(function (item, index) {
+          var row = document.createElement("div");
+          row.className = "skate-learning-row";
+
+          var titleRow = document.createElement("div");
+          titleRow.className = "skate-learning-title-row";
+
+          var nameInput = document.createElement("input");
+          nameInput.type = "text";
+          nameInput.className = "skate-check-input";
+          nameInput.maxLength = 80;
+          nameInput.value = item.name;
+          nameInput.placeholder = "Learning trick";
+          nameInput.addEventListener("input", function () {
+            var nextItems = getSkateLearningItems();
+            var nextValue = nameInput.value.trim() || item.name;
+            nextItems[index].name = nextValue;
+            saveSkateLearningItems(nextItems);
+          });
+
+          var removeButton = createSkateTinyAction("Delete", function () {
+            removeLearningTrick(index);
+          }, "quiet-danger");
+
+          titleRow.appendChild(nameInput);
+          titleRow.appendChild(removeButton);
+
+          var noteInput = document.createElement("textarea");
+          noteInput.className = "skate-learning-note";
+          noteInput.rows = 2;
+          noteInput.maxLength = 240;
+          noteInput.placeholder = "What to focus on for this trick...";
+          noteInput.value = item.note;
+          noteInput.addEventListener("input", function () {
+            var nextItems = getSkateLearningItems();
+            nextItems[index].note = noteInput.value.trim();
+            saveSkateLearningItems(nextItems);
+          });
+
+          row.appendChild(titleRow);
+          row.appendChild(noteInput);
+          elements.skateLearningList.appendChild(row);
+        });
+      }
+
+      function createSkateTinyAction(label, onClick, extraClass) {
+        var button = document.createElement("button");
+        button.type = "button";
+        button.className = "tiny-button";
+        if (extraClass) {
+          button.classList.add(extraClass);
+        }
+        button.textContent = label;
+        button.addEventListener("click", onClick);
+        return button;
+      }
+
+      function addWarmupTrick() {
+        var nextItems = getSkateWarmupItems();
+        nextItems.push("New warm-up trick");
+        saveSkateWarmupItems(nextItems);
         var session = getCurrentSkateSession();
-        session[field] = value;
+        session.checked.push(false);
         saveCurrentSkateSession(session);
+        renderSkatePage();
+      }
+
+      function removeWarmupTrick(index) {
+        var nextItems = getSkateWarmupItems();
+        if (nextItems.length <= 1) {
+          return;
+        }
+        nextItems.splice(index, 1);
+        saveSkateWarmupItems(nextItems);
+        var session = getCurrentSkateSession();
+        session.checked.splice(index, 1);
+        saveCurrentSkateSession(session);
+        renderSkatePage();
+      }
+
+      function addLearningTrick() {
+        var nextItems = getSkateLearningItems();
+        nextItems.push({ name: "New learning trick", note: "" });
+        saveSkateLearningItems(nextItems);
+        renderSkatePage();
+      }
+
+      function removeLearningTrick(index) {
+        var nextItems = getSkateLearningItems();
+        if (nextItems.length <= 1) {
+          return;
+        }
+        nextItems.splice(index, 1);
+        saveSkateLearningItems(nextItems);
+        renderSkatePage();
       }
 
       function resetSkateSessionState(message) {
@@ -1701,7 +2105,11 @@
         sessions.push({
           id: makeId("skate"),
           focus: focus,
-          warmups: session.warmups,
+          warmups: getSkateWarmupItems().filter(function (_, index) {
+            return session.checked[index];
+          }).join(", "),
+          warmupItems: getSkateWarmupItems(),
+          learningItems: getSkateLearningItems(),
           checked: session.checked,
           note: session.note,
           feedbackNote: feedback.feedbackNote || "",
@@ -2376,13 +2784,8 @@
           renderSkatePage();
         });
 
-        elements.skateWarmups.addEventListener("input", function () {
-          updateCurrentSkateSessionField("warmups", elements.skateWarmups.value);
-        });
-
-        elements.skateSessionNote.addEventListener("input", function () {
-          updateCurrentSkateSessionField("note", elements.skateSessionNote.value);
-        });
+        elements.addWarmupTrick.addEventListener("click", addWarmupTrick);
+        elements.addLearningTrick.addEventListener("click", addLearningTrick);
 
         elements.finishSkateSession.addEventListener("click", finishSkateSession);
         elements.bodyLogForm.addEventListener("submit", addBodyLog);
