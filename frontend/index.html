@@ -151,7 +151,7 @@
           <article class="panel study-overview-card">
             <div class="panel-inner">
               <div class="section-head">
-                <h3>Study weekly overview</h3>
+                <h3>Weekly overview</h3>
                 <p class="small-note" id="studyOverviewWeek">This week</p>
               </div>
               <div id="studyOverview"></div>
@@ -174,31 +174,16 @@
               <span>Current trick focus</span>
               <input id="skateFocusInput" maxlength="80" autocomplete="off" placeholder="Frontside 180, shove-it, half cab...">
             </label>
-          </div>
-        </article>
-
-        <article class="panel skate-progress-card">
-          <div class="panel-inner">
-            <div class="section-head">
-              <h2>Weekly tracker</h2>
-              <p class="small-note" id="skateWeekLabel"></p>
+            <div class="skate-focus-metrics">
+              <div class="soft-stat">
+                <strong>Skate sessions this week</strong>
+                <span id="skateSessionCount">0 / 4</span>
+              </div>
+              <label class="soft-stat skate-target-stat" for="skateTargetInput">
+                <strong>Skate weekly target</strong>
+                <input id="skateTargetInput" type="number" min="1" max="14" step="1" inputmode="numeric" placeholder="4">
+              </label>
             </div>
-            <div class="skate-count" id="skateSessionCount">0 / 4</div>
-            <label class="job-input-row" for="skateTargetInput">
-              <span>Weekly target</span>
-              <input id="skateTargetInput" type="number" min="1" max="14" step="1" inputmode="numeric" placeholder="4">
-            </label>
-            <div class="compact-metrics" id="skateWeeklyMetrics"></div>
-          </div>
-        </article>
-
-        <article class="panel weekly-rhythm-card">
-          <div class="panel-inner">
-            <div class="section-head">
-              <h2>Weekly rhythm</h2>
-              <p class="small-note">Soft plan, easy to change.</p>
-            </div>
-            <div class="rhythm-strip" id="weeklyRhythm"></div>
           </div>
         </article>
 
@@ -206,31 +191,20 @@
           <div class="panel-inner">
             <div class="section-head">
               <h2>Body support</h2>
-              <p class="small-note">Small notes for skate-support work.</p>
+              <p class="small-note" id="skateWeekLabel">Small notes for skate-support work.</p>
             </div>
             <form class="body-log-form" id="bodyLogForm">
               <label class="form-row" for="bodyWorkoutName">
-                <span>Workout</span>
-                <select id="bodyWorkoutName"></select>
+                <span>Body support</span>
+                <input id="bodyWorkoutName" maxlength="80" autocomplete="off" placeholder="P90X3, stretch, yoga, recovery walk...">
               </label>
-              <label class="form-row" for="bodyWorkoutStatus">
-                <span>Status</span>
-                <select id="bodyWorkoutStatus">
-                  <option value="done">Done</option>
-                  <option value="modified">Modified</option>
-                  <option value="skipped">Skipped</option>
-                </select>
-              </label>
-              <label class="form-row" for="bodyWorkoutTime">
-                <span>Time</span>
-                <input id="bodyWorkoutTime" type="number" min="0" max="240" step="5" inputmode="numeric" placeholder="30">
-              </label>
-              <label class="form-row body-log-note" for="bodyWorkoutNote">
-                <span>Optional note</span>
-                <input id="bodyWorkoutNote" maxlength="120" autocomplete="off" placeholder="Kept it light, swapped moves, felt strong...">
+              <label class="form-row" for="bodyWorkoutScore">
+                <span>Session score</span>
+                <input id="bodyWorkoutScore" type="number" min="1" max="5" step="1" inputmode="numeric" placeholder="3">
               </label>
               <button class="secondary-button" type="submit">Save body log</button>
             </form>
+            <div class="body-support-metrics" id="skateWeeklyMetrics"></div>
           </div>
         </article>
 
@@ -238,8 +212,8 @@
           <div class="panel-inner">
             <div class="section-head">
               <h2>Skate / body trends</h2>
-              <p class="small-note">Tiny signals over time.</p>
             </div>
+            <div class="mini-tabs" id="skateTrendPeriodTabs" aria-label="Skate trend period"></div>
             <div class="chart-stack" id="skateTrendCharts"></div>
           </div>
         </article>
@@ -303,23 +277,13 @@
                 <label for="eventTitle">Title</label>
                 <input id="eventTitle" name="eventTitle" maxlength="80" autocomplete="off" placeholder="Deadline, flight, coffee, study checkpoint">
               </div>
-              <div class="event-time-grid">
-                <div class="form-row">
-                  <label for="eventDate">Date</label>
-                  <input id="eventDate" name="eventDate" type="date">
-                </div>
-                <div class="form-row">
-                  <label for="eventStartTime">Start</label>
-                  <input id="eventStartTime" name="eventStartTime" type="time">
-                </div>
-                <div class="form-row">
-                  <label for="eventEndTime">End</label>
-                  <input id="eventEndTime" name="eventEndTime" type="time">
-                </div>
+              <div class="form-row">
+                <label for="eventDate">Date</label>
+                <input id="eventDate" name="eventDate" type="date">
               </div>
               <div class="form-row">
                 <label for="eventNote">Optional note</label>
-                <textarea id="eventNote" name="eventNote" maxlength="280" placeholder="A detail, link, or reminder."></textarea>
+                <textarea id="eventNote" name="eventNote" maxlength="600" placeholder="A detail, link, or reminder."></textarea>
               </div>
               <div class="form-row">
                 <label for="eventCategory">Category</label>
@@ -327,11 +291,11 @@
                   <option value="Study deadline">Study deadline</option>
                   <option value="Personal">Personal</option>
                   <option value="Skate">Skate</option>
+                  <option value="Other">Other</option>
                 </select>
               </div>
               <div class="form-actions">
                 <button class="primary-button" type="submit" id="eventSaveButton">Save event</button>
-                <button class="secondary-button" type="button" id="eventCancelEdit" hidden>Cancel edit</button>
                 <span class="hint" id="formHint">No date selected yet.</span>
               </div>
             </form>

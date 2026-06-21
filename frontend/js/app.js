@@ -12,6 +12,8 @@
         skateTarget: "hivePlanner.skate.weeklyTarget",
         skateCurrentSession: "hivePlanner.skate.currentSession",
         skateSessions: "hivePlanner.skate.sessions",
+        studyOverviewPrefix: "hivePlanner.weekOverview.study.",
+        skateBodyOverviewPrefix: "hivePlanner.weekOverview.skateBody.",
         physicalPlanPrefix: "hivePlanner.physical.week.",
         physicalLogs: "hivePlanner.physical.logs",
         mascotPosition: "hivePlanner.mascot.position"
@@ -19,6 +21,7 @@
       var memoryStore = {};
       var serverStorageAvailable = false;
       var statsPeriod = "month";
+      var skateTrendPeriod = "month";
       var editingEventId = null;
 
       var tracks = [
@@ -160,6 +163,8 @@
       };
 
       var weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+      var studyOverviewPlaceholders = ["IRC 5h · C++ eval 2h", "Rest", "Optional review"];
+      var skateBodyOverviewPlaceholders = ["Total Synergistics", "Skate + Ab Ripper", "X3 Yoga"];
       var monthNames = [
         "January", "February", "March", "April", "May", "June",
         "July", "August", "September", "October", "November", "December"
@@ -208,20 +213,15 @@
         eventForm: document.getElementById("eventForm"),
         eventTitle: document.getElementById("eventTitle"),
         eventDate: document.getElementById("eventDate"),
-        eventStartTime: document.getElementById("eventStartTime"),
-        eventEndTime: document.getElementById("eventEndTime"),
         eventNote: document.getElementById("eventNote"),
         eventCategory: document.getElementById("eventCategory"),
         eventSaveButton: document.getElementById("eventSaveButton"),
-        eventCancelEdit: document.getElementById("eventCancelEdit"),
         formHint: document.getElementById("formHint"),
         skateWeeklyMetrics: document.getElementById("skateWeeklyMetrics"),
-        weeklyRhythm: document.getElementById("weeklyRhythm"),
         bodyLogForm: document.getElementById("bodyLogForm"),
         bodyWorkoutName: document.getElementById("bodyWorkoutName"),
-        bodyWorkoutStatus: document.getElementById("bodyWorkoutStatus"),
-        bodyWorkoutTime: document.getElementById("bodyWorkoutTime"),
-        bodyWorkoutNote: document.getElementById("bodyWorkoutNote"),
+        bodyWorkoutScore: document.getElementById("bodyWorkoutScore"),
+        skateTrendPeriodTabs: document.getElementById("skateTrendPeriodTabs"),
         skateTrendCharts: document.getElementById("skateTrendCharts"),
         skateFeedbackDialog: document.getElementById("skateFeedbackDialog"),
         skateFeedbackForm: document.getElementById("skateFeedbackForm"),
@@ -345,6 +345,10 @@
         return STORAGE.physicalPlanPrefix + isoWeekKey(date);
       }
 
+      function weekOverviewStorageKey(prefix, date) {
+        return prefix + isoWeekKey(date);
+      }
+
       function makeId(prefix) {
         return prefix + "-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
       }
@@ -400,6 +404,35 @@
 
       function scoreLabel(value) {
         return value ? (Math.round(value * 10) / 10) + " / 5" : "Not enough yet";
+      }
+
+      function emptyWeekOverview(date) {
+        return {
+          week: isoWeekKey(date),
+          days: weekDates(date).map(function () {
+            return "";
+          })
+        };
+      }
+
+      function normalizeWeekOverview(value, date) {
+        var fallback = emptyWeekOverview(date);
+        var days = Array.isArray(value && value.days) ? value.days : fallback.days;
+        return {
+          week: isoWeekKey(date),
+          days: weekDates(date).map(function (_, index) {
+            return typeof days[index] === "string" ? days[index] : "";
+          })
+        };
+      }
+
+      function getWeekOverview(prefix, date) {
+        var stored = readJson(weekOverviewStorageKey(prefix, date), null);
+        return stored ? normalizeWeekOverview(stored, date) : emptyWeekOverview(date);
+      }
+
+      function saveWeekOverview(prefix, date, overview) {
+        writeJson(weekOverviewStorageKey(prefix, date), normalizeWeekOverview(overview, date));
       }
 
       function getEvents() {
@@ -506,6 +539,7 @@
             name: String(log.name || "Other"),
             status: ["done", "modified", "skipped"].indexOf(log.status) === -1 ? "done" : log.status,
             minutes: Math.max(0, Number(log.minutes) || 0),
+            score: Math.max(0, Math.min(5, Number(log.score) || 0)),
             note: typeof log.note === "string" ? log.note : "",
             createdAt: log.createdAt || new Date().toISOString()
           };
@@ -518,6 +552,7 @@
 
       function categoryClass(category) {
           if (category === "Personal") return "personal";
+          if (category === "Other") return "other-event";
           if (category === "Skate") return "skate-event";
           return "study";
       }
@@ -1013,7 +1048,6 @@
         elements.plannedMount.innerHTML = "";
         elements.plannedMount.appendChild(renderPlannedGroup("Study", "study", planned, actual));
         elements.plannedMount.appendChild(renderPlannedGroup("Leisure", "leisure", planned, actual));
-        renderPlannedQualityNote();
       }
 
       function renderPlannedGroup(title, group, planned, actual) {
@@ -1032,6 +1066,7 @@
         titleRow.className = "planned-title";
         titleRow.innerHTML = "<strong>" + title + "</strong><span>Planned " + formatHours(plannedTotal) + " · Actual " + formatHours(actualTotal) + "</span>";
         wrapper.appendChild(titleRow);
+        wrapper.appendChild(createProgress(title + " progress", Math.round(actualTotal * 10) / 10, plannedTotal || 0));
 
         groupActivities.forEach(function (activity) {
           var row = document.createElement("label");
@@ -1178,39 +1213,178 @@
       }
 
       function renderStudyOverview() {
-        var week = weekRange(today);
-        var totals = totalHoursForRange(week.start, week.end);
-        var plannedStudy = plannedStudyHoursForWeek(today);
-        var actualStudy = sumHours(totals, "study");
-        var goals = readJson(STORAGE.goals, {});
-        var focusText = goals.cpp || goals.python || goals.lc || "C++ / ft_irc";
-        var focuses = tracks.map(function (track) {
-          return goals[track.id] || track.label;
-        }).filter(Boolean).slice(0, 3);
-
+        var dates = weekDates(today);
+        var studyOverview = getWeekOverview(STORAGE.studyOverviewPrefix, today);
+        var skateBodyOverview = getWeekOverview(STORAGE.skateBodyOverviewPrefix, today);
         elements.studyOverviewWeek.textContent = isoWeekKey(today);
         elements.studyOverview.innerHTML = "";
-        elements.studyOverview.appendChild(createMetricRow("Main focus", focusText, ""));
-        elements.studyOverview.appendChild(createProgress("Study progress", Math.round(actualStudy * 10) / 10, plannedStudy || 0));
-
-        var chips = document.createElement("div");
-        chips.className = "overview-chips";
-        focuses.forEach(function (focus) {
-          var chip = document.createElement("span");
-          chip.textContent = focus;
-          chips.appendChild(chip);
-        });
-        elements.studyOverview.appendChild(chips);
+        elements.studyOverview.appendChild(createCombinedWeekOverview(dates, studyOverview, skateBodyOverview));
       }
 
-      function renderPlannedQualityNote() {
-        var stats = physicalPlanStats(today);
-        var note = document.createElement("div");
-        note.className = "quality-note";
-        var modifiedText = stats.modified ? stats.modified + " modified" : "No modified sessions";
-        var skippedText = stats.skipped ? stats.skipped + " skipped" : "nothing skipped";
-        note.textContent = modifiedText + " · " + skippedText + ". This is information, not a grade.";
-        elements.plannedMount.appendChild(note);
+      function defaultStudyPlanText(date) {
+        var tasks = readJson(dailyTaskStorageKey(date), []);
+        if (!Array.isArray(tasks) || !tasks.length) {
+          return studyOverviewPlaceholders[date.getDay() % studyOverviewPlaceholders.length];
+        }
+        return tasks.slice(0, 3).map(function (task) {
+          return task.label;
+        }).join(" · ");
+      }
+
+      function defaultBodyPlanText(dayIndex) {
+        var plan = getPhysicalPlan(today);
+        var items = plan.days[dayIndex] || [];
+        if (!items.length) {
+          return skateBodyOverviewPlaceholders[dayIndex % skateBodyOverviewPlaceholders.length];
+        }
+        return items.slice(0, 3).map(function (item) {
+          return item.name;
+        }).join(" + ");
+      }
+
+      function createCombinedWeekOverview(dates, studyOverview, skateBodyOverview) {
+        var wrapper = document.createElement("section");
+        wrapper.className = "planned-group overview-section";
+        var list = document.createElement("div");
+        list.className = "week-overview-list";
+
+        dates.forEach(function (date, index) {
+          var row = document.createElement("div");
+          row.className = "week-overview-item";
+          if (formatDate(date) === formatDate(today)) {
+            row.classList.add("is-today");
+          }
+
+          var dayLabel = document.createElement("span");
+          dayLabel.className = "week-overview-day";
+          dayLabel.textContent = weekdays[date.getDay()];
+          row.appendChild(dayLabel);
+
+          var body = document.createElement("div");
+          body.className = "week-overview-body";
+
+          var display = document.createElement("button");
+          display.type = "button";
+          display.className = "week-overview-display";
+          body.appendChild(display);
+
+          var editor = document.createElement("div");
+          editor.className = "week-overview-editor";
+          editor.hidden = true;
+
+          var studyInput = document.createElement("input");
+          studyInput.type = "text";
+          studyInput.className = "week-overview-input";
+          studyInput.maxLength = 120;
+
+          var bodyInput = document.createElement("input");
+          bodyInput.type = "text";
+          bodyInput.className = "week-overview-input";
+          bodyInput.maxLength = 120;
+
+          var actions = document.createElement("div");
+          actions.className = "week-overview-actions";
+
+          var saveButton = document.createElement("button");
+          saveButton.type = "button";
+          saveButton.className = "week-overview-action is-save";
+          saveButton.textContent = "Save";
+
+          var cancelButton = document.createElement("button");
+          cancelButton.type = "button";
+          cancelButton.className = "week-overview-action";
+          cancelButton.textContent = "Cancel";
+
+          actions.appendChild(saveButton);
+          actions.appendChild(cancelButton);
+          editor.appendChild(createWeekOverviewEditorLine("Study", studyInput));
+          editor.appendChild(createWeekOverviewEditorLine("Body", bodyInput));
+          editor.appendChild(actions);
+          body.appendChild(editor);
+          row.appendChild(body);
+
+          function currentStudyText() {
+            return (studyOverview.days[index] || "").trim() || defaultStudyPlanText(date);
+          }
+
+          function currentBodyText() {
+            return (skateBodyOverview.days[index] || "").trim() || defaultBodyPlanText(index);
+          }
+
+          function renderDisplay() {
+            display.innerHTML = [
+              '<span class="week-overview-line"><strong>Study</strong><span>' + escapeHtml(currentStudyText()) + "</span></span>",
+              '<span class="week-overview-line"><strong>Body</strong><span>' + escapeHtml(currentBodyText()) + "</span></span>"
+            ].join("");
+          }
+
+          function startEditing() {
+            studyInput.value = studyOverview.days[index] || "";
+            bodyInput.value = skateBodyOverview.days[index] || "";
+            studyInput.placeholder = defaultStudyPlanText(date);
+            bodyInput.placeholder = defaultBodyPlanText(index);
+            display.hidden = true;
+            editor.hidden = false;
+            studyInput.focus();
+            studyInput.select();
+          }
+
+          function finishEditing(shouldSave) {
+            if (shouldSave) {
+              studyOverview.days[index] = studyInput.value.trim();
+              skateBodyOverview.days[index] = bodyInput.value.trim();
+              saveWeekOverview(STORAGE.studyOverviewPrefix, today, studyOverview);
+              saveWeekOverview(STORAGE.skateBodyOverviewPrefix, today, skateBodyOverview);
+            }
+            editor.hidden = true;
+            display.hidden = false;
+            renderDisplay();
+          }
+
+          display.addEventListener("click", startEditing);
+          saveButton.addEventListener("click", function () {
+            finishEditing(true);
+          });
+          cancelButton.addEventListener("click", function () {
+            finishEditing(false);
+          });
+          [studyInput, bodyInput].forEach(function (input) {
+            input.addEventListener("keydown", function (event) {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                finishEditing(true);
+              }
+              if (event.key === "Escape") {
+                event.preventDefault();
+                finishEditing(false);
+              }
+            });
+          });
+
+          renderDisplay();
+          list.appendChild(row);
+        });
+
+        wrapper.appendChild(list);
+        return wrapper;
+      }
+
+      function createWeekOverviewEditorLine(label, input) {
+        var line = document.createElement("label");
+        line.className = "week-overview-edit-line";
+        var title = document.createElement("span");
+        title.textContent = label;
+        line.appendChild(title);
+        line.appendChild(input);
+        return line;
+      }
+
+      function escapeHtml(value) {
+        return String(value)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/\"/g, "&quot;");
       }
 
       function createTrendChart(title, rows) {
@@ -1223,6 +1397,7 @@
           dots.appendChild(document.createElement("strong")).textContent = row.label;
           var dotWrap = document.createElement("div");
           dotWrap.className = "trend-dots";
+          dotWrap.style.gridTemplateColumns = "repeat(" + Math.max(row.values.length, 1) + ", minmax(5px, 1fr))";
           row.values.forEach(function (value) {
             var dot = document.createElement("span");
             dot.style.height = Math.max(6, Math.round((Number(value) || 0) * 8)) + "px";
@@ -1281,163 +1456,181 @@
       }
 
       function renderWorkoutOptions() {
-        if (!elements.bodyWorkoutName) {
-          return;
+        if (elements.bodyWorkoutName && !elements.bodyWorkoutName.value) {
+          elements.bodyWorkoutName.value = "";
         }
-        elements.bodyWorkoutName.innerHTML = "";
-        physicalWorkoutNames.filter(function (name) {
-          return name !== "Skate" && name !== "Rest";
-        }).forEach(function (name) {
-          var option = document.createElement("option");
-          option.value = name;
-          option.textContent = name;
-          elements.bodyWorkoutName.appendChild(option);
+      }
+
+      function renderSkateWeeklyMetrics() {
+        var counts = {};
+        getPhysicalLogs().forEach(function (log) {
+          var label = (log.note || log.name || "").trim();
+          if (!label || !countsAsDone(log.status)) {
+            return;
+          }
+          counts[label] = (counts[label] || 0) + 1;
         });
-      }
 
-      function renderCompactMetric(label, value) {
-        var item = document.createElement("div");
-        item.className = "compact-metric";
-        item.innerHTML = "<strong>" + label + "</strong><span>" + value + "</span>";
-        return item;
-      }
-
-      function renderSkateWeeklyMetrics(stats) {
         elements.skateWeeklyMetrics.innerHTML = "";
-        elements.skateWeeklyMetrics.appendChild(renderCompactMetric("P90X3", stats.p90x3Done + " / " + stats.p90x3Target));
-        elements.skateWeeklyMetrics.appendChild(renderCompactMetric("Ab Ripper", stats.abDone + " / " + stats.abTarget));
-        elements.skateWeeklyMetrics.appendChild(renderCompactMetric("Physical time", formatMinutes(stats.physicalMinutes)));
-      }
 
-      function updatePlanDayFromText(plan, dayIndex, text) {
-        var existing = plan.days[dayIndex] || [];
-        var nextNames = splitPlanText(text);
-        plan.days[dayIndex] = nextNames.map(function (name) {
-          var match = existing.find(function (item) {
-            return item.name.toLowerCase() === name.toLowerCase();
-          });
-          return match ? Object.assign({}, match, { name: name }) : normalizePlanItem({ name: name });
+        Object.keys(counts).sort(function (left, right) {
+          if (counts[right] !== counts[left]) {
+            return counts[right] - counts[left];
+          }
+          return left.localeCompare(right);
+        }).forEach(function (label) {
+          var chip = document.createElement("span");
+          chip.className = "body-support-chip";
+          chip.innerHTML = "<strong>" + label + "</strong><em>" + counts[label] + "</em>";
+          elements.skateWeeklyMetrics.appendChild(chip);
         });
-        savePhysicalPlan(today, plan);
-        renderSkatePage();
-        renderTotals();
-      }
 
-      function updatePlanItem(dayIndex, itemIndex, field, value) {
-        var plan = getPhysicalPlan(today);
-        if (!plan.days[dayIndex] || !plan.days[dayIndex][itemIndex]) {
-          return;
+        if (!elements.skateWeeklyMetrics.children.length) {
+          var empty = document.createElement("p");
+          empty.className = "body-support-empty";
+          empty.textContent = "Saved body support will appear here.";
+          elements.skateWeeklyMetrics.appendChild(empty);
         }
-        plan.days[dayIndex][itemIndex][field] = value;
-        savePhysicalPlan(today, plan);
-        renderSkatePage();
-        renderTotals();
-      }
-
-      function renderWeeklyRhythm() {
-        var dates = weekDates(today);
-        var plan = getPhysicalPlan(today);
-        elements.weeklyRhythm.innerHTML = "";
-
-        dates.forEach(function (date, dayIndex) {
-          var day = document.createElement("div");
-          day.className = "rhythm-day";
-
-          var label = document.createElement("label");
-          label.setAttribute("for", "rhythm-" + dayIndex);
-          label.textContent = weekdays[date.getDay()] + " " + date.getDate();
-
-          var input = document.createElement("input");
-          input.id = "rhythm-" + dayIndex;
-          input.name = "rhythm-" + dayIndex;
-          input.value = (plan.days[dayIndex] || []).map(function (item) {
-            return item.name;
-          }).join(" + ");
-          input.placeholder = "Rest, Skate, X3 Yoga...";
-          input.addEventListener("change", function () {
-            updatePlanDayFromText(plan, dayIndex, input.value);
-          });
-
-          var items = document.createElement("div");
-          items.className = "rhythm-items";
-          (plan.days[dayIndex] || []).forEach(function (item, itemIndex) {
-            var row = document.createElement("div");
-            row.className = "rhythm-item " + item.status;
-
-            var name = document.createElement("strong");
-            name.textContent = item.name;
-
-            var status = document.createElement("select");
-            status.id = "rhythm-status-" + dayIndex + "-" + itemIndex;
-            status.name = status.id;
-            ["planned", "done", "modified", "skipped"].forEach(function (value) {
-              var option = document.createElement("option");
-              option.value = value;
-              option.textContent = value.charAt(0).toUpperCase() + value.slice(1);
-              status.appendChild(option);
-            });
-            status.value = item.status;
-            status.addEventListener("change", function () {
-              updatePlanItem(dayIndex, itemIndex, "status", status.value);
-            });
-
-            var minutes = document.createElement("input");
-            minutes.id = "rhythm-minutes-" + dayIndex + "-" + itemIndex;
-            minutes.name = minutes.id;
-            minutes.type = "number";
-            minutes.min = "0";
-            minutes.max = "240";
-            minutes.step = "5";
-            minutes.inputMode = "numeric";
-            minutes.value = item.minutes || "";
-            minutes.placeholder = "min";
-            minutes.addEventListener("change", function () {
-              updatePlanItem(dayIndex, itemIndex, "minutes", Math.max(0, Number(minutes.value) || 0));
-            });
-
-            var note = document.createElement("input");
-            note.id = "rhythm-note-" + dayIndex + "-" + itemIndex;
-            note.name = note.id;
-            note.value = item.note || "";
-            note.maxLength = 90;
-            note.placeholder = "note";
-            note.addEventListener("change", function () {
-              updatePlanItem(dayIndex, itemIndex, "note", note.value);
-            });
-
-            row.appendChild(name);
-            row.appendChild(status);
-            row.appendChild(minutes);
-            row.appendChild(note);
-            items.appendChild(row);
-          });
-
-          day.appendChild(label);
-          day.appendChild(input);
-          day.appendChild(items);
-          elements.weeklyRhythm.appendChild(day);
-        });
       }
 
       function renderSkateTrendCharts() {
-        var dates = weekDates(today);
-        var quality = [];
-        var soreness = [];
-        var confidence = [];
+        var series = trendSeries(skateTrendPeriod);
+        elements.skateTrendCharts.innerHTML = "";
+        elements.skateTrendCharts.appendChild(createTrendChart("Skate quality over time", [
+          { label: "Quality", values: series.quality, summary: scoreLabel(average(series.quality)), className: "skate" }
+        ]));
+        elements.skateTrendCharts.appendChild(createTrendChart("Leg soreness over time", [
+          { label: "Soreness", values: series.soreness, summary: scoreLabel(average(series.soreness)), className: "p90x3" }
+        ]));
+        elements.skateTrendCharts.appendChild(createTrendChart("Skate / body hours", [
+          { label: "Skate", values: series.skateHours, summary: totalLabel(series.skateHours), className: "skate" },
+          { label: "Body", values: series.bodyHours, summary: totalLabel(series.bodyHours), className: "python" }
+        ]));
+        renderSkateTrendPeriodTabs();
+      }
 
-        dates.forEach(function (date) {
-          var sessions = feedbackForRange(date, date);
-          quality.push(average(sessions.map(function (session) { return session.skateQuality; })));
-          soreness.push(average(sessions.map(function (session) { return session.legSoreness; })));
-          confidence.push(average(sessions.map(function (session) { return session.confidence; })));
+      function totalLabel(values) {
+        var total = values.reduce(function (sum, value) {
+          return sum + (Number(value) || 0);
+        }, 0);
+        return total ? formatHours(Math.round(total * 10) / 10) : "No hours yet";
+      }
+
+      function trendSeries(period) {
+        var buckets = buildTrendBuckets(period);
+        var series = {
+          labels: [],
+          quality: [],
+          soreness: [],
+          skateHours: [],
+          bodyHours: []
+        };
+
+        buckets.forEach(function (bucket) {
+          var sessions = getSkateSessions().filter(function (session) {
+            return session && session.finishedAt && bucket.matchDate(parseDate(session.finishedAt.slice(0, 10)));
+          });
+          var bodyLogs = getPhysicalLogs().filter(function (log) {
+            return countsAsDone(log.status) && bucket.matchDate(parseDate(log.date));
+          });
+
+          series.labels.push(bucket.label);
+          series.quality.push(average(sessions.map(function (session) { return session.skateQuality; })));
+          series.soreness.push(average(sessions.map(function (session) { return session.legSoreness; })));
+          series.skateHours.push(Math.round(sessions.reduce(function (sum, session) {
+            return sum + (Number(session.durationHours) || 0);
+          }, 0) * 10) / 10);
+          series.bodyHours.push(Math.round(bodyLogs.reduce(function (sum, log) {
+            return sum + ((Number(log.minutes) || 0) / 60);
+          }, 0) * 10) / 10);
         });
 
-        elements.skateTrendCharts.innerHTML = "";
-        elements.skateTrendCharts.appendChild(createTrendChart("This week", [
-          { label: "Quality", values: quality, summary: scoreLabel(average(quality)), className: "skate" },
-          { label: "Soreness", values: soreness, summary: scoreLabel(average(soreness)), className: "p90x3" },
-          { label: "Confidence", values: confidence, summary: scoreLabel(average(confidence)), className: "python" }
-        ]));
+        return series;
+      }
+
+      function buildTrendBuckets(period) {
+        var now = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+        if (period === "day") {
+          return Array.from({ length: 7 }, function (_, index) {
+            var date = addDays(now, index - 6);
+            var key = formatDate(date);
+            return {
+              label: weekdays[date.getDay()],
+              matchDate: function (target) {
+                return formatDate(target) === key;
+              }
+            };
+          });
+        }
+        if (period === "week") {
+          return Array.from({ length: 8 }, function (_, index) {
+            var anchor = addDays(now, (index - 7) * 7);
+            var range = weekRange(anchor);
+            var label = monthNames[range.start.getMonth()].slice(0, 3) + " " + range.start.getDate();
+            return {
+              label: label,
+              matchDate: function (target) {
+                return dateInRange(target, range.start, range.end);
+              }
+            };
+          });
+        }
+        if (period === "month" || period === "all") {
+          var sourceDates = getSkateSessions().filter(function (session) {
+            return session && session.finishedAt;
+          }).map(function (session) {
+            return parseDate(session.finishedAt.slice(0, 10));
+          }).concat(getPhysicalLogs().map(function (log) {
+            return parseDate(log.date);
+          }));
+          var firstDate = sourceDates.length ? sourceDates.sort(function (a, b) { return a - b; })[0] : now;
+          var monthCount = period === "month" ? 6 : Math.max(1, ((now.getFullYear() - firstDate.getFullYear()) * 12) + now.getMonth() - firstDate.getMonth() + 1);
+          return Array.from({ length: monthCount }, function (_, index) {
+            var date = new Date(
+              now.getFullYear(),
+              now.getMonth() - monthCount + index + 1,
+              1
+            );
+            var year = date.getFullYear();
+            var month = date.getMonth();
+            return {
+              label: monthNames[month].slice(0, 3),
+              matchDate: function (target) {
+                return target.getFullYear() === year && target.getMonth() === month;
+              }
+            };
+          });
+        }
+        return [];
+      }
+
+      function renderSkateTrendPeriodTabs() {
+        var periods = [
+          { id: "day", label: "Day" },
+          { id: "week", label: "Week" },
+          { id: "month", label: "Month" },
+          { id: "all", label: "All" }
+        ];
+        elements.skateTrendPeriodTabs.innerHTML = "";
+        periods.forEach(function (period) {
+          var button = document.createElement("button");
+          button.type = "button";
+          button.className = "period-button";
+          button.classList.toggle("active", skateTrendPeriod === period.id);
+          button.textContent = period.label;
+          button.addEventListener("click", function () {
+            skateTrendPeriod = period.id;
+            renderSkateTrendCharts();
+          });
+          elements.skateTrendPeriodTabs.appendChild(button);
+        });
+      }
+
+      function countSkateSessionsForWeek(date) {
+        var range = weekRange(date);
+        return getSkateSessions().filter(function (session) {
+          return session && session.finishedAt && dateInRange(parseDate(session.finishedAt.slice(0, 10)), range.start, range.end);
+        }).length;
       }
 
       function renderSkatePage() {
@@ -1446,17 +1639,16 @@
         }
         var session = getCurrentSkateSession();
         var target = Math.max(1, Number(readText(STORAGE.skateTarget, "4")) || 4);
-        var stats = physicalPlanStats(today);
+        var skateSessionsThisWeek = countSkateSessionsForWeek(today);
 
         elements.skateFocusInput.value = readText(STORAGE.skateFocus, "");
         elements.skateTargetInput.value = target;
         elements.skateWeekLabel.textContent = isoWeekKey(today);
-        elements.skateSessionCount.textContent = "Skate: " + stats.skateDone + " / " + target;
+        elements.skateSessionCount.textContent = skateSessionsThisWeek + " / " + target;
         elements.skateWarmups.value = session.warmups;
         elements.skateSessionNote.value = session.note;
         elements.skateChecklist.innerHTML = "";
-        renderSkateWeeklyMetrics(stats);
-        renderWeeklyRhythm();
+        renderSkateWeeklyMetrics();
         renderSkateTrendCharts();
 
         skateChecklistItems.forEach(function (label, index) {
@@ -1505,8 +1697,6 @@
         var session = getCurrentSkateSession();
         var sessions = getSkateSessions();
         var focus = readText(STORAGE.skateFocus, "").trim();
-        var elapsedHours = session.startedAt ? (Date.now() - Date.parse(session.startedAt)) / 3600000 : 0;
-        var durationHours = Math.min(4, Math.max(0, Math.round(elapsedHours * 100) / 100));
 
         sessions.push({
           id: makeId("skate"),
@@ -1518,7 +1708,8 @@
           legSoreness: Math.max(1, Math.min(5, Number(feedback.legSoreness) || 3)),
           skateQuality: Math.max(1, Math.min(5, Number(feedback.skateQuality) || 3)),
           confidence: Math.max(1, Math.min(5, Number(feedback.confidence) || 3)),
-          durationHours: durationHours,
+          // Session check-ins should not silently add tracked hours.
+          durationHours: 0,
           startedAt: session.startedAt,
           finishedAt: new Date().toISOString()
         });
@@ -1529,24 +1720,23 @@
 
       function addBodyLog(event) {
         event.preventDefault();
-        var name = elements.bodyWorkoutName.value || "Other";
-        var status = elements.bodyWorkoutStatus.value || "done";
-        var minutes = Math.max(0, Number(elements.bodyWorkoutTime.value) || 0);
-        var note = elements.bodyWorkoutNote.value.trim();
+        var name = elements.bodyWorkoutName.value.trim() || "Body support";
+        var score = Math.max(1, Math.min(5, Number(elements.bodyWorkoutScore.value) || 3));
         var logs = getPhysicalLogs();
 
         logs.push({
           id: makeId("body"),
           date: formatDate(today),
-          name: name,
-          status: status,
-          minutes: minutes,
-          note: note,
+          name: "P90X3",
+          status: "done",
+          minutes: 0,
+          score: score,
+          note: name,
           createdAt: new Date().toISOString()
         });
         savePhysicalLogs(logs);
-        elements.bodyWorkoutTime.value = "";
-        elements.bodyWorkoutNote.value = "";
+        elements.bodyWorkoutName.value = "";
+        elements.bodyWorkoutScore.value = "";
         renderSkatePage();
         renderTotals();
       }
@@ -1782,12 +1972,6 @@
           var text = document.createElement("div");
           text.className = "event-title-row";
           text.appendChild(document.createTextNode(event.title));
-          if (event.startTime || event.endTime) {
-            var time = document.createElement("span");
-            time.className = "event-time";
-            time.textContent = " " + [event.startTime, event.endTime].filter(Boolean).join("-");
-            text.appendChild(time);
-          }
 
           var tag = document.createElement("span");
           tag.className = "tag " + categoryClass(event.category);
@@ -1869,7 +2053,7 @@
             var pill = document.createElement("button");
             pill.type = "button";
             pill.className = "event-pill " + categoryClass(event.category);
-            pill.textContent = (event.startTime ? event.startTime + " " : "") + event.title;
+            pill.textContent = event.title;
             pill.title = event.note ? event.title + " - " + event.note : event.title;
             pill.addEventListener("click", function (clickEvent) {
               clickEvent.stopPropagation();
@@ -1891,8 +2075,8 @@
             return String(a.createdAt).localeCompare(String(b.createdAt));
           });
 
-        elements.selectedDateHeading.textContent = editingEventId ? "Edit event" : "Add event for " + humanDate(selectedDate);
-        elements.formHint.textContent = editingEventId ? "Editing gently." : "Selected: " + selectedDate;
+        elements.selectedDateHeading.textContent = "Add event for " + humanDate(selectedDate);
+        elements.formHint.textContent = editingEventId ? "Editing selected event." : "Selected: " + selectedDate;
         elements.eventDate.value = selectedDate;
         elements.selectedDateEvents.innerHTML = "";
 
@@ -1907,10 +2091,12 @@
         events.forEach(function (event) {
           var item = document.createElement("li");
           item.className = "selected-event";
+          item.tabIndex = 0;
+          item.setAttribute("role", "button");
 
           var title = document.createElement("div");
           title.className = "selected-event-title";
-          title.textContent = (event.startTime ? event.startTime + " " : "") + event.title;
+          title.textContent = event.title;
 
           var tag = document.createElement("span");
           tag.className = "tag " + categoryClass(event.category);
@@ -1928,13 +2114,6 @@
 
           var actions = document.createElement("div");
           actions.className = "selected-event-actions";
-          var editButton = document.createElement("button");
-          editButton.type = "button";
-          editButton.className = "secondary-button";
-          editButton.textContent = "Edit";
-          editButton.addEventListener("click", function () {
-            startEditEvent(event.id);
-          });
           var deleteButton = document.createElement("button");
           deleteButton.type = "button";
           deleteButton.className = "secondary-button quiet-danger";
@@ -1942,9 +2121,20 @@
           deleteButton.addEventListener("click", function () {
             deleteEvent(event.id);
           });
-          actions.appendChild(editButton);
           actions.appendChild(deleteButton);
           item.appendChild(actions);
+          item.addEventListener("click", function () {
+            startEditEvent(event.id);
+          });
+          item.addEventListener("keydown", function (keyboardEvent) {
+            if (keyboardEvent.key === "Enter" || keyboardEvent.key === " ") {
+              keyboardEvent.preventDefault();
+              startEditEvent(event.id);
+            }
+          });
+          deleteButton.addEventListener("click", function (clickEvent) {
+            clickEvent.stopPropagation();
+          });
 
           elements.selectedDateEvents.appendChild(item);
         });
@@ -1954,11 +2144,8 @@
         editingEventId = null;
         elements.eventTitle.value = "";
         elements.eventNote.value = "";
-        elements.eventStartTime.value = "";
-        elements.eventEndTime.value = "";
         elements.eventDate.value = selectedDate;
         elements.eventSaveButton.textContent = "Save event";
-        elements.eventCancelEdit.hidden = true;
         elements.formHint.textContent = message || "Selected: " + selectedDate;
       }
 
@@ -1974,12 +2161,9 @@
         calendarCursor = parseDate(event.date);
         elements.eventTitle.value = event.title || "";
         elements.eventDate.value = event.date || selectedDate;
-        elements.eventStartTime.value = event.startTime || "";
-        elements.eventEndTime.value = event.endTime || "";
         elements.eventNote.value = event.note || "";
         elements.eventCategory.value = event.category || "Study deadline";
         elements.eventSaveButton.textContent = "Update event";
-        elements.eventCancelEdit.hidden = false;
         renderCalendar();
         renderSelectedDate();
         elements.eventTitle.focus();
@@ -1999,6 +2183,9 @@
         saveEvents(events.filter(function (item) {
           return item.id !== id;
         }));
+        if (editingEventId === id) {
+          resetEventForm("Event deleted.");
+        }
         renderCalendar();
         renderUpcoming();
         renderSelectedDate();
@@ -2010,8 +2197,6 @@
         var note = elements.eventNote.value.trim();
         var category = elements.eventCategory.value;
         var eventDate = elements.eventDate.value || selectedDate;
-        var startTime = elements.eventStartTime.value;
-        var endTime = elements.eventEndTime.value;
 
         if (!title) {
           elements.formHint.textContent = "Add a title before saving.";
@@ -2030,8 +2215,8 @@
               title: title,
               note: note,
               category: category,
-              startTime: startTime,
-              endTime: endTime,
+              startTime: "",
+              endTime: "",
               updatedAt: new Date().toISOString()
             });
           });
@@ -2042,8 +2227,8 @@
             title: title,
             note: note,
             category: category,
-            startTime: startTime,
-            endTime: endTime,
+            startTime: "",
+            endTime: "",
             createdAt: new Date().toISOString()
           });
         }
@@ -2169,10 +2354,6 @@
         });
 
         elements.eventForm.addEventListener("submit", addEvent);
-        elements.eventCancelEdit.addEventListener("click", function () {
-          resetEventForm("Edit cancelled.");
-          renderSelectedDate();
-        });
         elements.eventDate.addEventListener("change", function () {
           if (elements.eventDate.value) {
             selectedDate = elements.eventDate.value;
