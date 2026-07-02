@@ -17,8 +17,6 @@ It serves the frontend directly from the Python backend and stores app data in S
 - Static frontend in `frontend/`
 - SQLite database for persistence
 
-There is currently **no Node install step** and **no frontend build step**.
-
 ## Project Structure
 
 ```text
@@ -91,14 +89,6 @@ The backend now reads `.env` automatically if it exists. On a hosting platform, 
 
 ## Run Locally
 
-Recommended:
-
-```sh
-./scripts/start.sh
-```
-
-Equivalent direct command:
-
 ```sh
 python3 backend/app.py
 ```
@@ -124,28 +114,8 @@ pip install -r requirements.txt
 ### Development Run
 
 ```sh
-./scripts/start.sh
-```
-
-or
-
-```sh
 python3 backend/app.py
 ```
-
-### Production Build
-
-There is currently **no build step**.
-
-The app serves static files directly from the repo.
-
-### Production Start / Serve
-
-```sh
-python3 backend/app.py
-```
-
-If you use a process manager or platform start command, point it at the same entrypoint.
 
 ## Database Behavior
 
@@ -172,8 +142,6 @@ YUAN_PLANNER_DB_PATH=/data/planner/planner.db
 If the database path does not exist yet, the app creates the parent directory automatically.
 
 ## Deploying From GitHub
-
-A friend can host this app from GitHub on any service that can run Python and keep a writable filesystem or mounted persistent volume.
 
 Minimum deployment requirements:
 
@@ -212,9 +180,3 @@ Python syntax check:
 ```sh
 python3 -m py_compile backend/app.py
 ```
-
-## Notes
-
-- The frontend is static and lives in `frontend/`.
-- The Python backend serves both the API and the frontend assets.
-- `.gitignore` excludes local databases, logs, env files, virtualenvs, build output, and other machine-local files.
