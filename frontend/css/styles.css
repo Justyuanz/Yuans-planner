@@ -201,6 +201,432 @@ h1 {
   align-items: stretch;
 }
 
+.goal-planner-shell {
+  display: grid;
+  gap: 18px;
+}
+
+.intention-list,
+.goal-planner-intro,
+.goal-planner-list {
+  display: grid;
+  gap: 10px;
+}
+
+.goal-planner-intro:empty {
+  display: none;
+}
+
+.intention-block {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 1px solid rgba(79, 136, 133, 0.13);
+  border-radius: 15px;
+  background: linear-gradient(90deg, rgba(231, 251, 255, 0.68), rgba(245, 246, 214, 0.58));
+}
+
+.intention-block-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+}
+
+.intention-block-head strong,
+.week-day-header strong,
+.goal-plan-header strong {
+  color: var(--ink);
+  font-weight: 560;
+}
+
+.intention-line {
+  margin: 0;
+  color: var(--teal-dark);
+  font-weight: 540;
+}
+
+.day-type-pill.study-day {
+  color: #72894b;
+}
+
+.day-type-pill.skate-day {
+  color: var(--teal-dark);
+}
+
+.day-type-pill.rest-day {
+  color: #7c9a78;
+}
+
+.balance-meter,
+.balance-note,
+.routine-day-note,
+.goal-plan-card,
+.routine-editor {
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.balance-meter {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 520;
+}
+
+.balance-meter strong {
+  color: var(--ink);
+}
+
+.balance-meter span {
+  color: var(--teal-dark);
+  letter-spacing: 0.08em;
+}
+
+.balance-note,
+.routine-day-note {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.4;
+}
+
+.routine-day-note {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.week-day-panel {
+  display: grid;
+  gap: 14px;
+  padding: 16px 18px;
+  border: 1px solid rgba(224, 219, 209, 0.58);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.62);
+  box-shadow: 0 10px 24px rgba(40, 40, 55, 0.03);
+}
+
+.week-day-panel.study-day {
+  background: linear-gradient(135deg, rgba(240, 246, 211, 0.24), rgba(255, 255, 255, 0.9) 42%, rgba(255, 255, 255, 0.72));
+}
+
+.week-day-panel.skate-day {
+  background: linear-gradient(135deg, rgba(227, 251, 250, 0.26), rgba(255, 255, 255, 0.9) 42%, rgba(255, 255, 255, 0.72));
+}
+
+.week-day-panel.rest-day {
+  background: linear-gradient(135deg, rgba(232, 247, 238, 0.24), rgba(255, 255, 255, 0.9) 42%, rgba(255, 255, 255, 0.72));
+}
+
+.week-day-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  padding-bottom: 4px;
+  border-bottom: 1px solid rgba(224, 219, 209, 0.48);
+}
+
+.week-day-header strong {
+  display: block;
+  color: var(--ink);
+  font-size: 1.02rem;
+  font-weight: 570;
+}
+
+.week-day-header span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 460;
+}
+
+.routine-day-select {
+  min-height: 32px;
+  min-width: 136px;
+  padding: 5px 10px;
+  border: 1px solid rgba(224, 219, 209, 0.72);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.92);
+  color: #54545d;
+  box-shadow: none;
+}
+
+.week-day-part {
+  display: grid;
+  grid-template-columns: 78px minmax(0, 1fr);
+  gap: 12px;
+  align-items: start;
+}
+
+.week-day-part-label {
+  padding-top: 6px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 540;
+  letter-spacing: 0.02em;
+}
+
+.week-day-part-content {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 9px;
+  align-items: center;
+}
+
+#weeklyPlannerMount {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+.week-event-button {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 11px;
+  border: 1px solid rgba(224, 219, 209, 0.74);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.88);
+  color: #4a4a53;
+  font-size: 0.83rem;
+  font-weight: 520;
+  text-align: left;
+  box-shadow: 0 5px 14px rgba(40, 40, 55, 0.03);
+  transition: transform 0.14s ease, box-shadow 0.14s ease, background 0.14s ease;
+}
+
+.week-event-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 8px 18px rgba(40, 40, 55, 0.06);
+}
+
+.week-event-button.study {
+  color: #6b7f9b;
+  background: rgba(241, 246, 255, 0.9);
+}
+
+.week-event-button.personal,
+.week-event-button.other-event {
+  color: #8a7558;
+  background: rgba(255, 247, 236, 0.9);
+}
+
+.week-event-button.skate-event {
+  color: var(--teal-dark);
+  background: rgba(235, 251, 250, 0.88);
+}
+
+.week-add-button {
+  min-height: 30px;
+  padding: 5px 11px;
+  border: 1px solid rgba(224, 219, 209, 0.68);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.74);
+  color: var(--muted);
+  font-size: 0.77rem;
+  font-weight: 540;
+  box-shadow: none;
+}
+
+.week-day-part-empty {
+  color: rgba(118, 118, 129, 0.72);
+  font-size: 0.82rem;
+}
+
+.routine-editor {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 116px auto auto auto;
+  gap: 8px;
+  align-items: center;
+  padding: 10px;
+}
+
+.routine-editor input,
+.routine-editor select,
+.goal-step-input,
+.goal-plan-why {
+  width: 100%;
+  min-height: 38px;
+  padding: 8px 10px;
+  border: 1px solid rgba(185, 206, 240, 0.42);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.82);
+  color: #3f3f47;
+}
+
+.goal-plan-card {
+  display: grid;
+  gap: 10px;
+}
+
+.goal-plan-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.goal-planner-list {
+  gap: 14px;
+}
+
+.goal-card {
+  gap: 0;
+  padding: 0;
+  overflow: hidden;
+}
+
+.goal-card-header {
+  padding: 14px 16px;
+}
+
+.goal-card-title-wrap {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.goal-card-toggle {
+  width: 100%;
+  display: grid;
+  gap: 3px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.goal-card-title {
+  min-width: 0;
+  color: var(--ink);
+  font-size: 1rem;
+  font-weight: 560;
+  line-height: 1.25;
+}
+
+.goal-card-summary {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 500;
+}
+
+.goal-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.goal-quiet-button,
+.goal-delete-button,
+.goal-row-delete,
+.goal-place-button,
+.goal-add-action {
+  min-height: 28px;
+  padding: 4px 9px;
+  font-size: 0.76rem;
+}
+
+.goal-delete-button,
+.goal-row-delete {
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.14s ease;
+}
+
+.goal-card:hover .goal-delete-button,
+.goal-card:focus-within .goal-delete-button,
+.goal-action-row:hover .goal-row-delete,
+.goal-action-row:focus-within .goal-row-delete {
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.goal-card-body {
+  display: grid;
+  gap: 12px;
+  padding: 0 16px 16px;
+  border-top: 1px solid rgba(224, 219, 209, 0.5);
+}
+
+.goal-card-title-input {
+  margin-top: 12px;
+}
+
+.goal-step-list {
+  display: grid;
+  gap: 9px;
+}
+
+.goal-plan-why {
+  min-height: 64px;
+  resize: vertical;
+}
+
+.goal-step-row {
+  display: grid;
+  grid-template-columns: 18px minmax(180px, 1fr) 100px 190px auto auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.goal-action-row {
+  padding: 8px 0;
+  border-bottom: 1px solid rgba(224, 219, 209, 0.44);
+}
+
+.goal-action-row:last-child {
+  border-bottom: 0;
+}
+
+.goal-step-row input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+}
+
+.goal-time-select {
+  min-width: 92px;
+}
+
+.goal-schedule-select {
+  min-width: 170px;
+}
+
+.goal-step-status {
+  grid-column: 2 / -1;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.3;
+}
+
+.goal-card-footer {
+  display: flex;
+  justify-content: flex-start;
+  padding-top: 2px;
+}
+
+.compact-section-head {
+  margin-top: 6px;
+  margin-bottom: 12px;
+}
+
+.selected-event.routine-summary {
+  background: linear-gradient(135deg, rgba(234, 242, 255, 0.62), rgba(255, 255, 255, 0.78));
+  cursor: default;
+}
+
 .planner-main,
 .planner-side {
   display: contents;
@@ -290,7 +716,6 @@ h1 {
 .planned-grid,
 .pie-summary,
 .pie-breakdown,
-.upcoming-list,
 .skate-checklist,
 .chart-stack,
 #studyOverview,
@@ -1101,24 +1526,62 @@ textarea {
 
 .calendar-shell {
   display: grid;
-  gap: 18px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 26px;
+}
+
+.calendar-shell > * {
+  width: 100%;
+  max-width: none;
+  justify-self: stretch;
+}
+
+.weekly-planner-card {
+  order: 1;
+}
+
+.monthly-calendar-card {
+  order: 2;
+}
+
+.event-editor-card {
+  order: 3;
 }
 
 .calendar-toolbar {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
-  padding: 18px 20px;
-  border: 1px solid rgba(224, 219, 209, 0.7);
-  border-radius: 24px;
-  background: rgba(255, 255, 255, 0.82);
-  box-shadow: var(--shadow);
+  padding: 0 0 8px;
+  border: 0;
+  border-bottom: 1px solid rgba(224, 219, 209, 0.66);
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
 }
 
-.calendar-title {
-  font-size: clamp(1.7rem, 3.2vw, 2.25rem);
+.calendar-section-head {
+  display: grid;
+  gap: 4px;
+  margin-bottom: 0;
+}
+
+.monthly-calendar-inner {
+  display: grid;
+  gap: 14px;
+}
+
+.weekly-planner-card .panel-inner,
+.monthly-calendar-card .panel-inner,
+.event-editor-card .panel-inner {
+  display: grid;
+  width: 100%;
+}
+
+.weekly-planner-card .panel-inner {
+  gap: 10px;
 }
 
 .month-controls {
@@ -1141,7 +1604,7 @@ textarea {
 .calendar-grid {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));
-  gap: 10px;
+  gap: 12px;
   align-items: stretch;
 }
 
@@ -1155,7 +1618,7 @@ textarea {
 .day-cell {
   position: relative;
   isolation: isolate;
-  min-height: 116px;
+  min-height: 132px;
   overflow: hidden;
   padding: 11px;
   border: 1px solid rgba(224, 219, 209, 0.68);
@@ -1185,6 +1648,29 @@ textarea {
 .day-cell.today {
   background: linear-gradient(135deg, rgba(185, 238, 238, 0.7), rgba(255, 248, 184, 0.52));
   border-color: rgba(106, 154, 152, 0.18);
+}
+
+.day-cell.study-day {
+  background: linear-gradient(135deg, rgba(240, 246, 211, 0.54), rgba(255, 255, 255, 0.84));
+}
+
+.day-cell.skate-day {
+  background: linear-gradient(135deg, rgba(227, 251, 250, 0.6), rgba(255, 255, 255, 0.84));
+}
+
+.day-cell.rest-day {
+  background: linear-gradient(135deg, rgba(232, 247, 238, 0.6), rgba(255, 255, 255, 0.84));
+}
+
+.day-cell.study-day:hover,
+.day-cell.study-day.selected,
+.day-cell.skate-day:hover,
+.day-cell.skate-day.selected,
+.day-cell.rest-day:hover,
+.day-cell.rest-day.selected {
+  background:
+    radial-gradient(circle at 84% 16%, rgba(255, 255, 255, 0.86), transparent 24%),
+    linear-gradient(135deg, rgba(185, 238, 238, 0.78), rgba(255, 248, 184, 0.68) 58%, rgba(245, 202, 221, 0.62));
 }
 
 .day-cell.outside {
@@ -1245,6 +1731,13 @@ textarea {
   color: #8a7650;
 }
 
+.tag.routine-event,
+.event-pill.routine-event {
+  border-color: rgba(201, 182, 220, 0.42);
+  background: rgba(246, 238, 251, 0.92);
+  color: #8f79a5;
+}
+
 .tag.other-event,
 .event-pill.other-event {
   border-color: rgba(239, 201, 166, 0.42);
@@ -1259,36 +1752,10 @@ textarea {
   color: #4a8c4a;
 }
 
-.upcoming-list {
-  padding: 0;
-  margin: 0;
-  list-style: none;
-}
-
-.upcoming-item {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  gap: 10px;
-  align-items: center;
-  padding: 12px;
-  border: 1px solid #ececf1;
-  border-radius: 15px;
-  background: rgba(255, 255, 255, 0.62);
-}
-
-.event-date {
+.event-pill.more-pill {
+  border-color: rgba(224, 219, 209, 0.74);
+  background: rgba(255, 255, 255, 0.76);
   color: var(--muted);
-  font-size: 0.78rem;
-  font-weight: 510;
-  text-transform: uppercase;
-}
-
-.event-title-row {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-weight: 510;
 }
 
 .event-form,
@@ -1297,12 +1764,19 @@ textarea {
   gap: 8px;
 }
 
+.event-editor-card .panel-inner {
+  gap: 12px;
+}
+
 .selected-events {
   display: grid;
-  gap: 8px;
+  gap: 10px;
   padding: 0;
-  margin: 0 0 12px;
+  margin: 0;
   list-style: none;
+  max-height: 280px;
+  overflow: auto;
+  padding-right: 4px;
 }
 
 .selected-event {
@@ -1590,181 +2064,509 @@ textarea {
   gap: 14px;
 }
 
-.skate-template-section {
+.skate-coach-flow {
   display: grid;
   gap: 10px;
 }
 
-.skate-template-head {
-  display: flex;
-  justify-content: space-between;
+.coach-stage {
+  display: grid;
   gap: 10px;
-  align-items: flex-start;
+  padding: 14px;
+  border: 1px solid rgba(224, 219, 209, 0.54);
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.62);
 }
 
-.skate-template-head h3 {
+.coach-stage.is-active {
+  border-color: rgba(185, 206, 240, 0.72);
+  box-shadow: 0 16px 36px rgba(114, 99, 135, 0.07);
+}
+
+.coach-stage.tone-warmup {
+  background: linear-gradient(180deg, rgba(232, 247, 238, 0.76), rgba(255, 255, 255, 0.66));
+}
+
+.coach-stage.tone-focus {
+  background: linear-gradient(180deg, rgba(237, 245, 255, 0.78), rgba(255, 255, 255, 0.7));
+}
+
+.coach-stage.tone-skill {
+  background: linear-gradient(180deg, rgba(246, 239, 252, 0.7), rgba(255, 255, 255, 0.66));
+}
+
+.coach-stage-chip {
+  display: inline-flex;
+  width: fit-content;
+  min-height: 24px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.86);
+  color: var(--muted);
+  font-size: 0.74rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+}
+
+.coach-stage-head {
+  display: grid;
+  gap: 5px;
+}
+
+.coach-stage-head h3 {
   margin: 0;
   color: var(--ink);
-  font-size: 1rem;
-  font-weight: 560;
+  font-size: clamp(1.05rem, 2.6vw, 1.3rem);
+  font-weight: 590;
 }
 
-.skate-template-head p {
-  margin: 4px 0 0;
+.coach-stage-head p {
+  margin: 0;
+  max-width: 34rem;
   color: var(--muted);
   font-size: 0.84rem;
   line-height: 1.35;
 }
 
-.skate-template-list {
+.coach-stage-body {
   display: grid;
-  gap: 8px;
+  gap: 10px;
 }
 
-.skate-check-row {
+.coach-collapsed {
   display: grid;
-  grid-template-columns: 20px minmax(0, 1fr) auto;
+  gap: 4px;
+  padding: 11px 13px;
+  border: 1px solid rgba(185, 206, 240, 0.42);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.78);
+  text-align: left;
+}
+
+.coach-collapsed strong {
+  color: var(--green-dark);
+  font-weight: 600;
+}
+
+.coach-collapsed span {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.coach-group {
+  display: grid;
+  gap: 4px;
+  padding: 8px 10px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.coach-group-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: center;
+  padding-bottom: 2px;
+}
+
+.coach-group h4,
+.coach-support-card h4,
+.practice-head h4 {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.84rem;
+  font-weight: 620;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.coach-check-row {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr) auto;
   gap: 8px;
   align-items: center;
-  padding: 7px 0;
-  border-bottom: 1px solid rgba(224, 219, 209, 0.46);
-  background: transparent;
-  color: #4a4a53;
-  font-weight: 470;
+  min-height: 44px;
+  padding: 2px 0;
 }
 
-.skate-check-row:hover {
-  border-bottom-color: rgba(185, 238, 238, 0.9);
+.coach-check-row.compact {
+  min-height: 38px;
+  padding: 1px 0;
 }
 
-.skate-check-row input[type="checkbox"] {
+.coach-check-row input[type="checkbox"] {
   width: 16px;
   height: 16px;
-  margin: 0;
+  margin: 2px 0 0;
   appearance: none;
+  border: 1.5px solid rgba(118, 118, 129, 0.42);
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.84);
   display: grid;
   place-items: center;
-  border: 1.5px solid rgba(118, 118, 129, 0.46);
-  border-radius: 5px;
-  background: rgba(255, 255, 255, 0.76);
-  transition: background 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
 }
 
-.skate-check-row input[type="checkbox"]::after {
-  width: 9px;
-  height: 5px;
-  border-bottom: 2px solid #ffffff;
-  border-left: 2px solid #ffffff;
+.coach-check-row input[type="checkbox"]::after {
+  width: 8px;
+  height: 4px;
   content: "";
   opacity: 0;
+  border-left: 2px solid #ffffff;
+  border-bottom: 2px solid #ffffff;
   transform: rotate(-45deg) translateY(-1px);
 }
 
-.skate-check-row input[type="checkbox"]:checked {
+.coach-check-row input[type="checkbox"]:checked {
   border-color: rgba(79, 136, 133, 0.36);
   background: linear-gradient(135deg, var(--teal), var(--green));
-  box-shadow: 0 6px 14px rgba(79, 136, 133, 0.16);
 }
 
-.skate-check-row input[type="checkbox"]:checked::after {
+.coach-check-row input[type="checkbox"]:checked::after {
   opacity: 1;
 }
 
-.skate-check-input {
+.coach-check-row span {
   min-width: 0;
-  min-height: 0;
-  padding: 0 0 1px;
-  border: 0;
-  border-bottom: 1px solid rgba(185, 206, 240, 0.44);
-  border-radius: 0;
-  background: transparent;
-  box-shadow: none;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
   color: #4a4a53;
   font-size: 0.92rem;
-  font-weight: 500;
-  line-height: 1.35;
+  line-height: 1.28;
 }
 
-.skate-check-input:focus {
-  border-bottom-color: #8b86ff;
-  box-shadow: none;
-}
-
-.skate-check-input::placeholder {
-  color: rgba(118, 118, 129, 0.72);
-}
-
-.skate-check-row input[type="checkbox"]:checked + .skate-check-input {
-  color: var(--muted);
-  text-decoration: line-through;
-  text-decoration-thickness: 1.5px;
-}
-
-.skate-learning-row {
+.coach-row-fields {
+  width: 100%;
   display: grid;
-  gap: 7px;
-  padding: 8px 0 10px;
-  border-bottom: 1px solid rgba(224, 219, 209, 0.46);
-}
-
-.skate-learning-title-row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 6px;
   align-items: center;
 }
 
-.skate-learning-note {
-  min-height: 72px;
-  padding: 8px 10px;
-  border: 1px solid rgba(185, 206, 240, 0.34);
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.56);
-  color: #4a4a53;
-  font-size: 0.88rem;
-  line-height: 1.45;
-  resize: vertical;
+.coach-row-fields.has-target {
+  grid-template-columns: minmax(0, 1fr) auto;
 }
 
-.skate-learning-note:focus {
-  border-color: #8b86ff;
-  box-shadow: 0 0 0 4px rgba(139, 134, 255, 0.1);
+.coach-goal-label {
+  min-width: 0;
+  display: block;
 }
 
-.tiny-button {
-  min-height: 26px;
-  padding: 4px 9px;
-  border: 1px solid rgba(185, 206, 240, 0.42);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.76);
+.coach-check-row strong {
+  font-weight: 560;
+}
+
+.coach-check-row em {
   color: var(--muted);
-  font-size: 0.75rem;
-  font-weight: 550;
+  font-style: normal;
   white-space: nowrap;
 }
 
-.tiny-button.quiet-danger {
-  padding-inline: 8px;
+.coach-focus-body {
+  gap: 10px;
+}
+
+.coach-focus-chooser {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.coach-picker {
+  display: grid;
+  gap: 5px;
+}
+
+.coach-picker span,
+.practice-goals > span,
+.coach-note-field > span {
+  color: var(--muted);
+  font-size: 0.76rem;
+  font-weight: 560;
+}
+
+.coach-picker input,
+.coach-note-field textarea {
+  width: 100%;
+  min-height: 36px;
+  padding: 8px 10px;
+  border: 1px solid rgba(185, 206, 240, 0.42);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.86);
+  color: #3f3f47;
+}
+
+.coach-picker input:focus,
+.coach-inline-input:focus,
+.coach-inline-target:focus,
+.coach-step-input:focus,
+.coach-note-field textarea:focus {
+  border-color: #8b86ff;
+  box-shadow: 0 0 0 4px rgba(139, 134, 255, 0.1);
+  outline: none;
+}
+
+.coach-inline-input,
+.coach-inline-target,
+.coach-step-input {
+  border: 1px solid rgba(185, 206, 240, 0.32);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.9);
+  color: #3f3f47;
+}
+
+.coach-inline-input {
+  min-width: 0;
+  flex: 1 1 220px;
+  min-height: 32px;
+  padding: 5px 9px;
+  font-size: 0.88rem;
+  font-weight: 520;
+}
+
+.coach-inline-target {
+  width: 62px;
+  min-height: 32px;
+  padding: 5px 8px;
+  text-align: center;
+  font-size: 0.78rem;
+  font-weight: 540;
+}
+
+.coach-mini-action {
+  min-height: 24px;
+  padding: 4px 8px;
+  border: 1px solid rgba(185, 206, 240, 0.38);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.82);
+  color: var(--muted);
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+.coach-mini-action:hover {
+  transform: translateY(-1px);
+}
+
+.practice-card,
+.coach-support-card {
+  display: grid;
+  gap: 8px;
+  padding: 10px 11px;
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.74);
+}
+
+.practice-head {
+  display: grid;
+  gap: 2px;
+}
+
+.practice-head span {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.practice-status-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.status-pill {
+  min-height: 26px;
+  padding: 4px 8px;
+  border: 1px solid rgba(185, 206, 240, 0.42);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.84);
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 560;
+}
+
+.status-pill.active {
+  border-color: rgba(104, 119, 67, 0.22);
+  background: var(--green-soft);
+  color: var(--green-dark);
+}
+
+.practice-goals,
+.coach-note-field {
+  display: grid;
+  gap: 6px;
+}
+
+.practice-goals {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  align-items: start;
+}
+
+.practice-goals > span {
+  grid-column: 1 / -1;
+}
+
+.coach-note-field textarea {
+  min-height: 56px;
+  line-height: 1.35;
+  resize: vertical;
+}
+
+.coach-support-card p {
+  margin: 0;
+  color: #4a4a53;
+  font-size: 0.84rem;
+  line-height: 1.35;
+}
+
+.coach-stage-footer {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.coach-done-button {
+  min-height: 32px;
+  padding: 6px 11px;
+}
+
+.coach-done-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+  transform: none;
 }
 
 .skate-session-card .form-actions {
-  margin-top: 14px;
-  padding-top: 14px;
+  margin-top: 2px;
+  padding-top: 10px;
   border-top: 1px solid rgba(224, 219, 209, 0.48);
 }
 
 @media (max-width: 640px) {
-  .skate-template-head {
-    flex-direction: column;
-    align-items: stretch;
+  .skate-session-card .panel-inner {
+    gap: 12px;
   }
 
-  .skate-template-head .tiny-button {
-    align-self: flex-start;
+  .coach-stage {
+    gap: 8px;
+    padding: 11px 10px;
+    border-radius: 16px;
   }
 
-  .skate-learning-note {
-    min-height: 64px;
+  .coach-stage-head {
+    gap: 4px;
+  }
+
+  .coach-stage-head h3 {
+    font-size: 1rem;
+  }
+
+  .coach-stage-head p {
+    font-size: 0.76rem;
+    line-height: 1.28;
+  }
+
+  .coach-stage-chip {
+    min-height: 20px;
+    padding: 2px 8px;
+    font-size: 0.66rem;
+  }
+
+  .coach-focus-chooser {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .coach-group {
+    gap: 3px;
+    padding: 7px 8px;
+    border-radius: 12px;
+  }
+
+  .coach-group-head {
+    gap: 6px;
+    padding-bottom: 1px;
+  }
+
+  .coach-check-row {
+    grid-template-columns: 16px minmax(0, 1fr) auto;
+    gap: 6px;
+    min-height: 36px;
+  }
+
+  .coach-check-row.compact {
+    min-height: 32px;
+  }
+
+  .coach-row-fields.has-target {
+    grid-template-columns: minmax(0, 1fr) 54px;
+    gap: 5px;
+  }
+
+  .coach-inline-input {
+    min-height: 28px;
+    padding: 4px 7px;
+    font-size: 0.82rem;
+  }
+
+  .coach-inline-target {
+    width: 54px;
+    min-height: 28px;
+    padding: 4px 6px;
+    font-size: 0.72rem;
+  }
+
+  .coach-mini-action {
+    min-height: 22px;
+    padding: 3px 7px;
+    font-size: 0.66rem;
+  }
+
+  .practice-card,
+  .coach-support-card {
+    gap: 7px;
+    padding: 9px 8px;
+    border-radius: 12px;
+  }
+
+  .practice-head h4 {
+    font-size: 0.9rem;
+    text-transform: none;
+    letter-spacing: 0;
+  }
+
+  .practice-status-row {
+    gap: 6px;
+  }
+
+  .status-pill {
+    min-height: 24px;
+    padding: 3px 7px;
+    font-size: 0.68rem;
+  }
+
+  .practice-goals {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+
+  .practice-goals .coach-check-row.compact {
+    min-height: 28px;
+  }
+
+  .coach-note-field textarea {
+    min-height: 48px;
+    padding: 7px 8px;
+    font-size: 0.8rem;
+  }
+
+  .coach-done-button {
+    min-height: 28px;
+    padding: 5px 9px;
+    font-size: 0.74rem;
   }
 }
 
@@ -1999,7 +2801,7 @@ textarea {
   }
 
   .tabs {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
   .tab-button {
@@ -2014,6 +2816,10 @@ textarea {
 @media (max-width: 980px) {
   .today-dashboard,
   .skate-page {
+    grid-template-columns: 1fr;
+  }
+
+  #weeklyPlannerMount {
     grid-template-columns: 1fr;
   }
 
@@ -2093,6 +2899,38 @@ textarea {
   .study-overview-card .panel-inner,
   .planned-card .panel-inner {
     min-height: auto;
+  }
+
+  .balance-meter,
+  .balance-note,
+  .routine-day-note,
+  .goal-plan-card,
+  .week-day-panel,
+  .routine-editor {
+    padding: 10px;
+  }
+
+  .week-day-part {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .week-day-part-label {
+    padding-top: 0;
+  }
+
+  .routine-editor {
+    grid-template-columns: 1fr;
+  }
+
+  .goal-step-row {
+    grid-template-columns: 18px minmax(0, 1fr);
+  }
+
+  .goal-step-row .task-category-select,
+  .goal-step-row .week-overview-action,
+  .goal-step-row .goal-step-status {
+    grid-column: 2;
   }
 
   .section-head {
@@ -2179,8 +3017,8 @@ textarea {
   }
 
   .calendar-toolbar {
-    padding: 10px 12px;
-    border-radius: 16px;
+    gap: 10px;
+    padding: 0 0 10px;
   }
 
   .calendar-grid {
@@ -2197,14 +3035,13 @@ textarea {
   }
 
   .day-cell {
-    min-height: 48px;
+    min-height: 56px;
     padding: 4px 3px;
     border-radius: 11px;
     box-shadow: 0 6px 14px rgba(40, 40, 55, 0.035);
   }
 
-  .life-pie,
-  .upcoming-item {
+  .life-pie {
     grid-template-columns: 1fr;
   }
 
@@ -2234,12 +3071,9 @@ textarea {
     display: none;
   }
 
-  .upcoming-item {
-    gap: 6px;
-  }
-
   .selected-events {
-    margin-bottom: 10px;
+    max-height: none;
+    padding-right: 0;
   }
 
   .selected-event {

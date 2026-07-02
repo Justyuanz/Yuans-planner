@@ -12,8 +12,9 @@
         skateTarget: "hivePlanner.skate.weeklyTarget",
         skateCurrentSession: "hivePlanner.skate.currentSession",
         skateSessions: "hivePlanner.skate.sessions",
-        skateWarmupItems: "hivePlanner.skate.warmupItems",
-        skateLearningItems: "hivePlanner.skate.learningItems",
+        skateCoachTemplate: "hivePlanner.skate.coachTemplate",
+        weeklyRoutinePrefix: "hivePlanner.routine.week.",
+        goalPlanner: "hivePlanner.goalPlanner.items",
         studyOverviewPrefix: "hivePlanner.weekOverview.study.",
         skateBodyOverviewPrefix: "hivePlanner.weekOverview.skateBody.",
         physicalPlanPrefix: "hivePlanner.physical.week.",
@@ -26,6 +27,80 @@
       var skateTrendPeriod = "month";
       var editingEventId = null;
       var editingTaskId = null;
+      var draftEventDayPart = "";
+      var expandedGoalId = "";
+      var calendarCore = globalThis.YuanCalendarCore || (function () {
+        function parseEventTimeMinutes(title) {
+          var match = String(title || "").trim().match(/^(\d{1,2})(?::?(\d{2}))?(?=\s|$|[-–])/);
+          if (!match) {
+            return null;
+          }
+          var hours = Number(match[1]);
+          var minutes = match[2] ? Number(match[2]) : 0;
+          if (hours > 23 || minutes > 59) {
+            return null;
+          }
+          return (hours * 60) + minutes;
+        }
+
+        function compareEventsChronologically(a, b) {
+          var timeA = parseEventTimeMinutes(a && a.title);
+          var timeB = parseEventTimeMinutes(b && b.title);
+          if (timeA !== null && timeB !== null && timeA !== timeB) {
+            return timeA - timeB;
+          }
+          if (timeA !== null && timeB === null) {
+            return -1;
+          }
+          if (timeA === null && timeB !== null) {
+            return 1;
+          }
+          return String((a && (a.createdAt || a.updatedAt)) || "")
+            .localeCompare(String((b && (b.createdAt || b.updatedAt)) || ""))
+            || String((a && a.id) || "").localeCompare(String((b && b.id) || ""));
+        }
+
+        function sortedEvents(events) {
+          return (Array.isArray(events) ? events : []).slice().sort(compareEventsChronologically);
+        }
+
+        function eventDayPart(event) {
+          var timeValue = parseEventTimeMinutes(event && event.title);
+          if (timeValue !== null) {
+            if (timeValue < 12 * 60) {
+              return "morning";
+            }
+            if (timeValue < 18 * 60) {
+              return "afternoon";
+            }
+            return "evening";
+          }
+          if (event && (event.dayPart === "morning" || event.dayPart === "afternoon" || event.dayPart === "evening")) {
+            return event.dayPart;
+          }
+          return "afternoon";
+        }
+
+        function groupEventsByPart(events) {
+          var groups = {
+            morning: [],
+            afternoon: [],
+            evening: []
+          };
+          sortedEvents(events).forEach(function (event) {
+            groups[eventDayPart(event)].push(event);
+          });
+          return groups;
+        }
+
+        return {
+          compareEventsChronologically: compareEventsChronologically,
+          eventDayPart: eventDayPart,
+          groupEventsByPart: groupEventsByPart,
+          parseEventTimeMinutes: parseEventTimeMinutes,
+          sortedEvents: sortedEvents
+        };
+      }());
 
       var tracks = [
         {
@@ -137,47 +212,50 @@
         "one tab, one task, go"
       ];
 
-      var legacySkateWarmupItems = [
-        "Reverts all directions",
-        "Ollie",
-        "Fakie ollie",
-        "Ollie on bank",
-        "Revert on bank",
-        "Go up curb",
-        "Ride off curb",
-        "Hippie jump",
-        "Ollie over line / crack",
-        "Manual 1-2 seconds",
-        "Drop-ins",
-        "Ride in bowl",
-        "Wall ride / wall touch",
-        "Powerslide attempt"
-      ];
-
-      var defaultSkateWarmupItems = [
-        "Reverts all directions",
-        "Ollie",
-        "Fakie ollie",
-        "Ollie on bank",
-        "Revert on bank",
-        "Ride up bank and come back fakie",
-        "Go up curb",
-        "Ride off curb",
-        "Ride off small drop",
-        "Ollie over line / crack",
-        "Manual 1-2 seconds",
-        "Hippie jump",
-        "Drop-ins",
-        "Ride in bowl",
-        "Wall ride / wall touch",
-        "Powerslide attempt"
-      ];
-
-      var defaultSkateLearningItems = [
-        { name: "Fakie ollie consistency", note: "" },
-        { name: "Half-cab", note: "Turn shoulders first. Commit to rolling back fakie." },
-        { name: "Rock to fakey", note: "" }
-      ];
+      var defaultSkateCoachTemplate = {
+        warmupGroups: [
+          {
+            title: "Flat",
+            items: [
+              { id: "flat-reverts", name: "Reverts (all directions)", target: "" },
+              { id: "flat-ollie", name: "Ollie", target: "x10" },
+              { id: "flat-fakie-ollie", name: "Fakie Ollie", target: "x10" }
+            ]
+          },
+          {
+            title: "Street",
+            items: [
+              { id: "street-curb-on", name: "Ollie onto curb", target: "x5" },
+              { id: "street-obstacle", name: "Ollie over obstacle", target: "x5" },
+              { id: "street-bank", name: "Ollie on bank", target: "x5" },
+              { id: "street-drop", name: "Drop off curb", target: "x5" }
+            ]
+          },
+          {
+            title: "Transition",
+            items: [
+              { id: "transition-dropin", name: "Drop in", target: "x3-5" },
+              { id: "transition-bowl", name: "Bowl laps", target: "5 min" },
+              { id: "transition-fakie", name: "Ride up transition to fakie", target: "x10" },
+              { id: "transition-rock-fakie", name: "Rock to Fakie", target: "x10" }
+            ]
+          }
+        ],
+        focusSuggestions: {
+          flat: ["Shove-it", "Frontside 180", "Half Cab"],
+          transition: ["Axle Stall", "Axle Drop", "Wall Ride"]
+        },
+        skillBuilder: {
+          switchItems: ["Push switch", "Ride switch", "Switch kickturns"],
+          reminder: "Finish with a few Fakie Ollies.",
+          wallRide: "Only a few attempts. Focus on getting comfortable touching the wall and riding away. Not landing."
+        },
+        roadmapChains: [
+          ["Rock to Fakie", "Axle Stall", "Axle Drop", "Rock & Roll"],
+          ["Reverts", "Fakie Ollie", "Half Cab"],
+          ["Switch Push", "Switch Ride", "Switch Ollie"]
+        ]
+      };
 
       var physicalWorkoutNames = [
         "Skate",
@@ -195,12 +273,28 @@
       ];
 
       var feedbackScales = {
-        legSoreness: ["fresh", "okay", "noticeable", "heavy", "too sore"],
-        skateQuality: ["bad", "rough", "okay", "good", "amazing"],
+        progressToday: ["stuck", "small win", "moving", "solid", "breakthrough"],
         confidence: ["scared", "hesitant", "normal", "confident", "very free"]
       };
 
       var weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+      var weekLabels = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
+      var dayParts = ["morning", "afternoon", "evening"];
+      var dayPartLimits = {
+        morning: 1,
+        afternoon: 2,
+        evening: 1
+      };
+      var dayTypes = [
+        { id: "study", label: "Study Day", className: "study-day" },
+        { id: "skate", label: "Skate Day", className: "skate-day" },
+        { id: "rest", label: "Rest Day", className: "rest-day" }
+      ];
+      var partLabels = {
+        morning: "Morning",
+        afternoon: "Afternoon",
+        evening: "Evening"
+      };
       var studyOverviewPlaceholders = ["IRC 5h · C++ eval 2h", "Rest", "Optional review"];
       var skateBodyOverviewPlaceholders = ["Total Synergistics", "Skate + Ab Ripper", "X3 Yoga"];
       var monthNames = [
@@ -223,14 +317,19 @@
         taskForm: document.getElementById("taskForm"),
         taskTitle: document.getElementById("taskTitle"),
         taskActivity: document.getElementById("taskActivity"),
+        todayThemeLine: document.getElementById("todayThemeLine"),
+        todayThemeBadge: document.getElementById("todayThemeBadge"),
+        todayIntentionMount: document.getElementById("todayIntentionMount"),
+        weeklyPlannerLabel: document.getElementById("weeklyPlannerLabel"),
+        weeklyPlannerMount: document.getElementById("weeklyPlannerMount"),
+        goalPlannerIntro: document.getElementById("goalPlannerIntro"),
+        goalPlannerMount: document.getElementById("goalPlannerMount"),
+        addGoalPlannerItem: document.getElementById("addGoalPlannerItem"),
         skateFocusInput: document.getElementById("skateFocusInput"),
         skateWeekLabel: document.getElementById("skateWeekLabel"),
         skateSessionCount: document.getElementById("skateSessionCount"),
         skateTargetInput: document.getElementById("skateTargetInput"),
-        skateWarmupList: document.getElementById("skateWarmupList"),
-        addWarmupTrick: document.getElementById("addWarmupTrick"),
-        skateLearningList: document.getElementById("skateLearningList"),
-        addLearningTrick: document.getElementById("addLearningTrick"),
+        skateCoachFlow: document.getElementById("skateCoachFlow"),
         finishSkateSession: document.getElementById("finishSkateSession"),
         skateSessionHint: document.getElementById("skateSessionHint"),
         statsPeriodTabs: document.getElementById("statsPeriodTabs"),
@@ -242,12 +341,14 @@
         plannedMount: document.getElementById("plannedMount"),
         studyOverviewWeek: document.getElementById("studyOverviewWeek"),
         studyOverview: document.getElementById("studyOverview"),
-        upcomingEvents: document.getElementById("upcomingEvents"),
         calendarHeading: document.getElementById("calendarHeading"),
+        currentMonthLabel: document.getElementById("currentMonthLabel"),
         calendarGrid: document.getElementById("calendarGrid"),
         prevMonth: document.getElementById("prevMonth"),
         nextMonth: document.getElementById("nextMonth"),
+        eventEditorCard: document.getElementById("eventEditorCard"),
         selectedDateHeading: document.getElementById("selectedDateHeading"),
+        selectedDateHint: document.getElementById("selectedDateHint"),
         selectedDateEvents: document.getElementById("selectedDateEvents"),
         eventForm: document.getElementById("eventForm"),
         eventTitle: document.getElementById("eventTitle"),
@@ -264,10 +365,10 @@
         skateTrendCharts: document.getElementById("skateTrendCharts"),
         skateFeedbackDialog: document.getElementById("skateFeedbackDialog"),
         skateFeedbackForm: document.getElementById("skateFeedbackForm"),
-        legSorenessScale: document.getElementById("legSorenessScale"),
-        skateQualityScale: document.getElementById("skateQualityScale"),
         confidenceScale: document.getElementById("confidenceScale"),
-        skateFeedbackNote: document.getElementById("skateFeedbackNote"),
+        progressTodayScale: document.getElementById("progressTodayScale"),
+        skateImprovedNote: document.getElementById("skateImprovedNote"),
+        skateNextFocusNote: document.getElementById("skateNextFocusNote"),
         cancelSkateFeedback: document.getElementById("cancelSkateFeedback"),
         exportData: document.getElementById("exportData"),
         importData: document.getElementById("importData"),
@@ -414,11 +515,6 @@
         return String(Math.round(number * 100) / 100).replace(/\.0$/, "") + "h";
       }
 
-      function formatMinutes(minutes) {
-        var safeMinutes = Math.max(0, Number(minutes) || 0);
-        return formatHours(safeMinutes / 60);
-      }
-
       function workoutKind(name) {
         var normalized = String(name || "").toLowerCase();
         if (normalized.indexOf("skate") !== -1) {
@@ -491,6 +587,28 @@
         writeJson(STORAGE.events, events);
       }
 
+      function parseEventTimeMinutes(title) {
+        return calendarCore.parseEventTimeMinutes(title);
+      }
+
+      function compareEventsChronologically(a, b) {
+        return calendarCore.compareEventsChronologically(a, b);
+      }
+
+      function sortedEvents(events) {
+        return calendarCore.sortedEvents(events);
+      }
+
+      function eventsForDate(dateKey) {
+        return sortedEvents(getEvents().filter(function (event) {
+          return event.date === dateKey;
+        }));
+      }
+
+      function eventDayPart(event) {
+        return calendarCore.eventDayPart(event);
+      }
+
       function weekDates(date) {
         var range = weekRange(date);
         var dates = [];
@@ -498,6 +616,327 @@
           dates.push(addDays(range.start, index));
         }
         return dates;
+      }
+
+      function routineStorageKey(date) {
+        return STORAGE.weeklyRoutinePrefix + isoWeekKey(date);
+      }
+
+      function dayTypeById(id) {
+        if (id === "personal") {
+          id = "rest";
+        }
+        return dayTypes.find(function (type) {
+          return type.id === id;
+        }) || dayTypes[0];
+      }
+
+      function defaultRoutineItem(title, kind) {
+        return {
+          id: makeId("routine"),
+          title: title,
+          kind: kind || "flexible"
+        };
+      }
+
+      function defaultWeeklyRoutine(date) {
+        var defaults = [
+          {
+            type: "study",
+            morning: [defaultRoutineItem("Leetcode warm-up", "flexible")],
+            afternoon: [defaultRoutineItem("IRC main block", "flexible")],
+            evening: []
+          },
+          {
+            type: "study",
+            morning: [defaultRoutineItem("Review priorities", "flexible")],
+            afternoon: [defaultRoutineItem("Python project", "flexible")],
+            evening: []
+          },
+          {
+            type: "skate",
+            morning: [],
+            afternoon: [defaultRoutineItem("Skate session", "fixed")],
+            evening: []
+          },
+          {
+            type: "study",
+            morning: [defaultRoutineItem("Leetcode warm-up", "flexible")],
+            afternoon: [defaultRoutineItem("IRC deep work", "flexible")],
+            evening: []
+          },
+          {
+            type: "study",
+            morning: [],
+            afternoon: [defaultRoutineItem("Applications or portfolio", "flexible")],
+            evening: []
+          },
+          {
+            type: "rest",
+            morning: [defaultRoutineItem("Errands or life admin", "flexible")],
+            afternoon: [],
+            evening: []
+          },
+          {
+            type: "rest",
+            morning: [],
+            afternoon: [],
+            evening: [defaultRoutineItem("Gentle reset for the week", "flexible")]
+          }
+        ];
+        return {
+          week: isoWeekKey(date),
+          days: weekDates(date).map(function (_, index) {
+            var source = defaults[index] || defaults[0];
+            return {
+              type: source.type,
+              allowFullDay: false,
+              morning: source.morning.slice(),
+              afternoon: source.afternoon.slice(),
+              evening: source.evening.slice()
+            };
+          })
+        };
+      }
+
+      function normalizeRoutineItem(item) {
+        var title = typeof (item && item.title) === "string" ? item.title.trim() : "";
+        return {
+          id: item && item.id ? item.id : makeId("routine"),
+          title: title || "Untitled block",
+          kind: item && item.kind === "fixed" ? "fixed" : "flexible"
+        };
+      }
+
+      function normalizeRoutineDay(day, fallback) {
+        var source = day || fallback;
+        var normalized = {
+          type: dayTypeById(source.type).id,
+          allowFullDay: Boolean(source.allowFullDay)
+        };
+        dayParts.forEach(function (part) {
+          var items = Array.isArray(source[part]) ? source[part] : fallback[part];
+          normalized[part] = items.map(normalizeRoutineItem).filter(function (item) {
+            return item.title;
+          });
+        });
+        return normalized;
+      }
+
+      function getWeeklyRoutine(date) {
+        var fallback = defaultWeeklyRoutine(date);
+        var stored = readJson(routineStorageKey(date), null);
+        if (!stored || !Array.isArray(stored.days)) {
+          return fallback;
+        }
+        return {
+          week: isoWeekKey(date),
+          days: weekDates(date).map(function (_, index) {
+            return normalizeRoutineDay(stored.days[index], fallback.days[index]);
+          })
+        };
+      }
+
+      function saveWeeklyRoutine(date, routine) {
+        var fallback = defaultWeeklyRoutine(date);
+        writeJson(routineStorageKey(date), {
+          week: isoWeekKey(date),
+          days: weekDates(date).map(function (_, index) {
+            return normalizeRoutineDay(routine.days[index], fallback.days[index]);
+          })
+        });
+      }
+
+      function emptyGoalStep() {
+        return {
+          id: makeId("goal-step"),
+          text: "",
+          minutes: 45,
+          done: false,
+          scheduledDay: "",
+          eventId: ""
+        };
+      }
+
+      function emptyGoalItem() {
+        return {
+          id: makeId("goal"),
+          title: "",
+          why: "",
+          steps: [emptyGoalStep()]
+        };
+      }
+
+      function getGoalPlannerItems() {
+        var items = readJson(STORAGE.goalPlanner, null);
+        if (!Array.isArray(items)) {
+          return [emptyGoalItem()];
+        }
+        return items.map(function (goal) {
+          return {
+            id: goal && goal.id ? goal.id : makeId("goal"),
+            title: typeof (goal && goal.title) === "string" ? goal.title : "",
+            why: typeof (goal && goal.why) === "string" ? goal.why : "",
+            steps: Array.isArray(goal && goal.steps) && goal.steps.length ? goal.steps.map(function (step) {
+              return {
+                id: step && step.id ? step.id : makeId("goal-step"),
+                text: typeof (step && step.text) === "string" ? step.text : "",
+                minutes: Math.max(15, Number(step && step.minutes) || 45),
+                done: Boolean(step && step.done),
+                scheduledDay: typeof (step && step.scheduledDay) === "string" ? step.scheduledDay : "",
+                eventId: typeof (step && step.eventId) === "string" ? step.eventId : ""
+              };
+            }) : [emptyGoalStep()]
+          };
+        });
+      }
+
+      function saveGoalPlannerItems(items) {
+        writeJson(STORAGE.goalPlanner, items);
+      }
+
+      function routineDayIndex(date) {
+        return weekDates(date).findIndex(function (entry) {
+          return formatDate(entry) === formatDate(date);
+        });
+      }
+
+      function routineDayForDate(date) {
+        var routine = getWeeklyRoutine(date);
+        var index = routineDayIndex(date);
+        return {
+          routine: routine,
+          index: index,
+          day: routine.days[index]
+        };
+      }
+
+      function updateWeeklyRoutine(mutator) {
+        var referenceDate = parseDate(selectedDate);
+        var routine = getWeeklyRoutine(referenceDate);
+        mutator(routine);
+        saveWeeklyRoutine(referenceDate, routine);
+        renderRoutinePlanner();
+        renderCalendar();
+        renderSelectedDate();
+      }
+
+      function updateGoalPlanner(mutator, shouldRender) {
+        var items = getGoalPlannerItems();
+        mutator(items);
+        saveGoalPlannerItems(items);
+        if (shouldRender !== false) {
+          renderGoalPlanner();
+        }
+      }
+
+      function removeGoalStepEvent(eventId) {
+        if (!eventId) {
+          return;
+        }
+        saveEvents(getEvents().filter(function (event) {
+          return event.id !== eventId;
+        }));
+      }
+
+      function clearGoalStepReferenceByEventId(eventId) {
+        if (!eventId) {
+          return;
+        }
+        var changed = false;
+        var items = getGoalPlannerItems();
+        items.forEach(function (goal) {
+          goal.steps.forEach(function (step) {
+            if (step.eventId === eventId) {
+              step.eventId = "";
+              step.scheduledDay = "";
+              changed = true;
+            }
+          });
+        });
+        if (changed) {
+          saveGoalPlannerItems(items);
+        }
+      }
+
+      function syncGoalStepReferenceFromEvent(event) {
+        if (!event || !event.goalId || !event.goalStepId) {
+          return;
+        }
+        var changed = false;
+        var items = getGoalPlannerItems();
+        items.forEach(function (goal) {
+          if (goal.id !== event.goalId) {
+            return;
+          }
+          goal.steps.forEach(function (step) {
+            if (step.id === event.goalStepId) {
+              step.eventId = event.id;
+              step.scheduledDay = event.date + "|" + eventDayPart(event);
+              changed = true;
+            }
+          });
+        });
+        if (changed) {
+          saveGoalPlannerItems(items);
+        }
+      }
+
+      function scheduleGoalStep(goalId, stepId) {
+        var items = getGoalPlannerItems();
+        var goal = items.find(function (entry) { return entry.id === goalId; });
+        if (!goal) {
+          return;
+        }
+        var step = goal.steps.find(function (entry) { return entry.id === stepId; });
+        if (!step || !step.text.trim() || !step.scheduledDay) {
+          return;
+        }
+        var parts = step.scheduledDay.split("|");
+        var dayKey = parts[0];
+        var part = parts[1] || "afternoon";
+        var events = getEvents();
+        var linkedEvent = step.eventId ? events.find(function (event) {
+          return event.id === step.eventId;
+        }) : null;
+        var noteParts = [];
+        if (goal.title.trim()) {
+          noteParts.push("Goal: " + goal.title.trim());
+        }
+        if (step.minutes) {
+          noteParts.push(step.minutes + " min");
+        }
+        var payload = {
+          date: dayKey,
+          title: step.text.trim(),
+          note: noteParts.join(" · "),
+          category: "Study deadline",
+          dayPart: part,
+          goalId: goal.id,
+          goalStepId: step.id,
+          updatedAt: new Date().toISOString()
+        };
+
+        if (linkedEvent) {
+          Object.assign(linkedEvent, payload);
+        } else {
+          linkedEvent = Object.assign({
+            id: makeId("event"),
+            createdAt: new Date().toISOString()
+          }, payload);
+          events.push(linkedEvent);
+        }
+
+        step.eventId = linkedEvent.id;
+        saveEvents(events);
+        saveGoalPlannerItems(items);
+        syncGoalStepReferenceFromEvent(linkedEvent);
+        selectedDate = dayKey;
+        calendarCursor = new Date(parseDate(dayKey).getFullYear(), parseDate(dayKey).getMonth(), 1);
+        renderRoutinePlanner();
+        renderGoalPlanner();
+        renderCalendar();
+        renderSelectedDate();
       }
 
       function defaultPhysicalPlan(date) {
@@ -559,19 +998,6 @@
         return normalizePhysicalPlan(stored, date);
       }
 
-      function savePhysicalPlan(date, plan) {
-        writeJson(physicalPlanStorageKey(date), normalizePhysicalPlan(plan, date));
-      }
-
-      function splitPlanText(text) {
-        return String(text || "")
-          .split(/\s*(?:\+|,|\/|\n)\s*/)
-          .map(function (name) {
-            return name.trim();
-          })
-          .filter(Boolean);
-      }
-
       function getPhysicalLogs() {
         var logs = readJson(STORAGE.physicalLogs, []);
         if (!Array.isArray(logs)) {
@@ -599,9 +1025,31 @@
 
       function categoryClass(category) {
           if (category === "Personal") return "personal";
+          if (category === "Routine") return "routine-event";
           if (category === "Other") return "other-event";
           if (category === "Skate") return "skate-event";
           return "study";
+      }
+
+      function isRoutineCategory(category) {
+        return category === "Routine";
+      }
+
+      function visibleMonthlyEvents(events) {
+        return (Array.isArray(events) ? events : []).filter(function (event) {
+          return !isRoutineCategory(event.category);
+        });
+      }
+
+      function monthEventChipLabel(title) {
+        var cleaned = String(title || "")
+          .replace(/^(\d{1,2})(?::?(\d{2}))?(?:\s*[–-]\s*\d{1,2}(?::?(\d{2}))?)?\s*/, "")
+          .trim();
+        var shortLabel = cleaned || String(title || "").trim();
+        if (shortLabel.length <= 20) {
+          return shortLabel;
+        }
+        return shortLabel.slice(0, 17).trimEnd() + "...";
       }
 
       function setActiveView(viewId) {
@@ -611,6 +1059,17 @@
         elements.views.forEach(function (view) {
           view.classList.toggle("active", view.id === viewId);
         });
+        if (viewId === "calendarView") {
+          renderRoutinePlanner();
+          renderCalendar();
+          renderSelectedDate();
+        }
+        var activeView = document.getElementById(viewId);
+        if (activeView && typeof activeView.scrollIntoView === "function") {
+          activeView.scrollIntoView({ block: "start", behavior: "auto" });
+        } else {
+          window.scrollTo(0, 0);
+        }
       }
 
       // Weekly goals stay until Yuan manually changes them.
@@ -701,6 +1160,16 @@
         return Math.max(0, Number(task.hours) || 0);
       }
 
+      function effectiveTaskHoursForDate(dateKey, task) {
+        if (dateKey === formatDate(today)) {
+          return effectiveTaskHours(task);
+        }
+        if (Number(task.timerSeconds) > 0) {
+          return hoursFromSeconds(task.timerSeconds);
+        }
+        return Math.max(0, Number(task.hours) || 0);
+      }
+
       function formatTimer(seconds) {
         var safeSeconds = Math.max(0, Math.floor(seconds));
         var hours = Math.floor(safeSeconds / 3600);
@@ -728,6 +1197,9 @@
       }
 
       function renderActivities() {
+        if (!elements.taskActivity) {
+          return;
+        }
         elements.taskActivity.innerHTML = "";
         activities.forEach(function (activity) {
           var option = document.createElement("option");
@@ -1099,7 +1571,7 @@
           var tasks = normalizeTasks(readJson(key, []));
           tasks.forEach(function (task) {
             if (totals[task.activity] !== undefined) {
-              totals[task.activity] += effectiveTaskHours(task);
+              totals[task.activity] += effectiveTaskHoursForDate(dateKey, task);
             }
           });
         });
@@ -1118,9 +1590,10 @@
           if (key.indexOf(STORAGE.dailyTasksPrefix) !== 0) {
             return;
           }
+          var dateKey = key.slice(STORAGE.dailyTasksPrefix.length);
           normalizeTasks(readJson(key, [])).forEach(function (task) {
             if (totals[task.activity] !== undefined) {
-              totals[task.activity] += effectiveTaskHours(task);
+              totals[task.activity] += effectiveTaskHoursForDate(dateKey, task);
             }
           });
         });
@@ -1150,14 +1623,12 @@
         return Math.round((part / total) * 100);
       }
 
-      function renderHours() {
-        renderTotals();
-      }
-
       function renderTotals() {
         renderLifePie();
         renderPlannedActual();
-        renderOverviewCards();
+        renderStudyOverview();
+        renderRoutinePlanner();
+        renderGoalPlanner();
       }
 
       // Study/leisure stats are calculated from saved task hours.
@@ -1270,110 +1741,6 @@
         });
 
         return wrapper;
-      }
-
-      function plannedStudyHoursForWeek(date) {
-        var planned = readJson(plannedStorageKey(date), {});
-        return activities.filter(function (activity) {
-          return activity.group === "study";
-        }).reduce(function (sum, activity) {
-          return sum + (Number(planned[activity.id]) || 0);
-        }, 0);
-      }
-
-      function physicalPlanStats(date) {
-        var week = weekRange(date);
-        var stats = {
-          skateTarget: Math.max(1, Number(readText(STORAGE.skateTarget, "4")) || 4),
-          skateDone: 0,
-          p90x3Target: 0,
-          p90x3Done: 0,
-          abTarget: 0,
-          abDone: 0,
-          physicalMinutes: 0,
-          modified: 0,
-          skipped: 0
-        };
-
-        getPhysicalPlan(date).days.forEach(function (items) {
-          items.forEach(function (item) {
-            var kind = workoutKind(item.name);
-            if (kind === "p90x3") {
-              stats.p90x3Target += 1;
-            }
-            if (kind === "abRipper") {
-              stats.abTarget += 1;
-            }
-            if (item.status === "modified") {
-              stats.modified += 1;
-            }
-            if (item.status === "skipped") {
-              stats.skipped += 1;
-            }
-            if (countsAsDone(item.status)) {
-              if (kind === "skate") {
-                stats.skateDone += 1;
-              } else if (kind === "p90x3") {
-                stats.p90x3Done += 1;
-              } else if (kind === "abRipper") {
-                stats.abDone += 1;
-              }
-              stats.physicalMinutes += Number(item.minutes) || 0;
-            }
-          });
-        });
-
-        getPhysicalLogs().forEach(function (log) {
-          var logDate = parseDate(log.date);
-          if (!dateInRange(logDate, week.start, week.end)) {
-            return;
-          }
-          if (log.status === "modified") {
-            stats.modified += 1;
-          }
-          if (log.status === "skipped") {
-            stats.skipped += 1;
-          }
-          if (!countsAsDone(log.status)) {
-            return;
-          }
-          if (workoutKind(log.name) === "skate") {
-            stats.skateDone += 1;
-          } else if (workoutKind(log.name) === "abRipper") {
-            stats.abDone += 1;
-          } else if (workoutKind(log.name) === "p90x3") {
-            stats.p90x3Done += 1;
-          }
-          stats.physicalMinutes += Number(log.minutes) || 0;
-        });
-
-        getSkateSessions().forEach(function (session) {
-          if (!session || !session.finishedAt) {
-            return;
-          }
-          if (dateInRange(parseDate(session.finishedAt.slice(0, 10)), week.start, week.end)) {
-            stats.skateDone += 1;
-            stats.physicalMinutes += Math.round((Number(session.durationHours) || 0) * 60);
-          }
-        });
-
-        return stats;
-      }
-
-      function feedbackForRange(start, end) {
-        return getSkateSessions().filter(function (session) {
-          if (!session || !session.finishedAt) {
-            return false;
-          }
-          return dateInRange(parseDate(session.finishedAt.slice(0, 10)), start, end);
-        });
-      }
-
-      function createMetricRow(label, value, detail) {
-        var row = document.createElement("div");
-        row.className = "overview-row";
-        row.innerHTML = "<strong>" + label + "</strong><span>" + value + (detail ? " · " + detail : "") + "</span>";
-        return row;
       }
 
       function createProgress(label, done, target) {
@@ -1632,82 +1999,645 @@
         return chart;
       }
 
-      function renderOverviewCards() {
-        renderStudyOverview();
+      function openEventComposer(dateKey, part, message) {
+        draftEventDayPart = part || "";
+        editingEventId = null;
+        selectedDate = dateKey;
+        calendarCursor = new Date(parseDate(dateKey).getFullYear(), parseDate(dateKey).getMonth(), 1);
+        elements.eventDate.value = dateKey;
+        elements.eventTitle.value = "";
+        elements.eventNote.value = "";
+        elements.eventCategory.value = "Study deadline";
+        elements.eventSaveButton.textContent = "Save event";
+        elements.formHint.textContent = message || ("Selected: " + dateKey);
+        renderCalendar();
+        renderSelectedDate();
+        elements.eventTitle.focus();
       }
 
-      function normalizeSkateWarmupItems(items) {
-        var source = Array.isArray(items) ? items : defaultSkateWarmupItems;
-        var cleaned = source.map(function (item) {
-          return typeof item === "string" ? item.trim() : "";
-        }).filter(Boolean);
-        if (!cleaned.length) {
-          return defaultSkateWarmupItems.slice();
+      function groupedEventsForDate(dateKey) {
+        return calendarCore.groupEventsByPart(eventsForDate(dateKey));
+      }
+
+      function todayFocusText(eventsByPart, part, fallback) {
+        var items = eventsByPart[part] || [];
+        return items.length ? items[0].title : fallback;
+      }
+
+      function renderTodayIntention() {
+        if (!elements.todayIntentionMount || !elements.todayThemeBadge || !elements.todayThemeLine) {
+          return;
         }
-        if (cleaned.length === legacySkateWarmupItems.length && cleaned.every(function (item, index) {
-          return item === legacySkateWarmupItems[index];
-        })) {
-          return defaultSkateWarmupItems.slice();
+        var dashboardDate = document.getElementById("dashboardDate");
+        var todayKey = formatDate(today);
+        var type = dayTypeById(routineDayForDate(today).day.type);
+        var grouped = groupedEventsForDate(todayKey);
+        var allTodayEvents = eventsForDate(todayKey);
+
+        elements.todaySubtitle.textContent = "A bright little morning map for Hive study days.";
+        elements.weekKeyLabel.textContent = isoWeekKey(today);
+        if (dashboardDate) {
+          dashboardDate.textContent = humanDate(todayKey);
         }
-        return cleaned;
-      }
+        elements.todayThemeBadge.textContent = type.label;
+        elements.todayThemeBadge.className = "progress-pill day-type-pill " + type.className;
+        elements.todayThemeLine.textContent = humanDate(todayKey) + " is a " + type.label.toLowerCase() + ".";
 
-      function getSkateWarmupItems() {
-        return normalizeSkateWarmupItems(readJson(STORAGE.skateWarmupItems, defaultSkateWarmupItems));
-      }
-
-      function saveSkateWarmupItems(items) {
-        writeJson(STORAGE.skateWarmupItems, normalizeSkateWarmupItems(items));
-      }
-
-      function normalizeSkateLearningItems(items) {
-        var source = Array.isArray(items) ? items : defaultSkateLearningItems;
-        var cleaned = source.map(function (item) {
-          if (typeof item === "string") {
-            return { name: item.trim(), note: "" };
+        elements.todayIntentionMount.innerHTML = "";
+        [
+          {
+            label: "Morning",
+            text: todayFocusText(grouped, "morning", "Keep the start gentle.")
+          },
+          {
+            label: "Afternoon",
+            text: todayFocusText(grouped, "afternoon", "Pick one main block that matters.")
+          },
+          {
+            label: "Evening",
+            text: todayFocusText(grouped, "evening", "Leave room to wind down.")
           }
-          return {
-            name: typeof item.name === "string" ? item.name.trim() : "",
-            note: typeof item.note === "string" ? item.note.trim() : ""
-          };
-        }).filter(function (item) {
-          return item.name;
+        ].forEach(function (entry) {
+          var row = document.createElement("div");
+          row.className = "overview-row";
+          row.innerHTML = "<strong>" + entry.label + "</strong><span>" + entry.text + "</span>";
+          elements.todayIntentionMount.appendChild(row);
         });
-        return cleaned.length ? cleaned : defaultSkateLearningItems.slice();
+
+        if (!allTodayEvents.length) {
+          var note = document.createElement("p");
+          note.className = "balance-note";
+          note.textContent = "Nothing fixed yet. A light plan is still a real plan.";
+          elements.todayIntentionMount.appendChild(note);
+        }
       }
 
-      function getSkateLearningItems() {
-        return normalizeSkateLearningItems(readJson(STORAGE.skateLearningItems, defaultSkateLearningItems));
-      }
+      function renderWeeklyPlanner() {
+        if (!elements.weeklyPlannerMount) {
+          return;
+        }
+        var referenceDate = parseDate(selectedDate);
+        var dates = weekDates(referenceDate);
+        var routine = getWeeklyRoutine(referenceDate);
 
-      function saveSkateLearningItems(items) {
-        writeJson(STORAGE.skateLearningItems, normalizeSkateLearningItems(items));
-      }
+        if (elements.weeklyPlannerLabel) {
+          elements.weeklyPlannerLabel.textContent = isoWeekKey(referenceDate) + " · Morning · Afternoon · Evening";
+        }
 
-      function normalizeSkateChecked(checked, length) {
-        return Array.from({ length: length }, function (_, index) {
-          return Boolean(Array.isArray(checked) && checked[index]);
+        elements.weeklyPlannerMount.innerHTML = "";
+        dates.forEach(function (date, index) {
+          var dateKey = formatDate(date);
+          var type = dayTypeById(routine.days[index].type);
+          var groups = groupedEventsForDate(dateKey);
+          var card = document.createElement("section");
+          card.className = "week-day-panel " + type.className;
+
+          var header = document.createElement("div");
+          header.className = "week-day-header";
+          header.innerHTML = "<div><strong>" + weekLabels[index] + "</strong><span>" + humanDate(dateKey) + "</span></div>";
+
+          var typeSelect = document.createElement("select");
+          typeSelect.className = "routine-day-select";
+          dayTypes.forEach(function (optionType) {
+            var option = document.createElement("option");
+            option.value = optionType.id;
+            option.textContent = optionType.label;
+            option.selected = optionType.id === type.id;
+            typeSelect.appendChild(option);
+          });
+          typeSelect.addEventListener("change", function () {
+            updateWeeklyRoutine(function (latest) {
+              latest.days[index].type = typeSelect.value;
+            });
+            renderTodayIntention();
+          });
+          header.appendChild(typeSelect);
+          card.appendChild(header);
+
+          dayParts.forEach(function (part) {
+            var row = document.createElement("div");
+            row.className = "week-day-part";
+
+            var label = document.createElement("span");
+            label.className = "week-day-part-label";
+            label.textContent = partLabels[part];
+            row.appendChild(label);
+
+            var content = document.createElement("div");
+            content.className = "week-day-part-content";
+
+            if (!groups[part].length) {
+              var empty = document.createElement("span");
+              empty.className = "week-day-part-empty";
+              empty.textContent = part === "evening" ? "Keep it light." : "Open";
+              content.appendChild(empty);
+            } else {
+              groups[part].forEach(function (event) {
+                var button = document.createElement("button");
+                button.type = "button";
+                button.className = "week-event-button " + categoryClass(event.category);
+                button.textContent = event.title;
+                button.title = event.note ? event.title + " - " + event.note : event.title;
+                button.addEventListener("click", function () {
+                  startEditEvent(event.id);
+                });
+                content.appendChild(button);
+              });
+            }
+
+            var addButton = document.createElement("button");
+            addButton.type = "button";
+            addButton.className = "week-add-button";
+            addButton.textContent = "Add";
+            addButton.addEventListener("click", function () {
+              openEventComposer(dateKey, part, "Adding to " + weekLabels[index] + " " + partLabels[part].toLowerCase() + ".");
+            });
+            content.appendChild(addButton);
+
+            row.appendChild(content);
+            card.appendChild(row);
+          });
+
+          elements.weeklyPlannerMount.appendChild(card);
         });
+      }
+
+      function renderRoutinePlanner() {
+        renderTodayIntention();
+        renderWeeklyPlanner();
+      }
+
+      function renderGoalPlanner() {
+        if (!elements.goalPlannerMount) {
+          return;
+        }
+        var referenceDate = parseDate(selectedDate);
+        var routine = getWeeklyRoutine(referenceDate);
+        var studyOptions = weekDates(referenceDate).reduce(function (all, date, index) {
+          if (routine.days[index].type !== "study") {
+            return all;
+          }
+          dayParts.forEach(function (part) {
+            all.push({
+              value: formatDate(date) + "|" + part,
+              label: weekLabels[index] + " · " + partLabels[part]
+            });
+          });
+          return all;
+        }, []);
+        var minuteOptions = [15, 30, 45, 60, 90];
+        var items = getGoalPlannerItems();
+        if (!items.length) {
+          items = [emptyGoalItem()];
+          saveGoalPlannerItems(items);
+        }
+
+        if (!expandedGoalId || !items.some(function (goal) { return goal.id === expandedGoalId; })) {
+          expandedGoalId = "";
+        }
+        if (!expandedGoalId && items.length === 1 && !items[0].title.trim() && items[0].steps.length === 1 && !items[0].steps[0].text.trim()) {
+          expandedGoalId = items[0].id;
+        }
+
+        elements.goalPlannerIntro.innerHTML = "";
+
+        elements.goalPlannerMount.innerHTML = "";
+        items.forEach(function (goal) {
+          var card = document.createElement("section");
+          card.className = "goal-plan-card goal-card";
+          var isExpanded = expandedGoalId === goal.id;
+          if (isExpanded) {
+            card.classList.add("is-expanded");
+          }
+
+          var doneCount = goal.steps.filter(function (step) {
+            return step.done;
+          }).length;
+          var totalCount = goal.steps.length;
+          var header = document.createElement("div");
+          header.className = "goal-plan-header goal-card-header";
+
+          var titleWrap = document.createElement("div");
+          titleWrap.className = "goal-card-title-wrap";
+
+          var toggle = document.createElement("button");
+          toggle.type = "button";
+          toggle.className = "goal-card-toggle";
+          toggle.addEventListener("click", function () {
+            expandedGoalId = isExpanded ? "" : goal.id;
+            renderGoalPlanner();
+          });
+
+          var title = document.createElement("strong");
+          title.className = "goal-card-title";
+          title.textContent = goal.title.trim() || "Untitled goal";
+          toggle.appendChild(title);
+
+          var summary = document.createElement("span");
+          summary.className = "goal-card-summary";
+          summary.textContent = doneCount + " / " + totalCount + " actions";
+          toggle.appendChild(summary);
+          titleWrap.appendChild(toggle);
+          header.appendChild(titleWrap);
+
+          var headerActions = document.createElement("div");
+          headerActions.className = "goal-card-actions";
+
+          var expandButton = document.createElement("button");
+          expandButton.type = "button";
+          expandButton.className = "week-overview-action goal-quiet-button";
+          expandButton.textContent = isExpanded ? "Collapse" : "Expand";
+          expandButton.addEventListener("click", function () {
+            expandedGoalId = isExpanded ? "" : goal.id;
+            renderGoalPlanner();
+          });
+          headerActions.appendChild(expandButton);
+
+          var removeGoal = document.createElement("button");
+          removeGoal.type = "button";
+          removeGoal.className = "week-overview-action goal-delete-button";
+          removeGoal.textContent = "Delete";
+          removeGoal.addEventListener("click", function () {
+            updateGoalPlanner(function (latest) {
+              var goalIndex = latest.findIndex(function (entry) {
+                return entry.id === goal.id;
+              });
+              if (goalIndex === -1) {
+                return;
+              }
+              latest[goalIndex].steps.forEach(function (step) {
+                removeGoalStepEvent(step.eventId);
+              });
+              if (latest.length > 1) {
+                latest.splice(goalIndex, 1);
+              } else {
+                latest[0] = emptyGoalItem();
+              }
+            });
+            renderCalendar();
+            renderSelectedDate();
+          });
+          headerActions.appendChild(removeGoal);
+          header.appendChild(headerActions);
+          card.appendChild(header);
+
+          if (!isExpanded) {
+            elements.goalPlannerMount.appendChild(card);
+            return;
+          }
+
+          var body = document.createElement("div");
+          body.className = "goal-card-body";
+
+          var titleField = document.createElement("input");
+          titleField.type = "text";
+          titleField.className = "task-title-input goal-card-title-input";
+          titleField.value = goal.title;
+          titleField.placeholder = "Goal title";
+
+          function saveGoalTitle() {
+            var nextTitle = titleField.value.trim();
+            updateGoalPlanner(function (latest) {
+              var target = latest.find(function (entry) {
+                return entry.id === goal.id;
+              });
+              if (target) {
+                target.title = nextTitle;
+              }
+            }, false);
+            title.textContent = nextTitle || "Untitled goal";
+          }
+
+          titleField.addEventListener("blur", saveGoalTitle);
+          titleField.addEventListener("keydown", function (event) {
+            if (event.key === "Enter") {
+              event.preventDefault();
+              titleField.blur();
+            }
+          });
+          body.appendChild(titleField);
+
+          var steps = document.createElement("div");
+          steps.className = "goal-step-list";
+          goal.steps.forEach(function (step) {
+            var row = document.createElement("div");
+            row.className = "goal-step-row goal-action-row";
+
+            var check = document.createElement("input");
+            check.type = "checkbox";
+            check.checked = step.done;
+            check.addEventListener("change", function () {
+              updateGoalPlanner(function (latest) {
+                var target = latest.find(function (entry) { return entry.id === goal.id; });
+                var targetStep = target.steps.find(function (entry) { return entry.id === step.id; });
+                targetStep.done = check.checked;
+              });
+            });
+            row.appendChild(check);
+
+            var stepInput = document.createElement("input");
+            stepInput.type = "text";
+            stepInput.className = "goal-step-input";
+            stepInput.maxLength = 120;
+            stepInput.value = step.text;
+            stepInput.placeholder = "Small action";
+
+            function saveStepText() {
+              var nextText = stepInput.value.trim();
+              updateGoalPlanner(function (latest) {
+                var target = latest.find(function (entry) { return entry.id === goal.id; });
+                var targetStep = target.steps.find(function (entry) { return entry.id === step.id; });
+                if (targetStep) {
+                  targetStep.text = nextText;
+                }
+              }, false);
+            }
+
+            stepInput.addEventListener("blur", saveStepText);
+            stepInput.addEventListener("keydown", function (event) {
+              if (event.key === "Enter") {
+                event.preventDefault();
+                stepInput.blur();
+              }
+            });
+            row.appendChild(stepInput);
+
+            var minutesSelect = document.createElement("select");
+            minutesSelect.className = "task-category-select goal-time-select";
+            minuteOptions.forEach(function (value) {
+              var option = document.createElement("option");
+              option.value = String(value);
+              option.textContent = value + " min";
+              option.selected = value === step.minutes;
+              minutesSelect.appendChild(option);
+            });
+            minutesSelect.addEventListener("change", function () {
+              updateGoalPlanner(function (latest) {
+                var target = latest.find(function (entry) { return entry.id === goal.id; });
+                var targetStep = target.steps.find(function (entry) { return entry.id === step.id; });
+                targetStep.minutes = Number(minutesSelect.value) || 45;
+              }, false);
+            });
+            row.appendChild(minutesSelect);
+
+            var scheduleSelect = document.createElement("select");
+            scheduleSelect.className = "task-category-select goal-schedule-select";
+            var blankOption = document.createElement("option");
+            blankOption.value = "";
+            blankOption.textContent = studyOptions.length ? "Study block" : "Add a study day first";
+            scheduleSelect.appendChild(blankOption);
+            studyOptions.forEach(function (optionData) {
+              var option = document.createElement("option");
+              option.value = optionData.value;
+              option.textContent = optionData.label;
+              option.selected = optionData.value === step.scheduledDay;
+              scheduleSelect.appendChild(option);
+            });
+            scheduleSelect.addEventListener("change", function () {
+              updateGoalPlanner(function (latest) {
+                var target = latest.find(function (entry) { return entry.id === goal.id; });
+                var targetStep = target.steps.find(function (entry) { return entry.id === step.id; });
+                targetStep.scheduledDay = scheduleSelect.value;
+              }, false);
+            });
+            row.appendChild(scheduleSelect);
+
+            var placeButton = document.createElement("button");
+            placeButton.type = "button";
+            placeButton.className = "week-overview-action is-save goal-place-button";
+            placeButton.textContent = "Place";
+            placeButton.addEventListener("click", function () {
+              saveStepText();
+              scheduleGoalStep(goal.id, step.id);
+            });
+            row.appendChild(placeButton);
+
+            var remove = document.createElement("button");
+            remove.type = "button";
+            remove.className = "week-overview-action goal-row-delete";
+            remove.textContent = "Delete";
+            remove.addEventListener("click", function () {
+              updateGoalPlanner(function (latest) {
+                var target = latest.find(function (entry) { return entry.id === goal.id; });
+                var targetStep = target.steps.find(function (entry) { return entry.id === step.id; });
+                removeGoalStepEvent(targetStep.eventId);
+                if (target.steps.length > 1) {
+                  target.steps = target.steps.filter(function (entry) {
+                    return entry.id !== step.id;
+                  });
+                } else {
+                  target.steps[0] = emptyGoalStep();
+                }
+              });
+              renderCalendar();
+              renderSelectedDate();
+            });
+            row.appendChild(remove);
+
+            if (step.eventId) {
+              var placed = getEvents().find(function (event) {
+                return event.id === step.eventId;
+              });
+              if (placed) {
+                var status = document.createElement("span");
+                status.className = "goal-step-status";
+                status.textContent = "Placed: " + humanDate(placed.date) + " · " + partLabels[eventDayPart(placed)];
+                row.appendChild(status);
+              }
+            }
+
+            steps.appendChild(row);
+          });
+          body.appendChild(steps);
+
+          var footer = document.createElement("div");
+          footer.className = "goal-card-footer";
+          var addStep = document.createElement("button");
+          addStep.type = "button";
+          addStep.className = "secondary-button goal-add-action";
+          addStep.textContent = "Add action";
+          addStep.addEventListener("click", function () {
+            updateGoalPlanner(function (latest) {
+              var target = latest.find(function (entry) {
+                return entry.id === goal.id;
+              });
+              target.steps.push(emptyGoalStep());
+            });
+            expandedGoalId = goal.id;
+          });
+          footer.appendChild(addStep);
+          body.appendChild(footer);
+          card.appendChild(body);
+
+          elements.goalPlannerMount.appendChild(card);
+        });
+      }
+
+      function deepClone(value) {
+        return JSON.parse(JSON.stringify(value));
+      }
+
+      function defaultSkateCoachTemplateClone() {
+        return deepClone(defaultSkateCoachTemplate);
+      }
+
+      function normalizeWarmupGroup(group, fallback) {
+        var items = Array.isArray(group && group.items) ? group.items : fallback.items;
+        return {
+          title: typeof (group && group.title) === "string" && group.title.trim() ? group.title.trim() : fallback.title,
+          items: items.map(function (item, index) {
+            var fallbackItem = fallback.items[index] || { id: "warmup-" + fallback.title.toLowerCase() + "-" + index, name: "Warm-up", target: "" };
+            return {
+              id: typeof item.id === "string" && item.id ? item.id : fallbackItem.id,
+              name: typeof item.name === "string" && item.name.trim() ? item.name.trim() : fallbackItem.name,
+              target: typeof item.target === "string" ? item.target.trim() : fallbackItem.target
+            };
+          }).filter(function (item) {
+            return item.name;
+          })
+        };
+      }
+
+      function normalizeSkateCoachTemplate(value) {
+        var fallback = defaultSkateCoachTemplateClone();
+        var warmupGroups = Array.isArray(value && value.warmupGroups) ? value.warmupGroups : fallback.warmupGroups;
+        var normalized = {
+          warmupGroups: warmupGroups.map(function (group, index) {
+            return normalizeWarmupGroup(group, fallback.warmupGroups[index] || fallback.warmupGroups[0]);
+          }).filter(function (group) {
+            return group.items.length;
+          }),
+          focusSuggestions: {
+            flat: Array.isArray(value && value.focusSuggestions && value.focusSuggestions.flat) && value.focusSuggestions.flat.length
+              ? value.focusSuggestions.flat.map(function (name) { return String(name || "").trim(); }).filter(Boolean)
+              : fallback.focusSuggestions.flat.slice(),
+            transition: Array.isArray(value && value.focusSuggestions && value.focusSuggestions.transition) && value.focusSuggestions.transition.length
+              ? value.focusSuggestions.transition.map(function (name) { return String(name || "").trim(); }).filter(Boolean)
+              : fallback.focusSuggestions.transition.slice()
+          },
+          skillBuilder: {
+            switchItems: Array.isArray(value && value.skillBuilder && value.skillBuilder.switchItems) && value.skillBuilder.switchItems.length
+              ? value.skillBuilder.switchItems.map(function (name) { return String(name || "").trim(); }).filter(Boolean)
+              : fallback.skillBuilder.switchItems.slice(),
+            reminder: typeof (value && value.skillBuilder && value.skillBuilder.reminder) === "string" && value.skillBuilder.reminder.trim()
+              ? value.skillBuilder.reminder.trim()
+              : fallback.skillBuilder.reminder,
+            wallRide: typeof (value && value.skillBuilder && value.skillBuilder.wallRide) === "string" && value.skillBuilder.wallRide.trim()
+              ? value.skillBuilder.wallRide.trim()
+              : fallback.skillBuilder.wallRide
+          },
+          roadmapChains: Array.isArray(value && value.roadmapChains) && value.roadmapChains.length
+            ? value.roadmapChains.map(function (chain, chainIndex) {
+              var fallbackChain = fallback.roadmapChains[chainIndex] || fallback.roadmapChains[0];
+              return (Array.isArray(chain) ? chain : fallbackChain).map(function (step, stepIndex) {
+                var fallbackStep = fallbackChain[stepIndex] || "";
+                return String(step || fallbackStep).trim();
+              }).filter(Boolean);
+            }).filter(function (chain) {
+              return chain.length;
+            })
+            : fallback.roadmapChains
+        };
+        if (!normalized.warmupGroups.length) {
+          normalized.warmupGroups = fallback.warmupGroups;
+        }
+        if (!normalized.roadmapChains.length) {
+          normalized.roadmapChains = fallback.roadmapChains;
+        }
+        return normalized;
+      }
+
+      function getSkateCoachTemplate() {
+        return normalizeSkateCoachTemplate(readJson(STORAGE.skateCoachTemplate, defaultSkateCoachTemplate));
+      }
+
+      function saveSkateCoachTemplate(template) {
+        writeJson(STORAGE.skateCoachTemplate, normalizeSkateCoachTemplate(template));
+      }
+
+      function updateSkateCoachTemplate(mutator, shouldRerender) {
+        var template = getSkateCoachTemplate();
+        mutator(template);
+        saveSkateCoachTemplate(template);
+        if (shouldRerender !== false) {
+          renderSkatePage();
+        }
+      }
+
+      function flattenWarmupItems(template) {
+        return template.warmupGroups.reduce(function (all, group) {
+          return all.concat(group.items);
+        }, []);
+      }
+
+      function defaultFocusCardState() {
+        return {
+          status: "not-started",
+          goals: [false, false, false],
+          note: ""
+        };
       }
 
       function defaultSkateSession() {
-        var warmupItems = getSkateWarmupItems();
+        var template = getSkateCoachTemplate();
+        var warmupItems = flattenWarmupItems(template);
         return {
-          note: "",
-          checked: normalizeSkateChecked([], warmupItems.length),
+          warmupChecks: warmupItems.reduce(function (checks, item) {
+            checks[item.id] = false;
+            return checks;
+          }, {}),
+          warmupDone: false,
+          selectedFlat: template.focusSuggestions.flat[0] || "",
+          selectedTransition: template.focusSuggestions.transition[0] || "",
+          focusCards: {
+            flat: defaultFocusCardState(),
+            transition: defaultFocusCardState()
+          },
+          focusDone: false,
+          skillChecks: template.skillBuilder.switchItems.map(function () {
+            return false;
+          }),
+          skillDone: false,
+          expandedStage: "warmup",
           startedAt: new Date().toISOString()
         };
       }
 
+      function normalizeFocusCard(card) {
+        return {
+          status: ["not-started", "learning", "almost-there", "consistent"].indexOf(card && card.status) !== -1 ? card.status : "not-started",
+          goals: Array.from({ length: 3 }, function (_, index) {
+            return Boolean(card && Array.isArray(card.goals) && card.goals[index]);
+          }),
+          note: typeof (card && card.note) === "string" ? card.note : ""
+        };
+      }
+
       function getCurrentSkateSession() {
+        var template = getSkateCoachTemplate();
+        var warmupItems = flattenWarmupItems(template);
         var session = readJson(STORAGE.skateCurrentSession, null);
-        var warmupItems = getSkateWarmupItems();
         if (!session) {
           return defaultSkateSession();
         }
         return {
-          note: "",
-          checked: normalizeSkateChecked(session.checked, warmupItems.length),
+          warmupChecks: warmupItems.reduce(function (checks, item) {
+            checks[item.id] = Boolean(session.warmupChecks && session.warmupChecks[item.id]);
+            return checks;
+          }, {}),
+          warmupDone: Boolean(session.warmupDone),
+          selectedFlat: typeof session.selectedFlat === "string" && session.selectedFlat.trim() ? session.selectedFlat.trim() : (template.focusSuggestions.flat[0] || ""),
+          selectedTransition: typeof session.selectedTransition === "string" && session.selectedTransition.trim() ? session.selectedTransition.trim() : (template.focusSuggestions.transition[0] || ""),
+          focusCards: {
+            flat: normalizeFocusCard(session.focusCards && session.focusCards.flat),
+            transition: normalizeFocusCard(session.focusCards && session.focusCards.transition)
+          },
+          focusDone: Boolean(session.focusDone),
+          skillChecks: Array.from({ length: template.skillBuilder.switchItems.length }, function (_, index) {
+            return Boolean(session.skillChecks && session.skillChecks[index]);
+          }),
+          skillDone: Boolean(session.skillDone),
+          expandedStage: ["warmup", "focus", "skill", ""].indexOf(session.expandedStage) !== -1 ? session.expandedStage : "warmup",
           startedAt: session.startedAt || new Date().toISOString()
         };
       }
@@ -1924,11 +2854,47 @@
         }).length;
       }
 
+      function warmupComplete(session, template) {
+        return flattenWarmupItems(template).every(function (item) {
+          return session.warmupChecks[item.id];
+        });
+      }
+
+      function stageSummaryForFocus(session) {
+        var labels = [];
+        if (session.selectedFlat) {
+          labels.push(session.selectedFlat);
+        }
+        if (session.selectedTransition) {
+          labels.push(session.selectedTransition);
+        }
+        return labels.join(" · ") || "Focus block";
+      }
+
+      function stageSummaryForSkill(template) {
+        return template.skillBuilder.switchItems.slice(0, 2).join(" · ");
+      }
+
+      function setExpandedCoachStage(stage) {
+        var session = getCurrentSkateSession();
+        session.expandedStage = stage;
+        saveCurrentSkateSession(session);
+        renderSkatePage();
+      }
+
+      function updateSkateSession(mutator) {
+        var session = getCurrentSkateSession();
+        mutator(session);
+        saveCurrentSkateSession(session);
+        renderSkatePage();
+      }
+
       function renderSkatePage() {
         if (!elements.skateFocusInput) {
           return;
         }
         var session = getCurrentSkateSession();
+        var template = getSkateCoachTemplate();
         var target = Math.max(1, Number(readText(STORAGE.skateTarget, "4")) || 4);
         var skateSessionsThisWeek = countSkateSessionsForWeek(today);
 
@@ -1936,150 +2902,451 @@
         elements.skateTargetInput.value = target;
         elements.skateWeekLabel.textContent = isoWeekKey(today);
         elements.skateSessionCount.textContent = skateSessionsThisWeek + " / " + target;
-        elements.skateWarmupList.innerHTML = "";
-        elements.skateLearningList.innerHTML = "";
+        elements.skateCoachFlow.innerHTML = "";
         renderSkateWeeklyMetrics();
         renderSkateTrendCharts();
-        renderWarmupTemplate(session);
-        renderLearningTemplate();
+        elements.skateCoachFlow.appendChild(renderCoachWarmupStage(session, template));
+        elements.skateCoachFlow.appendChild(renderCoachFocusStage(session, template));
+        elements.skateCoachFlow.appendChild(renderCoachSkillStage(session, template));
       }
 
-      function renderWarmupTemplate(session) {
-        getSkateWarmupItems().forEach(function (label, index) {
-          var row = document.createElement("div");
-          row.className = "skate-check-row";
+      function renderCoachStageShell(options) {
+        var section = document.createElement("section");
+        section.className = "coach-stage " + (options.tone || "");
+        if (options.active) {
+          section.classList.add("is-active");
+        }
+        if (options.complete && !options.expanded) {
+          section.classList.add("is-collapsed");
+        }
 
+        var head = document.createElement("div");
+        head.className = "coach-stage-head";
+        head.innerHTML = "<span class=\"coach-stage-chip\">" + options.stageLabel + "</span><h3>" + options.title + "</h3><p>" + options.description + "</p>";
+        section.appendChild(head);
+
+        if (options.complete && !options.expanded) {
+          var collapsed = document.createElement("button");
+          collapsed.type = "button";
+          collapsed.className = "coach-collapsed";
+          collapsed.innerHTML = "<strong>" + options.completeLabel + "</strong><span>" + options.summary + "</span>";
+          collapsed.addEventListener("click", function () {
+            setExpandedCoachStage(options.key);
+          });
+          section.appendChild(collapsed);
+          return section;
+        }
+
+        section.appendChild(options.body);
+        return section;
+      }
+
+      function renderCoachWarmupStage(session, template) {
+        var body = document.createElement("div");
+        body.className = "coach-stage-body";
+        template.warmupGroups.forEach(function (group, groupIndex) {
+          var groupBlock = document.createElement("div");
+          groupBlock.className = "coach-group";
+          var groupHead = document.createElement("div");
+          groupHead.className = "coach-group-head";
+          groupHead.appendChild(document.createElement("h4")).textContent = group.title;
+          var addButton = document.createElement("button");
+          addButton.type = "button";
+          addButton.className = "coach-mini-action";
+          addButton.textContent = "Add";
+          addButton.addEventListener("click", function () {
+            updateSkateCoachTemplate(function (latestTemplate) {
+              latestTemplate.warmupGroups[groupIndex].items.push({
+                id: makeId("warmup"),
+                name: "New trick",
+                target: "x5"
+              });
+            });
+          });
+          groupHead.appendChild(addButton);
+          groupBlock.appendChild(groupHead);
+          group.items.forEach(function (item, itemIndex) {
+            var row = document.createElement("label");
+            row.className = "coach-check-row";
+            var checkbox = document.createElement("input");
+            checkbox.type = "checkbox";
+            checkbox.checked = Boolean(session.warmupChecks[item.id]);
+            checkbox.addEventListener("change", function () {
+              updateSkateSession(function (latest) {
+                latest.warmupChecks[item.id] = checkbox.checked;
+                latest.warmupDone = false;
+                latest.expandedStage = "warmup";
+              });
+            });
+            var text = document.createElement("span");
+            text.className = "coach-row-fields has-target";
+            var nameInput = document.createElement("input");
+            nameInput.type = "text";
+            nameInput.className = "coach-inline-input";
+            nameInput.value = item.name;
+            nameInput.maxLength = 80;
+            nameInput.addEventListener("input", function () {
+              updateSkateCoachTemplate(function (latestTemplate) {
+                latestTemplate.warmupGroups[groupIndex].items[itemIndex].name = nameInput.value.trim() || item.name;
+              }, false);
+            });
+            text.appendChild(nameInput);
+            var targetInput = document.createElement("input");
+            targetInput.type = "text";
+            targetInput.className = "coach-inline-target";
+            targetInput.value = item.target;
+            targetInput.maxLength = 20;
+            targetInput.placeholder = "x5";
+            targetInput.addEventListener("input", function () {
+              updateSkateCoachTemplate(function (latestTemplate) {
+                latestTemplate.warmupGroups[groupIndex].items[itemIndex].target = targetInput.value.trim();
+              }, false);
+            });
+            text.appendChild(targetInput);
+            row.appendChild(checkbox);
+            row.appendChild(text);
+            var removeButton = document.createElement("button");
+            removeButton.type = "button";
+            removeButton.className = "coach-mini-action quiet-danger";
+            removeButton.textContent = "Delete";
+            removeButton.addEventListener("click", function (event) {
+              event.preventDefault();
+              updateSkateCoachTemplate(function (latestTemplate) {
+                if (latestTemplate.warmupGroups[groupIndex].items.length > 1) {
+                  latestTemplate.warmupGroups[groupIndex].items.splice(itemIndex, 1);
+                }
+              });
+            });
+            row.appendChild(removeButton);
+            groupBlock.appendChild(row);
+          });
+          body.appendChild(groupBlock);
+        });
+
+        var footer = document.createElement("div");
+        footer.className = "coach-stage-footer";
+        var doneButton = document.createElement("button");
+        doneButton.type = "button";
+        doneButton.className = "secondary-button coach-done-button";
+        doneButton.textContent = "Done for today";
+        doneButton.disabled = !warmupComplete(session, template);
+        doneButton.addEventListener("click", function () {
+          if (!warmupComplete(session, template)) {
+            return;
+          }
+          updateSkateSession(function (latest) {
+            latest.warmupDone = true;
+            latest.expandedStage = "focus";
+          });
+        });
+        footer.appendChild(doneButton);
+        body.appendChild(footer);
+
+        return renderCoachStageShell({
+          key: "warmup",
+          stageLabel: "Stage 1",
+          title: "Warm Up & Maintain",
+          description: "Start with the tricks you already own so the session feels confident before it feels hard.",
+          summary: "Warm-up complete",
+          completeLabel: "✅ Warm-up Complete",
+          complete: warmupComplete(session, template) && session.warmupDone,
+          expanded: session.expandedStage === "warmup",
+          active: session.expandedStage === "warmup",
+          tone: "tone-warmup",
+          body: body
+        });
+      }
+
+      function renderCoachFocusStage(session, template) {
+        var body = document.createElement("div");
+        body.className = "coach-stage-body coach-focus-body";
+
+        var chooser = document.createElement("div");
+        chooser.className = "coach-focus-chooser";
+        chooser.appendChild(createFocusPicker("Flat focus", session.selectedFlat, function (value) {
+          updateSkateSession(function (latest) {
+            latest.selectedFlat = value;
+            latest.focusDone = false;
+            latest.expandedStage = "focus";
+          });
+          updateSkateCoachTemplate(function (latestTemplate) {
+            latestTemplate.focusSuggestions.flat[0] = value || "Flat trick";
+          }, false);
+        }));
+        chooser.appendChild(createFocusPicker("Transition focus", session.selectedTransition, function (value) {
+          updateSkateSession(function (latest) {
+            latest.selectedTransition = value;
+            latest.focusDone = false;
+            latest.expandedStage = "focus";
+          });
+          updateSkateCoachTemplate(function (latestTemplate) {
+            latestTemplate.focusSuggestions.transition[0] = value || "Transition trick";
+          }, false);
+        }));
+        body.appendChild(chooser);
+
+        body.appendChild(renderPracticeCard("Flat", session.selectedFlat, session.focusCards.flat, "flat"));
+        body.appendChild(renderPracticeCard("Transition", session.selectedTransition, session.focusCards.transition, "transition"));
+
+        var footer = document.createElement("div");
+        footer.className = "coach-stage-footer";
+        var doneButton = document.createElement("button");
+        doneButton.type = "button";
+        doneButton.className = "secondary-button coach-done-button";
+        doneButton.textContent = "Done for today";
+        doneButton.addEventListener("click", function () {
+          updateSkateSession(function (latest) {
+            latest.focusDone = true;
+            latest.expandedStage = "skill";
+          });
+        });
+        footer.appendChild(doneButton);
+        body.appendChild(footer);
+
+        return renderCoachStageShell({
+          key: "focus",
+          stageLabel: "Stage 2",
+          title: "Today's Focus",
+          description: "Work on one flat trick and one transition trick so the session stays clear and calm.",
+          summary: stageSummaryForFocus(session),
+          completeLabel: "✅ Focus block complete",
+          complete: session.focusDone,
+          expanded: session.expandedStage === "focus",
+          active: session.expandedStage === "focus",
+          tone: "tone-focus",
+          body: body
+        });
+      }
+
+      function createFocusPicker(label, selectedValue, onChange) {
+        var wrapper = document.createElement("label");
+        wrapper.className = "coach-picker";
+        wrapper.appendChild(document.createElement("span")).textContent = label;
+        var input = document.createElement("input");
+        input.type = "text";
+        input.value = selectedValue;
+        input.maxLength = 80;
+        input.placeholder = "Choose one trick";
+        function commitValue() {
+          onChange(input.value.trim());
+        }
+        input.addEventListener("change", commitValue);
+        input.addEventListener("blur", commitValue);
+        input.addEventListener("keydown", function (event) {
+          if (event.key === "Enter") {
+            event.preventDefault();
+            input.blur();
+          }
+        });
+        wrapper.appendChild(input);
+        return wrapper;
+      }
+
+      function practiceGoalLabels(kind) {
+        return kind === "transition"
+          ? ["Commit one", "Ride away once", "Land three clean"]
+          : ["Land one", "Land three", "Land five clean"];
+      }
+
+      function renderPracticeCard(kindLabel, trickName, cardState, kind) {
+        var card = document.createElement("article");
+        card.className = "practice-card";
+
+        var head = document.createElement("div");
+        head.className = "practice-head";
+        head.innerHTML = "<span>" + kindLabel + "</span><h4>" + trickName + "</h4>";
+        card.appendChild(head);
+
+        var statuses = [
+          { id: "not-started", label: "Not Started" },
+          { id: "learning", label: "Learning" },
+          { id: "almost-there", label: "Almost There" },
+          { id: "consistent", label: "Consistent" }
+        ];
+        var statusRow = document.createElement("div");
+        statusRow.className = "practice-status-row";
+        statuses.forEach(function (status) {
+          var button = document.createElement("button");
+          button.type = "button";
+          button.className = "status-pill";
+          button.classList.toggle("active", cardState.status === status.id);
+          button.textContent = status.label;
+          button.addEventListener("click", function () {
+            updateSkateSession(function (latest) {
+              latest.focusCards[kind].status = status.id;
+              latest.focusDone = false;
+              latest.expandedStage = "focus";
+            });
+          });
+          statusRow.appendChild(button);
+        });
+        card.appendChild(statusRow);
+
+        var goalsWrap = document.createElement("div");
+        goalsWrap.className = "practice-goals";
+        goalsWrap.appendChild(document.createElement("span")).textContent = "Today's goal";
+        practiceGoalLabels(kind).forEach(function (goalLabel, index) {
+          var row = document.createElement("label");
+          row.className = "coach-check-row compact";
           var checkbox = document.createElement("input");
           checkbox.type = "checkbox";
-          checkbox.id = "skate-check-" + index;
-          checkbox.name = checkbox.id;
-          checkbox.checked = Boolean(session.checked[index]);
+          checkbox.checked = Boolean(cardState.goals[index]);
           checkbox.addEventListener("change", function () {
-            var latestSession = getCurrentSkateSession();
-            latestSession.checked[index] = checkbox.checked;
-            saveCurrentSkateSession(latestSession);
+            updateSkateSession(function (latest) {
+              latest.focusCards[kind].goals[index] = checkbox.checked;
+              latest.focusDone = false;
+              latest.expandedStage = "focus";
+            });
           });
-
-          var textInput = document.createElement("input");
-          textInput.type = "text";
-          textInput.className = "skate-check-input";
-          textInput.maxLength = 80;
-          textInput.value = label;
-          textInput.placeholder = "Warm-up trick";
-          textInput.addEventListener("input", function () {
-            var nextItems = getSkateWarmupItems();
-            var nextValue = textInput.value.trim() || label;
-            nextItems[index] = nextValue;
-            saveSkateWarmupItems(nextItems);
-          });
-
-          var removeButton = createSkateTinyAction("Delete", function () {
-            removeWarmupTrick(index);
-          }, "quiet-danger");
-
+          var text = document.createElement("span");
+          text.className = "coach-goal-label";
+          text.textContent = goalLabel;
           row.appendChild(checkbox);
-          row.appendChild(textInput);
-          row.appendChild(removeButton);
-          elements.skateWarmupList.appendChild(row);
+          row.appendChild(text);
+          goalsWrap.appendChild(row);
         });
+        card.appendChild(goalsWrap);
+
+        var note = document.createElement("label");
+        note.className = "coach-note-field";
+        note.appendChild(document.createElement("span")).textContent = "Coach notes";
+        var textarea = document.createElement("textarea");
+        textarea.rows = 2;
+        textarea.maxLength = 220;
+        textarea.placeholder = "What should I remember while practicing this trick?";
+        textarea.value = cardState.note;
+        textarea.addEventListener("input", function () {
+          updateSkateSession(function (latest) {
+            latest.focusCards[kind].note = textarea.value;
+          });
+        });
+        note.appendChild(textarea);
+        card.appendChild(note);
+        return card;
       }
 
-      function renderLearningTemplate() {
-        getSkateLearningItems().forEach(function (item, index) {
-          var row = document.createElement("div");
-          row.className = "skate-learning-row";
+      function renderCoachSkillStage(session, template) {
+        var body = document.createElement("div");
+        body.className = "coach-stage-body";
 
-          var titleRow = document.createElement("div");
-          titleRow.className = "skate-learning-title-row";
-
+        var switchCard = document.createElement("div");
+        switchCard.className = "coach-support-card";
+        switchCard.innerHTML = "<h4>Switch</h4><p>Keep this light. It is here to build future tricks, not steal the whole session.</p>";
+        template.skillBuilder.switchItems.forEach(function (item, index) {
+          var row = document.createElement("label");
+          row.className = "coach-check-row compact";
+          var checkbox = document.createElement("input");
+          checkbox.type = "checkbox";
+          checkbox.checked = Boolean(session.skillChecks[index]);
+          checkbox.addEventListener("change", function () {
+            updateSkateSession(function (latest) {
+              latest.skillChecks[index] = checkbox.checked;
+              latest.skillDone = false;
+              latest.expandedStage = "skill";
+            });
+          });
+          var text = document.createElement("span");
+          text.className = "coach-row-fields";
           var nameInput = document.createElement("input");
           nameInput.type = "text";
-          nameInput.className = "skate-check-input";
+          nameInput.className = "coach-inline-input";
+          nameInput.value = item;
           nameInput.maxLength = 80;
-          nameInput.value = item.name;
-          nameInput.placeholder = "Learning trick";
           nameInput.addEventListener("input", function () {
-            var nextItems = getSkateLearningItems();
-            var nextValue = nameInput.value.trim() || item.name;
-            nextItems[index].name = nextValue;
-            saveSkateLearningItems(nextItems);
+            updateSkateCoachTemplate(function (latestTemplate) {
+              latestTemplate.skillBuilder.switchItems[index] = nameInput.value.trim() || item;
+            }, false);
           });
-
-          var removeButton = createSkateTinyAction("Delete", function () {
-            removeLearningTrick(index);
-          }, "quiet-danger");
-
-          titleRow.appendChild(nameInput);
-          titleRow.appendChild(removeButton);
-
-          var noteInput = document.createElement("textarea");
-          noteInput.className = "skate-learning-note";
-          noteInput.rows = 2;
-          noteInput.maxLength = 240;
-          noteInput.placeholder = "What to focus on for this trick...";
-          noteInput.value = item.note;
-          noteInput.addEventListener("input", function () {
-            var nextItems = getSkateLearningItems();
-            nextItems[index].note = noteInput.value.trim();
-            saveSkateLearningItems(nextItems);
+          text.appendChild(nameInput);
+          row.appendChild(checkbox);
+          row.appendChild(text);
+          var removeButton = document.createElement("button");
+          removeButton.type = "button";
+          removeButton.className = "coach-mini-action quiet-danger";
+          removeButton.textContent = "Delete";
+          removeButton.addEventListener("click", function (event) {
+            event.preventDefault();
+            updateSkateCoachTemplate(function (latestTemplate) {
+              if (latestTemplate.skillBuilder.switchItems.length > 1) {
+                latestTemplate.skillBuilder.switchItems.splice(index, 1);
+              }
+            });
           });
-
-          row.appendChild(titleRow);
-          row.appendChild(noteInput);
-          elements.skateLearningList.appendChild(row);
+          row.appendChild(removeButton);
+          switchCard.appendChild(row);
         });
-      }
+        var addSwitch = document.createElement("button");
+        addSwitch.type = "button";
+        addSwitch.className = "coach-mini-action";
+        addSwitch.textContent = "Add";
+        addSwitch.addEventListener("click", function () {
+          updateSkateCoachTemplate(function (latestTemplate) {
+            latestTemplate.skillBuilder.switchItems.push("New switch skill");
+          });
+        });
+        switchCard.appendChild(addSwitch);
+        body.appendChild(switchCard);
 
-      function createSkateTinyAction(label, onClick, extraClass) {
-        var button = document.createElement("button");
-        button.type = "button";
-        button.className = "tiny-button";
-        if (extraClass) {
-          button.classList.add(extraClass);
-        }
-        button.textContent = label;
-        button.addEventListener("click", onClick);
-        return button;
-      }
+        var reminderCard = document.createElement("div");
+        reminderCard.className = "coach-support-card";
+        reminderCard.appendChild(document.createElement("h4")).textContent = "Reminder";
+        var reminderField = document.createElement("label");
+        reminderField.className = "coach-note-field";
+        var reminderText = document.createElement("textarea");
+        reminderText.rows = 2;
+        reminderText.maxLength = 220;
+        reminderText.value = template.skillBuilder.reminder;
+        reminderText.addEventListener("input", function () {
+          updateSkateCoachTemplate(function (latestTemplate) {
+            latestTemplate.skillBuilder.reminder = reminderText.value;
+          }, false);
+        });
+        reminderField.appendChild(reminderText);
+        reminderCard.appendChild(reminderField);
+        reminderCard.appendChild(document.createElement("h4")).textContent = "Wall Ride";
+        var wallRideField = document.createElement("label");
+        wallRideField.className = "coach-note-field";
+        var wallRideText = document.createElement("textarea");
+        wallRideText.rows = 3;
+        wallRideText.maxLength = 260;
+        wallRideText.value = template.skillBuilder.wallRide;
+        wallRideText.addEventListener("input", function () {
+          updateSkateCoachTemplate(function (latestTemplate) {
+            latestTemplate.skillBuilder.wallRide = wallRideText.value;
+          }, false);
+        });
+        wallRideField.appendChild(wallRideText);
+        reminderCard.appendChild(wallRideField);
+        body.appendChild(reminderCard);
 
-      function addWarmupTrick() {
-        var nextItems = getSkateWarmupItems();
-        nextItems.push("New warm-up trick");
-        saveSkateWarmupItems(nextItems);
-        var session = getCurrentSkateSession();
-        session.checked.push(false);
-        saveCurrentSkateSession(session);
-        renderSkatePage();
-      }
+        var footer = document.createElement("div");
+        footer.className = "coach-stage-footer";
+        var doneButton = document.createElement("button");
+        doneButton.type = "button";
+        doneButton.className = "secondary-button coach-done-button";
+        doneButton.textContent = "Done for today";
+        doneButton.addEventListener("click", function () {
+          updateSkateSession(function (latest) {
+            latest.skillDone = true;
+            latest.expandedStage = "";
+          });
+        });
+        footer.appendChild(doneButton);
+        body.appendChild(footer);
 
-      function removeWarmupTrick(index) {
-        var nextItems = getSkateWarmupItems();
-        if (nextItems.length <= 1) {
-          return;
-        }
-        nextItems.splice(index, 1);
-        saveSkateWarmupItems(nextItems);
-        var session = getCurrentSkateSession();
-        session.checked.splice(index, 1);
-        saveCurrentSkateSession(session);
-        renderSkatePage();
-      }
-
-      function addLearningTrick() {
-        var nextItems = getSkateLearningItems();
-        nextItems.push({ name: "New learning trick", note: "" });
-        saveSkateLearningItems(nextItems);
-        renderSkatePage();
-      }
-
-      function removeLearningTrick(index) {
-        var nextItems = getSkateLearningItems();
-        if (nextItems.length <= 1) {
-          return;
-        }
-        nextItems.splice(index, 1);
-        saveSkateLearningItems(nextItems);
-        renderSkatePage();
+        return renderCoachStageShell({
+          key: "skill",
+          stageLabel: "Stage 3",
+          title: "Skill Builder",
+          description: "Use a few supporting reps here so future tricks feel easier later.",
+          summary: stageSummaryForSkill(template),
+          completeLabel: "✅ Skill builder complete",
+          complete: session.skillDone,
+          expanded: session.expandedStage === "skill",
+          active: session.expandedStage === "skill",
+          tone: "tone-skill",
+          body: body
+        });
       }
 
       function resetSkateSessionState(message) {
@@ -2090,32 +3357,51 @@
 
       function finishSkateSession() {
         if (elements.skateFeedbackDialog && typeof elements.skateFeedbackDialog.showModal === "function") {
-          elements.skateFeedbackNote.value = "";
+          elements.skateImprovedNote.value = "";
+          elements.skateNextFocusNote.value = "";
           elements.skateFeedbackDialog.showModal();
           return;
         }
-        saveFinishedSkateSession({ legSoreness: 3, skateQuality: 3, confidence: 3, feedbackNote: "" });
+        saveFinishedSkateSession({ progressToday: 3, confidence: 3, improvedNote: "", nextFocusNote: "" });
       }
 
       function saveFinishedSkateSession(feedback) {
         var session = getCurrentSkateSession();
         var sessions = getSkateSessions();
-        var focus = readText(STORAGE.skateFocus, "").trim();
+        var template = getSkateCoachTemplate();
+        var focus = [session.selectedFlat, session.selectedTransition].filter(Boolean).join(" · ");
+        var warmupItems = flattenWarmupItems(template);
 
         sessions.push({
           id: makeId("skate"),
           focus: focus,
-          warmups: getSkateWarmupItems().filter(function (_, index) {
-            return session.checked[index];
+          warmups: warmupItems.filter(function (item) {
+            return session.warmupChecks[item.id];
+          }).map(function (item) {
+            return item.name;
           }).join(", "),
-          warmupItems: getSkateWarmupItems(),
-          learningItems: getSkateLearningItems(),
-          checked: session.checked,
-          note: session.note,
-          feedbackNote: feedback.feedbackNote || "",
-          legSoreness: Math.max(1, Math.min(5, Number(feedback.legSoreness) || 3)),
-          skateQuality: Math.max(1, Math.min(5, Number(feedback.skateQuality) || 3)),
+          warmupItems: template.warmupGroups,
+          learningItems: [
+            { kind: "flat", name: session.selectedFlat, status: session.focusCards.flat.status, goals: session.focusCards.flat.goals, note: session.focusCards.flat.note },
+            { kind: "transition", name: session.selectedTransition, status: session.focusCards.transition.status, goals: session.focusCards.transition.goals, note: session.focusCards.transition.note }
+          ],
+          checked: warmupItems.map(function (item) {
+            return Boolean(session.warmupChecks[item.id]);
+          }),
+          note: [session.focusCards.flat.note, session.focusCards.transition.note].filter(Boolean).join(" | "),
+          feedbackNote: [feedback.improvedNote, feedback.nextFocusNote].filter(Boolean).join(" | "),
+          legSoreness: 3,
+          skateQuality: Math.max(1, Math.min(5, Number(feedback.progressToday) || 3)),
           confidence: Math.max(1, Math.min(5, Number(feedback.confidence) || 3)),
+          progressToday: Math.max(1, Math.min(5, Number(feedback.progressToday) || 3)),
+          improvedNote: feedback.improvedNote || "",
+          nextFocusNote: feedback.nextFocusNote || "",
+          sessionPlan: {
+            selectedFlat: session.selectedFlat,
+            selectedTransition: session.selectedTransition,
+            focusCards: session.focusCards,
+            skillChecks: session.skillChecks
+          },
           // Session check-ins should not silently add tracked hours.
           durationHours: 0,
           startedAt: session.startedAt,
@@ -2169,12 +3455,11 @@
       }
 
       function renderFeedbackScales() {
-        if (!elements.legSorenessScale) {
+        if (!elements.progressTodayScale) {
           return;
         }
-        renderScaleOptions(elements.legSorenessScale, "legSoreness", feedbackScales.legSoreness, 3);
-        renderScaleOptions(elements.skateQualityScale, "skateQuality", feedbackScales.skateQuality, 3);
         renderScaleOptions(elements.confidenceScale, "confidence", feedbackScales.confidence, 3);
+        renderScaleOptions(elements.progressTodayScale, "progressToday", feedbackScales.progressToday, 3);
       }
 
       function selectedScaleValue(name) {
@@ -2185,10 +3470,10 @@
       function submitSkateFeedback(event) {
         event.preventDefault();
         saveFinishedSkateSession({
-          legSoreness: selectedScaleValue("legSoreness"),
-          skateQuality: selectedScaleValue("skateQuality"),
           confidence: selectedScaleValue("confidence"),
-          feedbackNote: elements.skateFeedbackNote.value.trim()
+          progressToday: selectedScaleValue("progressToday"),
+          improvedNote: elements.skateImprovedNote.value.trim(),
+          nextFocusNote: elements.skateNextFocusNote.value.trim()
         });
         elements.skateFeedbackDialog.close();
       }
@@ -2348,50 +3633,6 @@
         }
       }
 
-      function renderUpcoming() {
-        var todayKey = formatDate(today);
-        var upcoming = getEvents()
-          .filter(function (event) {
-            return event.date >= todayKey;
-          })
-          .sort(function (a, b) {
-            return a.date.localeCompare(b.date) || String(a.createdAt).localeCompare(String(b.createdAt));
-          })
-          .slice(0, 3);
-
-        elements.upcomingEvents.innerHTML = "";
-
-        if (upcoming.length === 0) {
-          var empty = document.createElement("p");
-          empty.className = "empty";
-          empty.textContent = "No upcoming events yet. Add deadlines, appointments, or small future reminders in Calendar.";
-          elements.upcomingEvents.appendChild(empty);
-          return;
-        }
-
-        upcoming.forEach(function (event) {
-          var item = document.createElement("li");
-          item.className = "upcoming-item";
-
-          var date = document.createElement("span");
-          date.className = "event-date";
-          date.textContent = humanDate(event.date);
-
-          var text = document.createElement("div");
-          text.className = "event-title-row";
-          text.appendChild(document.createTextNode(event.title));
-
-          var tag = document.createElement("span");
-          tag.className = "tag " + categoryClass(event.category);
-          tag.textContent = event.category;
-          text.appendChild(tag);
-
-          item.appendChild(date);
-          item.appendChild(text);
-          elements.upcomingEvents.appendChild(item);
-        });
-      }
-
       // Calendar events are simple date pills saved with the rest of the planner data.
       function renderCalendar() {
         var year = calendarCursor.getFullYear();
@@ -2401,7 +3642,9 @@
         var events = getEvents();
         var todayKey = formatDate(today);
 
-        elements.calendarHeading.textContent = monthNames[month] + " " + year;
+        if (elements.currentMonthLabel) {
+          elements.currentMonthLabel.textContent = monthNames[month] + " " + year;
+        }
         elements.calendarGrid.innerHTML = "";
 
         weekdays.forEach(function (name) {
@@ -2414,13 +3657,14 @@
         for (var i = 0; i < 42; i += 1) {
           var cellDate = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
           var dateKey = formatDate(cellDate);
+          var routineInfo = routineDayForDate(cellDate);
+          var routineType = dayTypeById(routineInfo.day.type);
           var dayEvents = events
             .filter(function (event) {
               return event.date === dateKey;
             })
-            .sort(function (a, b) {
-              return String(a.createdAt).localeCompare(String(b.createdAt));
-            });
+            .sort(compareEventsChronologically);
+          var monthEvents = visibleMonthlyEvents(dayEvents);
 
           var button = document.createElement("button");
           button.type = "button";
@@ -2429,11 +3673,12 @@
             button.classList.add("outside");
           }
           if (dateKey === todayKey) {
-            button.classList.add("today");
-          }
+          button.classList.add("today");
+        }
           if (dateKey === selectedDate) {
             button.classList.add("selected");
           }
+          button.classList.add(routineType.className);
           button.setAttribute("aria-label", "Select " + humanDate(dateKey));
           button.addEventListener("click", function (key) {
             return function () {
@@ -2457,11 +3702,11 @@
 
           var pills = document.createElement("div");
           pills.className = "event-pills";
-          dayEvents.forEach(function (event) {
+          monthEvents.slice(0, 3).forEach(function (event) {
             var pill = document.createElement("button");
             pill.type = "button";
             pill.className = "event-pill " + categoryClass(event.category);
-            pill.textContent = event.title;
+            pill.textContent = monthEventChipLabel(event.title);
             pill.title = event.note ? event.title + " - " + event.note : event.title;
             pill.addEventListener("click", function (clickEvent) {
               clickEvent.stopPropagation();
@@ -2469,21 +3714,31 @@
             });
             pills.appendChild(pill);
           });
+          if (monthEvents.length > 3) {
+            var more = document.createElement("span");
+            more.className = "event-pill more-pill";
+            more.textContent = "+" + (monthEvents.length - 3) + " more";
+            pills.appendChild(more);
+          }
           button.appendChild(pills);
           elements.calendarGrid.appendChild(button);
         }
       }
 
       function renderSelectedDate() {
+        if (!elements.eventEditorCard) {
+          return;
+        }
         var events = getEvents()
           .filter(function (event) {
             return event.date === selectedDate;
           })
-          .sort(function (a, b) {
-            return String(a.createdAt).localeCompare(String(b.createdAt));
-          });
+          .sort(compareEventsChronologically);
 
-        elements.selectedDateHeading.textContent = "Add event for " + humanDate(selectedDate);
+        elements.selectedDateHeading.textContent = "Selected day";
+        if (elements.selectedDateHint) {
+          elements.selectedDateHint.textContent = humanDate(selectedDate) + (editingEventId ? " · Edit event" : " · Add event");
+        }
         elements.formHint.textContent = editingEventId ? "Editing selected event." : "Selected: " + selectedDate;
         elements.eventDate.value = selectedDate;
         elements.selectedDateEvents.innerHTML = "";
@@ -2550,6 +3805,7 @@
 
       function resetEventForm(message) {
         editingEventId = null;
+        draftEventDayPart = "";
         elements.eventTitle.value = "";
         elements.eventNote.value = "";
         elements.eventDate.value = selectedDate;
@@ -2565,6 +3821,7 @@
           return;
         }
         editingEventId = id;
+        draftEventDayPart = event.dayPart || "";
         selectedDate = event.date;
         calendarCursor = parseDate(event.date);
         elements.eventTitle.value = event.title || "";
@@ -2588,6 +3845,7 @@
         if (!window.confirm("Delete \"" + event.title + "\"?")) {
           return;
         }
+        clearGoalStepReferenceByEventId(id);
         saveEvents(events.filter(function (item) {
           return item.id !== id;
         }));
@@ -2595,7 +3853,8 @@
           resetEventForm("Event deleted.");
         }
         renderCalendar();
-        renderUpcoming();
+        renderGoalPlanner();
+        renderRoutinePlanner();
         renderSelectedDate();
       }
 
@@ -2613,40 +3872,49 @@
         }
 
         var events = getEvents();
+        var savedEvent = null;
         if (editingEventId) {
           events = events.map(function (item) {
             if (item.id !== editingEventId) {
               return item;
             }
-            return Object.assign({}, item, {
+            savedEvent = Object.assign({}, item, {
               date: eventDate,
               title: title,
               note: note,
               category: category,
+              dayPart: draftEventDayPart || item.dayPart || "",
               startTime: "",
               endTime: "",
               updatedAt: new Date().toISOString()
             });
+            return savedEvent;
           });
         } else {
-          events.push({
+          savedEvent = {
             id: makeId("event"),
             date: eventDate,
             title: title,
             note: note,
             category: category,
+            dayPart: draftEventDayPart || "",
             startTime: "",
             endTime: "",
             createdAt: new Date().toISOString()
-          });
+          };
+          events.push(savedEvent);
         }
         saveEvents(events);
+        if (savedEvent) {
+          syncGoalStepReferenceFromEvent(savedEvent);
+        }
 
         selectedDate = eventDate;
         calendarCursor = new Date(parseDate(selectedDate).getFullYear(), parseDate(selectedDate).getMonth(), 1);
         resetEventForm((editingEventId ? "Updated " : "Saved for ") + humanDate(selectedDate) + ".");
+        renderGoalPlanner();
+        renderRoutinePlanner();
         renderCalendar();
-        renderUpcoming();
         renderSelectedDate();
       }
 
@@ -2730,11 +3998,9 @@
             elements.backupStatus.textContent = "Imported " + imported + " saved items.";
             renderGoals();
             renderTasks();
-            renderHours();
-            renderOverviewCards();
+            renderTotals();
             renderCalendar();
             renderSkatePage();
-            renderUpcoming();
             renderSelectedDate();
           } catch (error) {
             elements.backupStatus.textContent = "That backup file could not be read.";
@@ -2770,9 +4036,23 @@
             renderSelectedDate();
           }
         });
-        elements.taskForm.addEventListener("submit", addTask);
+        if (elements.taskForm) {
+          elements.taskForm.addEventListener("submit", addTask);
+        }
         elements.exportData.addEventListener("click", exportBackup);
         elements.importData.addEventListener("change", importBackup);
+        if (elements.addGoalPlannerItem) {
+          elements.addGoalPlannerItem.addEventListener("click", function () {
+            var newGoalId = makeId("goal");
+            updateGoalPlanner(function (latest) {
+              var goal = emptyGoalItem();
+              goal.id = newGoalId;
+              latest.push(goal);
+            });
+            expandedGoalId = newGoalId;
+            renderGoalPlanner();
+          });
+        }
 
         elements.skateFocusInput.addEventListener("input", function () {
           writeText(STORAGE.skateFocus, elements.skateFocusInput.value);
@@ -2783,9 +4063,6 @@
           writeText(STORAGE.skateTarget, String(value));
           renderSkatePage();
         });
-
-        elements.addWarmupTrick.addEventListener("click", addWarmupTrick);
-        elements.addLearningTrick.addEventListener("click", addLearningTrick);
 
         elements.finishSkateSession.addEventListener("click", finishSkateSession);
         elements.bodyLogForm.addEventListener("submit", addBodyLog);
@@ -2802,9 +4079,8 @@
         renderFeedbackScales();
         renderGoals();
         renderTasks();
-        renderHours();
+        renderTotals();
         renderSkatePage();
-        renderUpcoming();
         renderSelectedDate();
         renderCalendar();
         bindEvents();
