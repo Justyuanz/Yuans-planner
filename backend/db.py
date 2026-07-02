@@ -4,11 +4,10 @@ from __future__ import annotations
 
 import sqlite3
 from datetime import datetime, timezone
-from pathlib import Path
 
+from config import planner_db_path
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-DB_PATH = PROJECT_ROOT / "data" / "planner.db"
+DB_PATH = planner_db_path()
 
 
 def now_iso() -> str:

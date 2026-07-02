@@ -4,15 +4,16 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Yuan's Planner</title>
-  <link rel="stylesheet" href="/css/styles.css">
+  <link rel="stylesheet" href="/css/styles.css?v=20260702d">
 </head>
 <body>
   <main class="app">
     <aside class="sidebar" aria-label="Planner navigation">
       <nav class="tabs" aria-label="Planner views">
-        <button class="tab-button active" type="button" data-view-target="todayView">Planner</button>
-        <button class="tab-button" type="button" data-view-target="skateView">Skate</button>
+        <button class="tab-button active" type="button" data-view-target="todayView">Dashboard</button>
         <button class="tab-button" type="button" data-view-target="calendarView">Calendar</button>
+        <button class="tab-button" type="button" data-view-target="goalPlannerView">Goal Planner</button>
+        <button class="tab-button" type="button" data-view-target="skateView">Skate</button>
       </nav>
       <div class="mascot-card" aria-label="Planner companion">
         <div class="mascot-bubble" id="mascotBubble" aria-live="polite">tiny steps still count</div>
@@ -78,7 +79,7 @@
         <div class="top-tools" aria-label="Dashboard tools">
           <div class="date-pill" id="dashboardDate">Today</div>
           <div class="backup-utility" aria-label="Backup tools">
-            <span>Saved in planner.db</span>
+            <span>Saved in local database</span>
             <button class="secondary-button" type="button" id="exportData">Export backup</button>
             <label class="secondary-button import-label" for="importData">Import backup</label>
             <input class="backup-import" id="importData" type="file" accept="application/json">
@@ -105,6 +106,14 @@
               <div class="section-head">
                 <h2>Today's tasks</h2>
                 <p class="small-note" id="weekKeyLabel"></p>
+              </div>
+              <div class="intention-block" aria-label="Today's intention">
+                <div class="intention-block-head">
+                  <strong>Today's intention</strong>
+                  <span class="progress-pill" id="todayThemeBadge">Study Day</span>
+                </div>
+                <p class="intention-line" id="todayThemeLine">Loading today...</p>
+                <div class="intention-list" id="todayIntentionMount"></div>
               </div>
               <div class="day-banner">
                 <span id="dayMessage">Loading today's plan...</span>
@@ -159,6 +168,24 @@
           </article>
 
         </aside>
+      </div>
+    </section>
+
+    <section class="view" id="goalPlannerView" aria-labelledby="goalPlannerHeading">
+      <div class="goal-planner-shell">
+        <article class="panel">
+          <div class="panel-inner">
+            <div class="section-head">
+              <h2 id="goalPlannerHeading">Goal planner</h2>
+              <p class="small-note">Open one goal at a time.</p>
+            </div>
+            <div class="goal-planner-intro" id="goalPlannerIntro"></div>
+            <div class="goal-planner-list" id="goalPlannerMount"></div>
+            <div class="form-actions">
+              <button class="secondary-button" type="button" id="addGoalPlannerItem">Add goal</button>
+            </div>
+          </div>
+        </article>
       </div>
     </section>
 
@@ -222,30 +249,10 @@
           <div class="panel-inner">
             <div class="section-head">
               <h2>Session planner</h2>
-              <p class="small-note">Make today intentional.</p>
+              <p class="small-note">A calm session flow, one step at a time.</p>
             </div>
 
-            <section class="skate-template-section" aria-labelledby="skateWarmupHeading">
-              <div class="skate-template-head">
-                <div>
-                  <h3 id="skateWarmupHeading">Current warm-up tricks</h3>
-                  <p>Repeatable tricks to keep clean every session.</p>
-                </div>
-                <button class="tiny-button" type="button" id="addWarmupTrick">Add trick</button>
-              </div>
-              <div class="skate-template-list skate-warmup-list" id="skateWarmupList"></div>
-            </section>
-
-            <section class="skate-template-section" aria-labelledby="skateLearningHeading">
-              <div class="skate-template-head">
-                <div>
-                  <h3 id="skateLearningHeading">Focused learning tricks</h3>
-                  <p>Current learning tricks and what to focus on.</p>
-                </div>
-                <button class="tiny-button" type="button" id="addLearningTrick">Add trick</button>
-              </div>
-              <div class="skate-template-list skate-learning-list" id="skateLearningList"></div>
-            </section>
+            <div class="skate-coach-flow" id="skateCoachFlow"></div>
 
             <div class="form-actions">
               <button class="primary-button" type="button" id="finishSkateSession">Finish session</button>
@@ -256,30 +263,37 @@
       </div>
     </section>
 
-    <section class="view" id="calendarView" aria-labelledby="calendarHeading">
-      <div class="calendar-shell">
-        <div class="calendar-toolbar">
-          <h2 class="calendar-title" id="calendarHeading">Calendar</h2>
-          <div class="month-controls" aria-label="Month controls">
-            <button class="icon-button" type="button" id="prevMonth" aria-label="Previous month">‹</button>
-            <button class="icon-button" type="button" id="nextMonth" aria-label="Next month">›</button>
-          </div>
-        </div>
-        <article class="panel upcoming-card">
+    <section class="view" id="calendarView" aria-labelledby="calendarHeading" style="width:100%;">
+      <div class="calendar-shell" style="display:flex;flex-direction:column;gap:26px;width:100%;max-width:none;">
+        <article class="panel weekly-planner-card" style="width:100%;max-width:none;flex:0 0 auto;">
           <div class="panel-inner">
             <div class="section-head">
-              <h3>Upcoming events</h3>
-              <p class="small-note">Next 3</p>
+              <h2 id="calendarHeading">Weekly planner</h2>
+              <p class="small-note" id="weeklyPlannerLabel">Morning · Afternoon · Evening</p>
             </div>
-            <ul class="upcoming-list" id="upcomingEvents"></ul>
+            <div id="weeklyPlannerMount"></div>
           </div>
         </article>
-        <div class="calendar-grid" id="calendarGrid" aria-label="Monthly calendar"></div>
-        <article class="panel">
+        <article class="panel monthly-calendar-card" style="width:100%;max-width:none;flex:0 0 auto;">
+          <div class="panel-inner monthly-calendar-inner">
+            <div class="calendar-toolbar">
+              <div class="section-head calendar-section-head">
+                <h2>Monthly calendar</h2>
+                <p class="small-note" id="currentMonthLabel">July 2026</p>
+              </div>
+              <div class="month-controls" aria-label="Month controls">
+                <button class="icon-button" type="button" id="prevMonth" aria-label="Previous month">‹</button>
+                <button class="icon-button" type="button" id="nextMonth" aria-label="Next month">›</button>
+              </div>
+            </div>
+            <div class="calendar-grid" id="calendarGrid" aria-label="Monthly calendar"></div>
+          </div>
+        </article>
+        <article class="panel event-editor-card" id="eventEditorCard" style="width:100%;max-width:none;flex:0 0 auto;">
           <div class="panel-inner">
             <div class="section-head">
-              <h3 id="selectedDateHeading">Add an event</h3>
-              <p class="small-note">Click a date, then save.</p>
+              <h2 id="selectedDateHeading">Selected day</h2>
+              <p class="small-note" id="selectedDateHint">Choose a date to add or edit events.</p>
             </div>
             <ul class="selected-events" id="selectedDateEvents" aria-label="Selected date events"></ul>
             <form class="event-form" id="eventForm">
@@ -301,6 +315,7 @@
                   <option value="Study deadline">Study deadline</option>
                   <option value="Personal">Personal</option>
                   <option value="Skate">Skate</option>
+                  <option value="Routine">Routine</option>
                   <option value="Other">Other</option>
                 </select>
               </div>
@@ -320,25 +335,25 @@
     <form method="dialog" class="feedback-panel" id="skateFeedbackForm">
       <div class="section-head">
         <h2>Quick check-in</h2>
-        <p class="small-note">Just enough to notice patterns.</p>
+        <p class="small-note">End the session with four small notes.</p>
       </div>
       <div class="feedback-scales">
         <fieldset class="scale-field">
-          <legend>Leg soreness</legend>
-          <div class="scale-options" id="legSorenessScale"></div>
-        </fieldset>
-        <fieldset class="scale-field">
-          <legend>Skate quality</legend>
-          <div class="scale-options" id="skateQualityScale"></div>
-        </fieldset>
-        <fieldset class="scale-field">
-          <legend>Confidence</legend>
+          <legend>Confidence today</legend>
           <div class="scale-options" id="confidenceScale"></div>
         </fieldset>
+        <fieldset class="scale-field">
+          <legend>Progress today</legend>
+          <div class="scale-options" id="progressTodayScale"></div>
+        </fieldset>
       </div>
-      <label class="form-row" for="skateFeedbackNote">
-        <span>Optional note</span>
-        <textarea id="skateFeedbackNote" maxlength="220" placeholder="What should future me remember?"></textarea>
+      <label class="form-row" for="skateImprovedNote">
+        <span>What improved today?</span>
+        <textarea id="skateImprovedNote" maxlength="220" placeholder="What felt easier, cleaner, or more controlled?"></textarea>
+      </label>
+      <label class="form-row" for="skateNextFocusNote">
+        <span>What should I focus on next session?</span>
+        <textarea id="skateNextFocusNote" maxlength="220" placeholder="One clear thing for future me to come back to."></textarea>
       </label>
       <div class="form-actions">
         <button class="primary-button" type="submit">Save session</button>
@@ -347,6 +362,7 @@
     </form>
   </dialog>
 
-  <script src="/js/app.js"></script>
+  <script src="/js/calendar-core.js?v=20260702d"></script>
+  <script src="/js/app.js?v=20260702d"></script>
 </body>
 </html>

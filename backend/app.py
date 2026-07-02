@@ -15,20 +15,19 @@ from __future__ import annotations
 
 import json
 import mimetypes
-import os
 import socket
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import unquote, urlparse
 
+from config import planner_db_path, planner_host, planner_port
 from db import import_values, init_database, put_value, read_all_values
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = PROJECT_ROOT / "frontend"
-DATA_DIR = PROJECT_ROOT / "data"
-HOST = "0.0.0.0"
-PORT = int(os.environ.get("YUAN_PLANNER_PORT", "8765"))
+HOST = planner_host()
+PORT = planner_port()
 
 
 def local_network_ip() -> str:
@@ -44,9 +43,15 @@ class PlannerHandler(BaseHTTPRequestHandler):
     server_version = "YuanPlanner/1.0"
 
     def do_GET(self) -> None:
+        self.handle_read(include_body=True)
+
+    def do_HEAD(self) -> None:
+        self.handle_read(include_body=False)
+
+    def handle_read(self, include_body: bool) -> None:
         path = urlparse(self.path).path
         if path == "/api/kv":
-            self.send_json({"data": read_all_values()})
+            self.send_json({"data": read_all_values()}, include_body=include_body)
             return
         if path == "/api/export":
             self.send_json(
@@ -56,13 +61,14 @@ class PlannerHandler(BaseHTTPRequestHandler):
                     "data": read_all_values(),
                 },
                 headers={"Content-Disposition": 'attachment; filename="yuan-planner-backup.json"'},
+                include_body=include_body,
             )
             return
         if path == "/favicon.ico":
             self.send_response(204)
             self.end_headers()
             return
-        self.serve_static(path)
+        self.serve_static(path, include_body=include_body)
 
     def do_PUT(self) -> None:
         if urlparse(self.path).path != "/api/kv":
@@ -92,7 +98,7 @@ class PlannerHandler(BaseHTTPRequestHandler):
         imported = import_values(data)
         self.send_json({"ok": True, "imported": imported})
 
-    def serve_static(self, path: str) -> None:
+    def serve_static(self, path: str, include_body: bool = True) -> None:
         if path == "/":
             path = "/index.html"
         relative = Path(unquote(path.lstrip("/")))
@@ -109,8 +115,12 @@ class PlannerHandler(BaseHTTPRequestHandler):
         self.send_response(200)
         self.send_header("Content-Type", content_type)
         self.send_header("Content-Length", str(len(body)))
+        self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+        self.send_header("Pragma", "no-cache")
+        self.send_header("Expires", "0")
         self.end_headers()
-        self.wfile.write(body)
+        if include_body:
+            self.wfile.write(body)
 
     def read_json_body(self) -> dict:
         length = int(self.headers.get("Content-Length", "0"))
@@ -124,7 +134,7 @@ class PlannerHandler(BaseHTTPRequestHandler):
             return {}
         return parsed if isinstance(parsed, dict) else {}
 
-    def send_json(self, value: dict, headers: dict[str, str] | None = None) -> None:
+    def send_json(self, value: dict, headers: dict[str, str] | None = None, include_body: bool = True) -> None:
         body = json.dumps(value, ensure_ascii=False).encode("utf-8")
         self.send_response(200)
         self.send_header("Content-Type", "application/json; charset=utf-8")
@@ -133,22 +143,30 @@ class PlannerHandler(BaseHTTPRequestHandler):
             for key, header_value in headers.items():
                 self.send_header(key, header_value)
         self.end_headers()
-        self.wfile.write(body)
+        if include_body:
+            self.wfile.write(body)
 
     def log_message(self, format: str, *args: object) -> None:
         print("[%s] %s" % (self.log_date_time_string(), format % args))
 
 
 def main() -> None:
-    DATA_DIR.mkdir(parents=True, exist_ok=True)
     init_database()
     server = ThreadingHTTPServer((HOST, PORT), PlannerHandler)
     lan_ip = local_network_ip()
-    print(f"Yuan's Planner running on this laptop at http://127.0.0.1:{PORT}")
-    print(f"Same-Wi-Fi phone URL: http://{lan_ip}:{PORT}")
-    print(f"SQLite database: {DATA_DIR / 'planner.db'}")
-    server.serve_forever()
+    print(f"Yuan's Planner listening at http://127.0.0.1:{PORT}")
+    print(f"LAN URL: http://{lan_ip}:{PORT}")
+    print(f"SQLite database: {planner_db_path()}")
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\nStopping Yuan's Planner...")
+    finally:
+        server.server_close()
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        pass

@@ -1,18 +1,37 @@
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+.pytest_cache/
+.venv/
+venv/
+.env
+.env.local
+.env.*.local
 *.log
 *.err
+*.out
+*.pid
 planner.db
 *.db
+*.db-shm
+*.db-wal
+*.sqlite-journal
 .DS_Store
 node_modules/
 dist/
 build/
+.coverage
+coverage/
+.cache/
 *.heapsnapshot
 backups/
 data/*.db
 data/*.sqlite
 data/*.sqlite3
+data/*.db-shm
+data/*.db-wal
+data/*.sqlite-journal
 
 # Local macOS/runtime helpers. These stay on the laptop, not GitHub.
 *.command
@@ -24,3 +43,5 @@ run-planner-server.sh
 stress_*.py
 Yuan Planner crontab line.txt
 YuanPlanner_Archive/
+
+!.env.example
