@@ -20,7 +20,7 @@ It serves the frontend directly from the Python backend and stores app data in S
 ## Project Structure
 
 ```text
-YuanPlanner/
+Yuans-Planner/
   backend/
     app.py
     config.py
@@ -48,7 +48,7 @@ Clone the repo:
 
 ```sh
 git clone <your-repo-url>
-cd YuanPlanner
+cd Yuans-Planner
 ```
 
 Create and activate a virtual environment:
