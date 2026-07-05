@@ -22,7 +22,7 @@ There is currently **no Node install step** and **no frontend build step**.
 ## Project Structure
 
 ```text
-YuanPlanner/
+Yuans-planner/
   backend/
     app.py
     config.py
@@ -50,7 +50,7 @@ Clone the repo:
 
 ```sh
 git clone <your-repo-url>
-cd YuanPlanner
+cd Yuans-planner
 ```
 
 Create and activate a virtual environment:
@@ -88,6 +88,62 @@ cp .env.example .env
 ```
 
 The backend now reads `.env` automatically if it exists. On a hosting platform, you can also set the same variables directly in the host's environment settings.
+
+## Run With Docker
+
+Build and start the app:
+
+```sh
+docker compose up --build
+```
+
+If your Docker install uses the older standalone Compose binary, use `docker-compose up --build` instead.
+
+Then open:
+
+- `http://127.0.0.1:8765`
+
+The Docker setup stores SQLite in the project's local `data/` folder instead of inside the container image:
+
+- container path: `/app/persist/planner.db`
+- local path: `data/planner.db`
+
+That means your data survives:
+
+- `docker compose down`
+- image rebuilds
+- container replacement
+- and it stays easy to inspect or copy from your laptop
+
+If you want to stop the app without deleting the saved data:
+
+```sh
+docker compose down
+```
+
+## Exporting Or Backing Up Data
+
+You have two easy backup options.
+
+### Option 1: App-level JSON export
+
+Use the app's **Export backup** button in the UI, or download the same backup from the API:
+
+```sh
+curl http://127.0.0.1:8765/api/export -o yuan-planner-backup.json
+```
+
+This is the safest portable backup if you may later move data between machines or app versions.
+
+### Option 2: Raw SQLite backup from the local data folder
+
+Copy the database file directly:
+
+```sh
+cp data/planner.db ./backups/planner.db
+```
+
+You can restore that database later by putting it back at `data/planner.db`.
 
 ## Run Locally
 
@@ -197,6 +253,11 @@ YUAN_PLANNER_PORT=<platform port or your chosen port>
 YUAN_PLANNER_DB_PATH=<persistent storage path>/planner.db
 ```
 
+Docker equivalent:
+
+- mount persistent storage into the container
+- set `YUAN_PLANNER_DB_PATH` to a file inside that mount, such as `/app/persist/planner.db`
+
 If the host provides a port automatically, set `YUAN_PLANNER_PORT` to that value in the platform settings.
 
 ## Tests
@@ -206,6 +267,9 @@ JavaScript logic tests:
 ```sh
 node --test tests/calendar-core.test.js
 ```
+
+This requires Node.js 18+ because it uses the built-in `node:test` runner.
+The planner itself does not require Node to run.
 
 Python syntax check:
 
