@@ -1,0 +1,13 @@
+services:
+  planner:
+    build: .
+    container_name: yuan-planner
+    ports:
+      - "${YUAN_PLANNER_PORT:-8765}:8765"
+    environment:
+      YUAN_PLANNER_HOST: 0.0.0.0
+      YUAN_PLANNER_PORT: 8765
+      YUAN_PLANNER_DB_PATH: /app/persist/planner.db
+    volumes:
+      - ./data:/app/persist
+    restart: unless-stopped
