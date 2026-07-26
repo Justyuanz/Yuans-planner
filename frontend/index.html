@@ -12,11 +12,11 @@
       <nav class="tabs" aria-label="Planner views">
         <button class="tab-button active" type="button" data-view-target="todayView">Dashboard</button>
         <button class="tab-button" type="button" data-view-target="calendarView">Calendar</button>
-        <button class="tab-button" type="button" data-view-target="goalPlannerView">Goal Planner</button>
         <button class="tab-button" type="button" data-view-target="skateView">Skate</button>
+        <button class="tab-button" type="button" data-view-target="guitarView">Guitar</button>
       </nav>
       <div class="mascot-card" aria-label="Planner companion">
-        <div class="mascot-bubble" id="mascotBubble" aria-live="polite">tiny steps still count</div>
+        <div class="mascot-bubble" id="mascotBubble" aria-live="polite">Pick the next useful move.</div>
         <button class="soft-mascot" id="softMascot" type="button" aria-label="Get a small encouraging note">
           <svg class="mascot-svg" viewBox="0 0 180 190" role="img" aria-hidden="true">
             <defs>
@@ -74,12 +74,12 @@
       <header class="hero">
         <div>
           <h1>Yuan's Planner</h1>
-          <p class="subtitle" id="todaySubtitle">A bright little morning map for Hive study days.</p>
+          <p class="subtitle" id="todaySubtitle">A working planner for study, skating, guitar, and the boring life stuff that still matters.</p>
         </div>
         <div class="top-tools" aria-label="Dashboard tools">
           <div class="date-pill" id="dashboardDate">Today</div>
           <div class="backup-utility" aria-label="Backup tools">
-            <span>Saved in local database</span>
+            <span>Your data lives on this planner</span>
             <button class="secondary-button" type="button" id="exportData">Export backup</button>
             <label class="secondary-button import-label" for="importData">Import backup</label>
             <input class="backup-import" id="importData" type="file" accept="application/json">
@@ -95,7 +95,7 @@
             <div class="panel-inner">
               <div class="section-head">
                 <h2 id="todayHeading">Weekly goals</h2>
-                <p class="small-note">Keep these until they feel done.</p>
+                <p class="small-note">Keep the week pointed in the right direction.</p>
               </div>
               <div class="goal-list" id="weeklyGoals"></div>
             </div>
@@ -110,18 +110,18 @@
               <div class="intention-block" aria-label="Today's intention">
                 <div class="intention-block-head">
                   <strong>Today's intention</strong>
-                  <span class="progress-pill" id="todayThemeBadge">Study Day</span>
-                </div>
-                <p class="intention-line" id="todayThemeLine">Loading today...</p>
+                <span class="progress-pill" id="todayThemeBadge">Study Day</span>
+              </div>
+                <p class="intention-line" id="todayThemeLine">Getting today's thread together...</p>
                 <div class="intention-list" id="todayIntentionMount"></div>
               </div>
               <div class="day-banner">
-                <span id="dayMessage">Loading today's plan...</span>
+                <span id="dayMessage">Building today's plan...</span>
                 <span class="progress-pill" id="progressText">0 / 0 tasks done today</span>
               </div>
               <div id="tasksMount"></div>
               <form class="task-form" id="taskForm">
-                <input id="taskTitle" maxlength="90" autocomplete="off" placeholder="Add a task for today">
+                <input id="taskTitle" maxlength="90" autocomplete="off" placeholder="Add the next thing that actually matters">
                 <select id="taskActivity" aria-label="Task activity"></select>
                 <button class="secondary-button" type="submit">Add</button>
               </form>
@@ -157,35 +157,20 @@
             </div>
           </article>
 
-          <article class="panel study-overview-card">
+          <article class="panel jobs-card">
             <div class="panel-inner">
               <div class="section-head">
-                <h3>Weekly overview</h3>
-                <p class="small-note" id="studyOverviewWeek">This week</p>
+                <h3>Jobs</h3>
+                <p class="small-note">Small steady progress beats dramatic promises.</p>
               </div>
-              <div id="studyOverview"></div>
+              <div class="job-strip" aria-label="Job applications">
+                <p class="job-strip-text" id="jobStatsLine">This week: 0 / 2 · Total applied: 0</p>
+                <button class="secondary-button" type="button" id="addJobApplication">+1 applied</button>
+              </div>
             </div>
           </article>
 
         </aside>
-      </div>
-    </section>
-
-    <section class="view" id="goalPlannerView" aria-labelledby="goalPlannerHeading">
-      <div class="goal-planner-shell">
-        <article class="panel">
-          <div class="panel-inner">
-            <div class="section-head">
-              <h2 id="goalPlannerHeading">Goal planner</h2>
-              <p class="small-note">Open one goal at a time.</p>
-            </div>
-            <div class="goal-planner-intro" id="goalPlannerIntro"></div>
-            <div class="goal-planner-list" id="goalPlannerMount"></div>
-            <div class="form-actions">
-              <button class="secondary-button" type="button" id="addGoalPlannerItem">Add goal</button>
-            </div>
-          </div>
-        </article>
       </div>
     </section>
 
@@ -195,7 +180,7 @@
           <div class="panel-inner">
             <div class="section-head">
               <h2 id="skateHeading">Skate focus</h2>
-              <p class="small-note">One trick at a time.</p>
+              <p class="small-note">One trick, one adjustment, one useful session.</p>
             </div>
             <label class="form-row" for="skateFocusInput">
               <span>Current trick focus</span>
@@ -218,7 +203,7 @@
           <div class="panel-inner">
             <div class="section-head">
               <h2>Body support</h2>
-              <p class="small-note" id="skateWeekLabel">Small notes for skate-support work.</p>
+              <p class="small-note" id="skateWeekLabel">Log the support work that keeps your legs and brain useful.</p>
             </div>
             <form class="body-log-form" id="bodyLogForm">
               <label class="form-row" for="bodyWorkoutName">
@@ -249,15 +234,57 @@
           <div class="panel-inner">
             <div class="section-head">
               <h2>Session planner</h2>
-              <p class="small-note">A calm session flow, one step at a time.</p>
+              <p class="small-note">Set the session, skate it, then save what mattered.</p>
             </div>
 
             <div class="skate-coach-flow" id="skateCoachFlow"></div>
 
             <div class="form-actions">
+              <button class="secondary-button" type="button" id="startSkateSession">Start session</button>
               <button class="primary-button" type="button" id="finishSkateSession">Finish session</button>
-              <span class="hint" id="skateSessionHint">Save this session with a quick check-in.</span>
+              <span class="hint" id="skateSessionHint">Start when you roll in. Finish when you know what the session gave you.</span>
             </div>
+          </div>
+        </article>
+      </div>
+    </section>
+
+    <section class="view" id="guitarView" aria-labelledby="guitarHeading">
+      <div class="guitar-page">
+        <article class="panel guitar-goal-card">
+          <div class="panel-inner">
+            <div class="section-head">
+              <h2 id="guitarHeading">Progress planner</h2>
+              <p class="small-note">Keep the target specific enough to practise.</p>
+            </div>
+            <label class="form-row" for="guitarFocusInput">
+              <span>Current focus</span>
+              <input id="guitarFocusInput" maxlength="90" autocomplete="off" placeholder="Chord changes, fingerpicking, one song...">
+            </label>
+            <label class="form-row" for="guitarNextStepInput">
+              <span>Small thing to practice</span>
+              <input id="guitarNextStepInput" maxlength="120" autocomplete="off" placeholder="One chord change, one picking pattern, one section of a song...">
+            </label>
+          </div>
+        </article>
+
+        <article class="panel guitar-session-card">
+          <div class="panel-inner">
+            <div class="section-head">
+              <h2>Session tracker</h2>
+              <p class="small-note">Use the numbers, skip the guilt spiral.</p>
+            </div>
+            <div class="job-strip" aria-label="Guitar session status">
+              <p class="job-strip-text" id="guitarSessionStatus">No active Guitar session.</p>
+              <div class="timer-controls">
+                <button class="secondary-button" type="button" id="startGuitarSession">Start session</button>
+                <button class="primary-button" type="button" id="finishGuitarSession">Finish session</button>
+              </div>
+            </div>
+            <span class="hint" id="guitarSessionHint">If a Guitar task is on today’s dashboard, the finished time can land there too.</span>
+            <div class="guitar-session-summary" id="guitarSessionSummary"></div>
+            <p class="guitar-session-plan" id="guitarSessionPlan">A simple weekly guitar rhythm will appear here.</p>
+            <div class="guitar-session-history" id="guitarRecentSessions"></div>
           </div>
         </article>
       </div>
@@ -268,8 +295,14 @@
         <article class="panel weekly-planner-card" style="width:100%;max-width:none;flex:0 0 auto;">
           <div class="panel-inner">
             <div class="section-head">
-              <h2 id="calendarHeading">Weekly planner</h2>
-              <p class="small-note" id="weeklyPlannerLabel">Morning · Afternoon · Evening</p>
+              <div class="calendar-section-head">
+                <h2 id="calendarHeading">Weekly planner</h2>
+                <p class="small-note" id="weeklyPlannerLabel">Morning · Afternoon · Evening</p>
+              </div>
+              <div class="week-controls" aria-label="Week controls">
+                <button class="icon-button" type="button" id="prevWeek" aria-label="Previous week">‹</button>
+                <button class="icon-button" type="button" id="nextWeek" aria-label="Next week">›</button>
+              </div>
             </div>
             <div id="weeklyPlannerMount"></div>
           </div>
@@ -293,7 +326,7 @@
           <div class="panel-inner">
             <div class="section-head">
               <h2 id="selectedDateHeading">Selected day</h2>
-              <p class="small-note" id="selectedDateHint">Choose a date to add or edit events.</p>
+              <p class="small-note" id="selectedDateHint">Pick a date, then drop in the thing you do not want to forget.</p>
             </div>
             <ul class="selected-events" id="selectedDateEvents" aria-label="Selected date events"></ul>
             <form class="event-form" id="eventForm">
@@ -307,21 +340,23 @@
               </div>
               <div class="form-row">
                 <label for="eventNote">Optional note</label>
-                <textarea id="eventNote" name="eventNote" maxlength="600" placeholder="A detail, link, or reminder."></textarea>
+                <textarea id="eventNote" name="eventNote" maxlength="600" placeholder="Useful detail, link, address, or note to future you."></textarea>
               </div>
               <div class="form-row">
                 <label for="eventCategory">Category</label>
                 <select id="eventCategory" name="eventCategory">
                   <option value="Study deadline">Study deadline</option>
+                  <option value="Home study">Home study</option>
+                  <option value="School study">School study</option>
                   <option value="Personal">Personal</option>
                   <option value="Skate">Skate</option>
-                  <option value="Routine">Routine</option>
+                  <option value="Chore">Chore</option>
                   <option value="Other">Other</option>
                 </select>
               </div>
               <div class="form-actions">
                 <button class="primary-button" type="submit" id="eventSaveButton">Save event</button>
-                <span class="hint" id="formHint">No date selected yet.</span>
+                <span class="hint" id="formHint">No day picked yet.</span>
               </div>
             </form>
           </div>
@@ -335,8 +370,12 @@
     <form method="dialog" class="feedback-panel" id="skateFeedbackForm">
       <div class="section-head">
         <h2>Quick check-in</h2>
-        <p class="small-note">End the session with four small notes.</p>
+        <p class="small-note">Capture what changed, not a diary entry.</p>
       </div>
+      <label class="form-row" for="skateDurationMinutes">
+        <span>Actual session minutes</span>
+        <input id="skateDurationMinutes" type="number" min="1" max="600" step="1" inputmode="numeric" placeholder="45">
+      </label>
       <div class="feedback-scales">
         <fieldset class="scale-field">
           <legend>Confidence today</legend>
@@ -349,15 +388,36 @@
       </div>
       <label class="form-row" for="skateImprovedNote">
         <span>What improved today?</span>
-        <textarea id="skateImprovedNote" maxlength="220" placeholder="What felt easier, cleaner, or more controlled?"></textarea>
+        <textarea id="skateImprovedNote" maxlength="220" placeholder="What clicked, landed, or felt less awkward today?"></textarea>
       </label>
       <label class="form-row" for="skateNextFocusNote">
         <span>What should I focus on next session?</span>
-        <textarea id="skateNextFocusNote" maxlength="220" placeholder="One clear thing for future me to come back to."></textarea>
+        <textarea id="skateNextFocusNote" maxlength="220" placeholder="What is the one adjustment or trick future-you should come back to?"></textarea>
       </label>
       <div class="form-actions">
         <button class="primary-button" type="submit">Save session</button>
         <button class="secondary-button" type="button" id="cancelSkateFeedback">Not now</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog class="feedback-dialog" id="guitarSessionDialog">
+    <form method="dialog" class="feedback-panel" id="guitarSessionForm">
+      <div class="section-head">
+        <h2>Finish Guitar session</h2>
+        <p class="small-note">Save the real time and the one useful thing you worked on.</p>
+      </div>
+      <label class="form-row" for="guitarDurationMinutes">
+        <span>Actual session minutes</span>
+        <input id="guitarDurationMinutes" type="number" min="1" max="600" step="1" inputmode="numeric" placeholder="30">
+      </label>
+      <label class="form-row" for="guitarSessionNote">
+        <span>What moved forward?</span>
+        <textarea id="guitarSessionNote" maxlength="220" placeholder="Cleaner chord switch, steadier rhythm, one better verse, one pattern that finally stuck..."></textarea>
+      </label>
+      <div class="form-actions">
+        <button class="primary-button" type="submit">Save session</button>
+        <button class="secondary-button" type="button" id="cancelGuitarSession">Not now</button>
       </div>
     </form>
   </dialog>

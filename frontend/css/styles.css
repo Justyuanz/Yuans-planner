@@ -196,7 +196,8 @@ h1 {
   grid-template-areas:
     "goals life"
     "tasks tasks"
-    "study planned";
+    "planned planned"
+    "jobs jobs";
   gap: 32px 22px;
   align-items: stretch;
 }
@@ -645,8 +646,8 @@ h1 {
 
 .goals-card,
 .life-card,
-.study-overview-card,
-.planned-card {
+.planned-card,
+.jobs-card {
   align-self: stretch;
   height: 100%;
 }
@@ -663,12 +664,12 @@ h1 {
   grid-area: tasks;
 }
 
-.study-overview-card {
-  grid-area: study;
-}
-
 .planned-card {
   grid-area: planned;
+}
+
+.jobs-card {
+  grid-area: jobs;
 }
 
 .backup-utility {
@@ -680,9 +681,28 @@ h1 {
   min-height: 340px;
 }
 
-.study-overview-card .panel-inner,
 .planned-card .panel-inner {
   min-height: 315px;
+}
+
+.jobs-card .panel-inner {
+  min-height: auto;
+}
+
+.job-strip {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.job-strip-text {
+  margin-bottom: 0;
+  color: var(--ink);
+  font-size: 0.96rem;
+  font-weight: 560;
+  line-height: 1.35;
 }
 
 .section-head {
@@ -1409,7 +1429,7 @@ textarea {
   display: flex;
   justify-content: space-between;
   gap: 10px;
-  align-items: center;
+  align-items: flex-start;
   color: var(--muted);
   font-size: 0.9rem;
   font-weight: 510;
@@ -1419,6 +1439,15 @@ textarea {
 .soft-progress-title strong {
   color: var(--ink);
   font-weight: 560;
+}
+
+.overview-row strong {
+  flex: 0 0 88px;
+}
+
+.overview-row span {
+  flex: 1 1 auto;
+  text-align: left;
 }
 
 .overview-chips {
@@ -1537,11 +1566,11 @@ textarea {
 }
 
 .weekly-planner-card {
-  order: 1;
+  order: 2;
 }
 
 .monthly-calendar-card {
-  order: 2;
+  order: 1;
 }
 
 .event-editor-card {
@@ -1587,6 +1616,12 @@ textarea {
 .month-controls {
   display: flex;
   gap: 10px;
+}
+
+.week-controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
 }
 
 .icon-button {
@@ -1738,6 +1773,13 @@ textarea {
   color: #8f79a5;
 }
 
+.tag.chore-event,
+.event-pill.chore-event {
+  border-color: rgba(93, 150, 173, 0.34);
+  background: rgba(227, 251, 250, 0.95);
+  color: var(--teal-dark);
+}
+
 .tag.other-event,
 .event-pill.other-event {
   border-color: rgba(239, 201, 166, 0.42);
@@ -1841,11 +1883,28 @@ textarea {
   gap: 22px;
 }
 
+.guitar-page {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    "goal"
+    "session";
+  gap: 22px;
+}
+
 .skate-focus-card {
   grid-area: focus;
 }
 
+.guitar-goal-card {
+  grid-area: goal;
+}
+
 .skate-session-card {
+  grid-area: session;
+}
+
+.guitar-session-card {
   grid-area: session;
 }
 
@@ -1861,6 +1920,14 @@ textarea {
   background:
     radial-gradient(circle at 4% 0%, rgba(245, 202, 221, 0.2), transparent 36%),
     linear-gradient(135deg, rgba(255, 255, 255, 0.5), rgba(227, 251, 250, 0.16), rgba(255, 249, 204, 0.12));
+  border-radius: var(--radius);
+}
+
+.guitar-session-card .panel-inner,
+.guitar-goal-card .panel-inner {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(217, 210, 243, 0.26), transparent 34%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.52), rgba(239, 235, 250, 0.22), rgba(227, 251, 250, 0.1));
   border-radius: var(--radius);
 }
 
@@ -1901,6 +1968,11 @@ textarea {
 }
 
 .skate-session-card .form-row {
+  gap: 10px;
+}
+
+.guitar-session-card .form-row,
+.guitar-goal-card .form-row {
   gap: 10px;
 }
 
@@ -1965,6 +2037,74 @@ textarea {
   margin: 0;
   color: var(--muted);
   font-size: 0.88rem;
+}
+
+.guitar-session-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.guitar-summary-card {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid rgba(185, 206, 240, 0.32);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.66);
+}
+
+.guitar-summary-card span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 540;
+}
+
+.guitar-summary-card strong {
+  color: var(--guitar);
+  font-size: 1.05rem;
+  font-weight: 610;
+}
+
+.guitar-session-plan {
+  margin: 0;
+  color: #5e5e6d;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.guitar-session-history {
+  display: grid;
+  gap: 10px;
+}
+
+.guitar-history-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  padding: 12px 14px;
+  border: 1px solid rgba(185, 206, 240, 0.28);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.guitar-history-item strong {
+  color: var(--ink);
+  font-weight: 570;
+}
+
+.guitar-history-item p {
+  margin: 4px 0 0;
+  color: #686878;
+  line-height: 1.4;
+}
+
+.guitar-history-item em {
+  color: var(--guitar);
+  font-style: normal;
+  font-weight: 600;
+  white-space: nowrap;
 }
 
 .trend-row {
@@ -2445,9 +2585,26 @@ textarea {
   border-top: 1px solid rgba(224, 219, 209, 0.48);
 }
 
+.guitar-session-card .panel-inner,
+.guitar-goal-card .panel-inner {
+  display: grid;
+  gap: 14px;
+}
+
 @media (max-width: 640px) {
   .skate-session-card .panel-inner {
     gap: 12px;
+  }
+
+  .guitar-page {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "goal"
+      "session";
+  }
+
+  .guitar-session-summary {
+    grid-template-columns: 1fr;
   }
 
   .coach-stage {
@@ -2828,8 +2985,8 @@ textarea {
       "goals"
       "life"
       "tasks"
-      "study"
-      "planned";
+      "planned"
+      "jobs";
   }
 
   .skate-page {
@@ -2896,7 +3053,6 @@ textarea {
 
   .goals-card .panel-inner,
   .life-card .panel-inner,
-  .study-overview-card .panel-inner,
   .planned-card .panel-inner {
     min-height: auto;
   }

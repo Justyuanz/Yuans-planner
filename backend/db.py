@@ -66,6 +66,15 @@ def put_value(key: str, value: str) -> None:
         conn.close()
 
 
+def delete_value(key: str) -> None:
+    conn = connect()
+    try:
+        conn.execute("DELETE FROM kv_store WHERE key = ?", (key,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def import_values(data: dict) -> int:
     imported = 0
     conn = connect()

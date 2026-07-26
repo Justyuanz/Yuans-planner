@@ -5,6 +5,7 @@
       var STORAGE = {
         databaseName: "yuanPlannerDatabase",
         goals: "hivePlanner.weeklyGoals",
+        jobApplications: "hivePlanner.jobs.applied",
         events: "hivePlanner.events",
         dailyTasksPrefix: "hivePlanner.dailyTasks.",
         plannedPrefix: "hivePlanner.planned.",
@@ -13,6 +14,12 @@
         skateCurrentSession: "hivePlanner.skate.currentSession",
         skateSessions: "hivePlanner.skate.sessions",
         skateCoachTemplate: "hivePlanner.skate.coachTemplate",
+        guitarFocus: "hivePlanner.guitar.focus",
+        guitarGoal: "hivePlanner.guitar.goal",
+        guitarNextStep: "hivePlanner.guitar.nextStep",
+        guitarTarget: "hivePlanner.guitar.weeklyTarget",
+        guitarCurrentSession: "hivePlanner.guitar.currentSession",
+        guitarSessions: "hivePlanner.guitar.sessions",
         weeklyRoutinePrefix: "hivePlanner.routine.week.",
         goalPlanner: "hivePlanner.goalPlanner.items",
         studyOverviewPrefix: "hivePlanner.weekOverview.study.",
@@ -23,6 +30,10 @@
       };
       var memoryStore = {};
       var serverStorageAvailable = false;
+      var transientSessionStarts = {
+        skate: null,
+        guitar: null
+      };
       var statsPeriod = "month";
       var skateTrendPeriod = "month";
       var editingEventId = null;
@@ -102,30 +113,61 @@
         };
       }());
 
+      function parseTaskTimeMinutes(label) {
+        var text = String(label || "").trim();
+        var match = text.match(/^(\d{1,2})(?::?(\d{2}))?(?=\s|$|[-–])/);
+        if (!match) {
+          return null;
+        }
+        var hours = Number(match[1]);
+        var minutes = match[2] ? Number(match[2]) : 0;
+        if (hours > 23 || minutes > 59) {
+          return null;
+        }
+        return (hours * 60) + minutes;
+      }
+
+      function compareTasksChronologically(a, b) {
+        var timeA = parseTaskTimeMinutes(a && a.label);
+        var timeB = parseTaskTimeMinutes(b && b.label);
+        if (timeA !== null && timeB !== null && timeA !== timeB) {
+          return timeA - timeB;
+        }
+        if (timeA !== null && timeB === null) {
+          return -1;
+        }
+        if (timeA === null && timeB !== null) {
+          return 1;
+        }
+        return String((a && a.createdAt) || "")
+          .localeCompare(String((b && b.createdAt) || ""))
+          || String((a && a.id) || "").localeCompare(String((b && b.id) || ""));
+      }
+
       var tracks = [
         {
           id: "cpp",
           label: "C++ / ft_irc",
-          placeholder: "Ship one strong ft_irc step.",
+          placeholder: "Name the C++ piece you want to push forward.",
           className: "cpp"
         },
         {
           id: "python",
           label: "Python project",
-          placeholder: "Move the side project forward gently.",
+          placeholder: "What Python piece is worth moving today?",
           className: "python"
         },
         {
           id: "lc",
           label: "Leetcode",
-          placeholder: "Keep the morning habit alive.",
+          placeholder: "What problem or pattern are you touching today?",
           className: "lc"
         }
       ];
 
       var taskPlan = {
         0: {
-          message: "Sunday: solid C++ focus, then a tidy Python wrap up.",
+          message: "Sunday: close loose loops, get one real C++ win, and leave Python cleaner than you found it.",
           tasks: [
             { id: "lc-morning", label: "Leetcode", activity: "lc" },
             { id: "cpp-solid", label: "C++ solid block", activity: "cpp" },
@@ -133,7 +175,7 @@
           ]
         },
         1: {
-          message: "Monday: begin with the habit, then make the main C++ block count.",
+          message: "Monday: warm up fast, then make the main C++ block do some actual work.",
           tasks: [
             { id: "lc-morning", label: "Leetcode", activity: "lc" },
             { id: "cpp-main", label: "C++ main block", activity: "cpp" },
@@ -141,7 +183,7 @@
           ]
         },
         2: {
-          message: "Tuesday: small clear wins across all three tracks.",
+          message: "Tuesday: stack small wins and do not let any track turn fuzzy.",
           tasks: [
             { id: "lc-morning", label: "Leetcode", activity: "lc" },
             { id: "cpp-one", label: "C++", activity: "cpp" },
@@ -149,13 +191,13 @@
           ]
         },
         3: {
-          message: "Wednesday is skate day. Fresh air counts. Enjoy the bright green reset.",
+          message: "Wednesday is for skating. Go outside, loosen the brain, come back sharper.",
           tasks: [
             { id: "skate-day", label: "Skate day", activity: "skate" }
           ]
         },
         4: {
-          message: "Thursday: two C++ blocks with the morning habit as your warm-up.",
+          message: "Thursday: use the morning habit to get moving, then put real hours into C++.",
           tasks: [
             { id: "lc-morning", label: "Leetcode", activity: "lc" },
             { id: "cpp-block-a", label: "C++ block one", activity: "cpp" },
@@ -164,7 +206,7 @@
           ]
         },
         5: {
-          message: "Friday: land one C++ task, then give Python the afternoon.",
+          message: "Friday: finish one meaningful C++ thing, then let Python have a proper turn.",
           tasks: [
             { id: "lc-morning", label: "Leetcode", activity: "lc" },
             { id: "cpp-one", label: "C++", activity: "cpp" },
@@ -172,7 +214,7 @@
           ]
         },
         6: {
-          message: "Saturday: keep it light and keep the streak friendly.",
+          message: "Saturday: keep it lighter, but still leave the day with one thing done on purpose.",
           tasks: [
             { id: "lc-morning", label: "Leetcode", activity: "lc" },
             { id: "python-light", label: "Python light", activity: "python" },
@@ -198,18 +240,117 @@
       };
 
       var mascotLines = [
-        "tiny steps still count",
-        "one gentle task, then snacks",
-        "C++ will blink first",
-        "ship a small piece today",
-        "future Yuan says thanks",
-        "ten minutes is a real start",
-        "hydrate, then compile",
-        "soft focus, sharp progress",
-        "you are allowed to begin messy",
-        "the bug is just being dramatic",
-        "skate brain, study heart",
-        "one tab, one task, go"
+        "Pick the next useful move.",
+        "Start ugly. Fix it on lap two.",
+        "Open fewer tabs. Finish more things.",
+        "A boring completed task still wins.",
+        "Do the task your future self will brag about.",
+        "Five focused minutes beats fake productivity theater.",
+        "If it is fuzzy, name the next action.",
+        "You do not need a reset. You need a starting point.",
+        "One clean block can rescue the whole day.",
+        "Make the problem smaller, then hit it.",
+        "The bug is loud because it is scared.",
+        "Leave one good note for future-you.",
+        "Ship the useful version first.",
+        "Today's plot twist: you actually finish the thing.",
+        "Skate, code, breathe, repeat.",
+        "If your brain is soup, choose the smallest real task.",
+        "Done is allowed to look ordinary.",
+        "You can be unsure and still continue.",
+        "Pick the thing with the biggest relief after it is done.",
+        "If you are procrastinating, the task is probably too wide.",
+        "One problem. One tool. One pass.",
+        "Make it work, then make it less cursed.",
+        "The plan only needs to survive today.",
+        "Use the good hour on the hard thing.",
+        "A half-hour block can still move the week.",
+        "Less dramatic planning. More actual reps.",
+        "You are not behind in this exact minute.",
+        "Name the target, not the vibe.",
+        "A rough draft is already a location.",
+        "Tiny progress still counts on difficult days.",
+        "Protect your energy like it is part of the project.",
+        "A clean stop is also progress.",
+        "Do not optimize the warm-up forever.",
+        "Pick the move that makes tomorrow easier.",
+        "I am allowed to learn in public.",
+        "I am building a life, not just finishing tasks.",
+        "I am becoming more solid through repetition.",
+        "I am allowed to be a beginner in one area and strong in another.",
+        "I am capable of learning hard things slowly.",
+        "I am not late to my own life.",
+        "I am allowed to make progress without making a scene about it.",
+        "I am someone who comes back and tries again.",
+        "I am becoming more reliable to myself.",
+        "I am not starting from zero today.",
+        "I am gathering evidence that I can do difficult things.",
+        "I am allowed to take myself seriously.",
+        "I am more than this one bad hour.",
+        "I am allowed to want a calmer life.",
+        "I am building skill even when it feels unimpressive.",
+        "I am learning to trust my own pace.",
+        "I am allowed to make small moves toward a big life.",
+        "I am not wasting time by learning carefully.",
+        "I am someone who can finish what matters.",
+        "I am allowed to rest without disappearing.",
+        "I am becoming the kind of person who follows through.",
+        "I am not too much and I am not behind.",
+        "I am allowed to outgrow old panic habits.",
+        "I am still moving, even if today is messy.",
+        "I am building proof, not fantasy.",
+        "I am learning how to hold pressure without folding.",
+        "I am allowed to take up space in my own plans.",
+        "I am becoming harder to knock off course.",
+        "I am worth the effort it takes to rebuild.",
+        "You have survived enough to trust your own recovery.",
+        "The next step does not need to be glamorous to be important.",
+        "You do not need to feel powerful before you begin.",
+        "Your life does not need a dramatic reinvention every Monday.",
+        "Do not confuse discomfort with failure.",
+        "A small disciplined day can change a lot.",
+        "Some seasons are for quiet rebuilding.",
+        "You are allowed to want structure because life is hard, not because you are weak.",
+        "The goal is not to look impressive. The goal is to make your life work.",
+        "You can want tenderness and discipline at the same time.",
+        "There is nothing wrong with needing a simpler plan today.",
+        "A shaky start still counts as starting.",
+        "You are allowed to be proud before the finish line.",
+        "You do not need permission to take your future seriously.",
+        "This is not your forever mood.",
+        "Be strict about the task, gentle about the human.",
+        "When in doubt, reduce the size and keep the direction.",
+        "The right next step often looks boring from the outside.",
+        "You can make a lot of progress without making a lot of noise.",
+        "Being consistent is cooler than being intense for two days.",
+        "The week gets easier when you stop negotiating with the obvious task.",
+        "A decent plan today beats the perfect plan you never start.",
+        "Let the day be useful, not cinematic.",
+        "The most adult thing in the room might be your to-do list.",
+        "Do the thing that removes the most mental static.",
+        "Your brain likes closure more than chaos.",
+        "You probably need a smaller task and a glass of water.",
+        "The hard part is often just sitting down long enough.",
+        "Keep the promise tiny if that is what lets you keep it.",
+        "You are allowed to become impressive quietly.",
+        "Progress looks a lot like returning.",
+        "You do not need a new personality. You need one honest block of work.",
+        "One good choice can still save a messy day.",
+        "There is power in becoming less scattered.",
+        "Even the fun parts of life need a little structure to survive.",
+        "Do not hand the whole day to your mood.",
+        "Make the next move so clear that tired-you can still do it.",
+        "The future feels less scary when the next action is visible.",
+        "A plan is kindness when your brain is tired.",
+        "You are not trying to impress the planner. You are trying to help yourself.",
+        "Keep going until the task feels lighter, not until your thoughts become perfect.",
+        "Your life gets built in ordinary afternoons like this one.",
+        "The best version of today is probably simpler than you think.",
+        "Being steady is a flex.",
+        "You can be soft and still be serious.",
+        "Give the day a backbone.",
+        "You do not need to earn the right to start over mid-day.",
+        "Tiny cleanups count. Tiny reps count. Tiny courage counts."
       ];
 
       var defaultSkateCoachTemplate = {
@@ -322,6 +463,8 @@
         todayIntentionMount: document.getElementById("todayIntentionMount"),
         weeklyPlannerLabel: document.getElementById("weeklyPlannerLabel"),
         weeklyPlannerMount: document.getElementById("weeklyPlannerMount"),
+        prevWeek: document.getElementById("prevWeek"),
+        nextWeek: document.getElementById("nextWeek"),
         goalPlannerIntro: document.getElementById("goalPlannerIntro"),
         goalPlannerMount: document.getElementById("goalPlannerMount"),
         addGoalPlannerItem: document.getElementById("addGoalPlannerItem"),
@@ -330,8 +473,20 @@
         skateSessionCount: document.getElementById("skateSessionCount"),
         skateTargetInput: document.getElementById("skateTargetInput"),
         skateCoachFlow: document.getElementById("skateCoachFlow"),
+        startSkateSession: document.getElementById("startSkateSession"),
         finishSkateSession: document.getElementById("finishSkateSession"),
         skateSessionHint: document.getElementById("skateSessionHint"),
+        guitarFocusInput: document.getElementById("guitarFocusInput"),
+        guitarNextStepInput: document.getElementById("guitarNextStepInput"),
+        guitarTargetInput: document.getElementById("guitarTargetInput"),
+        guitarSessionCount: document.getElementById("guitarSessionCount"),
+        guitarSessionStatus: document.getElementById("guitarSessionStatus"),
+        guitarSessionHint: document.getElementById("guitarSessionHint"),
+        guitarSessionSummary: document.getElementById("guitarSessionSummary"),
+        guitarSessionPlan: document.getElementById("guitarSessionPlan"),
+        guitarRecentSessions: document.getElementById("guitarRecentSessions"),
+        startGuitarSession: document.getElementById("startGuitarSession"),
+        finishGuitarSession: document.getElementById("finishGuitarSession"),
         statsPeriodTabs: document.getElementById("statsPeriodTabs"),
         lifeDonut: document.getElementById("lifeDonut"),
         lifeDonutLabel: document.getElementById("lifeDonutLabel"),
@@ -339,6 +494,8 @@
         lifeBreakdown: document.getElementById("lifeBreakdown"),
         plannedWeekLabel: document.getElementById("plannedWeekLabel"),
         plannedMount: document.getElementById("plannedMount"),
+        jobStatsLine: document.getElementById("jobStatsLine"),
+        addJobApplication: document.getElementById("addJobApplication"),
         studyOverviewWeek: document.getElementById("studyOverviewWeek"),
         studyOverview: document.getElementById("studyOverview"),
         calendarHeading: document.getElementById("calendarHeading"),
@@ -367,9 +524,15 @@
         skateFeedbackForm: document.getElementById("skateFeedbackForm"),
         confidenceScale: document.getElementById("confidenceScale"),
         progressTodayScale: document.getElementById("progressTodayScale"),
+        skateDurationMinutes: document.getElementById("skateDurationMinutes"),
         skateImprovedNote: document.getElementById("skateImprovedNote"),
         skateNextFocusNote: document.getElementById("skateNextFocusNote"),
         cancelSkateFeedback: document.getElementById("cancelSkateFeedback"),
+        guitarSessionDialog: document.getElementById("guitarSessionDialog"),
+        guitarSessionForm: document.getElementById("guitarSessionForm"),
+        guitarDurationMinutes: document.getElementById("guitarDurationMinutes"),
+        guitarSessionNote: document.getElementById("guitarSessionNote"),
+        cancelGuitarSession: document.getElementById("cancelGuitarSession"),
         exportData: document.getElementById("exportData"),
         importData: document.getElementById("importData"),
         backupStatus: document.getElementById("backupStatus"),
@@ -380,6 +543,38 @@
 
       function isPlannerKey(key) {
         return key.indexOf("hivePlanner.") === 0;
+      }
+
+      function removePlannerKey(key) {
+        delete memoryStore[key];
+        localStorage.removeItem(key);
+        if (!serverStorageAvailable) {
+          return;
+        }
+        fetch("/api/kv?key=" + encodeURIComponent(key), {
+          method: "DELETE"
+        }).catch(function () {
+          serverStorageAvailable = false;
+        });
+      }
+
+      function stripStartedAtFromStoredSkateSession() {
+        var session = readJson(STORAGE.skateCurrentSession, null);
+        if (!session || typeof session !== "object" || !session.startedAt) {
+          return;
+        }
+        var sanitized = Object.assign({}, session);
+        delete sanitized.startedAt;
+        writeJson(STORAGE.skateCurrentSession, sanitized);
+      }
+
+      function sanitizeTransientSessionData() {
+        transientSessionStarts.skate = null;
+        transientSessionStarts.guitar = null;
+        stripStartedAtFromStoredSkateSession();
+        if (memoryStore[STORAGE.guitarCurrentSession] !== undefined) {
+          removePlannerKey(STORAGE.guitarCurrentSession);
+        }
       }
 
       async function hydrateStore() {
@@ -402,6 +597,7 @@
             persistRaw(key, memoryStore[key]);
           }
         }
+        sanitizeTransientSessionData();
       }
 
       function persistRaw(key, value) {
@@ -821,6 +1017,15 @@
         renderSelectedDate();
       }
 
+      function shiftSelectedWeek(amount) {
+        var nextDate = addDays(parseDate(selectedDate), amount * 7);
+        selectedDate = formatDate(nextDate);
+        calendarCursor = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
+        renderRoutinePlanner();
+        renderCalendar();
+        renderSelectedDate();
+      }
+
       function updateGoalPlanner(mutator, shouldRender) {
         var items = getGoalPlannerItems();
         mutator(items);
@@ -1023,16 +1228,25 @@
         writeJson(STORAGE.physicalLogs, logs);
       }
 
+      function normalizeEventCategory(category) {
+        if (category === "Routine") {
+          return "Chore";
+        }
+        return category || "Study deadline";
+      }
+
       function categoryClass(category) {
-          if (category === "Personal") return "personal";
-          if (category === "Routine") return "routine-event";
-          if (category === "Other") return "other-event";
-          if (category === "Skate") return "skate-event";
+          var normalized = normalizeEventCategory(category);
+          if (normalized === "Personal") return "personal";
+          if (normalized === "Chore") return "chore-event";
+          if (normalized === "Home study" || normalized === "School study") return "routine-event";
+          if (normalized === "Other") return "other-event";
+          if (normalized === "Skate") return "skate-event";
           return "study";
       }
 
       function isRoutineCategory(category) {
-        return category === "Routine";
+        return normalizeEventCategory(category) === "Home study";
       }
 
       function visibleMonthlyEvents(events) {
@@ -1063,6 +1277,9 @@
           renderRoutinePlanner();
           renderCalendar();
           renderSelectedDate();
+        }
+        if (viewId === "guitarView") {
+          renderGuitarPage();
         }
         var activeView = document.getElementById(viewId);
         if (activeView && typeof activeView.scrollIntoView === "function") {
@@ -1138,7 +1355,8 @@
               done: Boolean(task.done),
               createdAt: task.createdAt || new Date().toISOString()
             };
-          });
+          })
+          .sort(compareTasksChronologically);
       }
 
       function elapsedTaskSeconds(task) {
@@ -1181,6 +1399,27 @@
         return minutes + ":" + pad(secs);
       }
 
+      function startedSessionSeconds(startedAt) {
+        if (!startedAt) {
+          return 0;
+        }
+        return Math.max(0, Math.floor((Date.now() - Date.parse(startedAt)) / 1000));
+      }
+
+      function sessionDurationMinutes(startedAt, fallbackMinutes) {
+        if (startedAt) {
+          return Math.max(1, Math.round(startedSessionSeconds(startedAt) / 60));
+        }
+        return Math.max(1, Number(fallbackMinutes) || 30);
+      }
+
+      function sessionStatusText(label, startedAt) {
+        if (!startedAt) {
+          return "No active " + label + " session.";
+        }
+        return label + " session running · " + formatTimer(startedSessionSeconds(startedAt));
+      }
+
       function getTodayTasks() {
         var key = dailyTaskStorageKey(today);
         var stored = readJson(key, null);
@@ -1194,6 +1433,79 @@
 
       function saveTodayTasks(tasks) {
         writeJson(dailyTaskStorageKey(today), normalizeTasks(tasks));
+      }
+
+      function syncSessionTimeToTodayTask(activityId, durationHours) {
+        var safeHours = Math.max(0, Number(durationHours) || 0);
+        if (!safeHours) {
+          return null;
+        }
+        var tasks = getTodayTasks();
+        var matchIndex = tasks.findIndex(function (task) {
+          return task.activity === activityId && !task.done && !task.timerStartedAt;
+        });
+        if (matchIndex === -1) {
+          matchIndex = tasks.findIndex(function (task) {
+            return task.activity === activityId && !task.done;
+          });
+        }
+        if (matchIndex === -1) {
+          matchIndex = tasks.findIndex(function (task) {
+            return task.activity === activityId;
+          });
+        }
+        if (matchIndex === -1) {
+          return null;
+        }
+
+        var task = tasks[matchIndex];
+        var existingSeconds = elapsedTaskSeconds(task);
+        task.timerStartedAt = null;
+        task.timerSeconds = existingSeconds + Math.round(safeHours * 3600);
+        task.hours = hoursFromSeconds(task.timerSeconds);
+        task.done = true;
+        saveTodayTasks(tasks);
+        renderTasks();
+        renderTotals();
+        return task.label;
+      }
+
+      function getJobApplications() {
+        var entries = readJson(STORAGE.jobApplications, []);
+        if (!Array.isArray(entries)) {
+          return [];
+        }
+        return entries
+          .map(function (entry) {
+            if (typeof entry === "string") {
+              return { id: makeId("job"), date: entry, createdAt: "" };
+            }
+            return {
+              id: entry && entry.id ? entry.id : makeId("job"),
+              date: typeof (entry && entry.date) === "string" ? entry.date : "",
+              createdAt: typeof (entry && entry.createdAt) === "string" ? entry.createdAt : ""
+            };
+          })
+          .filter(function (entry) {
+            return /^\d{4}-\d{2}-\d{2}$/.test(entry.date);
+          });
+      }
+
+      function saveJobApplications(entries) {
+        writeJson(STORAGE.jobApplications, entries);
+      }
+
+      function renderJobApplications() {
+        if (!elements.jobStatsLine) {
+          return;
+        }
+        var week = weekRange(today);
+        var entries = getJobApplications();
+        var weekCount = entries.filter(function (entry) {
+          var entryDate = parseDate(entry.date);
+          return dateInRange(entryDate, week.start, week.end);
+        }).length;
+        elements.jobStatsLine.textContent = "This week: " + weekCount + " / 2 · Total sent: " + entries.length;
       }
 
       function renderActivities() {
@@ -1217,11 +1529,11 @@
         var doneCount = 0;
         var dashboardDate = document.getElementById("dashboardDate");
 
-        elements.todaySubtitle.textContent = "Graduation and job hunt are getting closer, one calm block at a time.";
+        elements.todaySubtitle.textContent = "A working planner for study, skating, guitar, and the boring life stuff that still matters.";
         if (dashboardDate) {
           dashboardDate.textContent = humanDate(todayKey);
         }
-        elements.weekKeyLabel.textContent = "Saved for " + todayKey;
+        elements.weekKeyLabel.textContent = "Live plan for " + todayKey;
         elements.dayMessage.textContent = todayPlan.message;
         elements.tasksMount.innerHTML = "";
 
@@ -1547,7 +1859,7 @@
             return;
           }
           var sessionDate = parseDate(session.finishedAt.slice(0, 10));
-          if (dateInRange(sessionDate, start, end)) {
+          if (dateInRange(sessionDate, start, end) && !session.trackedInTask) {
             totals.skate += Math.max(0, Number(session.durationHours) || 0);
           }
         });
@@ -1626,6 +1938,7 @@
       function renderTotals() {
         renderLifePie();
         renderPlannedActual();
+        renderJobApplications();
         renderStudyOverview();
         renderRoutinePlanner();
         renderGoalPlanner();
@@ -1757,6 +2070,9 @@
       }
 
       function renderStudyOverview() {
+        if (!elements.studyOverviewWeek || !elements.studyOverview) {
+          return;
+        }
         var dates = weekDates(today);
         var studyOverview = getWeekOverview(STORAGE.studyOverviewPrefix, today);
         var skateBodyOverview = getWeekOverview(STORAGE.skateBodyOverviewPrefix, today);
@@ -2021,7 +2337,7 @@
 
       function todayFocusText(eventsByPart, part, fallback) {
         var items = eventsByPart[part] || [];
-        return items.length ? items[0].title : fallback;
+        return items.length ? items.map(function (item) { return item.title; }).join(" · ") : fallback;
       }
 
       function renderTodayIntention() {
@@ -2034,28 +2350,28 @@
         var grouped = groupedEventsForDate(todayKey);
         var allTodayEvents = eventsForDate(todayKey);
 
-        elements.todaySubtitle.textContent = "A bright little morning map for Hive study days.";
+        elements.todaySubtitle.textContent = "A working planner for study, skating, guitar, and the boring life stuff that still matters.";
         elements.weekKeyLabel.textContent = isoWeekKey(today);
         if (dashboardDate) {
           dashboardDate.textContent = humanDate(todayKey);
         }
         elements.todayThemeBadge.textContent = type.label;
         elements.todayThemeBadge.className = "progress-pill day-type-pill " + type.className;
-        elements.todayThemeLine.textContent = humanDate(todayKey) + " is a " + type.label.toLowerCase() + ".";
+        elements.todayThemeLine.textContent = humanDate(todayKey) + " is set up as a " + type.label.toLowerCase() + ".";
 
         elements.todayIntentionMount.innerHTML = "";
         [
           {
             label: "Morning",
-            text: todayFocusText(grouped, "morning", "Keep the start gentle.")
+            text: todayFocusText(grouped, "morning", "Start with the thing that unlocks the rest of the day.")
           },
           {
             label: "Afternoon",
-            text: todayFocusText(grouped, "afternoon", "Pick one main block that matters.")
+            text: todayFocusText(grouped, "afternoon", "Protect one real work block here.")
           },
           {
             label: "Evening",
-            text: todayFocusText(grouped, "evening", "Leave room to wind down.")
+            text: todayFocusText(grouped, "evening", "Close loops, then let the day end properly.")
           }
         ].forEach(function (entry) {
           var row = document.createElement("div");
@@ -2067,7 +2383,7 @@
         if (!allTodayEvents.length) {
           var note = document.createElement("p");
           note.className = "balance-note";
-          note.textContent = "Nothing fixed yet. A light plan is still a real plan.";
+          note.textContent = "Nothing is locked in yet. That can still be a smart day.";
           elements.todayIntentionMount.appendChild(note);
         }
       }
@@ -2599,7 +2915,7 @@
           }),
           skillDone: false,
           expandedStage: "warmup",
-          startedAt: new Date().toISOString()
+          startedAt: null
         };
       }
 
@@ -2638,12 +2954,15 @@
           }),
           skillDone: Boolean(session.skillDone),
           expandedStage: ["warmup", "focus", "skill", ""].indexOf(session.expandedStage) !== -1 ? session.expandedStage : "warmup",
-          startedAt: session.startedAt || new Date().toISOString()
+          startedAt: transientSessionStarts.skate
         };
       }
 
       function saveCurrentSkateSession(session) {
-        writeJson(STORAGE.skateCurrentSession, session);
+        transientSessionStarts.skate = typeof (session && session.startedAt) === "string" ? session.startedAt : null;
+        var persistentSession = Object.assign({}, session);
+        delete persistentSession.startedAt;
+        writeJson(STORAGE.skateCurrentSession, persistentSession);
       }
 
       function getSkateSessions() {
@@ -2653,6 +2972,25 @@
 
       function saveSkateSessions(sessions) {
         writeJson(STORAGE.skateSessions, sessions);
+      }
+
+      function getCurrentGuitarSession() {
+        return {
+          startedAt: transientSessionStarts.guitar
+        };
+      }
+
+      function saveCurrentGuitarSession(session) {
+        transientSessionStarts.guitar = typeof (session && session.startedAt) === "string" ? session.startedAt : null;
+      }
+
+      function getGuitarSessions() {
+        var sessions = readJson(STORAGE.guitarSessions, []);
+        return Array.isArray(sessions) ? sessions : [];
+      }
+
+      function saveGuitarSessions(sessions) {
+        writeJson(STORAGE.guitarSessions, sessions);
       }
 
       function renderWorkoutOptions() {
@@ -2902,40 +3240,131 @@
         elements.skateTargetInput.value = target;
         elements.skateWeekLabel.textContent = isoWeekKey(today);
         elements.skateSessionCount.textContent = skateSessionsThisWeek + " / " + target;
+        elements.skateSessionHint.textContent = session.startedAt
+          ? "Skate session running · " + formatTimer(startedSessionSeconds(session.startedAt))
+          : "Hit start when the session begins. Finish it when you know what actually happened.";
+        if (elements.startSkateSession) {
+          elements.startSkateSession.disabled = Boolean(session.startedAt);
+        }
+        if (elements.finishSkateSession) {
+          elements.finishSkateSession.disabled = !session.startedAt;
+        }
         elements.skateCoachFlow.innerHTML = "";
         renderSkateWeeklyMetrics();
         renderSkateTrendCharts();
-        elements.skateCoachFlow.appendChild(renderCoachWarmupStage(session, template));
         elements.skateCoachFlow.appendChild(renderCoachFocusStage(session, template));
         elements.skateCoachFlow.appendChild(renderCoachSkillStage(session, template));
+      }
+
+      function countGuitarSessionsForWeek(date) {
+        var range = weekRange(date);
+        return getGuitarSessions().filter(function (session) {
+          return session && session.finishedAt && dateInRange(parseDate(session.finishedAt.slice(0, 10)), range.start, range.end);
+        }).length;
+      }
+
+      function guitarSessionsForWeek(date) {
+        var range = weekRange(date);
+        return getGuitarSessions().filter(function (session) {
+          return session && session.finishedAt && dateInRange(parseDate(session.finishedAt.slice(0, 10)), range.start, range.end);
+        });
+      }
+
+      function renderGuitarPage() {
+        if (!elements.guitarFocusInput) {
+          return;
+        }
+        var session = getCurrentGuitarSession();
+        var target = Math.max(1, Number(readText(STORAGE.guitarTarget, "4")) || 4);
+        var focus = readText(STORAGE.guitarFocus, "");
+        var nextStep = readText(STORAGE.guitarNextStep, "");
+        var sessions = getGuitarSessions().slice().sort(function (left, right) {
+          return String(right.finishedAt || "").localeCompare(String(left.finishedAt || ""));
+        });
+        var weekSessions = guitarSessionsForWeek(today);
+        var weekCount = weekSessions.length;
+        var weekMinutes = weekSessions.reduce(function (sum, entry) {
+          return sum + Math.round((Number(entry.durationHours) || 0) * 60);
+        }, 0);
+        var targetMinutes = target * 30;
+        var remainingSessions = Math.max(0, target - weekCount);
+        var remainingMinutes = Math.max(0, targetMinutes - weekMinutes);
+        var averageMinutes = weekCount ? Math.round(weekMinutes / weekCount) : 0;
+
+        elements.guitarFocusInput.value = focus;
+        elements.guitarNextStepInput.value = nextStep;
+        elements.guitarSessionStatus.textContent = sessionStatusText("Guitar", session.startedAt);
+        elements.guitarSessionHint.textContent = session.startedAt
+          ? "Finish when you stop. If a Guitar task exists today, the time can land there."
+          : "If a Guitar task is on today’s dashboard, the finished time can land there too.";
+        elements.startGuitarSession.disabled = Boolean(session.startedAt);
+        elements.finishGuitarSession.disabled = !session.startedAt;
+        elements.guitarSessionSummary.innerHTML = "";
+        elements.guitarRecentSessions.innerHTML = "";
+
+        [
+          {
+            label: "This week",
+            value: weekCount + " / " + target
+          },
+          {
+            label: "Weekly target",
+            value: String(target)
+          },
+          {
+            label: "Minutes played",
+            value: weekMinutes + " min"
+          },
+          {
+            label: "Average session",
+            value: averageMinutes ? averageMinutes + " min" : "Not yet"
+          }
+        ].forEach(function (item) {
+          var card = document.createElement("div");
+          card.className = "guitar-summary-card";
+          card.innerHTML = "<span>" + item.label + "</span><strong>" + item.value + "</strong>";
+          elements.guitarSessionSummary.appendChild(card);
+        });
+
+        if (session.startedAt) {
+          elements.guitarSessionPlan.textContent = "Session is live. Stay with " + (focus || "the thing you came here to practise") + " and save the real result after.";
+        } else if (remainingSessions > 0) {
+          elements.guitarSessionPlan.textContent = "This week: " + weekMinutes + " / " + targetMinutes + " min. " + remainingSessions + " more session" + (remainingSessions === 1 ? "" : "s") + " and about " + remainingMinutes + " min to hit the target."
+            + (nextStep ? " Practice next: " + nextStep + "." : "")
+            + (focus ? " Current focus: " + focus + "." : "");
+        } else {
+          elements.guitarSessionPlan.textContent = "Weekly target reached. Keep the good part going."
+            + (focus ? " Current focus: " + focus + "." : "")
+            + (nextStep ? " Small practice: " + nextStep + "." : "");
+        }
+
+        sessions.slice(0, 4).forEach(function (entry) {
+          var row = document.createElement("article");
+          row.className = "guitar-history-item";
+          var noteText = entry.note || entry.focus || entry.nextStep || "Saved session";
+          row.innerHTML = "<div><strong>" + humanDate(entry.finishedAt.slice(0, 10)) + "</strong><p>" + noteText + "</p></div><em>" + Math.round((Number(entry.durationHours) || 0) * 60) + " min</em>";
+          if (entry.focus || entry.nextStep) {
+            row.title = [entry.focus, entry.nextStep].filter(Boolean).join(" · ");
+          }
+          elements.guitarRecentSessions.appendChild(row);
+        });
+
+        if (!elements.guitarRecentSessions.children.length) {
+          var empty = document.createElement("p");
+          empty.className = "body-support-empty";
+          empty.textContent = "Finish one session and this space will start showing what you practised and how long you stayed with it.";
+          elements.guitarRecentSessions.appendChild(empty);
+        }
       }
 
       function renderCoachStageShell(options) {
         var section = document.createElement("section");
         section.className = "coach-stage " + (options.tone || "");
-        if (options.active) {
-          section.classList.add("is-active");
-        }
-        if (options.complete && !options.expanded) {
-          section.classList.add("is-collapsed");
-        }
 
         var head = document.createElement("div");
         head.className = "coach-stage-head";
-        head.innerHTML = "<span class=\"coach-stage-chip\">" + options.stageLabel + "</span><h3>" + options.title + "</h3><p>" + options.description + "</p>";
+        head.innerHTML = "<h3>" + options.title + "</h3><p>" + options.description + "</p>";
         section.appendChild(head);
-
-        if (options.complete && !options.expanded) {
-          var collapsed = document.createElement("button");
-          collapsed.type = "button";
-          collapsed.className = "coach-collapsed";
-          collapsed.innerHTML = "<strong>" + options.completeLabel + "</strong><span>" + options.summary + "</span>";
-          collapsed.addEventListener("click", function () {
-            setExpandedCoachStage(options.key);
-          });
-          section.appendChild(collapsed);
-          return section;
-        }
 
         section.appendChild(options.body);
         return section;
@@ -3105,14 +3534,8 @@
 
         return renderCoachStageShell({
           key: "focus",
-          stageLabel: "Stage 2",
           title: "Today's Focus",
-          description: "Work on one flat trick and one transition trick so the session stays clear and calm.",
-          summary: stageSummaryForFocus(session),
-          completeLabel: "✅ Focus block complete",
-          complete: session.focusDone,
-          expanded: session.expandedStage === "focus",
-          active: session.expandedStage === "focus",
+          description: "Pick two useful targets so the session has shape before you start throwing attempts around.",
           tone: "tone-focus",
           body: body
         });
@@ -3336,14 +3759,8 @@
 
         return renderCoachStageShell({
           key: "skill",
-          stageLabel: "Stage 3",
           title: "Skill Builder",
-          description: "Use a few supporting reps here so future tricks feel easier later.",
-          summary: stageSummaryForSkill(template),
-          completeLabel: "✅ Skill builder complete",
-          complete: session.skillDone,
-          expanded: session.expandedStage === "skill",
-          active: session.expandedStage === "skill",
+          description: "Use this part for the quiet reps that make tomorrow's skating less chaotic.",
           tone: "tone-skill",
           body: body
         });
@@ -3355,14 +3772,27 @@
         elements.skateSessionHint.textContent = message || "Fresh session checklist ready.";
       }
 
+      function startSkateSession() {
+        updateSkateSession(function (latest) {
+          latest.startedAt = new Date().toISOString();
+        });
+        elements.skateSessionHint.textContent = "Skate session started. Go get the reps.";
+      }
+
       function finishSkateSession() {
+        var session = getCurrentSkateSession();
+        if (!session.startedAt) {
+          elements.skateSessionHint.textContent = "Start the skate session first so the time has somewhere to begin.";
+          return;
+        }
         if (elements.skateFeedbackDialog && typeof elements.skateFeedbackDialog.showModal === "function") {
+          elements.skateDurationMinutes.value = String(sessionDurationMinutes(session.startedAt, 45));
           elements.skateImprovedNote.value = "";
           elements.skateNextFocusNote.value = "";
           elements.skateFeedbackDialog.showModal();
           return;
         }
-        saveFinishedSkateSession({ progressToday: 3, confidence: 3, improvedNote: "", nextFocusNote: "" });
+        saveFinishedSkateSession({ progressToday: 3, confidence: 3, improvedNote: "", nextFocusNote: "", durationMinutes: sessionDurationMinutes(session.startedAt, 45) });
       }
 
       function saveFinishedSkateSession(feedback) {
@@ -3371,6 +3801,8 @@
         var template = getSkateCoachTemplate();
         var focus = [session.selectedFlat, session.selectedTransition].filter(Boolean).join(" · ");
         var warmupItems = flattenWarmupItems(template);
+        var durationHours = Math.max(0, (Math.max(1, Number(feedback.durationMinutes) || sessionDurationMinutes(session.startedAt, 45))) / 60);
+        var linkedTask = syncSessionTimeToTodayTask("skate", durationHours);
 
         sessions.push({
           id: makeId("skate"),
@@ -3402,14 +3834,64 @@
             focusCards: session.focusCards,
             skillChecks: session.skillChecks
           },
-          // Session check-ins should not silently add tracked hours.
-          durationHours: 0,
+          durationHours: durationHours,
+          trackedInTask: Boolean(linkedTask),
           startedAt: session.startedAt,
           finishedAt: new Date().toISOString()
         });
         saveSkateSessions(sessions);
-        resetSkateSessionState("Session saved with a small check-in.");
+        resetSkateSessionState(linkedTask
+          ? "Session saved and added to \"" + linkedTask + "\"."
+          : "Session saved. No matching skate task was found today.");
         renderTotals();
+      }
+
+      function startGuitarSession() {
+        saveCurrentGuitarSession({ startedAt: new Date().toISOString() });
+        renderGuitarPage();
+      }
+
+      function finishGuitarSession() {
+        var session = getCurrentGuitarSession();
+        if (!session.startedAt) {
+          renderGuitarPage();
+          return;
+        }
+        if (elements.guitarSessionDialog && typeof elements.guitarSessionDialog.showModal === "function") {
+          elements.guitarDurationMinutes.value = String(sessionDurationMinutes(session.startedAt, 30));
+          elements.guitarSessionNote.value = "";
+          elements.guitarSessionDialog.showModal();
+          return;
+        }
+        saveFinishedGuitarSession({
+          durationMinutes: sessionDurationMinutes(session.startedAt, 30),
+          note: ""
+        });
+      }
+
+      function saveFinishedGuitarSession(feedback) {
+        var session = getCurrentGuitarSession();
+        var sessions = getGuitarSessions();
+        var durationHours = Math.max(0, (Math.max(1, Number(feedback.durationMinutes) || sessionDurationMinutes(session.startedAt, 30))) / 60);
+        var linkedTask = syncSessionTimeToTodayTask("guitar", durationHours);
+
+        sessions.push({
+          id: makeId("guitar"),
+          focus: readText(STORAGE.guitarFocus, ""),
+          nextStep: readText(STORAGE.guitarNextStep, ""),
+          note: feedback.note || "",
+          durationHours: durationHours,
+          trackedInTask: Boolean(linkedTask),
+          startedAt: session.startedAt,
+          finishedAt: new Date().toISOString()
+        });
+        saveGuitarSessions(sessions);
+        saveCurrentGuitarSession({ startedAt: null });
+        renderGuitarPage();
+        renderTotals();
+        elements.guitarSessionHint.textContent = linkedTask
+          ? "Session saved and added to \"" + linkedTask + "\"."
+          : "Session saved. No matching Guitar task was found today.";
       }
 
       function addBodyLog(event) {
@@ -3472,10 +3954,20 @@
         saveFinishedSkateSession({
           confidence: selectedScaleValue("confidence"),
           progressToday: selectedScaleValue("progressToday"),
+          durationMinutes: Number(elements.skateDurationMinutes.value) || 45,
           improvedNote: elements.skateImprovedNote.value.trim(),
           nextFocusNote: elements.skateNextFocusNote.value.trim()
         });
         elements.skateFeedbackDialog.close();
+      }
+
+      function submitGuitarSession(event) {
+        event.preventDefault();
+        saveFinishedGuitarSession({
+          durationMinutes: Number(elements.guitarDurationMinutes.value) || 30,
+          note: elements.guitarSessionNote.value.trim()
+        });
+        elements.guitarSessionDialog.close();
       }
 
       function setMascotBubble(text) {
@@ -3631,6 +4123,16 @@
         if (hasRunningTimer) {
           renderTotals();
         }
+        if (elements.skateSessionHint) {
+          var skateSession = getCurrentSkateSession();
+          if (skateSession.startedAt) {
+            elements.skateSessionHint.textContent = "Skate session running · " + formatTimer(startedSessionSeconds(skateSession.startedAt));
+          }
+        }
+        if (elements.guitarSessionStatus) {
+          var guitarSession = getCurrentGuitarSession();
+          elements.guitarSessionStatus.textContent = sessionStatusText("Guitar", guitarSession.startedAt);
+        }
       }
 
       // Calendar events are simple date pills saved with the rest of the planner data.
@@ -3763,7 +4265,7 @@
 
           var tag = document.createElement("span");
           tag.className = "tag " + categoryClass(event.category);
-          tag.textContent = event.category;
+          tag.textContent = normalizeEventCategory(event.category);
 
           item.appendChild(title);
           item.appendChild(tag);
@@ -3827,7 +4329,7 @@
         elements.eventTitle.value = event.title || "";
         elements.eventDate.value = event.date || selectedDate;
         elements.eventNote.value = event.note || "";
-        elements.eventCategory.value = event.category || "Study deadline";
+        elements.eventCategory.value = normalizeEventCategory(event.category);
         elements.eventSaveButton.textContent = "Update event";
         renderCalendar();
         renderSelectedDate();
@@ -3862,7 +4364,7 @@
         event.preventDefault();
         var title = elements.eventTitle.value.trim();
         var note = elements.eventNote.value.trim();
-        var category = elements.eventCategory.value;
+        var category = normalizeEventCategory(elements.eventCategory.value);
         var eventDate = elements.eventDate.value || selectedDate;
 
         if (!title) {
@@ -3944,7 +4446,7 @@
       function plannerDataSnapshot() {
         var data = {};
         Object.keys(memoryStore).forEach(function (key) {
-          if (isPlannerKey(key)) {
+          if (isPlannerKey(key) && key !== STORAGE.guitarCurrentSession) {
             data[key] = memoryStore[key];
           }
         });
@@ -3983,11 +4485,12 @@
             var data = payload.data || payload;
             var imported = 0;
             Object.keys(data).forEach(function (key) {
-              if (isPlannerKey(key) && typeof data[key] === "string") {
+              if (isPlannerKey(key) && key !== STORAGE.guitarCurrentSession && typeof data[key] === "string") {
                 persistRaw(key, data[key]);
                 imported += 1;
               }
             });
+            sanitizeTransientSessionData();
             if (serverStorageAvailable) {
               fetch("/api/import", {
                 method: "POST",
@@ -4001,6 +4504,7 @@
             renderTotals();
             renderCalendar();
             renderSkatePage();
+            renderGuitarPage();
             renderSelectedDate();
           } catch (error) {
             elements.backupStatus.textContent = "That backup file could not be read.";
@@ -4026,6 +4530,18 @@
           calendarCursor = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth() + 1, 1);
           renderCalendar();
         });
+
+        if (elements.prevWeek) {
+          elements.prevWeek.addEventListener("click", function () {
+            shiftSelectedWeek(-1);
+          });
+        }
+
+        if (elements.nextWeek) {
+          elements.nextWeek.addEventListener("click", function () {
+            shiftSelectedWeek(1);
+          });
+        }
 
         elements.eventForm.addEventListener("submit", addEvent);
         elements.eventDate.addEventListener("change", function () {
@@ -4054,6 +4570,19 @@
           });
         }
 
+        if (elements.addJobApplication) {
+          elements.addJobApplication.addEventListener("click", function () {
+            var entries = getJobApplications();
+            entries.push({
+              id: makeId("job"),
+              date: formatDate(today),
+              createdAt: new Date().toISOString()
+            });
+            saveJobApplications(entries);
+            renderJobApplications();
+          });
+        }
+
         elements.skateFocusInput.addEventListener("input", function () {
           writeText(STORAGE.skateFocus, elements.skateFocusInput.value);
         });
@@ -4064,11 +4593,25 @@
           renderSkatePage();
         });
 
+        elements.startSkateSession.addEventListener("click", startSkateSession);
         elements.finishSkateSession.addEventListener("click", finishSkateSession);
         elements.bodyLogForm.addEventListener("submit", addBodyLog);
         elements.skateFeedbackForm.addEventListener("submit", submitSkateFeedback);
         elements.cancelSkateFeedback.addEventListener("click", function () {
           elements.skateFeedbackDialog.close();
+        });
+
+        elements.guitarFocusInput.addEventListener("input", function () {
+          writeText(STORAGE.guitarFocus, elements.guitarFocusInput.value);
+        });
+        elements.guitarNextStepInput.addEventListener("input", function () {
+          writeText(STORAGE.guitarNextStep, elements.guitarNextStepInput.value);
+        });
+        elements.startGuitarSession.addEventListener("click", startGuitarSession);
+        elements.finishGuitarSession.addEventListener("click", finishGuitarSession);
+        elements.guitarSessionForm.addEventListener("submit", submitGuitarSession);
+        elements.cancelGuitarSession.addEventListener("click", function () {
+          elements.guitarSessionDialog.close();
         });
       }
 
@@ -4081,6 +4624,7 @@
         renderTasks();
         renderTotals();
         renderSkatePage();
+        renderGuitarPage();
         renderSelectedDate();
         renderCalendar();
         bindEvents();
