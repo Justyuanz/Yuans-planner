@@ -4,13 +4,15 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Yuan's Planner</title>
-  <link rel="stylesheet" href="/css/styles.css?v=20260702d">
+  <link rel="stylesheet" href="/css/styles.css?v=20260806a">
 </head>
 <body>
   <main class="app">
     <aside class="sidebar" aria-label="Planner navigation">
       <nav class="tabs" aria-label="Planner views">
         <button class="tab-button active" type="button" data-view-target="todayView">Dashboard</button>
+        <button class="tab-button" type="button" data-view-target="journalView">Journal</button>
+        <button class="tab-button" type="button" data-view-target="moneyView">Money</button>
         <button class="tab-button" type="button" data-view-target="calendarView">Calendar</button>
         <button class="tab-button" type="button" data-view-target="skateView">Skate</button>
         <button class="tab-button" type="button" data-view-target="guitarView">Guitar</button>
@@ -74,7 +76,7 @@
       <header class="hero">
         <div>
           <h1>Yuan's Planner</h1>
-          <p class="subtitle" id="todaySubtitle">A working planner for study, skating, guitar, and the boring life stuff that still matters.</p>
+          <p class="subtitle" id="todaySubtitle">A soft little map for the shape of your day.</p>
         </div>
         <div class="top-tools" aria-label="Dashboard tools">
           <div class="date-pill" id="dashboardDate">Today</div>
@@ -95,9 +97,41 @@
             <div class="panel-inner">
               <div class="section-head">
                 <h2 id="todayHeading">Weekly goals</h2>
-                <p class="small-note">Keep the week pointed in the right direction.</p>
+                <p class="small-note">Keep these until they feel done.</p>
               </div>
               <div class="goal-list" id="weeklyGoals"></div>
+            </div>
+          </article>
+
+          <article class="panel money-quick-card">
+            <div class="panel-inner">
+              <div class="section-head">
+                <div>
+                  <h2>Money quick log</h2>
+                  <p class="small-note">Fast spending check-in with the remaining money shown first.</p>
+                </div>
+                <span class="progress-pill money-soft-pill" id="moneyPaceBadge">Soft pace</span>
+              </div>
+              <div class="money-quick-grid">
+                <div class="money-remaining-strip" id="moneyQuickSummary"></div>
+                <form class="money-quick-form" id="moneyQuickForm">
+                  <label class="form-row" for="moneyQuickAmount">
+                    <span>Amount</span>
+                    <input id="moneyQuickAmount" inputmode="decimal" autocomplete="off" placeholder="12.50">
+                  </label>
+                  <label class="form-row" for="moneyQuickCategory">
+                    <span>Category</span>
+                    <select id="moneyQuickCategory" aria-label="Money category"></select>
+                  </label>
+                  <label class="form-row" for="moneyQuickVendor">
+                    <span>Vendor (optional)</span>
+                    <input id="moneyQuickVendor" maxlength="80" autocomplete="off" placeholder="Lidl, K-Market, HSL...">
+                  </label>
+                  <button class="primary-button" type="submit">Save spend</button>
+                </form>
+                <div class="money-shortcuts" id="moneyQuickShortcuts" aria-label="Money shortcuts"></div>
+                <p class="hint" id="moneyQuickImpact">Saving a transaction will update the rest of the week and month immediately.</p>
+              </div>
             </div>
           </article>
 
@@ -174,6 +208,157 @@
       </div>
     </section>
 
+    <section class="view" id="journalView" aria-labelledby="journalHeading">
+      <div class="journal-page">
+        <article class="panel journal-editor-card">
+          <div class="panel-inner">
+            <div class="section-head">
+              <div>
+                <h2 id="journalHeading">Feeling corner</h2>
+                <p class="small-note">A gentle place to hold how today felt.</p>
+              </div>
+              <div class="journal-head-actions">
+                <button class="secondary-button" type="button" id="journalTodayButton">Today</button>
+                <input id="journalDate" type="date" aria-label="Journal date">
+              </div>
+            </div>
+
+            <div class="journal-paper">
+              <div class="journal-paper-top">
+                <div>
+                  <p class="journal-kicker">Dear diary</p>
+                  <strong class="journal-date-label" id="journalDateLabel">Today</strong>
+                </div>
+              </div>
+
+              <label class="form-row journal-title-row" for="journalTitle">
+                <span>What was most present?</span>
+                <input id="journalTitle" maxlength="90" autocomplete="off" placeholder="A quiet title for the feeling">
+              </label>
+
+              <label class="form-row journal-entry-row" for="journalContent">
+                <span class="sr-only">Journal entry</span>
+                <textarea id="journalContent" maxlength="6000" placeholder="What felt heavy, light, distant, or steady today?"></textarea>
+              </label>
+            </div>
+          </div>
+        </article>
+
+        <aside class="panel journal-archive-card">
+          <div class="panel-inner">
+            <div class="section-head">
+              <div>
+                <h3>Old journals</h3>
+                <p class="small-note">Come back to a date, a feeling, or a few remembered words.</p>
+              </div>
+            </div>
+
+            <label class="form-row journal-search-row" for="journalSearch">
+              <span>What are you trying to find?</span>
+              <input id="journalSearch" maxlength="80" autocomplete="off" placeholder="Search by feeling, date, or phrase">
+            </label>
+
+            <div class="journal-archive-list" id="journalArchiveList" aria-live="polite"></div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="view" id="moneyView" aria-labelledby="moneyHeading">
+      <div class="money-page">
+        <article class="panel money-overview-card">
+          <div class="panel-inner">
+            <div class="section-head">
+              <div>
+                <h2 id="moneyHeading">Money planner</h2>
+                <p class="small-note">Keep the money visible enough that your brain does not have to hold it all.</p>
+              </div>
+              <div class="date-pill" id="moneyMonthLabel">Month</div>
+            </div>
+            <div class="money-overview-grid" id="moneyOverviewGrid"></div>
+          </div>
+        </article>
+
+        <article class="panel money-pacing-card">
+          <div class="panel-inner">
+            <div class="section-head">
+              <div>
+                <h3>Pace and projection</h3>
+                <p class="small-note">The goal is clarity, not guilt. Let the pace explain what changed.</p>
+              </div>
+            </div>
+            <div class="money-progress-list" id="moneyProgressList"></div>
+            <div class="chart-stack" id="moneyCharts"></div>
+          </div>
+        </article>
+
+        <article class="panel money-vendors-card">
+          <div class="panel-inner">
+            <div class="section-head">
+              <div>
+                <h3>Vendors</h3>
+                <p class="small-note">See who gets the money, how often, and what category they usually land in.</p>
+              </div>
+            </div>
+            <div id="moneyVendorList"></div>
+          </div>
+        </article>
+
+        <article class="panel money-activity-card">
+          <div class="panel-inner">
+            <details class="money-settings-panel">
+              <summary class="money-settings-toggle">
+                <span>Recent activity</span>
+                <span class="hint">Open for the latest transactions.</span>
+              </summary>
+              <div class="money-settings-body">
+                <div class="money-activity-list" id="moneyRecentActivity"></div>
+              </div>
+            </details>
+          </div>
+        </article>
+
+        <article class="panel money-budget-card">
+          <div class="panel-inner">
+            <div class="section-head">
+              <div>
+                <h3>Budgets and categories</h3>
+                <p class="small-note">Protect the fixed money, then give every flexible euro a job.</p>
+              </div>
+            </div>
+            <details class="money-settings-panel">
+              <summary class="money-settings-toggle">
+                <span>Budget settings</span>
+                <span class="hint">Open when you want to adjust monthly setup.</span>
+              </summary>
+              <div class="money-settings-body">
+                <label class="form-row money-target-row" for="moneyMonthlyTarget">
+                  <span>Total monthly budget</span>
+                  <input id="moneyMonthlyTarget" inputmode="decimal" autocomplete="off" placeholder="1300" readonly>
+                </label>
+                <div id="moneyCategoryBudgetList"></div>
+                <details class="money-transfer-panel">
+                  <summary class="money-settings-toggle money-settings-subtoggle">
+                    <span>Move budget between categories</span>
+                    <span class="hint">Only when one category needs cover.</span>
+                  </summary>
+                  <form class="money-transfer-form" id="moneyTransferForm">
+                    <div class="money-transfer-grid">
+                      <select id="moneyTransferFrom" aria-label="Move budget from"></select>
+                      <select id="moneyTransferTo" aria-label="Move budget to"></select>
+                      <input id="moneyTransferAmount" inputmode="decimal" autocomplete="off" placeholder="10">
+                      <button class="secondary-button" type="submit">Move</button>
+                    </div>
+                    <div class="money-transfer-list" id="moneyTransferList"></div>
+                  </form>
+                </details>
+              </div>
+            </details>
+          </div>
+        </article>
+      </div>
+    </section>
+
     <section class="view" id="skateView" aria-labelledby="skateHeading">
       <div class="skate-page">
         <article class="panel skate-focus-card">
@@ -208,7 +393,7 @@
             <form class="body-log-form" id="bodyLogForm">
               <label class="form-row" for="bodyWorkoutName">
                 <span>Body support</span>
-                <input id="bodyWorkoutName" maxlength="80" autocomplete="off" placeholder="P90X3, stretch, yoga, recovery walk...">
+                <input id="bodyWorkoutName" maxlength="80" autocomplete="off" placeholder="Gym, stretch, yoga, recovery walk...">
               </label>
               <label class="form-row" for="bodyWorkoutScore">
                 <span>Session score</span>
@@ -350,6 +535,7 @@
                   <option value="School study">School study</option>
                   <option value="Personal">Personal</option>
                   <option value="Skate">Skate</option>
+                  <option value="Guitar">Guitar</option>
                   <option value="Chore">Chore</option>
                   <option value="Other">Other</option>
                 </select>
@@ -422,7 +608,9 @@
     </form>
   </dialog>
 
-  <script src="/js/calendar-core.js?v=20260702d"></script>
-  <script src="/js/app.js?v=20260702d"></script>
+  <script src="/js/calendar-core.js?v=20260801a"></script>
+  <script src="/js/money-core.js?v=20260801a"></script>
+  <script src="/js/journal-core.js?v=20260806a"></script>
+  <script src="/js/app.js?v=20260806a"></script>
 </body>
 </html>

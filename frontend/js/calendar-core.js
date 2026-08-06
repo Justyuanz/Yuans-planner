@@ -7,6 +7,9 @@
 }(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
+  var MORNING_END = 12 * 60;
+  var EVENING_START = 19 * 60;
+
   function parseEventTimeMinutes(title) {
     var match = String(title || "").trim().match(/^(\d{1,2})(?::?(\d{2}))?(?=\s|$|[-–])/);
     if (!match) {
@@ -18,6 +21,33 @@
       return null;
     }
     return (hours * 60) + minutes;
+  }
+
+  function parseEventTimeRange(title) {
+    var text = String(title || "").trim();
+    var match = text.match(/^(\d{1,2})(?::?(\d{2}))?\s*[-–]\s*(\d{1,2})(?::?(\d{2}))?(?=\s|$)/);
+    if (!match) {
+      return null;
+    }
+    var startHours = Number(match[1]);
+    var startMinutes = match[2] ? Number(match[2]) : 0;
+    var endHours = Number(match[3]);
+    var endMinutes = match[4] ? Number(match[4]) : 0;
+    if (startHours > 23 || startMinutes > 59 || endMinutes > 59) {
+      return null;
+    }
+    if (endHours > 24 || (endHours === 24 && endMinutes !== 0)) {
+      return null;
+    }
+    var start = (startHours * 60) + startMinutes;
+    var end = (endHours * 60) + endMinutes;
+    if (end <= start) {
+      return null;
+    }
+    return {
+      start: start,
+      end: end
+    };
   }
 
   function compareEventsChronologically(a, b) {
@@ -44,10 +74,10 @@
   function eventDayPart(event) {
     var timeValue = parseEventTimeMinutes(event && event.title);
     if (timeValue !== null) {
-      if (timeValue < 12 * 60) {
+      if (timeValue < MORNING_END) {
         return "morning";
       }
-      if (timeValue < 18 * 60) {
+      if (timeValue < EVENING_START) {
         return "afternoon";
       }
       return "evening";
@@ -58,6 +88,24 @@
     return "afternoon";
   }
 
+  function eventDayParts(event) {
+    var range = parseEventTimeRange(event && event.title);
+    if (range) {
+      var parts = [];
+      if (range.start < MORNING_END) {
+        parts.push("morning");
+      }
+      if (range.start < EVENING_START && range.end > MORNING_END) {
+        parts.push("afternoon");
+      }
+      if (range.end > EVENING_START) {
+        parts.push("evening");
+      }
+      return parts.length ? parts : [eventDayPart(event)];
+    }
+    return [eventDayPart(event)];
+  }
+
   function groupEventsByPart(events) {
     var groups = {
       morning: [],
@@ -65,7 +113,9 @@
       evening: []
     };
     sortedEvents(events).forEach(function (event) {
-      groups[eventDayPart(event)].push(event);
+      eventDayParts(event).forEach(function (part) {
+        groups[part].push(event);
+      });
     });
     return groups;
   }
