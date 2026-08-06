@@ -1,28 +1,47 @@
 # Yuan's Planner
 
-Yuan's Planner is a small Python + static HTML/CSS/JS app for:
+Yuan's Planner is a small personal planning app with a Python backend and a static frontend.
 
-- daily study planning
-- skate session tracking
-- body support logging
-- calendar scheduling
-- planned vs actual hours
-- lightweight goal planning
+It currently includes:
 
-It serves the frontend directly from the Python backend and stores app data in SQLite.
+- a dashboard for weekly goals, daily tasks, and quick summaries
+- a journal view with dated entries and searchable history
+- a money planner with budgets, transactions, and vendor summaries
+- a calendar with weekly and monthly planning
+- skate and guitar tracking pages
+- local backup export and import
+
+The app serves `frontend/` directly and stores planner data in SQLite.
+
+## Quick Start
+
+For most people, local setup is just:
+
+```sh
+git clone <your-repo-url>
+cd YuanPlanner
+./scripts/start.sh
+```
+
+Then open:
+
+- [http://127.0.0.1:8765](http://127.0.0.1:8765)
+
+There is no frontend build step and no required dependency install for normal local use.
 
 ## Tech Stack
 
 - Python standard library backend
-- Static frontend in `frontend/`
-- SQLite database for persistence
+- static HTML, CSS, and vanilla JavaScript frontend
+- SQLite key-value persistence
+- Node's built-in test runner for frontend logic tests
 
-There is currently **no Node install step** and **no frontend build step**.
+There is no frontend build step.
 
 ## Project Structure
 
 ```text
-Yuans-Planner/
+YuanPlanner/
   backend/
     app.py
     config.py
@@ -32,122 +51,38 @@ Yuans-Planner/
     css/styles.css
     js/app.js
     js/calendar-core.js
+    js/journal-core.js
+    js/money-core.js
   scripts/
     start.sh
     open-ui.sh
   tests/
     calendar-core.test.js
+    journal-core.test.js
+    money-core.test.js
   data/
-    planner.db           # created automatically on first run
-  .env.example
-  requirements.txt
+    planner.db
+  docker-compose.yml
+  Dockerfile
   README.md
 ```
 
-## Fresh Clone Setup
+## Requirements
 
-Clone the repo:
+- Python 3
+- Node.js only if you want to run the JavaScript tests
 
-```sh
-git clone <your-repo-url>
-cd Yuans-Planner
-```
+`requirements.txt` is intentionally empty because the app uses Python standard library modules only.
 
-Create and activate a virtual environment:
+That means:
 
-```sh
-python3 -m venv .venv
-. .venv/bin/activate
-```
-
-Install Python requirements:
-
-```sh
-pip install -r requirements.txt
-```
-
-`requirements.txt` is intentionally minimal right now, but this is still the correct install command for a fresh clone.
-
-## Environment Variables
-
-The app works with no required secrets.
-
-Optional environment variables:
-
-- `YUAN_PLANNER_HOST`
-  Default: `0.0.0.0`
-- `YUAN_PLANNER_PORT`
-  Default: `8765`
-- `YUAN_PLANNER_DB_PATH`
-  Default: `data/planner.db`
-
-Example:
-
-```sh
-cp .env.example .env
-```
-
-The backend now reads `.env` automatically if it exists. On a hosting platform, you can also set the same variables directly in the host's environment settings.
-
-## Run With Docker
-
-Build and start the app:
-
-```sh
-docker compose up --build
-```
-
-If your Docker install uses the older standalone Compose binary, use `docker-compose up --build` instead.
-
-Then open:
-
-- `http://127.0.0.1:8765`
-
-The Docker setup stores SQLite in the project's local `data/` folder instead of inside the container image:
-
-- container path: `/app/persist/planner.db`
-- local path: `data/planner.db`
-
-That means your data survives:
-
-- `docker compose down`
-- image rebuilds
-- container replacement
-- and it stays easy to inspect or copy from your laptop
-
-If you want to stop the app without deleting the saved data:
-
-```sh
-docker compose down
-```
-
-## Exporting Or Backing Up Data
-
-You have two easy backup options.
-
-### Option 1: App-level JSON export
-
-Use the app's **Export backup** button in the UI, or download the same backup from the API:
-
-```sh
-curl http://127.0.0.1:8765/api/export -o yuan-planner-backup.json
-```
-
-This is the safest portable backup if you may later move data between machines or app versions.
-
-### Option 2: Raw SQLite backup from the local data folder
-
-Copy the database file directly:
-
-```sh
-cp data/planner.db ./backups/planner.db
-```
-
-You can restore that database later by putting it back at `data/planner.db`.
+- `pip install -r requirements.txt` is safe but not necessary
+- you do not need `npm install`
+- you do not need any frontend build command
 
 ## Run Locally
 
-Recommended:
+Start the app:
 
 ```sh
 ./scripts/start.sh
@@ -161,51 +96,54 @@ python3 backend/app.py
 
 Then open:
 
-- `http://127.0.0.1:8765`
+- [http://127.0.0.1:8765](http://127.0.0.1:8765)
 
-With a custom port:
+If port `8765` is already being used on your machine:
 
 ```sh
 YUAN_PLANNER_PORT=8876 ./scripts/start.sh
 ```
 
-## Verified Commands
+Then open:
 
-### Install
+- [http://127.0.0.1:8876](http://127.0.0.1:8876)
 
-```sh
-pip install -r requirements.txt
-```
-
-### Development Run
+To run on another port:
 
 ```sh
-./scripts/start.sh
+YUAN_PLANNER_PORT=8876 ./scripts/start.sh
 ```
 
-or
+If you want the script to launch the UI for you on macOS:
 
 ```sh
-python3 backend/app.py
+./scripts/open-ui.sh
 ```
 
-### Production Build
+`open-ui.sh` is a convenience script for macOS. It is not required to run the app.
 
-There is currently **no build step**.
+## Configuration
 
-The app serves static files directly from the repo.
+Optional environment variables:
 
-### Production Start / Serve
+- `YUAN_PLANNER_HOST`
+  Default: `0.0.0.0`
+- `YUAN_PLANNER_PORT`
+  Default: `8765`
+- `YUAN_PLANNER_DB_PATH`
+  Default: `data/planner.db`
+
+The backend automatically reads `.env` if it exists.
+
+Example:
 
 ```sh
-python3 backend/app.py
+cp .env.example .env
 ```
 
-If you use a process manager or platform start command, point it at the same entrypoint.
+## Data Storage
 
-## Database Behavior
-
-The app uses SQLite.
+Planner data is stored in SQLite.
 
 Default database location:
 
@@ -213,66 +151,77 @@ Default database location:
 data/planner.db
 ```
 
-Important:
+The database file and parent directory are created automatically if they do not exist yet.
 
-- `planner.db` is **created automatically** on first run.
-- You do **not** need to copy a blank database into the server manually.
-- If you want persistent data in production, point `YUAN_PLANNER_DB_PATH` at persistent storage.
+## Backups
 
-Example production setting:
+You can back up the planner in two ways.
 
-```sh
-YUAN_PLANNER_DB_PATH=/data/planner/planner.db
-```
+### App export
 
-If the database path does not exist yet, the app creates the parent directory automatically.
-
-## Deploying From GitHub
-
-Minimum deployment requirements:
-
-- Python 3.11+ recommended
-- ability to run `python3 backend/app.py`
-- writable path for the SQLite file
-
-Recommended deployment configuration:
-
-- Start command:
+Use the in-app export button, or download the same JSON backup from:
 
 ```sh
-python3 backend/app.py
+curl http://127.0.0.1:8765/api/export -o yuan-planner-backup.json
 ```
 
-- Environment:
+### Raw SQLite copy
 
-```text
-YUAN_PLANNER_HOST=0.0.0.0
-YUAN_PLANNER_PORT=<platform port or your chosen port>
-YUAN_PLANNER_DB_PATH=<persistent storage path>/planner.db
+Copy the database file directly:
+
+```sh
+cp data/planner.db ./backups/planner.db
 ```
 
-Docker equivalent:
+## Run With Docker
 
-- mount persistent storage into the container
-- set `YUAN_PLANNER_DB_PATH` to a file inside that mount, such as `/app/persist/planner.db`
+Start the app with Docker Compose:
 
-If the host provides a port automatically, set `YUAN_PLANNER_PORT` to that value in the platform settings.
+```sh
+docker compose up --build
+```
+
+Then open:
+
+- [http://127.0.0.1:8765](http://127.0.0.1:8765)
+
+The compose file mounts `./data` into the container so your SQLite data persists across restarts.
+
+To stop it:
+
+```sh
+docker compose down
+```
 
 ## Tests
 
-JavaScript logic tests:
+Run the frontend logic tests with Node:
 
 ```sh
-node --test tests/calendar-core.test.js
+node --test tests/*.test.js
 ```
 
-This requires Node.js 18+ because it uses the built-in `node:test` runner.
-The planner itself does not require Node to run.
+At the moment, that covers:
 
-Python syntax check:
+- calendar core behavior
+- journal core behavior
+- money core behavior
 
-```sh
-python3 -m py_compile backend/app.py
-python3 -m py_compile backend/config.py
-python3 -m py_compile backend/db.py
-```
+## API Notes
+
+The backend is intentionally small. It currently exposes:
+
+- `GET /api/kv`
+- `PUT /api/kv`
+- `DELETE /api/kv?key=...`
+- `POST /api/import`
+- `GET /api/export`
+
+Static files are served from `frontend/`.
+
+## Development Notes
+
+- there is no bundler, framework build, or asset pipeline
+- most app behavior lives in `frontend/js/app.js`
+- shared logic that is tested independently lives in small core files under `frontend/js/`
+- persistence is string-based key-value storage backed by SQLite

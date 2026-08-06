@@ -51,3 +51,15 @@ test("groupEventsByPart keeps each bucket chronologically sorted", function () {
   assert.deepEqual(grouped.afternoon.map(function (event) { return event.id; }), ["c"]);
   assert.deepEqual(grouped.evening.map(function (event) { return event.id; }), ["a", "e"]);
 });
+
+test("groupEventsByPart repeats spanning events across touched planner blocks", function () {
+  const grouped = core.groupEventsByPart([
+    { id: "school", title: "10:30-17:30 School", createdAt: "2026-07-02T10:00:00.000Z" },
+    { id: "dinner", title: "17-20 Dinner", createdAt: "2026-07-02T11:00:00.000Z" },
+    { id: "study", title: "18:30-20 Study", createdAt: "2026-07-02T12:00:00.000Z" }
+  ]);
+
+  assert.deepEqual(grouped.morning.map(function (event) { return event.id; }), ["school"]);
+  assert.deepEqual(grouped.afternoon.map(function (event) { return event.id; }), ["school", "dinner", "study"]);
+  assert.deepEqual(grouped.evening.map(function (event) { return event.id; }), ["dinner", "study"]);
+});

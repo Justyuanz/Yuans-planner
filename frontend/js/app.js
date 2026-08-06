@@ -5,6 +5,7 @@
       var STORAGE = {
         databaseName: "yuanPlannerDatabase",
         goals: "hivePlanner.weeklyGoals",
+        jobApplications: "hivePlanner.jobs.applied",
         events: "hivePlanner.events",
         dailyTasksPrefix: "hivePlanner.dailyTasks.",
         plannedPrefix: "hivePlanner.planned.",
@@ -13,6 +14,16 @@
         skateCurrentSession: "hivePlanner.skate.currentSession",
         skateSessions: "hivePlanner.skate.sessions",
         skateCoachTemplate: "hivePlanner.skate.coachTemplate",
+        guitarFocus: "hivePlanner.guitar.focus",
+        guitarGoal: "hivePlanner.guitar.goal",
+        guitarNextStep: "hivePlanner.guitar.nextStep",
+        guitarTarget: "hivePlanner.guitar.weeklyTarget",
+        guitarCurrentSession: "hivePlanner.guitar.currentSession",
+        guitarSessions: "hivePlanner.guitar.sessions",
+        moneySettings: "hivePlanner.money.settings",
+        moneyTransactions: "hivePlanner.money.transactions",
+        moneyVendorRules: "hivePlanner.money.vendorRules",
+        journalEntries: "hivePlanner.journal.entries",
         weeklyRoutinePrefix: "hivePlanner.routine.week.",
         goalPlanner: "hivePlanner.goalPlanner.items",
         studyOverviewPrefix: "hivePlanner.weekOverview.study.",
@@ -23,12 +34,39 @@
       };
       var memoryStore = {};
       var serverStorageAvailable = false;
+      var transientSessionStarts = {
+        skate: null,
+        guitar: null
+      };
       var statsPeriod = "month";
       var skateTrendPeriod = "month";
       var editingEventId = null;
       var editingTaskId = null;
+      var moneyLastImpactMessage = "Saving a transaction will update the rest of the week and month immediately.";
+      var moneyBudgetSectionState = {
+        fixed: false,
+        flexible: false
+      };
+      var moneyQuickCategoryOrder = [
+        "groceries",
+        "therapy",
+        "fun",
+        "eating-out",
+        "resq"
+      ];
+      var moneyQuickShortcutOrder = [
+        "groceries",
+        "therapy",
+        "eating-out",
+        "other"
+      ];
+      var journalSaveStatusTimer = null;
       var draftEventDayPart = "";
       var expandedGoalId = "";
+      var MORNING_END = 12 * 60;
+      var EVENING_START = 19 * 60;
+      var moneyCore = globalThis.YuanMoneyCore;
+      var journalCore = globalThis.YuanJournalCore;
       var calendarCore = globalThis.YuanCalendarCore || (function () {
         function parseEventTimeMinutes(title) {
           var match = String(title || "").trim().match(/^(\d{1,2})(?::?(\d{2}))?(?=\s|$|[-–])/);
@@ -41,6 +79,33 @@
             return null;
           }
           return (hours * 60) + minutes;
+        }
+
+        function parseEventTimeRange(title) {
+          var text = String(title || "").trim();
+          var match = text.match(/^(\d{1,2})(?::?(\d{2}))?\s*[-–]\s*(\d{1,2})(?::?(\d{2}))?(?=\s|$)/);
+          if (!match) {
+            return null;
+          }
+          var startHours = Number(match[1]);
+          var startMinutes = match[2] ? Number(match[2]) : 0;
+          var endHours = Number(match[3]);
+          var endMinutes = match[4] ? Number(match[4]) : 0;
+          if (startHours > 23 || startMinutes > 59 || endMinutes > 59) {
+            return null;
+          }
+          if (endHours > 24 || (endHours === 24 && endMinutes !== 0)) {
+            return null;
+          }
+          var start = (startHours * 60) + startMinutes;
+          var end = (endHours * 60) + endMinutes;
+          if (end <= start) {
+            return null;
+          }
+          return {
+            start: start,
+            end: end
+          };
         }
 
         function compareEventsChronologically(a, b) {
@@ -67,10 +132,10 @@
         function eventDayPart(event) {
           var timeValue = parseEventTimeMinutes(event && event.title);
           if (timeValue !== null) {
-            if (timeValue < 12 * 60) {
+            if (timeValue < MORNING_END) {
               return "morning";
             }
-            if (timeValue < 18 * 60) {
+            if (timeValue < EVENING_START) {
               return "afternoon";
             }
             return "evening";
@@ -81,6 +146,24 @@
           return "afternoon";
         }
 
+        function eventDayParts(event) {
+          var range = parseEventTimeRange(event && event.title);
+          if (range) {
+            var parts = [];
+            if (range.start < MORNING_END) {
+              parts.push("morning");
+            }
+            if (range.start < EVENING_START && range.end > MORNING_END) {
+              parts.push("afternoon");
+            }
+            if (range.end > EVENING_START) {
+              parts.push("evening");
+            }
+            return parts.length ? parts : [eventDayPart(event)];
+          }
+          return [eventDayPart(event)];
+        }
+
         function groupEventsByPart(events) {
           var groups = {
             morning: [],
@@ -88,7 +171,9 @@
             evening: []
           };
           sortedEvents(events).forEach(function (event) {
-            groups[eventDayPart(event)].push(event);
+            eventDayParts(event).forEach(function (part) {
+              groups[part].push(event);
+            });
           });
           return groups;
         }
@@ -102,91 +187,43 @@
         };
       }());
 
-      var tracks = [
-        {
-          id: "cpp",
-          label: "C++ / ft_irc",
-          placeholder: "Ship one strong ft_irc step.",
-          className: "cpp"
-        },
-        {
-          id: "python",
-          label: "Python project",
-          placeholder: "Move the side project forward gently.",
-          className: "python"
-        },
-        {
-          id: "lc",
-          label: "Leetcode",
-          placeholder: "Keep the morning habit alive.",
-          className: "lc"
+      function parseTaskTimeMinutes(label) {
+        var text = String(label || "").trim();
+        var match = text.match(/^(\d{1,2})(?::?(\d{2}))?(?=\s|$|[-–])/);
+        if (!match) {
+          return null;
         }
-      ];
+        var hours = Number(match[1]);
+        var minutes = match[2] ? Number(match[2]) : 0;
+        if (hours > 23 || minutes > 59) {
+          return null;
+        }
+        return (hours * 60) + minutes;
+      }
 
-      var taskPlan = {
-        0: {
-          message: "Sunday: solid C++ focus, then a tidy Python wrap up.",
-          tasks: [
-            { id: "lc-morning", label: "Leetcode", activity: "lc" },
-            { id: "cpp-solid", label: "C++ solid block", activity: "cpp" },
-            { id: "python-wrap", label: "Python wrap up", activity: "python" }
-          ]
-        },
-        1: {
-          message: "Monday: begin with the habit, then make the main C++ block count.",
-          tasks: [
-            { id: "lc-morning", label: "Leetcode", activity: "lc" },
-            { id: "cpp-main", label: "C++ main block", activity: "cpp" },
-            { id: "python-project", label: "Python project", activity: "python" }
-          ]
-        },
-        2: {
-          message: "Tuesday: small clear wins across all three tracks.",
-          tasks: [
-            { id: "lc-morning", label: "Leetcode", activity: "lc" },
-            { id: "cpp-one", label: "C++", activity: "cpp" },
-            { id: "python-one", label: "Python one task", activity: "python" }
-          ]
-        },
-        3: {
-          message: "Wednesday is skate day. Fresh air counts. Enjoy the bright green reset.",
-          tasks: [
-            { id: "skate-day", label: "Skate day", activity: "skate" }
-          ]
-        },
-        4: {
-          message: "Thursday: two C++ blocks with the morning habit as your warm-up.",
-          tasks: [
-            { id: "lc-morning", label: "Leetcode", activity: "lc" },
-            { id: "cpp-block-a", label: "C++ block one", activity: "cpp" },
-            { id: "cpp-block-b", label: "C++ block two", activity: "cpp" },
-            { id: "python-project", label: "Python project", activity: "python" }
-          ]
-        },
-        5: {
-          message: "Friday: land one C++ task, then give Python the afternoon.",
-          tasks: [
-            { id: "lc-morning", label: "Leetcode", activity: "lc" },
-            { id: "cpp-one", label: "C++", activity: "cpp" },
-            { id: "python-afternoon", label: "Python project", activity: "python" }
-          ]
-        },
-        6: {
-          message: "Saturday: keep it light and keep the streak friendly.",
-          tasks: [
-            { id: "lc-morning", label: "Leetcode", activity: "lc" },
-            { id: "python-light", label: "Python light", activity: "python" },
-            { id: "skate-session", label: "Skate session", activity: "skate" }
-          ]
+      function compareTasksChronologically(a, b) {
+        var timeA = parseTaskTimeMinutes(a && a.label);
+        var timeB = parseTaskTimeMinutes(b && b.label);
+        if (timeA !== null && timeB !== null && timeA !== timeB) {
+          return timeA - timeB;
         }
-      };
+        if (timeA !== null && timeB === null) {
+          return -1;
+        }
+        if (timeA === null && timeB !== null) {
+          return 1;
+        }
+        return String((a && a.createdAt) || "")
+          .localeCompare(String((b && b.createdAt) || ""))
+          || String((a && a.id) || "").localeCompare(String((b && b.id) || ""));
+      }
 
       var activities = [
         { id: "lc", label: "Leetcode", short: "lc", className: "lc", group: "study" },
         { id: "cpp", label: "C++ / ft_irc", short: "C++", className: "cpp", group: "study" },
         { id: "python", label: "Python", short: "Python", className: "python", group: "study" },
         { id: "skate", label: "Skate", short: "Skate", className: "skate", group: "leisure" },
-        { id: "p90x3", label: "P90X3", short: "P90X3", className: "p90x3", group: "leisure" },
+        { id: "p90x3", label: "Gym", short: "Gym", className: "gym", group: "leisure" },
         { id: "guitar", label: "Guitar", short: "Guitar", className: "guitar", group: "leisure" },
         { id: "other", label: "Other", short: "Other", className: "other", group: "other", showInStats: false }
       ];
@@ -198,18 +235,117 @@
       };
 
       var mascotLines = [
-        "tiny steps still count",
-        "one gentle task, then snacks",
-        "C++ will blink first",
-        "ship a small piece today",
-        "future Yuan says thanks",
-        "ten minutes is a real start",
-        "hydrate, then compile",
-        "soft focus, sharp progress",
-        "you are allowed to begin messy",
-        "the bug is just being dramatic",
-        "skate brain, study heart",
-        "one tab, one task, go"
+        "Pick the next useful move.",
+        "Start ugly. Fix it on lap two.",
+        "Open fewer tabs. Finish more things.",
+        "A boring completed task still wins.",
+        "Do the task your future self will brag about.",
+        "Five focused minutes beats fake productivity theater.",
+        "If it is fuzzy, name the next action.",
+        "You do not need a reset. You need a starting point.",
+        "One clean block can rescue the whole day.",
+        "Make the problem smaller, then hit it.",
+        "The bug is loud because it is scared.",
+        "Leave one good note for future-you.",
+        "Ship the useful version first.",
+        "Today's plot twist: you actually finish the thing.",
+        "Skate, code, breathe, repeat.",
+        "If your brain is soup, choose the smallest real task.",
+        "Done is allowed to look ordinary.",
+        "You can be unsure and still continue.",
+        "Pick the thing with the biggest relief after it is done.",
+        "If you are procrastinating, the task is probably too wide.",
+        "One problem. One tool. One pass.",
+        "Make it work, then make it less cursed.",
+        "The plan only needs to survive today.",
+        "Use the good hour on the hard thing.",
+        "A half-hour block can still move the week.",
+        "Less dramatic planning. More actual reps.",
+        "You are not behind in this exact minute.",
+        "Name the target, not the vibe.",
+        "A rough draft is already a location.",
+        "Tiny progress still counts on difficult days.",
+        "Protect your energy like it is part of the project.",
+        "A clean stop is also progress.",
+        "Do not optimize the warm-up forever.",
+        "Pick the move that makes tomorrow easier.",
+        "I am allowed to learn in public.",
+        "I am building a life, not just finishing tasks.",
+        "I am becoming more solid through repetition.",
+        "I am allowed to be a beginner in one area and strong in another.",
+        "I am capable of learning hard things slowly.",
+        "I am not late to my own life.",
+        "I am allowed to make progress without making a scene about it.",
+        "I am someone who comes back and tries again.",
+        "I am becoming more reliable to myself.",
+        "I am not starting from zero today.",
+        "I am gathering evidence that I can do difficult things.",
+        "I am allowed to take myself seriously.",
+        "I am more than this one bad hour.",
+        "I am allowed to want a calmer life.",
+        "I am building skill even when it feels unimpressive.",
+        "I am learning to trust my own pace.",
+        "I am allowed to make small moves toward a big life.",
+        "I am not wasting time by learning carefully.",
+        "I am someone who can finish what matters.",
+        "I am allowed to rest without disappearing.",
+        "I am becoming the kind of person who follows through.",
+        "I am not too much and I am not behind.",
+        "I am allowed to outgrow old panic habits.",
+        "I am still moving, even if today is messy.",
+        "I am building proof, not fantasy.",
+        "I am learning how to hold pressure without folding.",
+        "I am allowed to take up space in my own plans.",
+        "I am becoming harder to knock off course.",
+        "I am worth the effort it takes to rebuild.",
+        "You have survived enough to trust your own recovery.",
+        "The next step does not need to be glamorous to be important.",
+        "You do not need to feel powerful before you begin.",
+        "Your life does not need a dramatic reinvention every Monday.",
+        "Do not confuse discomfort with failure.",
+        "A small disciplined day can change a lot.",
+        "Some seasons are for quiet rebuilding.",
+        "You are allowed to want structure because life is hard, not because you are weak.",
+        "The goal is not to look impressive. The goal is to make your life work.",
+        "You can want tenderness and discipline at the same time.",
+        "There is nothing wrong with needing a simpler plan today.",
+        "A shaky start still counts as starting.",
+        "You are allowed to be proud before the finish line.",
+        "You do not need permission to take your future seriously.",
+        "This is not your forever mood.",
+        "Be strict about the task, gentle about the human.",
+        "When in doubt, reduce the size and keep the direction.",
+        "The right next step often looks boring from the outside.",
+        "You can make a lot of progress without making a lot of noise.",
+        "Being consistent is cooler than being intense for two days.",
+        "The week gets easier when you stop negotiating with the obvious task.",
+        "A decent plan today beats the perfect plan you never start.",
+        "Let the day be useful, not cinematic.",
+        "The most adult thing in the room might be your to-do list.",
+        "Do the thing that removes the most mental static.",
+        "Your brain likes closure more than chaos.",
+        "You probably need a smaller task and a glass of water.",
+        "The hard part is often just sitting down long enough.",
+        "Keep the promise tiny if that is what lets you keep it.",
+        "You are allowed to become impressive quietly.",
+        "Progress looks a lot like returning.",
+        "You do not need a new personality. You need one honest block of work.",
+        "One good choice can still save a messy day.",
+        "There is power in becoming less scattered.",
+        "Even the fun parts of life need a little structure to survive.",
+        "Do not hand the whole day to your mood.",
+        "Make the next move so clear that tired-you can still do it.",
+        "The future feels less scary when the next action is visible.",
+        "A plan is kindness when your brain is tired.",
+        "You are not trying to impress the planner. You are trying to help yourself.",
+        "Keep going until the task feels lighter, not until your thoughts become perfect.",
+        "Your life gets built in ordinary afternoons like this one.",
+        "The best version of today is probably simpler than you think.",
+        "Being steady is a flex.",
+        "You can be soft and still be serious.",
+        "Give the day a backbone.",
+        "You do not need to earn the right to start over mid-day.",
+        "Tiny cleanups count. Tiny reps count. Tiny courage counts."
       ];
 
       var defaultSkateCoachTemplate = {
@@ -295,6 +431,11 @@
         afternoon: "Afternoon",
         evening: "Evening"
       };
+      var weeklyGoalTracks = [
+        { id: "study", label: "Study", placeholder: "One study focus worth finishing this week." },
+        { id: "body", label: "Body", placeholder: "Skate, gym, or recovery that would help." },
+        { id: "mind", label: "Mind", placeholder: "Guitar, reading, or something steadying." }
+      ];
       var studyOverviewPlaceholders = ["IRC 5h · C++ eval 2h", "Rest", "Optional review"];
       var skateBodyOverviewPlaceholders = ["Total Synergistics", "Skate + Ab Ripper", "X3 Yoga"];
       var monthNames = [
@@ -304,15 +445,32 @@
       var today = new Date();
       var calendarCursor = new Date(today.getFullYear(), today.getMonth(), 1);
       var selectedDate = formatDate(today);
+      var selectedJournalDate = formatDate(today);
 
       var elements = {
         tabs: document.querySelectorAll("[data-view-target]"),
         views: document.querySelectorAll(".view"),
         todaySubtitle: document.getElementById("todaySubtitle"),
-        weeklyGoals: document.getElementById("weeklyGoals"),
         weekKeyLabel: document.getElementById("weekKeyLabel"),
         dayMessage: document.getElementById("dayMessage"),
         progressText: document.getElementById("progressText"),
+        weeklyGoals: document.getElementById("weeklyGoals"),
+        journalDate: document.getElementById("journalDate"),
+        journalDateLabel: document.getElementById("journalDateLabel"),
+        journalTodayButton: document.getElementById("journalTodayButton"),
+        journalTitle: document.getElementById("journalTitle"),
+        journalContent: document.getElementById("journalContent"),
+        journalSaveStatus: document.getElementById("journalSaveStatus"),
+        journalSearch: document.getElementById("journalSearch"),
+        journalArchiveList: document.getElementById("journalArchiveList"),
+        moneyQuickForm: document.getElementById("moneyQuickForm"),
+        moneyQuickAmount: document.getElementById("moneyQuickAmount"),
+        moneyQuickCategory: document.getElementById("moneyQuickCategory"),
+        moneyQuickVendor: document.getElementById("moneyQuickVendor"),
+        moneyQuickSummary: document.getElementById("moneyQuickSummary"),
+        moneyQuickShortcuts: document.getElementById("moneyQuickShortcuts"),
+        moneyQuickImpact: document.getElementById("moneyQuickImpact"),
+        moneyPaceBadge: document.getElementById("moneyPaceBadge"),
         tasksMount: document.getElementById("tasksMount"),
         taskForm: document.getElementById("taskForm"),
         taskTitle: document.getElementById("taskTitle"),
@@ -322,6 +480,8 @@
         todayIntentionMount: document.getElementById("todayIntentionMount"),
         weeklyPlannerLabel: document.getElementById("weeklyPlannerLabel"),
         weeklyPlannerMount: document.getElementById("weeklyPlannerMount"),
+        prevWeek: document.getElementById("prevWeek"),
+        nextWeek: document.getElementById("nextWeek"),
         goalPlannerIntro: document.getElementById("goalPlannerIntro"),
         goalPlannerMount: document.getElementById("goalPlannerMount"),
         addGoalPlannerItem: document.getElementById("addGoalPlannerItem"),
@@ -330,8 +490,20 @@
         skateSessionCount: document.getElementById("skateSessionCount"),
         skateTargetInput: document.getElementById("skateTargetInput"),
         skateCoachFlow: document.getElementById("skateCoachFlow"),
+        startSkateSession: document.getElementById("startSkateSession"),
         finishSkateSession: document.getElementById("finishSkateSession"),
         skateSessionHint: document.getElementById("skateSessionHint"),
+        guitarFocusInput: document.getElementById("guitarFocusInput"),
+        guitarNextStepInput: document.getElementById("guitarNextStepInput"),
+        guitarTargetInput: document.getElementById("guitarTargetInput"),
+        guitarSessionCount: document.getElementById("guitarSessionCount"),
+        guitarSessionStatus: document.getElementById("guitarSessionStatus"),
+        guitarSessionHint: document.getElementById("guitarSessionHint"),
+        guitarSessionSummary: document.getElementById("guitarSessionSummary"),
+        guitarSessionPlan: document.getElementById("guitarSessionPlan"),
+        guitarRecentSessions: document.getElementById("guitarRecentSessions"),
+        startGuitarSession: document.getElementById("startGuitarSession"),
+        finishGuitarSession: document.getElementById("finishGuitarSession"),
         statsPeriodTabs: document.getElementById("statsPeriodTabs"),
         lifeDonut: document.getElementById("lifeDonut"),
         lifeDonutLabel: document.getElementById("lifeDonutLabel"),
@@ -339,6 +511,21 @@
         lifeBreakdown: document.getElementById("lifeBreakdown"),
         plannedWeekLabel: document.getElementById("plannedWeekLabel"),
         plannedMount: document.getElementById("plannedMount"),
+        jobStatsLine: document.getElementById("jobStatsLine"),
+        addJobApplication: document.getElementById("addJobApplication"),
+        moneyMonthLabel: document.getElementById("moneyMonthLabel"),
+        moneyOverviewGrid: document.getElementById("moneyOverviewGrid"),
+        moneyMonthlyTarget: document.getElementById("moneyMonthlyTarget"),
+        moneyCategoryBudgetList: document.getElementById("moneyCategoryBudgetList"),
+        moneyTransferForm: document.getElementById("moneyTransferForm"),
+        moneyTransferFrom: document.getElementById("moneyTransferFrom"),
+        moneyTransferTo: document.getElementById("moneyTransferTo"),
+        moneyTransferAmount: document.getElementById("moneyTransferAmount"),
+        moneyTransferList: document.getElementById("moneyTransferList"),
+        moneyProgressList: document.getElementById("moneyProgressList"),
+        moneyCharts: document.getElementById("moneyCharts"),
+        moneyVendorList: document.getElementById("moneyVendorList"),
+        moneyRecentActivity: document.getElementById("moneyRecentActivity"),
         studyOverviewWeek: document.getElementById("studyOverviewWeek"),
         studyOverview: document.getElementById("studyOverview"),
         calendarHeading: document.getElementById("calendarHeading"),
@@ -367,9 +554,15 @@
         skateFeedbackForm: document.getElementById("skateFeedbackForm"),
         confidenceScale: document.getElementById("confidenceScale"),
         progressTodayScale: document.getElementById("progressTodayScale"),
+        skateDurationMinutes: document.getElementById("skateDurationMinutes"),
         skateImprovedNote: document.getElementById("skateImprovedNote"),
         skateNextFocusNote: document.getElementById("skateNextFocusNote"),
         cancelSkateFeedback: document.getElementById("cancelSkateFeedback"),
+        guitarSessionDialog: document.getElementById("guitarSessionDialog"),
+        guitarSessionForm: document.getElementById("guitarSessionForm"),
+        guitarDurationMinutes: document.getElementById("guitarDurationMinutes"),
+        guitarSessionNote: document.getElementById("guitarSessionNote"),
+        cancelGuitarSession: document.getElementById("cancelGuitarSession"),
         exportData: document.getElementById("exportData"),
         importData: document.getElementById("importData"),
         backupStatus: document.getElementById("backupStatus"),
@@ -380,6 +573,38 @@
 
       function isPlannerKey(key) {
         return key.indexOf("hivePlanner.") === 0;
+      }
+
+      function removePlannerKey(key) {
+        delete memoryStore[key];
+        localStorage.removeItem(key);
+        if (!serverStorageAvailable) {
+          return;
+        }
+        fetch("/api/kv?key=" + encodeURIComponent(key), {
+          method: "DELETE"
+        }).catch(function () {
+          serverStorageAvailable = false;
+        });
+      }
+
+      function stripStartedAtFromStoredSkateSession() {
+        var session = readJson(STORAGE.skateCurrentSession, null);
+        if (!session || typeof session !== "object" || !session.startedAt) {
+          return;
+        }
+        var sanitized = Object.assign({}, session);
+        delete sanitized.startedAt;
+        writeJson(STORAGE.skateCurrentSession, sanitized);
+      }
+
+      function sanitizeTransientSessionData() {
+        transientSessionStarts.skate = null;
+        transientSessionStarts.guitar = null;
+        stripStartedAtFromStoredSkateSession();
+        if (memoryStore[STORAGE.guitarCurrentSession] !== undefined) {
+          removePlannerKey(STORAGE.guitarCurrentSession);
+        }
       }
 
       async function hydrateStore() {
@@ -402,6 +627,7 @@
             persistRaw(key, memoryStore[key]);
           }
         }
+        sanitizeTransientSessionData();
       }
 
       function persistRaw(key, value) {
@@ -461,6 +687,11 @@
       function humanDate(dateString) {
         var date = parseDate(dateString);
         return weekdays[date.getDay()] + " " + monthNames[date.getMonth()].slice(0, 3) + " " + date.getDate();
+      }
+
+      function longHumanDate(dateString) {
+        var date = parseDate(dateString);
+        return weekdays[date.getDay()] + ", " + monthNames[date.getMonth()] + " " + date.getDate() + ", " + date.getFullYear();
       }
 
       function isoWeekKey(date) {
@@ -600,6 +831,7 @@
       }
 
       function eventsForDate(dateKey) {
+        ensureRoutineEventsAroundDate(parseDate(dateKey));
         return sortedEvents(getEvents().filter(function (event) {
           return event.date === dateKey;
         }));
@@ -639,7 +871,392 @@
         };
       }
 
+      function routineEventTemplate(title, category, part, note) {
+        return {
+          title: title,
+          category: category,
+          part: part,
+          note: note || ""
+        };
+      }
+
+      function routineWeekDateKey(date) {
+        return formatDate(weekRange(date).start);
+      }
+
+      function routineStudyTargetForWeek(date) {
+        var weekKey = routineWeekDateKey(date);
+        if (weekKey === "2026-08-10") {
+          return "4 study days";
+        }
+        if (weekKey === "2026-08-17") {
+          return "24-25h";
+        }
+        if (weekKey === "2026-08-24") {
+          return "Close to 28h";
+        }
+        if (weekKey >= "2026-08-31") {
+          return "28h";
+        }
+        return "";
+      }
+
+      function routineWeekTemplate(date) {
+        var weekKey = routineWeekDateKey(date);
+        if (weekKey < "2026-08-10") {
+          return null;
+        }
+
+        if (weekKey >= "2026-08-31" && formatDate(date) <= "2026-10-31") {
+          return {
+            label: "Full routine",
+            studyTarget: "28h",
+            days: [
+              {
+                type: "skate",
+                events: [
+                  routineEventTemplate("09:30 Morning skate", "Skate", "morning"),
+                  routineEventTemplate("11:30 School", "School study", "morning"),
+                  routineEventTemplate("18:00 Instructed gym course", "Other", "evening"),
+                  routineEventTemplate("19:00 Evening skate", "Skate", "evening")
+                ]
+              },
+              {
+                type: "skate",
+                events: [
+                  routineEventTemplate("09:30 Morning skate", "Skate", "morning"),
+                  routineEventTemplate("11:30 School", "School study", "morning"),
+                  routineEventTemplate("18:00 Evening skate with friends", "Skate", "evening")
+                ]
+              },
+              {
+                type: "study",
+                events: [
+                  routineEventTemplate("09:30 Guitar practice", "Guitar", "morning"),
+                  routineEventTemplate("11:30 School", "School study", "morning")
+                ]
+              },
+              {
+                type: "study",
+                events: [
+                  routineEventTemplate("09:30 Guitar practice", "Guitar", "morning"),
+                  routineEventTemplate("11:30 School", "School study", "morning")
+                ]
+              },
+              {
+                type: "study",
+                events: [
+                  routineEventTemplate("09:30 Guitar practice", "Guitar", "morning"),
+                  routineEventTemplate("11:30 Gym/skate", "Other", "morning"),
+                  routineEventTemplate("Study block", "Home study", "afternoon")
+                ]
+              },
+              {
+                type: "rest",
+                events: []
+              },
+              {
+                type: "skate",
+                events: [
+                  routineEventTemplate("12:00-14:00 Light study", "Home study", "afternoon"),
+                  routineEventTemplate("16:00 Short gym session", "Other", "afternoon"),
+                  routineEventTemplate("18:00 Evening skate", "Skate", "evening")
+                ]
+              }
+            ]
+          };
+        }
+
+        if (weekKey === "2026-08-24") {
+          return {
+            label: "Transition week 3",
+            studyTarget: "Close to 28h",
+            days: [
+              {
+                type: "skate",
+                events: [
+                  routineEventTemplate("09:30 Morning skate", "Skate", "morning"),
+                  routineEventTemplate("11:30 School", "School study", "morning"),
+                  routineEventTemplate("18:00 Instructed gym course", "Other", "evening"),
+                  routineEventTemplate("19:00 Evening skate", "Skate", "evening")
+                ]
+              },
+              {
+                type: "skate",
+                events: [
+                  routineEventTemplate("09:30 Morning skate", "Skate", "morning"),
+                  routineEventTemplate("11:30 School", "School study", "morning"),
+                  routineEventTemplate("18:00 Evening skate with friends", "Skate", "evening")
+                ]
+              },
+              {
+                type: "study",
+                events: [
+                  routineEventTemplate("09:30 Guitar practice", "Guitar", "morning"),
+                  routineEventTemplate("11:30 School", "School study", "morning")
+                ]
+              },
+              {
+                type: "study",
+                events: [
+                  routineEventTemplate("09:30 Guitar practice", "Guitar", "morning"),
+                  routineEventTemplate("11:30 School", "School study", "morning")
+                ]
+              },
+              {
+                type: "study",
+                events: [
+                  routineEventTemplate("09:30 Guitar practice", "Guitar", "morning"),
+                  routineEventTemplate("11:30 Gym/skate", "Other", "morning"),
+                  routineEventTemplate("Study block", "Home study", "afternoon")
+                ]
+              },
+              {
+                type: "rest",
+                events: []
+              },
+              {
+                type: "skate",
+                events: [
+                  routineEventTemplate("12:00-14:00 Light study", "Home study", "afternoon"),
+                  routineEventTemplate("16:00 Short gym session", "Other", "afternoon"),
+                  routineEventTemplate("18:00 Evening skate", "Skate", "evening")
+                ]
+              }
+            ]
+          };
+        }
+
+        if (weekKey === "2026-08-17") {
+          return {
+            label: "Transition week 2",
+            studyTarget: "24-25h",
+            days: [
+              {
+                type: "skate",
+                events: [
+                  routineEventTemplate("09:30 Morning skate", "Skate", "morning"),
+                  routineEventTemplate("11:30 School", "School study", "morning"),
+                  routineEventTemplate("Study block", "Home study", "afternoon")
+                ]
+              },
+              {
+                type: "study",
+                events: [
+                  routineEventTemplate("11:30 School", "School study", "morning"),
+                  routineEventTemplate("Study block", "Home study", "afternoon"),
+                  routineEventTemplate("18:00 Evening skate with friends", "Skate", "evening")
+                ]
+              },
+              {
+                type: "study",
+                events: [
+                  routineEventTemplate("09:30 Guitar practice", "Guitar", "morning"),
+                  routineEventTemplate("11:30 School", "School study", "morning"),
+                  routineEventTemplate("Study block", "Home study", "afternoon")
+                ]
+              },
+              {
+                type: "study",
+                events: [
+                  routineEventTemplate("09:30 Guitar practice", "Guitar", "morning"),
+                  routineEventTemplate("11:30 School", "School study", "morning"),
+                  routineEventTemplate("Study block", "Home study", "afternoon")
+                ]
+              },
+              {
+                type: "study",
+                events: [
+                  routineEventTemplate("09:30 Guitar practice", "Guitar", "morning"),
+                  routineEventTemplate("11:30 Gym/skate", "Other", "morning")
+                ]
+              },
+              {
+                type: "rest",
+                events: []
+              },
+              {
+                type: "skate",
+                events: [
+                  routineEventTemplate("18:00 Evening skate", "Skate", "evening")
+                ]
+              }
+            ]
+          };
+        }
+
+        if (weekKey === "2026-08-10") {
+          return {
+            label: "Transition week 1",
+            studyTarget: "4 study days",
+            days: [
+              {
+                type: "study",
+                events: [
+                  routineEventTemplate("Study block", "Home study", "afternoon")
+                ]
+              },
+              {
+                type: "study",
+                events: [
+                  routineEventTemplate("Study block", "Home study", "afternoon"),
+                  routineEventTemplate("18:00 Evening skate with friends", "Skate", "evening")
+                ]
+              },
+              {
+                type: "study",
+                events: [
+                  routineEventTemplate("09:30 Guitar practice", "Guitar", "morning"),
+                  routineEventTemplate("Study block", "Home study", "afternoon")
+                ]
+              },
+              {
+                type: "study",
+                events: [
+                  routineEventTemplate("09:30 Guitar practice", "Guitar", "morning"),
+                  routineEventTemplate("Study block", "Home study", "afternoon")
+                ]
+              },
+              {
+                type: "study",
+                events: [
+                  routineEventTemplate("11:30 Gym/skate", "Other", "morning")
+                ]
+              },
+              {
+                type: "rest",
+                events: []
+              },
+              {
+                type: "skate",
+                events: [
+                  routineEventTemplate("18:00 Evening skate", "Skate", "evening")
+                ]
+              }
+            ]
+          };
+        }
+
+        return null;
+      }
+
+      function routineSlug(value) {
+        return String(value || "")
+          .toLowerCase()
+          .replace(/[^a-z0-9]+/g, "-")
+          .replace(/^-+|-+$/g, "");
+      }
+
+      function routineEventId(dateKey, eventTemplate) {
+        return [
+          "routine",
+          dateKey,
+          routineSlug(eventTemplate.part),
+          routineSlug(eventTemplate.category),
+          routineSlug(eventTemplate.title)
+        ].join("-");
+      }
+
+      function ensureRoutineEventsForRange(startDate, endDate) {
+        var endKey = formatDate(endDate);
+        if (endKey < "2026-08-10") {
+          return false;
+        }
+        var events = getEvents();
+        var existingIds = {};
+        var desiredIds = {};
+        var changed = false;
+        events.forEach(function (entry) {
+          if (entry && entry.id) {
+            existingIds[entry.id] = true;
+          }
+        });
+
+        var cursor = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
+        while (formatDate(cursor) <= endKey) {
+          var dateKey = formatDate(cursor);
+          if (dateKey >= "2026-08-10") {
+            var weekTemplate = routineWeekTemplate(cursor);
+            if (weekTemplate) {
+              var dayIndex = routineDayIndex(cursor);
+              var dayTemplate = weekTemplate.days[dayIndex];
+              (dayTemplate.events || []).forEach(function (eventTemplate) {
+                var eventId = routineEventId(dateKey, eventTemplate);
+                desiredIds[eventId] = true;
+                if (existingIds[eventId]) {
+                  return;
+                }
+                events.push({
+                  id: eventId,
+                  date: dateKey,
+                  title: eventTemplate.title,
+                  note: eventTemplate.note,
+                  category: eventTemplate.category,
+                  dayPart: eventTemplate.part,
+                  startTime: "",
+                  endTime: "",
+                  createdAt: "routine",
+                  routineManaged: true
+                });
+                existingIds[eventId] = true;
+                changed = true;
+              });
+            }
+          }
+          cursor = addDays(cursor, 1);
+        }
+
+        events = events.filter(function (entry) {
+          if (!entry || !entry.routineManaged) {
+            return true;
+          }
+          if (entry.date < "2026-08-10" || entry.date > endKey || entry.date < formatDate(startDate)) {
+            return true;
+          }
+          if (desiredIds[entry.id]) {
+            return true;
+          }
+          changed = true;
+          return false;
+        });
+
+        if (changed) {
+          saveEvents(events);
+        }
+        return changed;
+      }
+
+      function ensureRoutineEventsAroundDate(date) {
+        var monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
+        var monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0);
+        return ensureRoutineEventsForRange(monthStart, monthEnd);
+      }
+
       function defaultWeeklyRoutine(date) {
+        var template = routineWeekTemplate(date);
+        if (template) {
+          return {
+            week: isoWeekKey(date),
+            days: weekDates(date).map(function (_, index) {
+              var source = template.days[index];
+              var grouped = {
+                morning: [],
+                afternoon: [],
+                evening: []
+              };
+              (source.events || []).forEach(function (entry) {
+                grouped[entry.part].push(defaultRoutineItem(entry.title, "fixed"));
+              });
+              return {
+                type: source.type,
+                allowFullDay: false,
+                morning: grouped.morning,
+                afternoon: grouped.afternoon,
+                evening: grouped.evening
+              };
+            })
+          };
+        }
         var defaults = [
           {
             type: "study",
@@ -816,6 +1433,15 @@
         var routine = getWeeklyRoutine(referenceDate);
         mutator(routine);
         saveWeeklyRoutine(referenceDate, routine);
+        renderRoutinePlanner();
+        renderCalendar();
+        renderSelectedDate();
+      }
+
+      function shiftSelectedWeek(amount) {
+        var nextDate = addDays(parseDate(selectedDate), amount * 7);
+        selectedDate = formatDate(nextDate);
+        calendarCursor = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
         renderRoutinePlanner();
         renderCalendar();
         renderSelectedDate();
@@ -1023,16 +1649,26 @@
         writeJson(STORAGE.physicalLogs, logs);
       }
 
+      function normalizeEventCategory(category) {
+        if (category === "Routine") {
+          return "Chore";
+        }
+        return category || "Study deadline";
+      }
+
       function categoryClass(category) {
-          if (category === "Personal") return "personal";
-          if (category === "Routine") return "routine-event";
-          if (category === "Other") return "other-event";
-          if (category === "Skate") return "skate-event";
+          var normalized = normalizeEventCategory(category);
+          if (normalized === "Personal") return "personal";
+          if (normalized === "Chore") return "chore-event";
+          if (normalized === "Home study" || normalized === "School study") return "routine-event";
+          if (normalized === "Other") return "other-event";
+          if (normalized === "Skate") return "skate-event";
+          if (normalized === "Guitar") return "guitar-event";
           return "study";
       }
 
       function isRoutineCategory(category) {
-        return category === "Routine";
+        return normalizeEventCategory(category) === "Home study";
       }
 
       function visibleMonthlyEvents(events) {
@@ -1064,56 +1700,262 @@
           renderCalendar();
           renderSelectedDate();
         }
-        var activeView = document.getElementById(viewId);
-        if (activeView && typeof activeView.scrollIntoView === "function") {
-          activeView.scrollIntoView({ block: "start", behavior: "auto" });
-        } else {
-          window.scrollTo(0, 0);
+        if (viewId === "moneyView") {
+          renderMoneyPage();
         }
-      }
-
-      // Weekly goals stay until Yuan manually changes them.
-      function renderGoals() {
-        var stored = readJson(STORAGE.goals, {});
-        elements.weeklyGoals.innerHTML = "";
-
-        tracks.forEach(function (track) {
-          var wrapper = document.createElement("div");
-          wrapper.className = "goal " + track.className;
-
-          var label = document.createElement("label");
-          label.setAttribute("for", "goal-" + track.id);
-          var dot = document.createElement("span");
-          dot.className = "dot";
-          label.appendChild(dot);
-          label.appendChild(document.createTextNode(track.label));
-
-          var input = document.createElement("input");
-          input.id = "goal-" + track.id;
-          input.value = stored[track.id] || "";
-          input.placeholder = track.placeholder;
-          input.addEventListener("input", function () {
-            stored[track.id] = input.value;
-            writeJson(STORAGE.goals, stored);
-          });
-
-          wrapper.appendChild(label);
-          wrapper.appendChild(input);
-          elements.weeklyGoals.appendChild(wrapper);
-        });
+        if (viewId === "journalView") {
+          renderJournalPage();
+        }
+        if (viewId === "guitarView") {
+          renderGuitarPage();
+        }
+        window.scrollTo({ top: 0, left: 0, behavior: "auto" });
       }
 
       function getDefaultTasksForToday() {
-        return taskPlan[today.getDay()].tasks.map(function (task) {
+        return [];
+      }
+
+      function getJournalEntries() {
+        var entries = readJson(STORAGE.journalEntries, []);
+        if (journalCore && typeof journalCore.sortEntriesNewestFirst === "function") {
+          return journalCore.sortEntriesNewestFirst(entries);
+        }
+        return Array.isArray(entries) ? entries.slice() : [];
+      }
+
+      function saveJournalEntries(entries) {
+        writeJson(STORAGE.journalEntries, entries);
+      }
+
+      function getJournalEntry(dateString) {
+        var entries = getJournalEntries();
+        if (journalCore && typeof journalCore.findEntryByDate === "function") {
+          return journalCore.findEntryByDate(entries, dateString);
+        }
+        return entries.find(function (entry) {
+          return entry.date === dateString;
+        }) || null;
+      }
+
+      function setJournalStatus(message) {
+        if (!elements.journalSaveStatus) {
+          return;
+        }
+        elements.journalSaveStatus.textContent = message;
+      }
+
+      function flashJournalSavedState(message) {
+        if (journalSaveStatusTimer) {
+          window.clearTimeout(journalSaveStatusTimer);
+        }
+        setJournalStatus(message || "");
+        journalSaveStatusTimer = window.setTimeout(function () {
+          setJournalStatus("");
+        }, 1800);
+      }
+
+      function saveJournalDraft() {
+        if (!elements.journalTitle || !elements.journalContent) {
+          return;
+        }
+
+        var title = elements.journalTitle.value.trim();
+        var content = elements.journalContent.value;
+        var entries = getJournalEntries().slice();
+        var existingIndex = entries.findIndex(function (entry) {
+          return entry.date === selectedJournalDate;
+        });
+
+        if (!title && !content.trim()) {
+          if (existingIndex !== -1) {
+            entries.splice(existingIndex, 1);
+            saveJournalEntries(entries);
+          }
+          renderJournalArchive();
+          flashJournalSavedState("");
+          return;
+        }
+
+        var nowStamp = new Date().toISOString();
+        var existingEntry = existingIndex === -1 ? null : entries[existingIndex];
+        var nextEntry = {
+          id: existingEntry ? existingEntry.id : makeId("journal"),
+          date: selectedJournalDate,
+          title: title,
+          content: content,
+          createdAt: existingEntry ? existingEntry.createdAt : nowStamp,
+          updatedAt: nowStamp
+        };
+
+        if (existingIndex === -1) {
+          entries.push(nextEntry);
+        } else {
+          entries[existingIndex] = nextEntry;
+        }
+
+        saveJournalEntries(entries);
+        renderJournalArchive();
+        flashJournalSavedState("");
+      }
+
+      function selectJournalDate(dateString) {
+        selectedJournalDate = dateString || formatDate(today);
+        if (elements.journalDate) {
+          elements.journalDate.value = selectedJournalDate;
+        }
+        renderJournalPage();
+      }
+
+      function renderJournalArchive() {
+        if (!elements.journalArchiveList) {
+          return;
+        }
+
+        var entries = getJournalEntries();
+        var query = elements.journalSearch ? elements.journalSearch.value : "";
+        if (journalCore && typeof journalCore.filterEntries === "function") {
+          entries = journalCore.filterEntries(entries, query);
+        }
+
+        elements.journalArchiveList.innerHTML = "";
+
+        if (!entries.length) {
+          var empty = document.createElement("p");
+          empty.className = "journal-empty-state";
+          empty.textContent = query ? "No journal entry matches that search yet." : "Your old journals will stack here as soon as you write one.";
+          elements.journalArchiveList.appendChild(empty);
+          return;
+        }
+
+        entries.forEach(function (entry) {
+          var button = document.createElement("button");
+          button.type = "button";
+          button.className = "journal-entry-card";
+          if (entry.date === selectedJournalDate) {
+            button.classList.add("active");
+          }
+
+          var header = document.createElement("div");
+          header.className = "journal-entry-card-head";
+
+          var title = document.createElement("strong");
+          title.textContent = entry.title || humanDate(entry.date);
+          header.appendChild(title);
+
+          var date = document.createElement("span");
+          date.textContent = humanDate(entry.date);
+          header.appendChild(date);
+
+          var preview = document.createElement("p");
+          preview.className = "journal-entry-preview";
+          if (journalCore && typeof journalCore.buildPreview === "function") {
+            preview.textContent = journalCore.buildPreview(entry, 132);
+          } else {
+            preview.textContent = entry.content;
+          }
+
+          button.appendChild(header);
+          button.appendChild(preview);
+          button.addEventListener("click", function () {
+            selectJournalDate(entry.date);
+          });
+          elements.journalArchiveList.appendChild(button);
+        });
+      }
+
+      function renderJournalPage() {
+        if (!elements.journalDate || !elements.journalTitle || !elements.journalContent) {
+          return;
+        }
+
+        var entry = getJournalEntry(selectedJournalDate);
+        elements.journalDate.value = selectedJournalDate;
+        elements.journalDateLabel.textContent = longHumanDate(selectedJournalDate);
+        elements.journalTitle.value = entry ? entry.title : "";
+        elements.journalContent.value = entry ? entry.content : "";
+        setJournalStatus("");
+        renderJournalArchive();
+      }
+
+      function getWeeklyGoals() {
+        var stored = readJson(STORAGE.goals, null);
+        var values = stored && typeof stored === "object" ? stored : {};
+        return weeklyGoalTracks.map(function (track) {
           return {
-              id: "routine-" + task.id,
-              label: task.label,
-              activity: task.activity,
-              hours: 0,
-              done: false,
-              createdAt: "routine"
+            id: track.id,
+            label: track.label,
+            placeholder: track.placeholder,
+            text: typeof values[track.id] === "string" ? values[track.id] : ""
           };
         });
+      }
+
+      function saveWeeklyGoals(goals) {
+        var payload = {};
+        (Array.isArray(goals) ? goals : []).forEach(function (goal) {
+          if (!goal || !goal.id) {
+            return;
+          }
+          payload[goal.id] = String(goal.text || "");
+        });
+        writeJson(STORAGE.goals, payload);
+      }
+
+      function calendarEventTaskActivity(category) {
+        var normalized = normalizeEventCategory(category);
+        if (normalized === "Home study" || normalized === "School study" || normalized === "Study deadline") {
+          return "cpp";
+        }
+        if (normalized === "Skate") {
+          return "skate";
+        }
+        if (normalized === "Guitar") {
+          return "guitar";
+        }
+        if (normalized === "Chore" || normalized === "Personal" || normalized === "Other") {
+          return "other";
+        }
+        return "other";
+      }
+
+      function importedCalendarTasksForDate(dateKey, existingTasks) {
+        var existing = Array.isArray(existingTasks) ? existingTasks : [];
+        var existingSourceIds = existing.map(function (task) {
+          return task.sourceEventId;
+        }).filter(Boolean);
+        return eventsForDate(dateKey)
+          .filter(function (event) {
+            return existingSourceIds.indexOf(event.id) === -1;
+          })
+          .map(function (event) {
+            return {
+              id: makeId("calendar-task"),
+              label: event.title,
+              activity: calendarEventTaskActivity(event.category),
+              hours: 0,
+              timerSeconds: 0,
+              timerStartedAt: null,
+              done: false,
+              createdAt: event.createdAt || new Date().toISOString(),
+              sourceEventId: event.id
+            };
+          });
+      }
+
+      function mergedTodayTasks(tasks) {
+        var normalized = normalizeTasks(tasks);
+        var imported = importedCalendarTasksForDate(formatDate(today), normalized);
+        if (!imported.length) {
+          return {
+            tasks: normalized,
+            changed: false
+          };
+        }
+        return {
+          tasks: normalizeTasks(normalized.concat(imported)),
+          changed: true
+        };
       }
 
       function normalizeTasks(tasks) {
@@ -1136,9 +1978,11 @@
               timerSeconds: Math.max(0, Number(task.timerSeconds) || 0),
               timerStartedAt: typeof task.timerStartedAt === "string" ? task.timerStartedAt : null,
               done: Boolean(task.done),
-              createdAt: task.createdAt || new Date().toISOString()
+              createdAt: task.createdAt || new Date().toISOString(),
+              sourceEventId: typeof task.sourceEventId === "string" ? task.sourceEventId : ""
             };
-          });
+          })
+          .sort(compareTasksChronologically);
       }
 
       function elapsedTaskSeconds(task) {
@@ -1181,19 +2025,852 @@
         return minutes + ":" + pad(secs);
       }
 
+      function startedSessionSeconds(startedAt) {
+        if (!startedAt) {
+          return 0;
+        }
+        return Math.max(0, Math.floor((Date.now() - Date.parse(startedAt)) / 1000));
+      }
+
+      function sessionDurationMinutes(startedAt, fallbackMinutes) {
+        if (startedAt) {
+          return Math.max(1, Math.round(startedSessionSeconds(startedAt) / 60));
+        }
+        return Math.max(1, Number(fallbackMinutes) || 30);
+      }
+
+      function sessionStatusText(label, startedAt) {
+        if (!startedAt) {
+          return "No active " + label + " session.";
+        }
+        return label + " session running · " + formatTimer(startedSessionSeconds(startedAt));
+      }
+
       function getTodayTasks() {
         var key = dailyTaskStorageKey(today);
         var stored = readJson(key, null);
         if (stored === null) {
-          var seeded = getDefaultTasksForToday();
-          writeJson(key, seeded);
-          return seeded;
+          var seeded = mergedTodayTasks(getDefaultTasksForToday());
+          writeJson(key, seeded.tasks);
+          return seeded.tasks;
         }
-        return normalizeTasks(stored);
+        var cleanedStored = removeLegacyRoutineTasks(stored);
+        var merged = mergedTodayTasks(cleanedStored);
+        if (merged.changed || cleanedStored.length !== stored.length) {
+          writeJson(key, merged.tasks);
+        }
+        return merged.tasks;
+      }
+
+      function removeLegacyRoutineTasks(tasks) {
+        return (Array.isArray(tasks) ? tasks : []).filter(function (task) {
+          return !(task && (task.createdAt === "routine" || String(task.id || "").indexOf("routine-") === 0));
+        });
       }
 
       function saveTodayTasks(tasks) {
         writeJson(dailyTaskStorageKey(today), normalizeTasks(tasks));
+      }
+
+      function syncSessionTimeToTodayTask(activityId, durationHours) {
+        var safeHours = Math.max(0, Number(durationHours) || 0);
+        if (!safeHours) {
+          return null;
+        }
+        var tasks = getTodayTasks();
+        var matchIndex = tasks.findIndex(function (task) {
+          return task.activity === activityId && !task.done && !task.timerStartedAt;
+        });
+        if (matchIndex === -1) {
+          matchIndex = tasks.findIndex(function (task) {
+            return task.activity === activityId && !task.done;
+          });
+        }
+        if (matchIndex === -1) {
+          matchIndex = tasks.findIndex(function (task) {
+            return task.activity === activityId;
+          });
+        }
+        if (matchIndex === -1) {
+          return null;
+        }
+
+        var task = tasks[matchIndex];
+        var existingSeconds = elapsedTaskSeconds(task);
+        task.timerStartedAt = null;
+        task.timerSeconds = existingSeconds + Math.round(safeHours * 3600);
+        task.hours = hoursFromSeconds(task.timerSeconds);
+        task.done = true;
+        saveTodayTasks(tasks);
+        renderTasks();
+        renderTotals();
+        return task.label;
+      }
+
+      function getJobApplications() {
+        var entries = readJson(STORAGE.jobApplications, []);
+        if (!Array.isArray(entries)) {
+          return [];
+        }
+        return entries
+          .map(function (entry) {
+            if (typeof entry === "string") {
+              return { id: makeId("job"), date: entry, createdAt: "" };
+            }
+            return {
+              id: entry && entry.id ? entry.id : makeId("job"),
+              date: typeof (entry && entry.date) === "string" ? entry.date : "",
+              createdAt: typeof (entry && entry.createdAt) === "string" ? entry.createdAt : ""
+            };
+          })
+          .filter(function (entry) {
+            return /^\d{4}-\d{2}-\d{2}$/.test(entry.date);
+          });
+      }
+
+      function saveJobApplications(entries) {
+        writeJson(STORAGE.jobApplications, entries);
+      }
+
+      function formatMoney(centsValue) {
+        if (moneyCore && typeof moneyCore.formatCents === "function") {
+          return moneyCore.formatCents(centsValue);
+        }
+        return "EUR " + (Math.round((Number(centsValue) || 0)) / 100).toFixed(2);
+      }
+
+      function getMoneySettings() {
+        var stored = readJson(STORAGE.moneySettings, null);
+        if (moneyCore && typeof moneyCore.normalizeSettings === "function") {
+          return moneyCore.normalizeSettings(stored);
+        }
+        return stored || { monthlyTargetCents: 130000, categories: [], transfers: [] };
+      }
+
+      function saveMoneySettings(settings) {
+        writeJson(STORAGE.moneySettings, settings);
+      }
+
+      function getMoneyTransactions() {
+        var stored = readJson(STORAGE.moneyTransactions, []);
+        if (moneyCore && typeof moneyCore.normalizeTransactions === "function") {
+          return moneyCore.normalizeTransactions(stored);
+        }
+        return Array.isArray(stored) ? stored : [];
+      }
+
+      function saveMoneyTransactions(transactions) {
+        writeJson(STORAGE.moneyTransactions, transactions);
+      }
+
+      function getMoneyVendorRules() {
+        var stored = readJson(STORAGE.moneyVendorRules, null);
+        if (moneyCore && typeof moneyCore.normalizeVendorRules === "function") {
+          return moneyCore.normalizeVendorRules(stored);
+        }
+        return Array.isArray(stored) ? stored : [];
+      }
+
+      function saveMoneyVendorRules(rules) {
+        writeJson(STORAGE.moneyVendorRules, rules);
+      }
+
+      function getMoneyState() {
+        if (!moneyCore || typeof moneyCore.calculateState !== "function") {
+          return null;
+        }
+        return moneyCore.calculateState({
+          settings: getMoneySettings(),
+          transactions: getMoneyTransactions(),
+          referenceDate: today
+        });
+      }
+
+      function moneyCategoryById(categoryId) {
+        return getMoneySettings().categories.find(function (category) {
+          return category.id === categoryId;
+        }) || null;
+      }
+
+      function moneyCategoryName(categoryId) {
+        var category = moneyCategoryById(categoryId);
+        return category ? category.name : "Other";
+      }
+
+      function moneyFlexCategories() {
+        return getMoneySettings().categories.filter(function (category) {
+          return category.kind === "flex";
+        });
+      }
+
+      function orderMoneyCategories(categories, preferredOrder) {
+        var orderMap = {};
+        preferredOrder.forEach(function (id, index) {
+          orderMap[id] = index;
+        });
+        return categories.slice().sort(function (a, b) {
+          var aRank = Object.prototype.hasOwnProperty.call(orderMap, a.id) ? orderMap[a.id] : Number.MAX_SAFE_INTEGER;
+          var bRank = Object.prototype.hasOwnProperty.call(orderMap, b.id) ? orderMap[b.id] : Number.MAX_SAFE_INTEGER;
+          return aRank - bRank || a.name.localeCompare(b.name);
+        });
+      }
+
+      function moneyQuickShortcutCategories(state) {
+        var categories = (state && Array.isArray(state.categories) ? state.categories : []).filter(function (category) {
+          return moneyQuickShortcutOrder.indexOf(category.id) !== -1;
+        });
+        return orderMoneyCategories(categories, moneyQuickShortcutOrder).slice(0, 4);
+      }
+
+      function updateMoneyCategorySetting(categoryId, key, value) {
+        updateMoneySettings(function (nextSettings) {
+          var found = false;
+          nextSettings.categories = nextSettings.categories.map(function (item) {
+            if (item.id !== categoryId) {
+              return item;
+            }
+            found = true;
+            item[key] = value;
+            return item;
+          });
+          if (!found) {
+            nextSettings.categories.push({
+              id: categoryId,
+              kind: "flex",
+              budgetCents: 0,
+              weeklyBudgetCents: 0,
+              protected: false,
+              [key]: value
+            });
+          }
+        });
+      }
+
+      function createMoneyBudgetField(category, key, labelText, value) {
+        var field = document.createElement("label");
+        field.className = "money-budget-field";
+        field.innerHTML = "<span>" + labelText + "</span>";
+
+        var input = document.createElement("input");
+        input.value = value;
+        input.setAttribute("inputmode", "decimal");
+        input.setAttribute("placeholder", labelText);
+        input.setAttribute("aria-label", category.name + " " + labelText.toLowerCase());
+        input.title = labelText;
+        input.addEventListener("change", function () {
+          var nextValue = moneyCore.parseAmountToCents(input.value);
+          if (nextValue == null) {
+            renderMoney();
+            return;
+          }
+          if (key === "budgetCents" && moneyCore && typeof moneyCore.deriveWeeklyBudgetCents === "function") {
+            var derivedWeeklyBudget = moneyCore.deriveWeeklyBudgetCents(nextValue, today);
+            updateMoneyCategorySetting(category.id, "budgetCents", nextValue);
+            updateMoneyCategorySetting(category.id, "weeklyBudgetCents", derivedWeeklyBudget);
+            return;
+          }
+          updateMoneyCategorySetting(category.id, key, nextValue);
+        });
+
+        field.appendChild(input);
+        return field;
+      }
+
+      function syncMoneyCategoryInputs() {
+        var categories = getMoneySettings().categories.slice();
+        var orderedQuickCategories = orderMoneyCategories(categories, moneyQuickCategoryOrder);
+        var quickValue = elements.moneyQuickCategory ? elements.moneyQuickCategory.value : "";
+        var transferFromValue = elements.moneyTransferFrom ? elements.moneyTransferFrom.value : "";
+        var transferToValue = elements.moneyTransferTo ? elements.moneyTransferTo.value : "";
+        var flexCategories = categories.filter(function (category) {
+          return category.kind === "flex";
+        });
+
+        if (elements.moneyQuickCategory) {
+          elements.moneyQuickCategory.innerHTML = "";
+          orderedQuickCategories.forEach(function (category) {
+            var option = document.createElement("option");
+            option.value = category.id;
+            option.textContent = category.name;
+            elements.moneyQuickCategory.appendChild(option);
+          });
+          if (quickValue) {
+            elements.moneyQuickCategory.value = quickValue;
+          }
+          if (!elements.moneyQuickCategory.value && orderedQuickCategories[0]) {
+            elements.moneyQuickCategory.value = orderedQuickCategories[0].id;
+          }
+        }
+
+        [elements.moneyTransferFrom, elements.moneyTransferTo].forEach(function (select, index) {
+          if (!select) {
+            return;
+          }
+          var previousValue = index === 0 ? transferFromValue : transferToValue;
+          select.innerHTML = "";
+          flexCategories.forEach(function (category) {
+            var option = document.createElement("option");
+            option.value = category.id;
+            option.textContent = category.name;
+            select.appendChild(option);
+          });
+          if (previousValue) {
+            select.value = previousValue;
+          }
+        });
+      }
+
+      function updateMoneySettings(mutator) {
+        var settings = getMoneySettings();
+        mutator(settings);
+        if (moneyCore && typeof moneyCore.normalizeSettings === "function") {
+          settings = moneyCore.normalizeSettings(settings);
+        }
+        saveMoneySettings(settings);
+        renderMoney();
+      }
+
+      function upsertMoneyVendorRule(vendor, categoryId) {
+        var normalizedVendor = String(vendor || "").trim().toLowerCase();
+        if (!normalizedVendor || !categoryId) {
+          return;
+        }
+        var rules = getMoneyVendorRules();
+        var existing = rules.find(function (rule) {
+          return rule.match === normalizedVendor;
+        });
+        if (existing) {
+          existing.categoryId = categoryId;
+        } else {
+          rules.unshift({
+            id: moneyCore && typeof moneyCore.makeId === "function" ? moneyCore.makeId("vendor") : makeId("vendor"),
+            match: normalizedVendor,
+            categoryId: categoryId
+          });
+        }
+        saveMoneyVendorRules(rules);
+      }
+
+      function applyMoneyVendorCategorySuggestion() {
+        if (!elements.moneyQuickVendor || !elements.moneyQuickCategory || !moneyCore) {
+          return;
+        }
+        var suggestedCategory = moneyCore.categorizeVendor(elements.moneyQuickVendor.value, getMoneyVendorRules());
+        if (suggestedCategory) {
+          elements.moneyQuickCategory.value = suggestedCategory;
+        }
+      }
+
+      function moneyImpactMessage(beforeState, afterState, transaction) {
+        var category = afterState.categories.find(function (item) {
+          return item.id === transaction.categoryId;
+        });
+        var changeWeek = (beforeState ? beforeState.month.availableWeekCents : 0) - afterState.month.availableWeekCents;
+        var intro = "Saved " + formatMoney(transaction.amountCents) + " to " + moneyCategoryName(transaction.categoryId) + ".";
+        var pace = " This week now has " + formatMoney(afterState.month.availableWeekCents) + " left and this month has " + formatMoney(afterState.month.remainingCents) + " left.";
+        var categoryLine = category
+          ? " " + category.name + " now has " + formatMoney(category.remainingCents) + " left this month and about " + formatMoney(category.weeklyBudgetCents) + " for the week."
+          : "";
+        if (changeWeek <= 0) {
+          return intro + categoryLine;
+        }
+        return intro + " This week's remaining changed by " + formatMoney(changeWeek) + "." + categoryLine + pace;
+      }
+
+      function addMoneyTransaction(event) {
+        event.preventDefault();
+        if (!moneyCore) {
+          return;
+        }
+        var amountCents = moneyCore.parseAmountToCents(elements.moneyQuickAmount.value);
+        var categoryId = elements.moneyQuickCategory.value;
+        var vendor = elements.moneyQuickVendor.value.trim();
+        if (!amountCents || amountCents <= 0) {
+          elements.moneyQuickImpact.textContent = "Add a valid amount before saving.";
+          elements.moneyQuickAmount.focus();
+          return;
+        }
+        if (!categoryId) {
+          elements.moneyQuickImpact.textContent = "Choose a category before saving.";
+          elements.moneyQuickCategory.focus();
+          return;
+        }
+
+        var beforeState = getMoneyState();
+        var transactions = getMoneyTransactions();
+        var transaction = {
+          id: moneyCore.makeId("txn"),
+          date: formatDate(today),
+          amountCents: amountCents,
+          categoryId: categoryId,
+          vendor: vendor,
+          note: "",
+          createdAt: new Date().toISOString()
+        };
+        transactions.unshift(transaction);
+        saveMoneyTransactions(transactions);
+        upsertMoneyVendorRule(vendor, categoryId);
+        var afterState = getMoneyState();
+        moneyLastImpactMessage = moneyImpactMessage(beforeState, afterState, transaction);
+        elements.moneyQuickAmount.value = "";
+        elements.moneyQuickVendor.value = "";
+        renderMoney();
+        elements.moneyQuickAmount.focus();
+      }
+
+      function addMoneyTransfer(event) {
+        event.preventDefault();
+        if (!moneyCore) {
+          return;
+        }
+        var amountCents = moneyCore.parseAmountToCents(elements.moneyTransferAmount.value);
+        var fromCategoryId = elements.moneyTransferFrom.value;
+        var toCategoryId = elements.moneyTransferTo.value;
+        if (!amountCents || amountCents <= 0 || !fromCategoryId || !toCategoryId || fromCategoryId === toCategoryId) {
+          return;
+        }
+        updateMoneySettings(function (settings) {
+          settings.transfers = Array.isArray(settings.transfers) ? settings.transfers : [];
+          settings.transfers.unshift({
+            id: moneyCore.makeId("transfer"),
+            fromCategoryId: fromCategoryId,
+            toCategoryId: toCategoryId,
+            amountCents: amountCents,
+            note: "",
+            createdAt: new Date().toISOString()
+          });
+        });
+        elements.moneyTransferAmount.value = "";
+      }
+
+      function deleteMoneyTransfer(transferId) {
+        updateMoneySettings(function (settings) {
+          settings.transfers = (Array.isArray(settings.transfers) ? settings.transfers : []).filter(function (transfer) {
+            return transfer.id !== transferId;
+          });
+        });
+      }
+
+      function renderMoneyQuickSummary(state) {
+        if (!elements.moneyQuickSummary || !state) {
+          return;
+        }
+        var items = [
+          { label: "Remaining this week", value: state.month.availableWeekCents },
+          { label: "Remaining this month", value: state.month.flexibleRemainingCents }
+        ];
+        elements.moneyQuickSummary.innerHTML = "";
+        items.forEach(function (item) {
+          var card = document.createElement("div");
+          card.className = "money-mini-stat" + (item.value < 0 ? " is-negative" : "");
+          card.innerHTML = "<span>" + item.label + "</span><strong>" + formatMoney(item.value) + "</strong>";
+          elements.moneyQuickSummary.appendChild(card);
+        });
+        if (elements.moneyPaceBadge) {
+          elements.moneyPaceBadge.textContent = state.month.paceDeltaCents > 0 ? "Above pace" : "On pace";
+        }
+        if (elements.moneyQuickImpact) {
+          elements.moneyQuickImpact.textContent = moneyLastImpactMessage;
+        }
+      }
+
+      function renderMoneyQuickShortcuts(state) {
+        if (!elements.moneyQuickShortcuts || !state) {
+          return;
+        }
+        elements.moneyQuickShortcuts.innerHTML = "";
+        moneyQuickShortcutCategories(state).forEach(function (category) {
+          var button = document.createElement("button");
+          button.type = "button";
+          button.className = "money-shortcut";
+          button.innerHTML = "<strong>" + category.name + "</strong><span>" + formatMoney(category.weeklyBudgetCents || category.budgetCents) + " / week</span>";
+          button.addEventListener("click", function () {
+            if (elements.moneyQuickCategory) {
+              elements.moneyQuickCategory.value = category.id;
+            }
+            if (elements.moneyQuickAmount) {
+              elements.moneyQuickAmount.focus();
+            }
+          });
+          elements.moneyQuickShortcuts.appendChild(button);
+        });
+      }
+
+      function renderMoneyOverview(state) {
+        if (!elements.moneyOverviewGrid || !state) {
+          return;
+        }
+        var items = [
+          { label: "Remaining this week", value: state.month.availableWeekCents, note: state.currentWeek.start + " to " + state.currentWeek.end },
+          { label: "Flexible money left", value: state.month.flexibleRemainingCents, note: "Adjustable spending." }
+        ];
+        elements.moneyOverviewGrid.innerHTML = "";
+        items.forEach(function (item) {
+          var card = document.createElement("div");
+          card.className = "money-mini-stat" + (item.value < 0 ? " is-negative" : "");
+          card.innerHTML = "<span>" + item.label + "</span><strong>" + formatMoney(item.value) + "</strong><span>" + item.note + "</span>";
+          elements.moneyOverviewGrid.appendChild(card);
+        });
+        if (elements.moneyMonthLabel) {
+          elements.moneyMonthLabel.textContent = monthNames[today.getMonth()] + " " + today.getFullYear();
+        }
+      }
+
+      function renderMoneyBudgetEditor(state) {
+        if (!elements.moneyCategoryBudgetList || !state) {
+          return;
+        }
+        if (elements.moneyMonthlyTarget) {
+          elements.moneyMonthlyTarget.value = (state.month.targetCents / 100).toFixed(2).replace(/\.00$/, "");
+        }
+        var wrapper = document.createElement("div");
+        wrapper.className = "money-budget-list";
+        var sections = [
+          {
+            key: "fixed",
+            title: "Fixed",
+            note: "Protected baseline.",
+            categories: state.categories.filter(function (category) { return category.kind === "fixed"; })
+          },
+          {
+            key: "flexible",
+            title: "Flexible",
+            note: "Weekly pace.",
+            categories: state.categories.filter(function (category) { return category.kind !== "fixed"; })
+          }
+        ];
+
+        sections.forEach(function (section) {
+          var sectionCard = document.createElement("details");
+          sectionCard.className = "money-budget-section";
+          sectionCard.open = !!moneyBudgetSectionState[section.key];
+          sectionCard.addEventListener("toggle", function () {
+            moneyBudgetSectionState[section.key] = sectionCard.open;
+          });
+          sectionCard.innerHTML = "<summary class=\"money-budget-section-head\"><strong>" + section.title + "</strong><span>" + section.note + " · " + section.categories.length + "</span></summary>";
+          var grid = document.createElement("div");
+          grid.className = "money-budget-grid";
+
+          section.categories.forEach(function (category) {
+          var row = document.createElement("div");
+          row.className = "money-budget-row money-budget-row-" + category.kind + (category.remainingCents < 0 ? " is-negative" : "");
+
+          var head = document.createElement("div");
+          head.className = "money-budget-head";
+          head.innerHTML = [
+            "<div class=\"money-budget-title-block\">",
+            "<strong>", category.name, "</strong>",
+            "<span class=\"money-budget-kind\">", (category.kind === "fixed" ? "Fixed" : "Flex"), "</span>",
+            "</div>",
+            "<div class=\"money-budget-summary\">",
+            "<span>Spent ", formatMoney(category.spentCents), "</span>",
+            "<strong>", formatMoney(category.remainingCents), " left</strong>",
+            "</div>"
+          ].join("");
+
+          var inputs = document.createElement("div");
+          inputs.className = "money-budget-inputs";
+          inputs.appendChild(createMoneyBudgetField(
+            category,
+            "budgetCents",
+            "Month",
+            (category.budgetCents / 100).toFixed(2).replace(/\.00$/, "")
+          ));
+          inputs.appendChild(createMoneyBudgetField(
+            category,
+            "weeklyBudgetCents",
+            "Week",
+            (category.weeklyBudgetCents / 100).toFixed(2).replace(/\.00$/, "")
+          ));
+
+          var metrics = document.createElement("div");
+          metrics.className = "money-budget-metrics";
+          metrics.innerHTML = "<span class=\"money-budget-pace\">Guide " + formatMoney(category.weeklyBudgetCents) + " / week</span>";
+
+          row.appendChild(head);
+          row.appendChild(inputs);
+          row.appendChild(metrics);
+          grid.appendChild(row);
+          });
+
+          sectionCard.appendChild(grid);
+          wrapper.appendChild(sectionCard);
+        });
+
+        elements.moneyCategoryBudgetList.innerHTML = "";
+        elements.moneyCategoryBudgetList.appendChild(wrapper);
+      }
+
+      function renderMoneyTransfers() {
+        if (!elements.moneyTransferList) {
+          return;
+        }
+        var settings = getMoneySettings();
+        elements.moneyTransferList.innerHTML = "";
+        (settings.transfers || []).forEach(function (transfer) {
+          var row = document.createElement("div");
+          row.className = "money-transfer-row";
+          row.innerHTML = "<strong>" + moneyCategoryName(transfer.toCategoryId) + "</strong><span>" + formatMoney(transfer.amountCents) + " moved from " + moneyCategoryName(transfer.fromCategoryId) + "</span>";
+          var remove = document.createElement("button");
+          remove.type = "button";
+          remove.className = "secondary-button";
+          remove.textContent = "Delete";
+          remove.addEventListener("click", function () {
+            deleteMoneyTransfer(transfer.id);
+          });
+          row.appendChild(remove);
+          elements.moneyTransferList.appendChild(row);
+        });
+      }
+
+      function appendMoneyBarChart(container, title, rows, formatter) {
+        var card = document.createElement("div");
+        card.className = "mini-chart money-chart-card";
+        var heading = document.createElement("strong");
+        heading.className = "chart-title";
+        heading.textContent = title;
+        card.appendChild(heading);
+        var list = document.createElement("div");
+        list.className = "money-bar-list";
+        var maxValue = rows.reduce(function (max, row) {
+          return Math.max(max, row.value);
+        }, 0) || 1;
+        rows.forEach(function (row) {
+          var item = document.createElement("div");
+          item.className = "money-bar-row";
+          item.innerHTML = "<div class=\"money-bar-head\"><span>" + row.label + "</span><span>" + formatter(row.value) + "</span></div>";
+          var track = document.createElement("div");
+          track.className = "money-bar-track";
+          var fill = document.createElement("span");
+          var widthPercent = typeof row.fillPercent === "number"
+            ? Math.max(0, Math.min(100, row.fillPercent))
+            : Math.max(4, Math.round((row.value / maxValue) * 100));
+          fill.style.width = widthPercent + "%";
+          track.appendChild(fill);
+          item.appendChild(track);
+          list.appendChild(item);
+        });
+        card.appendChild(list);
+        container.appendChild(card);
+      }
+
+      function appendMoneyBarChartDropdown(container, title, rows, formatter, options) {
+        options = options || {};
+        var details = document.createElement("details");
+        details.className = "mini-chart money-chart-card money-chart-dropdown";
+
+        var summary = document.createElement("summary");
+        summary.className = "money-chart-summary";
+        summary.innerHTML = "<strong class=\"chart-title\">" + title + "</strong><span>" + (options.summaryText || "Show") + "</span>";
+        details.appendChild(summary);
+
+        var limitedRows = rows.slice(0, options.maxRows || 12);
+        var list = document.createElement("div");
+        list.className = "money-bar-list";
+        var maxValue = limitedRows.reduce(function (max, row) {
+          return Math.max(max, row.value);
+        }, 0) || 1;
+
+        limitedRows.forEach(function (row) {
+          var item = document.createElement("div");
+          item.className = "money-bar-row";
+          item.innerHTML = "<div class=\"money-bar-head\"><span>" + row.label + "</span><span>" + formatter(row.value) + "</span></div>";
+          var track = document.createElement("div");
+          track.className = "money-bar-track";
+          var fill = document.createElement("span");
+          fill.style.width = Math.max(4, Math.round((row.value / maxValue) * 100)) + "%";
+          track.appendChild(fill);
+          item.appendChild(track);
+          list.appendChild(item);
+        });
+
+        details.appendChild(list);
+        container.appendChild(details);
+      }
+
+      function appendMoneyProgressCard(container, title, spentCents, budgetCents, options) {
+        options = options || {};
+        var remainingCents = budgetCents - spentCents;
+        var usedPercent = budgetCents > 0 ? Math.round((spentCents / budgetCents) * 100) : 0;
+        var card = document.createElement("div");
+        card.className = "mini-chart money-chart-card money-progress-card" + (remainingCents < 0 ? " is-negative" : "");
+        card.innerHTML = [
+          "<strong class=\"chart-title\">", title, "</strong>",
+          "<div class=\"money-progress-copy\">",
+          "<span>", formatMoney(spentCents), " spent of ", formatMoney(budgetCents), "</span>",
+          "<span>", formatMoney(remainingCents), " remaining</span>",
+          "<span>", usedPercent, "% used</span>",
+          "</div>"
+        ].join("");
+        var track = document.createElement("div");
+        track.className = "money-progress-track";
+        var fill = document.createElement("span");
+        fill.style.width = Math.max(4, Math.min(100, usedPercent)) + "%";
+        track.appendChild(fill);
+        card.appendChild(track);
+
+        if (options.estimatedTotalCents != null) {
+          var estimateWrap = document.createElement("div");
+          estimateWrap.className = "money-estimate-block";
+          estimateWrap.innerHTML = [
+            "<div class=\"money-bar-head\"><span>Estimated spending</span><span>",
+            formatMoney(options.estimatedTotalCents),
+            "</span></div>"
+          ].join("");
+          var estimateTrack = document.createElement("div");
+          estimateTrack.className = "money-bar-track";
+          var estimateFill = document.createElement("span");
+          var estimatePercent = budgetCents > 0 ? Math.round((options.estimatedTotalCents / budgetCents) * 100) : 0;
+          estimateFill.style.width = Math.max(4, Math.min(100, estimatePercent)) + "%";
+          estimateTrack.appendChild(estimateFill);
+          estimateWrap.appendChild(estimateTrack);
+          card.appendChild(estimateWrap);
+        }
+
+        container.appendChild(card);
+      }
+
+      function renderMoneyProgress(state) {
+        if (!elements.moneyProgressList || !state) {
+          return;
+        }
+        elements.moneyProgressList.innerHTML = "";
+        appendMoneyProgressCard(
+          elements.moneyProgressList,
+          "Monthly spending",
+          state.month.spentCents,
+          state.month.targetCents,
+          { estimatedTotalCents: state.month.projectedTotalCents }
+        );
+        appendMoneyProgressCard(
+          elements.moneyProgressList,
+          "Flexible spending",
+          state.month.flexibleSpentCents,
+          state.month.flexibleBudgetCents
+        );
+      }
+
+      function renderMoneyCharts(state) {
+        if (!elements.moneyCharts || !state) {
+          return;
+        }
+        elements.moneyCharts.innerHTML = "";
+        appendMoneyBarChart(elements.moneyCharts, "Remaining by category", state.categories.filter(function (category) {
+          return category.kind === "flex";
+        }).slice().sort(function (a, b) {
+          return a.name.localeCompare(b.name);
+        }).map(function (category) {
+          var spentPercent = category.budgetCents > 0
+            ? Math.round((category.spentCents / category.budgetCents) * 100)
+            : (category.spentCents > 0 ? 100 : 0);
+          return {
+            label: category.name,
+            value: Math.max(0, category.remainingCents),
+            fillPercent: spentPercent
+          };
+        }), formatMoney);
+        appendMoneyBarChartDropdown(elements.moneyCharts, "Monthly spending over time", state.month.monthlyTotalsRows.slice().reverse().map(function (row) {
+          return {
+            label: row.label,
+            value: row.spentCents
+          };
+        }), formatMoney, {
+          summaryText: "Show up to 12 months",
+          maxRows: 12
+        });
+      }
+
+      function renderMoneyVendors(state) {
+        if (!elements.moneyVendorList || !state) {
+          return;
+        }
+        var wrapper = document.createElement("div");
+        wrapper.className = "money-vendor-list";
+        var topVendors = state.vendors.slice(0, 8);
+        if (!topVendors.length) {
+          wrapper.innerHTML = "<div class=\"money-vendor-row\"><strong>No vendors yet</strong><span>Transactions with vendor names will build this automatically.</span></div>";
+        }
+        topVendors.forEach(function (vendor) {
+          var row = document.createElement("div");
+          row.className = "money-vendor-row";
+          row.innerHTML = [
+            "<div class=\"money-vendor-head\"><strong>", vendor.vendor, "</strong><span>",
+            moneyCategoryName(vendor.topCategoryId),
+            " · ", vendor.count, " visits · avg ", formatMoney(vendor.averageCents),
+            "</span></div>",
+            "<div class=\"money-vendor-metrics\"><strong>", formatMoney(vendor.spentCents), "</strong><span>Prev month ",
+            formatMoney(vendor.previousMonthSpentCents), "</span></div>"
+          ].join("");
+          wrapper.appendChild(row);
+        });
+        elements.moneyVendorList.innerHTML = "";
+        elements.moneyVendorList.appendChild(wrapper);
+      }
+
+      function renderMoneyRecentActivity(state) {
+        if (!elements.moneyRecentActivity || !state) {
+          return;
+        }
+        elements.moneyRecentActivity.innerHTML = "";
+        var recentTransactions = state.transactions.slice(0, 8);
+        if (!recentTransactions.length) {
+          elements.moneyRecentActivity.innerHTML = "<div class=\"money-vendor-row\"><strong>No activity yet</strong><span>Your latest spending will show up here.</span></div>";
+          return;
+        }
+        recentTransactions.forEach(function (entry) {
+          var row = document.createElement("div");
+          row.className = "money-vendor-row";
+          row.innerHTML = [
+            "<div class=\"money-vendor-head\"><strong>", moneyCategoryName(entry.categoryId), "</strong><span>",
+            entry.vendor || "No vendor", " · ", entry.date,
+            "</span></div>",
+            "<div class=\"money-vendor-metrics\"><strong>", formatMoney(entry.amountCents), "</strong><span>",
+            moneyCategoryName(entry.categoryId), "</span></div>"
+          ].join("");
+          elements.moneyRecentActivity.appendChild(row);
+        });
+      }
+
+      function renderMoneyPage() {
+        var state = getMoneyState();
+        if (!state) {
+          return;
+        }
+        renderMoneyOverview(state);
+        renderMoneyProgress(state);
+        renderMoneyBudgetEditor(state);
+        renderMoneyTransfers();
+        renderMoneyCharts(state);
+        renderMoneyVendors(state);
+        renderMoneyRecentActivity(state);
+      }
+
+      function renderMoneyDashboard() {
+        var state = getMoneyState();
+        if (!state) {
+          return;
+        }
+        syncMoneyCategoryInputs();
+        renderMoneyQuickSummary(state);
+        renderMoneyQuickShortcuts(state);
+      }
+
+      function renderMoney() {
+        renderMoneyDashboard();
+        renderMoneyPage();
+      }
+
+      function renderJobApplications() {
+        if (!elements.jobStatsLine) {
+          return;
+        }
+        var week = weekRange(today);
+        var entries = getJobApplications();
+        var weekCount = entries.filter(function (entry) {
+          var entryDate = parseDate(entry.date);
+          return dateInRange(entryDate, week.start, week.end);
+        }).length;
+        elements.jobStatsLine.textContent = "This week: " + weekCount + " / 2 · Total sent: " + entries.length;
       }
 
       function renderActivities() {
@@ -1207,22 +2884,22 @@
           option.textContent = activity.label;
           elements.taskActivity.appendChild(option);
         });
+        elements.taskActivity.value = "other";
       }
 
       // Today's tasks are editable and saved by exact date.
       function renderTasks() {
         var todayKey = formatDate(today);
-        var todayPlan = taskPlan[today.getDay()];
         var tasks = getTodayTasks();
         var doneCount = 0;
         var dashboardDate = document.getElementById("dashboardDate");
 
-        elements.todaySubtitle.textContent = "Graduation and job hunt are getting closer, one calm block at a time.";
+        elements.todaySubtitle.textContent = "A soft little map for the shape of your day.";
         if (dashboardDate) {
           dashboardDate.textContent = humanDate(todayKey);
         }
-        elements.weekKeyLabel.textContent = "Saved for " + todayKey;
-        elements.dayMessage.textContent = todayPlan.message;
+        elements.weekKeyLabel.textContent = "Live plan for " + todayKey;
+        elements.dayMessage.textContent = "Tasks from your calendar and planner.";
         elements.tasksMount.innerHTML = "";
 
         if (tasks.length === 0) {
@@ -1547,7 +3224,7 @@
             return;
           }
           var sessionDate = parseDate(session.finishedAt.slice(0, 10));
-          if (dateInRange(sessionDate, start, end)) {
+          if (dateInRange(sessionDate, start, end) && !session.trackedInTask) {
             totals.skate += Math.max(0, Number(session.durationHours) || 0);
           }
         });
@@ -1624,11 +3301,48 @@
       }
 
       function renderTotals() {
+        renderWeeklyGoals();
         renderLifePie();
         renderPlannedActual();
+        renderJobApplications();
         renderStudyOverview();
         renderRoutinePlanner();
         renderGoalPlanner();
+        renderMoneyDashboard();
+      }
+
+      function renderWeeklyGoals() {
+        if (!elements.weeklyGoals) {
+          return;
+        }
+        elements.weeklyGoals.innerHTML = "";
+        getWeeklyGoals().forEach(function (goal) {
+          var card = document.createElement("div");
+          card.className = "weekly-goal-card";
+
+          var track = document.createElement("div");
+          track.className = "weekly-goal-track";
+          track.innerHTML = "<span class=\"weekly-goal-dot " + goal.id + "\"></span><span>" + goal.label + "</span>";
+          card.appendChild(track);
+
+          var input = document.createElement("input");
+          input.className = "weekly-goal-input";
+          input.type = "text";
+          input.maxLength = 120;
+          input.placeholder = goal.placeholder;
+          input.value = goal.text;
+          input.setAttribute("aria-label", goal.label + " weekly goal");
+          input.addEventListener("change", function () {
+            var latest = getWeeklyGoals().map(function (item) {
+              return item.id === goal.id ? Object.assign({}, item, { text: input.value.trim() }) : item;
+            });
+            saveWeeklyGoals(latest);
+            renderWeeklyGoals();
+          });
+          card.appendChild(input);
+
+          elements.weeklyGoals.appendChild(card);
+        });
       }
 
       // Study/leisure stats are calculated from saved task hours.
@@ -1757,6 +3471,9 @@
       }
 
       function renderStudyOverview() {
+        if (!elements.studyOverviewWeek || !elements.studyOverview) {
+          return;
+        }
         var dates = weekDates(today);
         var studyOverview = getWeekOverview(STORAGE.studyOverviewPrefix, today);
         var skateBodyOverview = getWeekOverview(STORAGE.skateBodyOverviewPrefix, today);
@@ -2019,9 +3736,81 @@
         return calendarCore.groupEventsByPart(eventsForDate(dateKey));
       }
 
+      function parseEventTimeRange(title) {
+        var text = String(title || "").trim();
+        var match = text.match(/^(\d{1,2})(?::?(\d{2}))?\s*[-–]\s*(\d{1,2})(?::?(\d{2}))?(?=\s|$)/);
+        if (!match) {
+          return null;
+        }
+        var startHours = Number(match[1]);
+        var startMinutes = match[2] ? Number(match[2]) : 0;
+        var endHours = Number(match[3]);
+        var endMinutes = match[4] ? Number(match[4]) : 0;
+        if (startHours > 23 || startMinutes > 59 || endMinutes > 59) {
+          return null;
+        }
+        if (endHours > 24 || (endHours === 24 && endMinutes !== 0)) {
+          return null;
+        }
+        var start = (startHours * 60) + startMinutes;
+        var end = (endHours * 60) + endMinutes;
+        if (end <= start) {
+          return null;
+        }
+        return {
+          start: start,
+          end: end
+        };
+      }
+
+      function timeBoundaryForPart(part) {
+        if (part === "morning") {
+          return { start: 0, end: MORNING_END };
+        }
+        if (part === "afternoon") {
+          return { start: MORNING_END, end: EVENING_START };
+        }
+        return { start: EVENING_START, end: 24 * 60 };
+      }
+
+      function formatEventClock(totalMinutes) {
+        var minutes = Math.max(0, Math.min(24 * 60, Number(totalMinutes) || 0));
+        if (minutes === 24 * 60) {
+          return "24";
+        }
+        var hours = Math.floor(minutes / 60);
+        var remainder = minutes % 60;
+        if (!remainder) {
+          return String(hours);
+        }
+        return String(hours) + ":" + String(remainder).padStart(2, "0");
+      }
+
+      function eventTitleWithoutLeadingTime(title) {
+        return String(title || "")
+          .replace(/^(\d{1,2})(?::?(\d{2}))?(?:\s*[-–]\s*(\d{1,2})(?::?(\d{2}))?)?\s*/, "")
+          .trim();
+      }
+
+      function weeklyPlannerEventLabel(event, part) {
+        var range = parseEventTimeRange(event && event.title);
+        if (!range) {
+          return event.title;
+        }
+        var boundary = timeBoundaryForPart(part);
+        var clippedStart = Math.max(range.start, boundary.start);
+        var clippedEnd = Math.min(range.end, boundary.end);
+        if (clippedEnd <= clippedStart) {
+          return event.title;
+        }
+        var label = eventTitleWithoutLeadingTime(event.title);
+        var clippedTime = formatEventClock(clippedStart) + "-" + formatEventClock(clippedEnd);
+        return label ? clippedTime + " " + label : clippedTime;
+      }
+
       function todayFocusText(eventsByPart, part, fallback) {
         var items = eventsByPart[part] || [];
-        return items.length ? items[0].title : fallback;
+        return items.length ? items.map(function (item) { return item.title; }).join(" · ") : fallback;
       }
 
       function renderTodayIntention() {
@@ -2033,29 +3822,30 @@
         var type = dayTypeById(routineDayForDate(today).day.type);
         var grouped = groupedEventsForDate(todayKey);
         var allTodayEvents = eventsForDate(todayKey);
+        var studyTarget = routineStudyTargetForWeek(today);
 
-        elements.todaySubtitle.textContent = "A bright little morning map for Hive study days.";
-        elements.weekKeyLabel.textContent = isoWeekKey(today);
+        elements.todaySubtitle.textContent = "A soft little map for the shape of your day.";
+        elements.weekKeyLabel.textContent = isoWeekKey(today) + (studyTarget ? " · Study target " + studyTarget : "");
         if (dashboardDate) {
           dashboardDate.textContent = humanDate(todayKey);
         }
         elements.todayThemeBadge.textContent = type.label;
         elements.todayThemeBadge.className = "progress-pill day-type-pill " + type.className;
-        elements.todayThemeLine.textContent = humanDate(todayKey) + " is a " + type.label.toLowerCase() + ".";
+        elements.todayThemeLine.textContent = humanDate(todayKey) + " is set up as a " + type.label.toLowerCase() + ".";
 
         elements.todayIntentionMount.innerHTML = "";
         [
           {
             label: "Morning",
-            text: todayFocusText(grouped, "morning", "Keep the start gentle.")
+            text: todayFocusText(grouped, "morning", "Start with the thing that unlocks the rest of the day.")
           },
           {
             label: "Afternoon",
-            text: todayFocusText(grouped, "afternoon", "Pick one main block that matters.")
+            text: todayFocusText(grouped, "afternoon", "Protect one real work block here.")
           },
           {
             label: "Evening",
-            text: todayFocusText(grouped, "evening", "Leave room to wind down.")
+            text: todayFocusText(grouped, "evening", "Close loops, then let the day end properly.")
           }
         ].forEach(function (entry) {
           var row = document.createElement("div");
@@ -2067,7 +3857,7 @@
         if (!allTodayEvents.length) {
           var note = document.createElement("p");
           note.className = "balance-note";
-          note.textContent = "Nothing fixed yet. A light plan is still a real plan.";
+          note.textContent = "Nothing is locked in yet. That can still be a smart day.";
           elements.todayIntentionMount.appendChild(note);
         }
       }
@@ -2077,11 +3867,13 @@
           return;
         }
         var referenceDate = parseDate(selectedDate);
+        ensureRoutineEventsAroundDate(referenceDate);
         var dates = weekDates(referenceDate);
         var routine = getWeeklyRoutine(referenceDate);
+        var studyTarget = routineStudyTargetForWeek(referenceDate);
 
         if (elements.weeklyPlannerLabel) {
-          elements.weeklyPlannerLabel.textContent = isoWeekKey(referenceDate) + " · Morning · Afternoon · Evening";
+          elements.weeklyPlannerLabel.textContent = isoWeekKey(referenceDate) + (studyTarget ? " · Study target " + studyTarget : "") + " · Morning · Afternoon · Evening";
         }
 
         elements.weeklyPlannerMount.innerHTML = "";
@@ -2136,7 +3928,7 @@
                 var button = document.createElement("button");
                 button.type = "button";
                 button.className = "week-event-button " + categoryClass(event.category);
-                button.textContent = event.title;
+                button.textContent = weeklyPlannerEventLabel(event, part);
                 button.title = event.note ? event.title + " - " + event.note : event.title;
                 button.addEventListener("click", function () {
                   startEditEvent(event.id);
@@ -2599,7 +4391,7 @@
           }),
           skillDone: false,
           expandedStage: "warmup",
-          startedAt: new Date().toISOString()
+          startedAt: null
         };
       }
 
@@ -2638,12 +4430,15 @@
           }),
           skillDone: Boolean(session.skillDone),
           expandedStage: ["warmup", "focus", "skill", ""].indexOf(session.expandedStage) !== -1 ? session.expandedStage : "warmup",
-          startedAt: session.startedAt || new Date().toISOString()
+          startedAt: transientSessionStarts.skate
         };
       }
 
       function saveCurrentSkateSession(session) {
-        writeJson(STORAGE.skateCurrentSession, session);
+        transientSessionStarts.skate = typeof (session && session.startedAt) === "string" ? session.startedAt : null;
+        var persistentSession = Object.assign({}, session);
+        delete persistentSession.startedAt;
+        writeJson(STORAGE.skateCurrentSession, persistentSession);
       }
 
       function getSkateSessions() {
@@ -2653,6 +4448,25 @@
 
       function saveSkateSessions(sessions) {
         writeJson(STORAGE.skateSessions, sessions);
+      }
+
+      function getCurrentGuitarSession() {
+        return {
+          startedAt: transientSessionStarts.guitar
+        };
+      }
+
+      function saveCurrentGuitarSession(session) {
+        transientSessionStarts.guitar = typeof (session && session.startedAt) === "string" ? session.startedAt : null;
+      }
+
+      function getGuitarSessions() {
+        var sessions = readJson(STORAGE.guitarSessions, []);
+        return Array.isArray(sessions) ? sessions : [];
+      }
+
+      function saveGuitarSessions(sessions) {
+        writeJson(STORAGE.guitarSessions, sessions);
       }
 
       function renderWorkoutOptions() {
@@ -2701,7 +4515,7 @@
           { label: "Quality", values: series.quality, summary: scoreLabel(average(series.quality)), className: "skate" }
         ]));
         elements.skateTrendCharts.appendChild(createTrendChart("Leg soreness over time", [
-          { label: "Soreness", values: series.soreness, summary: scoreLabel(average(series.soreness)), className: "p90x3" }
+          { label: "Soreness", values: series.soreness, summary: scoreLabel(average(series.soreness)), className: "gym" }
         ]));
         elements.skateTrendCharts.appendChild(createFrequencyChart("Session frequency", frequency.rows, "No sessions in this range yet."));
         renderSkateTrendPeriodTabs();
@@ -2902,40 +4716,131 @@
         elements.skateTargetInput.value = target;
         elements.skateWeekLabel.textContent = isoWeekKey(today);
         elements.skateSessionCount.textContent = skateSessionsThisWeek + " / " + target;
+        elements.skateSessionHint.textContent = session.startedAt
+          ? "Skate session running · " + formatTimer(startedSessionSeconds(session.startedAt))
+          : "Hit start when the session begins. Finish it when you know what actually happened.";
+        if (elements.startSkateSession) {
+          elements.startSkateSession.disabled = Boolean(session.startedAt);
+        }
+        if (elements.finishSkateSession) {
+          elements.finishSkateSession.disabled = !session.startedAt;
+        }
         elements.skateCoachFlow.innerHTML = "";
         renderSkateWeeklyMetrics();
         renderSkateTrendCharts();
-        elements.skateCoachFlow.appendChild(renderCoachWarmupStage(session, template));
         elements.skateCoachFlow.appendChild(renderCoachFocusStage(session, template));
         elements.skateCoachFlow.appendChild(renderCoachSkillStage(session, template));
+      }
+
+      function countGuitarSessionsForWeek(date) {
+        var range = weekRange(date);
+        return getGuitarSessions().filter(function (session) {
+          return session && session.finishedAt && dateInRange(parseDate(session.finishedAt.slice(0, 10)), range.start, range.end);
+        }).length;
+      }
+
+      function guitarSessionsForWeek(date) {
+        var range = weekRange(date);
+        return getGuitarSessions().filter(function (session) {
+          return session && session.finishedAt && dateInRange(parseDate(session.finishedAt.slice(0, 10)), range.start, range.end);
+        });
+      }
+
+      function renderGuitarPage() {
+        if (!elements.guitarFocusInput) {
+          return;
+        }
+        var session = getCurrentGuitarSession();
+        var target = Math.max(1, Number(readText(STORAGE.guitarTarget, "4")) || 4);
+        var focus = readText(STORAGE.guitarFocus, "");
+        var nextStep = readText(STORAGE.guitarNextStep, "");
+        var sessions = getGuitarSessions().slice().sort(function (left, right) {
+          return String(right.finishedAt || "").localeCompare(String(left.finishedAt || ""));
+        });
+        var weekSessions = guitarSessionsForWeek(today);
+        var weekCount = weekSessions.length;
+        var weekMinutes = weekSessions.reduce(function (sum, entry) {
+          return sum + Math.round((Number(entry.durationHours) || 0) * 60);
+        }, 0);
+        var targetMinutes = target * 30;
+        var remainingSessions = Math.max(0, target - weekCount);
+        var remainingMinutes = Math.max(0, targetMinutes - weekMinutes);
+        var averageMinutes = weekCount ? Math.round(weekMinutes / weekCount) : 0;
+
+        elements.guitarFocusInput.value = focus;
+        elements.guitarNextStepInput.value = nextStep;
+        elements.guitarSessionStatus.textContent = sessionStatusText("Guitar", session.startedAt);
+        elements.guitarSessionHint.textContent = session.startedAt
+          ? "Finish when you stop. If a Guitar task exists today, the time can land there."
+          : "If a Guitar task is on today’s dashboard, the finished time can land there too.";
+        elements.startGuitarSession.disabled = Boolean(session.startedAt);
+        elements.finishGuitarSession.disabled = !session.startedAt;
+        elements.guitarSessionSummary.innerHTML = "";
+        elements.guitarRecentSessions.innerHTML = "";
+
+        [
+          {
+            label: "This week",
+            value: weekCount + " / " + target
+          },
+          {
+            label: "Weekly target",
+            value: String(target)
+          },
+          {
+            label: "Minutes played",
+            value: weekMinutes + " min"
+          },
+          {
+            label: "Average session",
+            value: averageMinutes ? averageMinutes + " min" : "Not yet"
+          }
+        ].forEach(function (item) {
+          var card = document.createElement("div");
+          card.className = "guitar-summary-card";
+          card.innerHTML = "<span>" + item.label + "</span><strong>" + item.value + "</strong>";
+          elements.guitarSessionSummary.appendChild(card);
+        });
+
+        if (session.startedAt) {
+          elements.guitarSessionPlan.textContent = "Session is live. Stay with " + (focus || "the thing you came here to practise") + " and save the real result after.";
+        } else if (remainingSessions > 0) {
+          elements.guitarSessionPlan.textContent = "This week: " + weekMinutes + " / " + targetMinutes + " min. " + remainingSessions + " more session" + (remainingSessions === 1 ? "" : "s") + " and about " + remainingMinutes + " min to hit the target."
+            + (nextStep ? " Practice next: " + nextStep + "." : "")
+            + (focus ? " Current focus: " + focus + "." : "");
+        } else {
+          elements.guitarSessionPlan.textContent = "Weekly target reached. Keep the good part going."
+            + (focus ? " Current focus: " + focus + "." : "")
+            + (nextStep ? " Small practice: " + nextStep + "." : "");
+        }
+
+        sessions.slice(0, 4).forEach(function (entry) {
+          var row = document.createElement("article");
+          row.className = "guitar-history-item";
+          var noteText = entry.note || entry.focus || entry.nextStep || "Saved session";
+          row.innerHTML = "<div><strong>" + humanDate(entry.finishedAt.slice(0, 10)) + "</strong><p>" + noteText + "</p></div><em>" + Math.round((Number(entry.durationHours) || 0) * 60) + " min</em>";
+          if (entry.focus || entry.nextStep) {
+            row.title = [entry.focus, entry.nextStep].filter(Boolean).join(" · ");
+          }
+          elements.guitarRecentSessions.appendChild(row);
+        });
+
+        if (!elements.guitarRecentSessions.children.length) {
+          var empty = document.createElement("p");
+          empty.className = "body-support-empty";
+          empty.textContent = "Finish one session and this space will start showing what you practised and how long you stayed with it.";
+          elements.guitarRecentSessions.appendChild(empty);
+        }
       }
 
       function renderCoachStageShell(options) {
         var section = document.createElement("section");
         section.className = "coach-stage " + (options.tone || "");
-        if (options.active) {
-          section.classList.add("is-active");
-        }
-        if (options.complete && !options.expanded) {
-          section.classList.add("is-collapsed");
-        }
 
         var head = document.createElement("div");
         head.className = "coach-stage-head";
-        head.innerHTML = "<span class=\"coach-stage-chip\">" + options.stageLabel + "</span><h3>" + options.title + "</h3><p>" + options.description + "</p>";
+        head.innerHTML = "<h3>" + options.title + "</h3><p>" + options.description + "</p>";
         section.appendChild(head);
-
-        if (options.complete && !options.expanded) {
-          var collapsed = document.createElement("button");
-          collapsed.type = "button";
-          collapsed.className = "coach-collapsed";
-          collapsed.innerHTML = "<strong>" + options.completeLabel + "</strong><span>" + options.summary + "</span>";
-          collapsed.addEventListener("click", function () {
-            setExpandedCoachStage(options.key);
-          });
-          section.appendChild(collapsed);
-          return section;
-        }
 
         section.appendChild(options.body);
         return section;
@@ -3105,14 +5010,8 @@
 
         return renderCoachStageShell({
           key: "focus",
-          stageLabel: "Stage 2",
           title: "Today's Focus",
-          description: "Work on one flat trick and one transition trick so the session stays clear and calm.",
-          summary: stageSummaryForFocus(session),
-          completeLabel: "✅ Focus block complete",
-          complete: session.focusDone,
-          expanded: session.expandedStage === "focus",
-          active: session.expandedStage === "focus",
+          description: "Pick two useful targets so the session has shape before you start throwing attempts around.",
           tone: "tone-focus",
           body: body
         });
@@ -3336,14 +5235,8 @@
 
         return renderCoachStageShell({
           key: "skill",
-          stageLabel: "Stage 3",
           title: "Skill Builder",
-          description: "Use a few supporting reps here so future tricks feel easier later.",
-          summary: stageSummaryForSkill(template),
-          completeLabel: "✅ Skill builder complete",
-          complete: session.skillDone,
-          expanded: session.expandedStage === "skill",
-          active: session.expandedStage === "skill",
+          description: "Use this part for the quiet reps that make tomorrow's skating less chaotic.",
           tone: "tone-skill",
           body: body
         });
@@ -3355,14 +5248,27 @@
         elements.skateSessionHint.textContent = message || "Fresh session checklist ready.";
       }
 
+      function startSkateSession() {
+        updateSkateSession(function (latest) {
+          latest.startedAt = new Date().toISOString();
+        });
+        elements.skateSessionHint.textContent = "Skate session started. Go get the reps.";
+      }
+
       function finishSkateSession() {
+        var session = getCurrentSkateSession();
+        if (!session.startedAt) {
+          elements.skateSessionHint.textContent = "Start the skate session first so the time has somewhere to begin.";
+          return;
+        }
         if (elements.skateFeedbackDialog && typeof elements.skateFeedbackDialog.showModal === "function") {
+          elements.skateDurationMinutes.value = String(sessionDurationMinutes(session.startedAt, 45));
           elements.skateImprovedNote.value = "";
           elements.skateNextFocusNote.value = "";
           elements.skateFeedbackDialog.showModal();
           return;
         }
-        saveFinishedSkateSession({ progressToday: 3, confidence: 3, improvedNote: "", nextFocusNote: "" });
+        saveFinishedSkateSession({ progressToday: 3, confidence: 3, improvedNote: "", nextFocusNote: "", durationMinutes: sessionDurationMinutes(session.startedAt, 45) });
       }
 
       function saveFinishedSkateSession(feedback) {
@@ -3371,6 +5277,8 @@
         var template = getSkateCoachTemplate();
         var focus = [session.selectedFlat, session.selectedTransition].filter(Boolean).join(" · ");
         var warmupItems = flattenWarmupItems(template);
+        var durationHours = Math.max(0, (Math.max(1, Number(feedback.durationMinutes) || sessionDurationMinutes(session.startedAt, 45))) / 60);
+        var linkedTask = syncSessionTimeToTodayTask("skate", durationHours);
 
         sessions.push({
           id: makeId("skate"),
@@ -3402,14 +5310,64 @@
             focusCards: session.focusCards,
             skillChecks: session.skillChecks
           },
-          // Session check-ins should not silently add tracked hours.
-          durationHours: 0,
+          durationHours: durationHours,
+          trackedInTask: Boolean(linkedTask),
           startedAt: session.startedAt,
           finishedAt: new Date().toISOString()
         });
         saveSkateSessions(sessions);
-        resetSkateSessionState("Session saved with a small check-in.");
+        resetSkateSessionState(linkedTask
+          ? "Session saved and added to \"" + linkedTask + "\"."
+          : "Session saved. No matching skate task was found today.");
         renderTotals();
+      }
+
+      function startGuitarSession() {
+        saveCurrentGuitarSession({ startedAt: new Date().toISOString() });
+        renderGuitarPage();
+      }
+
+      function finishGuitarSession() {
+        var session = getCurrentGuitarSession();
+        if (!session.startedAt) {
+          renderGuitarPage();
+          return;
+        }
+        if (elements.guitarSessionDialog && typeof elements.guitarSessionDialog.showModal === "function") {
+          elements.guitarDurationMinutes.value = String(sessionDurationMinutes(session.startedAt, 30));
+          elements.guitarSessionNote.value = "";
+          elements.guitarSessionDialog.showModal();
+          return;
+        }
+        saveFinishedGuitarSession({
+          durationMinutes: sessionDurationMinutes(session.startedAt, 30),
+          note: ""
+        });
+      }
+
+      function saveFinishedGuitarSession(feedback) {
+        var session = getCurrentGuitarSession();
+        var sessions = getGuitarSessions();
+        var durationHours = Math.max(0, (Math.max(1, Number(feedback.durationMinutes) || sessionDurationMinutes(session.startedAt, 30))) / 60);
+        var linkedTask = syncSessionTimeToTodayTask("guitar", durationHours);
+
+        sessions.push({
+          id: makeId("guitar"),
+          focus: readText(STORAGE.guitarFocus, ""),
+          nextStep: readText(STORAGE.guitarNextStep, ""),
+          note: feedback.note || "",
+          durationHours: durationHours,
+          trackedInTask: Boolean(linkedTask),
+          startedAt: session.startedAt,
+          finishedAt: new Date().toISOString()
+        });
+        saveGuitarSessions(sessions);
+        saveCurrentGuitarSession({ startedAt: null });
+        renderGuitarPage();
+        renderTotals();
+        elements.guitarSessionHint.textContent = linkedTask
+          ? "Session saved and added to \"" + linkedTask + "\"."
+          : "Session saved. No matching Guitar task was found today.";
       }
 
       function addBodyLog(event) {
@@ -3421,7 +5379,7 @@
         logs.push({
           id: makeId("body"),
           date: formatDate(today),
-          name: "P90X3",
+          name: "Gym",
           status: "done",
           minutes: 0,
           score: score,
@@ -3472,10 +5430,20 @@
         saveFinishedSkateSession({
           confidence: selectedScaleValue("confidence"),
           progressToday: selectedScaleValue("progressToday"),
+          durationMinutes: Number(elements.skateDurationMinutes.value) || 45,
           improvedNote: elements.skateImprovedNote.value.trim(),
           nextFocusNote: elements.skateNextFocusNote.value.trim()
         });
         elements.skateFeedbackDialog.close();
+      }
+
+      function submitGuitarSession(event) {
+        event.preventDefault();
+        saveFinishedGuitarSession({
+          durationMinutes: Number(elements.guitarDurationMinutes.value) || 30,
+          note: elements.guitarSessionNote.value.trim()
+        });
+        elements.guitarSessionDialog.close();
       }
 
       function setMascotBubble(text) {
@@ -3631,6 +5599,16 @@
         if (hasRunningTimer) {
           renderTotals();
         }
+        if (elements.skateSessionHint) {
+          var skateSession = getCurrentSkateSession();
+          if (skateSession.startedAt) {
+            elements.skateSessionHint.textContent = "Skate session running · " + formatTimer(startedSessionSeconds(skateSession.startedAt));
+          }
+        }
+        if (elements.guitarSessionStatus) {
+          var guitarSession = getCurrentGuitarSession();
+          elements.guitarSessionStatus.textContent = sessionStatusText("Guitar", guitarSession.startedAt);
+        }
       }
 
       // Calendar events are simple date pills saved with the rest of the planner data.
@@ -3639,6 +5617,8 @@
         var month = calendarCursor.getMonth();
         var firstOfMonth = new Date(year, month, 1);
         var start = new Date(year, month, 1 - firstOfMonth.getDay());
+        var end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 41);
+        ensureRoutineEventsForRange(firstOfMonth, end);
         var events = getEvents();
         var todayKey = formatDate(today);
 
@@ -3702,7 +5682,7 @@
 
           var pills = document.createElement("div");
           pills.className = "event-pills";
-          monthEvents.slice(0, 3).forEach(function (event) {
+          monthEvents.slice(0, 4).forEach(function (event) {
             var pill = document.createElement("button");
             pill.type = "button";
             pill.className = "event-pill " + categoryClass(event.category);
@@ -3714,10 +5694,10 @@
             });
             pills.appendChild(pill);
           });
-          if (monthEvents.length > 3) {
+          if (monthEvents.length > 4) {
             var more = document.createElement("span");
             more.className = "event-pill more-pill";
-            more.textContent = "+" + (monthEvents.length - 3) + " more";
+            more.textContent = "+" + (monthEvents.length - 4) + " more";
             pills.appendChild(more);
           }
           button.appendChild(pills);
@@ -3763,7 +5743,7 @@
 
           var tag = document.createElement("span");
           tag.className = "tag " + categoryClass(event.category);
-          tag.textContent = event.category;
+          tag.textContent = normalizeEventCategory(event.category);
 
           item.appendChild(title);
           item.appendChild(tag);
@@ -3827,7 +5807,7 @@
         elements.eventTitle.value = event.title || "";
         elements.eventDate.value = event.date || selectedDate;
         elements.eventNote.value = event.note || "";
-        elements.eventCategory.value = event.category || "Study deadline";
+        elements.eventCategory.value = normalizeEventCategory(event.category);
         elements.eventSaveButton.textContent = "Update event";
         renderCalendar();
         renderSelectedDate();
@@ -3862,7 +5842,7 @@
         event.preventDefault();
         var title = elements.eventTitle.value.trim();
         var note = elements.eventNote.value.trim();
-        var category = elements.eventCategory.value;
+        var category = normalizeEventCategory(elements.eventCategory.value);
         var eventDate = elements.eventDate.value || selectedDate;
 
         if (!title) {
@@ -3944,7 +5924,7 @@
       function plannerDataSnapshot() {
         var data = {};
         Object.keys(memoryStore).forEach(function (key) {
-          if (isPlannerKey(key)) {
+          if (isPlannerKey(key) && key !== STORAGE.guitarCurrentSession) {
             data[key] = memoryStore[key];
           }
         });
@@ -3983,11 +5963,12 @@
             var data = payload.data || payload;
             var imported = 0;
             Object.keys(data).forEach(function (key) {
-              if (isPlannerKey(key) && typeof data[key] === "string") {
+              if (isPlannerKey(key) && key !== STORAGE.guitarCurrentSession && typeof data[key] === "string") {
                 persistRaw(key, data[key]);
                 imported += 1;
               }
             });
+            sanitizeTransientSessionData();
             if (serverStorageAvailable) {
               fetch("/api/import", {
                 method: "POST",
@@ -3996,11 +5977,12 @@
               }).catch(function () {});
             }
             elements.backupStatus.textContent = "Imported " + imported + " saved items.";
-            renderGoals();
             renderTasks();
             renderTotals();
+            renderMoney();
             renderCalendar();
             renderSkatePage();
+            renderGuitarPage();
             renderSelectedDate();
           } catch (error) {
             elements.backupStatus.textContent = "That backup file could not be read.";
@@ -4027,6 +6009,18 @@
           renderCalendar();
         });
 
+        if (elements.prevWeek) {
+          elements.prevWeek.addEventListener("click", function () {
+            shiftSelectedWeek(-1);
+          });
+        }
+
+        if (elements.nextWeek) {
+          elements.nextWeek.addEventListener("click", function () {
+            shiftSelectedWeek(1);
+          });
+        }
+
         elements.eventForm.addEventListener("submit", addEvent);
         elements.eventDate.addEventListener("change", function () {
           if (elements.eventDate.value) {
@@ -4038,6 +6032,15 @@
         });
         if (elements.taskForm) {
           elements.taskForm.addEventListener("submit", addTask);
+        }
+        if (elements.moneyQuickForm) {
+          elements.moneyQuickForm.addEventListener("submit", addMoneyTransaction);
+        }
+        if (elements.moneyQuickVendor) {
+          elements.moneyQuickVendor.addEventListener("blur", applyMoneyVendorCategorySuggestion);
+        }
+        if (elements.moneyTransferForm) {
+          elements.moneyTransferForm.addEventListener("submit", addMoneyTransfer);
         }
         elements.exportData.addEventListener("click", exportBackup);
         elements.importData.addEventListener("change", importBackup);
@@ -4054,6 +6057,43 @@
           });
         }
 
+        if (elements.addJobApplication) {
+          elements.addJobApplication.addEventListener("click", function () {
+            var entries = getJobApplications();
+            entries.push({
+              id: makeId("job"),
+              date: formatDate(today),
+              createdAt: new Date().toISOString()
+            });
+            saveJobApplications(entries);
+            renderJobApplications();
+          });
+        }
+
+        if (elements.journalDate) {
+          elements.journalDate.addEventListener("change", function () {
+            selectJournalDate(elements.journalDate.value || formatDate(today));
+          });
+        }
+
+        if (elements.journalTodayButton) {
+          elements.journalTodayButton.addEventListener("click", function () {
+            selectJournalDate(formatDate(today));
+          });
+        }
+
+        if (elements.journalTitle) {
+          elements.journalTitle.addEventListener("input", saveJournalDraft);
+        }
+
+        if (elements.journalContent) {
+          elements.journalContent.addEventListener("input", saveJournalDraft);
+        }
+
+        if (elements.journalSearch) {
+          elements.journalSearch.addEventListener("input", renderJournalArchive);
+        }
+
         elements.skateFocusInput.addEventListener("input", function () {
           writeText(STORAGE.skateFocus, elements.skateFocusInput.value);
         });
@@ -4064,11 +6104,25 @@
           renderSkatePage();
         });
 
+        elements.startSkateSession.addEventListener("click", startSkateSession);
         elements.finishSkateSession.addEventListener("click", finishSkateSession);
         elements.bodyLogForm.addEventListener("submit", addBodyLog);
         elements.skateFeedbackForm.addEventListener("submit", submitSkateFeedback);
         elements.cancelSkateFeedback.addEventListener("click", function () {
           elements.skateFeedbackDialog.close();
+        });
+
+        elements.guitarFocusInput.addEventListener("input", function () {
+          writeText(STORAGE.guitarFocus, elements.guitarFocusInput.value);
+        });
+        elements.guitarNextStepInput.addEventListener("input", function () {
+          writeText(STORAGE.guitarNextStep, elements.guitarNextStepInput.value);
+        });
+        elements.startGuitarSession.addEventListener("click", startGuitarSession);
+        elements.finishGuitarSession.addEventListener("click", finishGuitarSession);
+        elements.guitarSessionForm.addEventListener("submit", submitGuitarSession);
+        elements.cancelGuitarSession.addEventListener("click", function () {
+          elements.guitarSessionDialog.close();
         });
       }
 
@@ -4077,10 +6131,12 @@
         renderActivities();
         renderWorkoutOptions();
         renderFeedbackScales();
-        renderGoals();
         renderTasks();
         renderTotals();
+        renderMoney();
+        renderJournalPage();
         renderSkatePage();
+        renderGuitarPage();
         renderSelectedDate();
         renderCalendar();
         bindEvents();

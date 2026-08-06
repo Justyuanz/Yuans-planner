@@ -18,10 +18,10 @@ import mimetypes
 import socket
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import unquote, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
 
 from config import planner_db_path, planner_host, planner_port
-from db import import_values, init_database, put_value, read_all_values
+from db import delete_value, import_values, init_database, put_value, read_all_values
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -97,6 +97,18 @@ class PlannerHandler(BaseHTTPRequestHandler):
             return
         imported = import_values(data)
         self.send_json({"ok": True, "imported": imported})
+
+    def do_DELETE(self) -> None:
+        parsed = urlparse(self.path)
+        if parsed.path != "/api/kv":
+            self.send_error(404)
+            return
+        key = parse_qs(parsed.query).get("key", [""])[0]
+        if not isinstance(key, str) or not key.startswith("hivePlanner."):
+            self.send_error(400, "Invalid planner key")
+            return
+        delete_value(key)
+        self.send_json({"ok": True})
 
     def serve_static(self, path: str, include_body: bool = True) -> None:
         if path == "/":
