@@ -18,7 +18,7 @@ The app serves `frontend/` directly and stores planner data in SQLite.
 For most people, local setup is just:
 
 ```sh
-git clone <your-repo-url>
+git clone git@github.com:Justyuanz/Yuans-planner.git
 cd YuanPlanner
 ./scripts/start.sh
 ```
@@ -207,21 +207,3 @@ At the moment, that covers:
 - journal core behavior
 - money core behavior
 
-## API Notes
-
-The backend is intentionally small. It currently exposes:
-
-- `GET /api/kv`
-- `PUT /api/kv`
-- `DELETE /api/kv?key=...`
-- `POST /api/import`
-- `GET /api/export`
-
-Static files are served from `frontend/`.
-
-## Development Notes
-
-- there is no bundler, framework build, or asset pipeline
-- most app behavior lives in `frontend/js/app.js`
-- shared logic that is tested independently lives in small core files under `frontend/js/`
-- persistence is string-based key-value storage backed by SQLite
