@@ -22,6 +22,7 @@ from urllib.parse import parse_qs, unquote, urlparse
 
 from config import planner_db_path, planner_host, planner_port
 from db import delete_value, import_values, init_database, put_value, read_all_values
+from openai_mascot import ask_mascot, openai_enabled
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -64,6 +65,9 @@ class PlannerHandler(BaseHTTPRequestHandler):
                 include_body=include_body,
             )
             return
+        if path == "/api/mascot/status":
+            self.send_json({"enabled": openai_enabled()}, include_body=include_body)
+            return
         if path == "/favicon.ico":
             self.send_response(204)
             self.end_headers()
@@ -87,16 +91,36 @@ class PlannerHandler(BaseHTTPRequestHandler):
         self.send_json({"ok": True})
 
     def do_POST(self) -> None:
-        if urlparse(self.path).path != "/api/import":
-            self.send_error(404)
+        path = urlparse(self.path).path
+        if path == "/api/import":
+            payload = self.read_json_body()
+            data = payload.get("data")
+            if not isinstance(data, dict):
+                self.send_error(400, "Import data must be an object")
+                return
+            imported = import_values(data)
+            self.send_json({"ok": True, "imported": imported})
             return
-        payload = self.read_json_body()
-        data = payload.get("data")
-        if not isinstance(data, dict):
-            self.send_error(400, "Import data must be an object")
+        if path == "/api/mascot/chat":
+            payload = self.read_json_body()
+            question = payload.get("question")
+            context = payload.get("context")
+            if not isinstance(question, str) or not question.strip():
+                self.send_error(400, "Question is required")
+                return
+            if not isinstance(context, dict):
+                self.send_error(400, "Context must be an object")
+                return
+            try:
+                reply = ask_mascot(question.strip(), context)
+                print("[mascot] ok source=%s answer=%r" % (reply.get("source", ""), reply.get("answer", "")[:160]))
+            except Exception as error:
+                print("[mascot] error %s" % error)
+                self.send_json({"ok": False, "fallback": True, "error": str(error)}, status=503)
+                return
+            self.send_json({"ok": True, "reply": reply})
             return
-        imported = import_values(data)
-        self.send_json({"ok": True, "imported": imported})
+        self.send_error(404)
 
     def do_DELETE(self) -> None:
         parsed = urlparse(self.path)
@@ -146,9 +170,15 @@ class PlannerHandler(BaseHTTPRequestHandler):
             return {}
         return parsed if isinstance(parsed, dict) else {}
 
-    def send_json(self, value: dict, headers: dict[str, str] | None = None, include_body: bool = True) -> None:
+    def send_json(
+        self,
+        value: dict,
+        headers: dict[str, str] | None = None,
+        include_body: bool = True,
+        status: int = 200,
+    ) -> None:
         body = json.dumps(value, ensure_ascii=False).encode("utf-8")
-        self.send_response(200)
+        self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         if headers:

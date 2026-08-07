@@ -52,3 +52,19 @@ def planner_db_path() -> Path:
     if not path.is_absolute():
         path = PROJECT_ROOT / path
     return path
+
+
+def openai_api_key() -> str:
+    return os.environ.get("OPENAI_API_KEY", "").strip()
+
+
+def openai_model() -> str:
+    return os.environ.get("YUAN_PLANNER_OPENAI_MODEL", "gpt-5-mini").strip() or "gpt-5-mini"
+
+
+def openai_timeout_seconds() -> int:
+    raw = os.environ.get("YUAN_PLANNER_OPENAI_TIMEOUT_SECONDS", "20").strip()
+    try:
+        return max(5, min(60, int(raw)))
+    except ValueError:
+        return 20

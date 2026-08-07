@@ -69,6 +69,17 @@
             </g>
           </svg>
         </button>
+        <div class="mascot-tools">
+          <button class="secondary-button mascot-chat-toggle" id="toggleMascotChat" type="button">Ask Sprouty</button>
+          <div class="mascot-chat" id="mascotChat" hidden>
+            <div class="mascot-quick-asks" id="mascotQuickAsks"></div>
+            <div class="mascot-chat-log" id="mascotChatLog" aria-live="polite"></div>
+            <form class="mascot-chat-form" id="mascotChatForm">
+              <input id="mascotQuestion" maxlength="140" autocomplete="off" placeholder="Ask Sprouty about today">
+              <button class="secondary-button" type="submit">Ask</button>
+            </form>
+          </div>
+        </div>
       </div>
     </aside>
 
@@ -80,6 +91,7 @@
         </div>
         <div class="top-tools" aria-label="Dashboard tools">
           <div class="date-pill" id="dashboardDate">Today</div>
+          <button class="secondary-button top-ai-button" type="button" id="openAiAssist">Ask Sprouty</button>
           <div class="backup-utility" aria-label="Backup tools">
             <span>Your data lives on this planner</span>
             <button class="secondary-button" type="button" id="exportData">Export backup</button>
@@ -149,6 +161,16 @@
                 <p class="intention-line" id="todayThemeLine">Getting today's thread together...</p>
                 <div class="intention-list" id="todayIntentionMount"></div>
               </div>
+              <div class="day-state-strip" aria-label="How today feels">
+                <strong>How does today feel?</strong>
+                <div class="day-state-options" id="dayStateOptions">
+                  <button class="day-state-chip" type="button" data-day-state="good">Good</button>
+                  <button class="day-state-chip" type="button" data-day-state="okay">Steady</button>
+                  <button class="day-state-chip" type="button" data-day-state="tired">Tired</button>
+                  <button class="day-state-chip" type="button" data-day-state="overwhelmed">Heavy</button>
+                  <button class="day-state-chip" type="button" data-day-state="low-focus">Scattered</button>
+                </div>
+              </div>
               <div class="day-banner">
                 <span id="dayMessage">Building today's plan...</span>
                 <span class="progress-pill" id="progressText">0 / 0 tasks done today</span>
@@ -191,16 +213,16 @@
             </div>
           </article>
 
-          <article class="panel jobs-card">
+          <article class="panel insight-card" id="dashboardInsightCard" hidden>
             <div class="panel-inner">
               <div class="section-head">
-                <h3>Jobs</h3>
-                <p class="small-note">Small steady progress beats dramatic promises.</p>
+                <h3>Pattern noticed</h3>
+                <p class="small-note" id="dashboardInsightMode"></p>
               </div>
-              <div class="job-strip" aria-label="Job applications">
-                <p class="job-strip-text" id="jobStatsLine">This week: 0 / 2 · Total applied: 0</p>
-                <button class="secondary-button" type="button" id="addJobApplication">+1 applied</button>
-              </div>
+              <p class="insight-title" id="dashboardInsightTitle"></p>
+              <p class="insight-why" id="dashboardInsightWhy"></p>
+              <div class="insight-actions" id="dashboardInsightActions"></div>
+              <button class="insight-link-button" id="openPatternHistory" type="button">View pattern history</button>
             </div>
           </article>
 
@@ -210,6 +232,23 @@
 
     <section class="view" id="journalView" aria-labelledby="journalHeading">
       <div class="journal-page">
+        <article class="panel page-story-card journal-story-card">
+          <div class="panel-inner">
+            <div class="page-story-head">
+              <div>
+                <span class="page-story-kicker">Journal</span>
+                <h2>Hold the feeling gently.</h2>
+                <p>Keep this page soft, spacious, and easy to return to. Write today, revisit older days only when it helps.</p>
+              </div>
+              <div class="page-story-pills">
+                <span>Today first</span>
+                <span>Archive second</span>
+                <span>Quiet tone</span>
+              </div>
+            </div>
+          </div>
+        </article>
+
         <article class="panel journal-editor-card">
           <div class="panel-inner">
             <div class="section-head">
@@ -266,6 +305,23 @@
 
     <section class="view" id="moneyView" aria-labelledby="moneyHeading">
       <div class="money-page">
+        <article class="panel page-story-card money-story-card">
+          <div class="panel-inner">
+            <div class="page-story-head">
+              <div>
+                <span class="page-story-kicker">Money</span>
+                <h2>Clarity before guilt.</h2>
+                <p>See the month, feel the pace, and keep the next decision small. The goal is calm visibility, not pressure.</p>
+              </div>
+              <div class="page-story-pills">
+                <span>Month view</span>
+                <span>Fast logging</span>
+                <span>Gentle pacing</span>
+              </div>
+            </div>
+          </div>
+        </article>
+
         <article class="panel money-overview-card">
           <div class="panel-inner">
             <div class="section-head">
@@ -361,26 +417,109 @@
 
     <section class="view" id="skateView" aria-labelledby="skateHeading">
       <div class="skate-page">
-        <article class="panel skate-focus-card">
+        <article class="panel page-story-card skate-story-card">
+          <div class="panel-inner">
+            <div class="page-story-head">
+              <div>
+                <span class="page-story-kicker">Skate</span>
+                <h2>One glance, then go skate.</h2>
+                <p>Keep the page visual, precise, and low-pressure. See today, set intensity, start the session, and let the rest sit below when you need it.</p>
+              </div>
+              <div class="page-story-pills">
+                <span>Today first</span>
+                <span>Roadmap always visible</span>
+                <span>Program below</span>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel skate-hero-card">
           <div class="panel-inner">
             <div class="section-head">
-              <h2 id="skateHeading">Skate focus</h2>
-              <p class="small-note">One trick, one adjustment, one useful session.</p>
-            </div>
-            <label class="form-row" for="skateFocusInput">
-              <span>Current trick focus</span>
-              <input id="skateFocusInput" maxlength="80" autocomplete="off" placeholder="Frontside 180, shove-it, half cab...">
-            </label>
-            <div class="skate-focus-metrics">
-              <div class="soft-stat">
-                <strong>Skate sessions this week</strong>
-                <span id="skateSessionCount">0 / 4</span>
+              <div>
+                <h2 id="skateHeading">Skate today</h2>
+                <p class="small-note" id="skateHeroSubtitle">Open page, understand today, skate, log, leave.</p>
               </div>
-              <label class="soft-stat skate-target-stat" for="skateTargetInput">
-                <strong>Skate weekly target</strong>
-                <input id="skateTargetInput" type="number" min="1" max="14" step="1" inputmode="numeric" placeholder="4">
-              </label>
+              <span class="skate-phase-badge" id="skatePhaseBadge">Balance Blueprint</span>
             </div>
+            <div class="skate-hero-metrics">
+              <div class="soft-stat compact">
+                <strong>Week</strong>
+                <span id="skateWeekCount">1 / 21</span>
+              </div>
+              <div class="soft-stat compact">
+                <strong>Day</strong>
+                <span id="skateDayCount">1 / 60</span>
+              </div>
+              <div class="soft-stat compact">
+                <strong>Board hours</strong>
+                <span id="skateBoardHours">0h</span>
+              </div>
+            </div>
+            <div class="skate-hero-layout">
+              <div class="skate-hero-primary">
+                <div class="skate-main-strip">
+                  <span class="skate-mini-label" id="skateBlockLabel">Day 1</span>
+                  <strong id="skateMainFocus">Easy ride + baseline video only if you feel okay.</strong>
+                  <p id="skateSkateiqBlock">30-minute plan loads here.</p>
+                </div>
+                <div class="skate-support-strip">
+                  <div class="skate-support-chip">
+                    <span>Main focus</span>
+                    <strong id="skateMainFocusShort">FS/BS 180 + shove-it</strong>
+                  </div>
+                  <div class="skate-support-chip">
+                    <span>Flow / fun</span>
+                    <strong id="skateFlowFocus">Bowl</strong>
+                  </div>
+                  <div class="skate-support-chip" id="skateBenchmarkChip" hidden>
+                    <span>Benchmark</span>
+                    <strong id="skateBenchmarkLabel">Day 15</strong>
+                  </div>
+                </div>
+              </div>
+              <div class="skate-hero-sidebar">
+                <div class="skate-intensity-card">
+                  <div>
+                    <strong>Intensity</strong>
+                    <p class="small-note" id="skateIntensityDescription">Choose how hard today should be.</p>
+                  </div>
+                  <div class="skate-intensity-toggle" id="skateIntensityToggle" aria-label="Skate intensity">
+                    <button type="button" data-intensity="blue">Blue</button>
+                    <button type="button" data-intensity="yellow">Yellow</button>
+                    <button type="button" data-intensity="green">Green</button>
+                  </div>
+                  <div class="skate-intensity-meta">
+                    <span id="skateIntensityEffort">1-3/10</span>
+                    <strong id="skateAttemptBudget">0-5 focused attempts</strong>
+                  </div>
+                </div>
+                <div class="skate-session-actions-card">
+                  <div class="skate-readiness-head">
+                    <strong>Session timer</strong>
+                    <span>Board hours update from finished skate sessions.</span>
+                  </div>
+                  <div class="form-actions skate-hero-actions">
+                    <button class="secondary-button" type="button" id="startSkateSession">Start session</button>
+                    <button class="primary-button" type="button" id="finishSkateSession">Finish session</button>
+                  </div>
+                  <span class="hint" id="skateSessionHint">Start when you roll in. Finish when you know what the session gave you.</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel skate-trends-card">
+          <div class="panel-inner">
+            <div class="section-head">
+              <div>
+                <h2>Intensity roadmap</h2>
+                <p class="small-note">Whole-season skate history. Colored days are logged sessions, pale days are gaps.</p>
+              </div>
+            </div>
+            <div class="skate-roadmap" id="skateTrendCharts"></div>
           </div>
         </article>
 
@@ -388,47 +527,41 @@
           <div class="panel-inner">
             <div class="section-head">
               <h2>Body support</h2>
-              <p class="small-note" id="skateWeekLabel">Log the support work that keeps your legs and brain useful.</p>
+              <p class="small-note" id="skateWeekLabel">Gym, yoga, stretch, or recovery that affects your skate week.</p>
             </div>
             <form class="body-log-form" id="bodyLogForm">
-              <label class="form-row" for="bodyWorkoutName">
-                <span>Body support</span>
-                <input id="bodyWorkoutName" maxlength="80" autocomplete="off" placeholder="Gym, stretch, yoga, recovery walk...">
+              <label class="form-row" for="bodyWorkoutType">
+                <span>Support type</span>
+                <select id="bodyWorkoutType">
+                  <option value="gym">Gym</option>
+                  <option value="yoga">Yoga</option>
+                  <option value="stretch">Stretch</option>
+                  <option value="recovery">Recovery</option>
+                  <option value="walk">Walk</option>
+                  <option value="other">Other</option>
+                </select>
               </label>
-              <label class="form-row" for="bodyWorkoutScore">
-                <span>Session score</span>
-                <input id="bodyWorkoutScore" type="number" min="1" max="5" step="1" inputmode="numeric" placeholder="3">
+              <label class="form-row" for="bodyWorkoutMinutes">
+                <span>Minutes</span>
+                <input id="bodyWorkoutMinutes" type="number" min="0" max="600" step="5" inputmode="numeric" placeholder="30">
               </label>
-              <button class="secondary-button" type="submit">Save body log</button>
+              <label class="form-row body-log-note" for="bodyWorkoutName">
+                <span>Note</span>
+                <input id="bodyWorkoutName" maxlength="80" autocomplete="off" placeholder="Leg day, Yin yoga, ankle mobility...">
+              </label>
+              <button class="secondary-button" type="submit">Save body support</button>
             </form>
             <div class="body-support-metrics" id="skateWeeklyMetrics"></div>
-          </div>
-        </article>
-
-        <article class="panel skate-trends-card">
-          <div class="panel-inner">
-            <div class="section-head">
-              <h2>Skate / body trends</h2>
-            </div>
-            <div class="mini-tabs" id="skateTrendPeriodTabs" aria-label="Skate trend period"></div>
-            <div class="chart-stack" id="skateTrendCharts"></div>
           </div>
         </article>
 
         <article class="panel skate-session-card">
           <div class="panel-inner">
             <div class="section-head">
-              <h2>Session planner</h2>
-              <p class="small-note">Set the session, skate it, then save what mattered.</p>
+              <h2>Training plan</h2>
+              <p class="small-note">The actual program for today and this week, straight from your checked-in plan.</p>
             </div>
-
             <div class="skate-coach-flow" id="skateCoachFlow"></div>
-
-            <div class="form-actions">
-              <button class="secondary-button" type="button" id="startSkateSession">Start session</button>
-              <button class="primary-button" type="button" id="finishSkateSession">Finish session</button>
-              <span class="hint" id="skateSessionHint">Start when you roll in. Finish when you know what the session gave you.</span>
-            </div>
           </div>
         </article>
       </div>
@@ -436,6 +569,23 @@
 
     <section class="view" id="guitarView" aria-labelledby="guitarHeading">
       <div class="guitar-page">
+        <article class="panel page-story-card guitar-story-card">
+          <div class="panel-inner">
+            <div class="page-story-head">
+              <div>
+                <span class="page-story-kicker">Guitar</span>
+                <h2>Practice without the guilt spiral.</h2>
+                <p>Keep one musical thread alive, capture the real time, and make the next session obvious before you leave.</p>
+              </div>
+              <div class="page-story-pills">
+                <span>One focus</span>
+                <span>One next step</span>
+                <span>Real session time</span>
+              </div>
+            </div>
+          </div>
+        </article>
+
         <article class="panel guitar-goal-card">
           <div class="panel-inner">
             <div class="section-head">
@@ -608,9 +758,30 @@
     </form>
   </dialog>
 
+  <dialog class="feedback-dialog pattern-history-dialog" id="patternHistoryDialog">
+    <form method="dialog" class="feedback-panel pattern-history-panel">
+      <div class="section-head">
+        <div>
+          <h2>Pattern history</h2>
+          <p class="small-note" id="patternHistoryRange"></p>
+        </div>
+        <button class="secondary-button" id="closePatternHistory" type="submit">Close</button>
+      </div>
+      <div class="pattern-history-body" id="patternHistoryBody"></div>
+    </form>
+  </dialog>
+
   <script src="/js/calendar-core.js?v=20260801a"></script>
   <script src="/js/money-core.js?v=20260801a"></script>
   <script src="/js/journal-core.js?v=20260806a"></script>
-  <script src="/js/app.js?v=20260806a"></script>
+  <script src="/js/activity-log.js?v=20260806a"></script>
+  <script src="/js/insight-core.js?v=20260806a"></script>
+  <script src="/js/insight-rules.js?v=20260806a"></script>
+  <script src="/js/pattern-history.js?v=20260806a"></script>
+  <script src="/js/agent-core.js?v=20260806a"></script>
+  <script src="/js/skate-core.js?v=20260807a"></script>
+  <script src="/js/skate-session-core.js?v=20260807a"></script>
+  <script src="/js/mascot-rag.js?v=20260806a"></script>
+  <script src="/js/app.js?v=20260807a"></script>
 </body>
 </html>

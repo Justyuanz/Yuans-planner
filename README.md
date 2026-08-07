@@ -132,6 +132,12 @@ Optional environment variables:
   Default: `8765`
 - `YUAN_PLANNER_DB_PATH`
   Default: `data/planner.db`
+- `OPENAI_API_KEY`
+  Optional. Enables OpenAI-backed mascot chat.
+- `YUAN_PLANNER_OPENAI_MODEL`
+  Default: `gpt-5-mini`
+- `YUAN_PLANNER_OPENAI_TIMEOUT_SECONDS`
+  Default: `20`
 
 The backend automatically reads `.env` if it exists.
 
@@ -139,6 +145,12 @@ Example:
 
 ```sh
 cp .env.example .env
+```
+
+If you enable OpenAI-backed mascot chat, set the key only in `.env` or your shell environment:
+
+```sh
+OPENAI_API_KEY=your_key_here
 ```
 
 ## Data Storage
@@ -216,8 +228,19 @@ The backend is intentionally small. It currently exposes:
 - `DELETE /api/kv?key=...`
 - `POST /api/import`
 - `GET /api/export`
+- `GET /api/mascot/status`
+- `POST /api/mascot/chat`
 
 Static files are served from `frontend/`.
+
+## Mascot Chat
+
+The mascot now has two answer modes:
+
+- local fallback mode: uses planner metrics and rules already inside the app
+- OpenAI mode: sends a compact planner context to the backend, which calls the OpenAI Responses API server-side
+
+The browser never receives your API key. If `OPENAI_API_KEY` is missing or the request fails, the mascot falls back to the local answer engine automatically.
 
 ## Development Notes
 
