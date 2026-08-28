@@ -124,6 +124,7 @@
     compareEventsChronologically: compareEventsChronologically,
     eventDayPart: eventDayPart,
     groupEventsByPart: groupEventsByPart,
+    parseEventTimeRange: parseEventTimeRange,
     parseEventTimeMinutes: parseEventTimeMinutes,
     sortedEvents: sortedEvents
   };

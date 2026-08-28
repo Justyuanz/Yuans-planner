@@ -132,6 +132,20 @@ Optional environment variables:
   Default: `8765`
 - `YUAN_PLANNER_DB_PATH`
   Default: `data/planner.db`
+- `YUAN_PLANNER_TIMEZONE`
+  Default: `Europe/Helsinki`
+- `OPENAI_API_KEY`
+  Optional. Enables OpenAI-backed mascot chat.
+- `YUAN_PLANNER_OPENAI_MODEL`
+  Default: `gpt-5-mini`
+- `YUAN_PLANNER_OPENAI_TIMEOUT_SECONDS`
+  Default: `20`
+- `YUAN_PLANNER_TELEGRAM_ENABLED`
+  Default: `0`. Set to `1` to turn on Telegram reminders.
+- `YUAN_PLANNER_TELEGRAM_BOT_TOKEN`
+  Optional. Bot token from BotFather.
+- `YUAN_PLANNER_TELEGRAM_CHAT_ID`
+  Optional. Telegram chat ID that should receive reminders.
 
 The backend automatically reads `.env` if it exists.
 
@@ -140,6 +154,23 @@ Example:
 ```sh
 cp .env.example .env
 ```
+
+If you enable OpenAI-backed mascot chat, set the key only in `.env` or your shell environment:
+
+```sh
+OPENAI_API_KEY=your_key_here
+```
+
+To enable Telegram reminders, set these in `.env` and restart the planner:
+
+```sh
+YUAN_PLANNER_TELEGRAM_ENABLED=1
+YUAN_PLANNER_TELEGRAM_BOT_TOKEN=your_bot_token_here
+YUAN_PLANNER_TELEGRAM_CHAT_ID=your_chat_id_here
+YUAN_PLANNER_TIMEZONE=Europe/Helsinki
+```
+
+Planner reminders are sent by the backend, so they can still reach your phone via Telegram even when the website tab is closed. The planner app itself still needs to be running, and timed reminders currently require the event title to start with a time like `18:00`.
 
 ## Data Storage
 
@@ -206,4 +237,3 @@ At the moment, that covers:
 - calendar core behavior
 - journal core behavior
 - money core behavior
-

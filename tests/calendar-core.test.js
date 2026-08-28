@@ -12,6 +12,19 @@ test("parseEventTimeMinutes handles manual time prefixes", function () {
   assert.equal(core.parseEventTimeMinutes("28:99 impossible"), null);
 });
 
+test("parseEventTimeRange handles valid ranges and rejects impossible ones", function () {
+  assert.deepEqual(core.parseEventTimeRange("10:30-17:30 School"), {
+    start: (10 * 60) + 30,
+    end: (17 * 60) + 30
+  });
+  assert.deepEqual(core.parseEventTimeRange("17-20 Dinner"), {
+    start: 17 * 60,
+    end: 20 * 60
+  });
+  assert.equal(core.parseEventTimeRange("20-17 backwards"), null);
+  assert.equal(core.parseEventTimeRange("24:30 impossible"), null);
+});
+
 test("compareEventsChronologically sorts timed events before untimed events", function () {
   const events = [
     { id: "c", title: "P90X3", createdAt: "2026-07-02T12:00:00.000Z" },

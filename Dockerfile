@@ -4,16 +4,20 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     YUAN_PLANNER_HOST=0.0.0.0 \
     YUAN_PLANNER_PORT=8765 \
-    YUAN_PLANNER_DB_PATH=/app/persist/planner.db
+    YUAN_PLANNER_DB_PATH=/app/persist/planner.db \
+    YUAN_PLANNER_TIMEZONE=Europe/Helsinki
 
 WORKDIR /app
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends tzdata \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY backend ./backend
 COPY frontend ./frontend
-COPY .env.example ./.env.example
 
 RUN mkdir -p /app/persist
 

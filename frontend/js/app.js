@@ -5,7 +5,6 @@
       var STORAGE = {
         databaseName: "yuanPlannerDatabase",
         goals: "hivePlanner.weeklyGoals",
-        jobApplications: "hivePlanner.jobs.applied",
         events: "hivePlanner.events",
         dailyTasksPrefix: "hivePlanner.dailyTasks.",
         plannedPrefix: "hivePlanner.planned.",
@@ -14,6 +13,7 @@
         skateCurrentSession: "hivePlanner.skate.currentSession",
         skateSessions: "hivePlanner.skate.sessions",
         skateCoachTemplate: "hivePlanner.skate.coachTemplate",
+        skateSettings: "hivePlanner.skate.settings",
         guitarFocus: "hivePlanner.guitar.focus",
         guitarGoal: "hivePlanner.guitar.goal",
         guitarNextStep: "hivePlanner.guitar.nextStep",
@@ -24,13 +24,19 @@
         moneyTransactions: "hivePlanner.money.transactions",
         moneyVendorRules: "hivePlanner.money.vendorRules",
         journalEntries: "hivePlanner.journal.entries",
+        activityLog: "hivePlanner.activityLog",
+        telegramWaterSettings: "hivePlanner.telegramWater.settings",
         weeklyRoutinePrefix: "hivePlanner.routine.week.",
+        routineEventSkips: "hivePlanner.routine.eventSkips",
         goalPlanner: "hivePlanner.goalPlanner.items",
         studyOverviewPrefix: "hivePlanner.weekOverview.study.",
         skateBodyOverviewPrefix: "hivePlanner.weekOverview.skateBody.",
         physicalPlanPrefix: "hivePlanner.physical.week.",
         physicalLogs: "hivePlanner.physical.logs",
-        mascotPosition: "hivePlanner.mascot.position"
+        mascotPosition: "hivePlanner.mascot.position",
+        dayState: "hivePlanner.dayState",
+        agentUiState: "hivePlanner.agent.uiState",
+        agentUndo: "hivePlanner.agent.undo"
       };
       var memoryStore = {};
       var serverStorageAvailable = false;
@@ -38,7 +44,7 @@
         skate: null,
         guitar: null
       };
-      var statsPeriod = "month";
+      var statsPeriod = "week";
       var skateTrendPeriod = "month";
       var editingEventId = null;
       var editingTaskId = null;
@@ -65,8 +71,26 @@
       var expandedGoalId = "";
       var MORNING_END = 12 * 60;
       var EVENING_START = 19 * 60;
+      var INSIGHT_LOOKBACK_DAYS = 14;
       var moneyCore = globalThis.YuanMoneyCore;
       var journalCore = globalThis.YuanJournalCore;
+      var activityLogCore = globalThis.YuanActivityLog;
+      var insightCore = globalThis.YuanInsightCore;
+      var insightRules = globalThis.YuanInsightRules;
+      var patternHistory = globalThis.YuanPatternHistory;
+      var agentCore = globalThis.YuanAgentCore;
+      var skateCore = globalThis.YuanSkateCore;
+      var skateSessionCore = globalThis.YuanSkateSessionCore;
+      var mascotRag = globalThis.YuanMascotRag;
+      var currentInsightBundleState = null;
+      var expandedHiddenTaskDates = {};
+      var mascotState = {
+        chatOpen: false,
+        messages: [],
+        bubbleOverride: "",
+        lastSource: "",
+        lastQuestion: ""
+      };
       var calendarCore = globalThis.YuanCalendarCore || (function () {
         function parseEventTimeMinutes(title) {
           var match = String(title || "").trim().match(/^(\d{1,2})(?::?(\d{2}))?(?=\s|$|[-–])/);
@@ -201,9 +225,69 @@
         return (hours * 60) + minutes;
       }
 
+      function normalizeClockValue(value) {
+        var text = String(value || "").trim();
+        if (!text) {
+          return "";
+        }
+        var match = text.match(/^(\d{1,2}):(\d{2})$/);
+        var hours = 0;
+        var minutes = 0;
+        if (match) {
+          hours = Number(match[1]);
+          minutes = Number(match[2]);
+        } else if (/^\d{1,2}$/.test(text)) {
+          hours = Number(text);
+          minutes = 0;
+        } else if (/^\d{3,4}$/.test(text)) {
+          hours = Number(text.slice(0, text.length - 2));
+          minutes = Number(text.slice(-2));
+        } else {
+          return "";
+        }
+        if (hours > 23 || minutes > 59) {
+          return "";
+        }
+        return pad(hours) + ":" + pad(minutes);
+      }
+
+      function normalizeScheduledTime(value) {
+        var text = String(value || "").trim();
+        if (!text) {
+          return "";
+        }
+        var normalized = text.replace(/\s*[–—]\s*/g, "-").replace(/\s+to\s+/gi, "-");
+        var parts = normalized.split("-").map(function (part) {
+          return part.trim();
+        }).filter(Boolean);
+        if (!parts.length) {
+          return "";
+        }
+        var start = normalizeClockValue(parts[0]);
+        if (!start) {
+          return "";
+        }
+        if (parts.length === 1) {
+          return start;
+        }
+        var end = normalizeClockValue(parts[1]);
+        if (!end) {
+          return start;
+        }
+        return start + "-" + end;
+      }
+
+      function parseTaskTimeMinutesFromTask(task) {
+        var scheduled = normalizeScheduledTime(task && task.scheduledTime);
+        if (scheduled) {
+          return parseTaskTimeMinutes(scheduled.split("-")[0]);
+        }
+        return parseTaskTimeMinutes(task && task.label);
+      }
+
       function compareTasksChronologically(a, b) {
-        var timeA = parseTaskTimeMinutes(a && a.label);
-        var timeB = parseTaskTimeMinutes(b && b.label);
+        var timeA = parseTaskTimeMinutesFromTask(a);
+        var timeB = parseTaskTimeMinutesFromTask(b);
         if (timeA !== null && timeB !== null && timeA !== timeB) {
           return timeA - timeB;
         }
@@ -442,7 +526,26 @@
         "January", "February", "March", "April", "May", "June",
         "July", "August", "September", "October", "November", "December"
       ];
-      var today = new Date();
+
+      function todayFromUrl() {
+        var params = new URLSearchParams(window.location.search || "");
+        var text = String(params.get("date") || "").trim();
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(text)) {
+          return new Date();
+        }
+        var parts = text.split("-").map(Number);
+        var candidate = new Date(parts[0], parts[1] - 1, parts[2]);
+        if (
+          candidate.getFullYear() !== parts[0] ||
+          candidate.getMonth() !== parts[1] - 1 ||
+          candidate.getDate() !== parts[2]
+        ) {
+          return new Date();
+        }
+        return candidate;
+      }
+
+      var today = todayFromUrl();
       var calendarCursor = new Date(today.getFullYear(), today.getMonth(), 1);
       var selectedDate = formatDate(today);
       var selectedJournalDate = formatDate(today);
@@ -474,10 +577,13 @@
         tasksMount: document.getElementById("tasksMount"),
         taskForm: document.getElementById("taskForm"),
         taskTitle: document.getElementById("taskTitle"),
+        taskTime: document.getElementById("taskTime"),
+        taskReminder: document.getElementById("taskReminder"),
         taskActivity: document.getElementById("taskActivity"),
         todayThemeLine: document.getElementById("todayThemeLine"),
         todayThemeBadge: document.getElementById("todayThemeBadge"),
         todayIntentionMount: document.getElementById("todayIntentionMount"),
+        dayStateOptions: document.getElementById("dayStateOptions"),
         weeklyPlannerLabel: document.getElementById("weeklyPlannerLabel"),
         weeklyPlannerMount: document.getElementById("weeklyPlannerMount"),
         prevWeek: document.getElementById("prevWeek"),
@@ -485,10 +591,23 @@
         goalPlannerIntro: document.getElementById("goalPlannerIntro"),
         goalPlannerMount: document.getElementById("goalPlannerMount"),
         addGoalPlannerItem: document.getElementById("addGoalPlannerItem"),
-        skateFocusInput: document.getElementById("skateFocusInput"),
+        skateHeroSubtitle: document.getElementById("skateHeroSubtitle"),
+        skatePhaseBadge: document.getElementById("skatePhaseBadge"),
+        skateWeekCount: document.getElementById("skateWeekCount"),
+        skateDayCount: document.getElementById("skateDayCount"),
+        skateBoardHours: document.getElementById("skateBoardHours"),
+        skateBlockLabel: document.getElementById("skateBlockLabel"),
+        skateMainFocus: document.getElementById("skateMainFocus"),
+        skateSkateiqBlock: document.getElementById("skateSkateiqBlock"),
+        skateMainFocusShort: document.getElementById("skateMainFocusShort"),
+        skateFlowFocus: document.getElementById("skateFlowFocus"),
+        skateBenchmarkChip: document.getElementById("skateBenchmarkChip"),
+        skateBenchmarkLabel: document.getElementById("skateBenchmarkLabel"),
+        skateIntensityToggle: document.getElementById("skateIntensityToggle"),
+        skateIntensityDescription: document.getElementById("skateIntensityDescription"),
+        skateIntensityEffort: document.getElementById("skateIntensityEffort"),
+        skateAttemptBudget: document.getElementById("skateAttemptBudget"),
         skateWeekLabel: document.getElementById("skateWeekLabel"),
-        skateSessionCount: document.getElementById("skateSessionCount"),
-        skateTargetInput: document.getElementById("skateTargetInput"),
         skateCoachFlow: document.getElementById("skateCoachFlow"),
         startSkateSession: document.getElementById("startSkateSession"),
         finishSkateSession: document.getElementById("finishSkateSession"),
@@ -511,8 +630,15 @@
         lifeBreakdown: document.getElementById("lifeBreakdown"),
         plannedWeekLabel: document.getElementById("plannedWeekLabel"),
         plannedMount: document.getElementById("plannedMount"),
-        jobStatsLine: document.getElementById("jobStatsLine"),
-        addJobApplication: document.getElementById("addJobApplication"),
+        dashboardInsightCard: document.getElementById("dashboardInsightCard"),
+        dashboardInsightMode: document.getElementById("dashboardInsightMode"),
+        dashboardInsightTitle: document.getElementById("dashboardInsightTitle"),
+        dashboardInsightWhy: document.getElementById("dashboardInsightWhy"),
+        dashboardInsightActions: document.getElementById("dashboardInsightActions"),
+        openPatternHistory: document.getElementById("openPatternHistory"),
+        patternHistoryDialog: document.getElementById("patternHistoryDialog"),
+        patternHistoryRange: document.getElementById("patternHistoryRange"),
+        patternHistoryBody: document.getElementById("patternHistoryBody"),
         moneyMonthLabel: document.getElementById("moneyMonthLabel"),
         moneyOverviewGrid: document.getElementById("moneyOverviewGrid"),
         moneyMonthlyTarget: document.getElementById("moneyMonthlyTarget"),
@@ -537,18 +663,26 @@
         selectedDateHeading: document.getElementById("selectedDateHeading"),
         selectedDateHint: document.getElementById("selectedDateHint"),
         selectedDateEvents: document.getElementById("selectedDateEvents"),
+        waterReminderCard: document.getElementById("waterReminderCard"),
+        waterReminderEnabled: document.getElementById("waterReminderEnabled"),
+        waterReminderToggleLabel: document.getElementById("waterReminderToggleLabel"),
+        waterReminderTimes: document.getElementById("waterReminderTimes"),
+        waterReminderTime1: document.getElementById("waterReminderTime1"),
+        waterReminderTime2: document.getElementById("waterReminderTime2"),
         eventForm: document.getElementById("eventForm"),
         eventTitle: document.getElementById("eventTitle"),
         eventDate: document.getElementById("eventDate"),
         eventNote: document.getElementById("eventNote"),
         eventCategory: document.getElementById("eventCategory"),
+        eventReminder: document.getElementById("eventReminder"),
+        telegramReminderStatus: document.getElementById("telegramReminderStatus"),
         eventSaveButton: document.getElementById("eventSaveButton"),
         formHint: document.getElementById("formHint"),
         skateWeeklyMetrics: document.getElementById("skateWeeklyMetrics"),
         bodyLogForm: document.getElementById("bodyLogForm"),
+        bodyWorkoutType: document.getElementById("bodyWorkoutType"),
         bodyWorkoutName: document.getElementById("bodyWorkoutName"),
-        bodyWorkoutScore: document.getElementById("bodyWorkoutScore"),
-        skateTrendPeriodTabs: document.getElementById("skateTrendPeriodTabs"),
+        bodyWorkoutMinutes: document.getElementById("bodyWorkoutMinutes"),
         skateTrendCharts: document.getElementById("skateTrendCharts"),
         skateFeedbackDialog: document.getElementById("skateFeedbackDialog"),
         skateFeedbackForm: document.getElementById("skateFeedbackForm"),
@@ -566,9 +700,16 @@
         exportData: document.getElementById("exportData"),
         importData: document.getElementById("importData"),
         backupStatus: document.getElementById("backupStatus"),
+        openAiAssist: document.getElementById("openAiAssist"),
         mascotCard: document.querySelector(".mascot-card"),
         softMascot: document.getElementById("softMascot"),
-        mascotBubble: document.getElementById("mascotBubble")
+        mascotBubble: document.getElementById("mascotBubble"),
+        toggleMascotChat: document.getElementById("toggleMascotChat"),
+        mascotChat: document.getElementById("mascotChat"),
+        mascotQuickAsks: document.getElementById("mascotQuickAsks"),
+        mascotChatLog: document.getElementById("mascotChatLog"),
+        mascotChatForm: document.getElementById("mascotChatForm"),
+        mascotQuestion: document.getElementById("mascotQuestion")
       };
 
       function isPlannerKey(key) {
@@ -631,6 +772,10 @@
       }
 
       function persistRaw(key, value) {
+        if (memoryStore[key] === value) {
+          localStorage.setItem(key, value);
+          return;
+        }
         memoryStore[key] = value;
         localStorage.setItem(key, value);
         if (!serverStorageAvailable) {
@@ -665,6 +810,114 @@
 
       function writeJson(key, value) {
         persistRaw(key, JSON.stringify(value));
+      }
+
+      function nextDateKey(dateKey) {
+        var date = parseDate(dateKey);
+        date.setDate(date.getDate() + 1);
+        return formatDate(date);
+      }
+
+      function getDayStateMap() {
+        var stored = readJson(STORAGE.dayState, {});
+        return stored && typeof stored === "object" ? stored : {};
+      }
+
+      function defaultWaterReminderSettings() {
+        return {
+          enabled: false,
+          times: ["12:30", "17:00"]
+        };
+      }
+
+      function normalizeWaterReminderSettings(value) {
+        var fallback = defaultWaterReminderSettings();
+        var source = value && typeof value === "object" ? value : {};
+        var rawTimes = Array.isArray(source.times) ? source.times : [];
+        return {
+          enabled: Boolean(source.enabled),
+          times: fallback.times.map(function (defaultTime, index) {
+            return normalizeClockValue(rawTimes[index]) || defaultTime;
+          })
+        };
+      }
+
+      function getWaterReminderSettings() {
+        return normalizeWaterReminderSettings(readJson(STORAGE.telegramWaterSettings, defaultWaterReminderSettings()));
+      }
+
+      function saveWaterReminderSettings(settings) {
+        writeJson(STORAGE.telegramWaterSettings, normalizeWaterReminderSettings(settings));
+      }
+
+      function updateWaterReminderSettings(mutator) {
+        var settings = getWaterReminderSettings();
+        mutator(settings);
+        saveWaterReminderSettings(settings);
+      }
+
+      function getDayState(dateKey) {
+        var stateMap = getDayStateMap();
+        if (agentCore && typeof agentCore.normalizeDayState === "function") {
+          return agentCore.normalizeDayState(stateMap[dateKey]);
+        }
+        return "okay";
+      }
+
+      function saveDayState(dateKey, value) {
+        var stateMap = getDayStateMap();
+        var normalized = agentCore && typeof agentCore.normalizeDayState === "function"
+          ? agentCore.normalizeDayState(value)
+          : "okay";
+        var before = stateMap[dateKey] || "okay";
+        stateMap[dateKey] = normalized;
+        writeJson(STORAGE.dayState, stateMap);
+        logActivity({
+          action: "day_state_updated",
+          entityType: "day_state",
+          entityId: dateKey,
+          dateKey: dateKey,
+          before: before,
+          after: normalized
+        });
+      }
+
+      function normalizeAgentUiState(value) {
+        var state = value && typeof value === "object" ? value : {};
+        if (!state.hiddenTaskIdsByDate || typeof state.hiddenTaskIdsByDate !== "object") {
+          state.hiddenTaskIdsByDate = {};
+        }
+        return state;
+      }
+
+      function getAgentUiState() {
+        return normalizeAgentUiState(readJson(STORAGE.agentUiState, {}));
+      }
+
+      function saveAgentUiState(state) {
+        writeJson(STORAGE.agentUiState, normalizeAgentUiState(state));
+      }
+
+      function getAgentUndoStack() {
+        var stack = readJson(STORAGE.agentUndo, []);
+        return Array.isArray(stack) ? stack : [];
+      }
+
+      function saveAgentUndoStack(stack) {
+        writeJson(STORAGE.agentUndo, Array.isArray(stack) ? stack.slice(-10) : []);
+      }
+
+      function pushAgentUndo(entry) {
+        var stack = getAgentUndoStack();
+        stack.push(entry);
+        saveAgentUndoStack(stack);
+      }
+
+      function popAgentUndo() {
+        var stack = getAgentUndoStack();
+        var entry = stack.pop() || null;
+        saveAgentUndoStack(stack);
+        return entry;
       }
 
       function pad(value) {
@@ -818,27 +1071,26 @@
         writeJson(STORAGE.events, events);
       }
 
-      function parseEventTimeMinutes(title) {
-        return calendarCore.parseEventTimeMinutes(title);
+      function getRoutineEventSkips() {
+        var stored = readJson(STORAGE.routineEventSkips, {});
+        return stored && typeof stored === "object" ? stored : {};
       }
 
-      function compareEventsChronologically(a, b) {
-        return calendarCore.compareEventsChronologically(a, b);
+      function saveRoutineEventSkips(skips) {
+        writeJson(STORAGE.routineEventSkips, skips && typeof skips === "object" ? skips : {});
       }
 
-      function sortedEvents(events) {
-        return calendarCore.sortedEvents(events);
+      function skipRoutineEvent(eventId) {
+        var skips = getRoutineEventSkips();
+        skips[String(eventId || "")] = true;
+        saveRoutineEventSkips(skips);
       }
 
       function eventsForDate(dateKey) {
         ensureRoutineEventsAroundDate(parseDate(dateKey));
-        return sortedEvents(getEvents().filter(function (event) {
+        return calendarCore.sortedEvents(getEvents().filter(function (event) {
           return event.date === dateKey;
         }));
-      }
-
-      function eventDayPart(event) {
-        return calendarCore.eventDayPart(event);
       }
 
       function weekDates(date) {
@@ -947,8 +1199,7 @@
                 type: "study",
                 events: [
                   routineEventTemplate("09:30 Guitar practice", "Guitar", "morning"),
-                  routineEventTemplate("11:30 Gym/skate", "Other", "morning"),
-                  routineEventTemplate("Study block", "Home study", "afternoon")
+                  routineEventTemplate("11:30 Gym/skate", "Other", "morning")
                 ]
               },
               {
@@ -1007,8 +1258,7 @@
                 type: "study",
                 events: [
                   routineEventTemplate("09:30 Guitar practice", "Guitar", "morning"),
-                  routineEventTemplate("11:30 Gym/skate", "Other", "morning"),
-                  routineEventTemplate("Study block", "Home study", "afternoon")
+                  routineEventTemplate("11:30 Gym/skate", "Other", "morning")
                 ]
               },
               {
@@ -1036,15 +1286,13 @@
                 type: "skate",
                 events: [
                   routineEventTemplate("09:30 Morning skate", "Skate", "morning"),
-                  routineEventTemplate("11:30 School", "School study", "morning"),
-                  routineEventTemplate("Study block", "Home study", "afternoon")
+                  routineEventTemplate("11:30 School", "School study", "morning")
                 ]
               },
               {
                 type: "study",
                 events: [
                   routineEventTemplate("11:30 School", "School study", "morning"),
-                  routineEventTemplate("Study block", "Home study", "afternoon"),
                   routineEventTemplate("18:00 Evening skate with friends", "Skate", "evening")
                 ]
               },
@@ -1052,16 +1300,14 @@
                 type: "study",
                 events: [
                   routineEventTemplate("09:30 Guitar practice", "Guitar", "morning"),
-                  routineEventTemplate("11:30 School", "School study", "morning"),
-                  routineEventTemplate("Study block", "Home study", "afternoon")
+                  routineEventTemplate("11:30 School", "School study", "morning")
                 ]
               },
               {
                 type: "study",
                 events: [
                   routineEventTemplate("09:30 Guitar practice", "Guitar", "morning"),
-                  routineEventTemplate("11:30 School", "School study", "morning"),
-                  routineEventTemplate("Study block", "Home study", "afternoon")
+                  routineEventTemplate("11:30 School", "School study", "morning")
                 ]
               },
               {
@@ -1092,29 +1338,24 @@
             days: [
               {
                 type: "study",
-                events: [
-                  routineEventTemplate("Study block", "Home study", "afternoon")
-                ]
+                events: []
               },
               {
                 type: "study",
                 events: [
-                  routineEventTemplate("Study block", "Home study", "afternoon"),
                   routineEventTemplate("18:00 Evening skate with friends", "Skate", "evening")
                 ]
               },
               {
                 type: "study",
                 events: [
-                  routineEventTemplate("09:30 Guitar practice", "Guitar", "morning"),
-                  routineEventTemplate("Study block", "Home study", "afternoon")
+                  routineEventTemplate("09:30 Guitar practice", "Guitar", "morning")
                 ]
               },
               {
                 type: "study",
                 events: [
-                  routineEventTemplate("09:30 Guitar practice", "Guitar", "morning"),
-                  routineEventTemplate("Study block", "Home study", "afternoon")
+                  routineEventTemplate("09:30 Guitar practice", "Guitar", "morning")
                 ]
               },
               {
@@ -1163,6 +1404,7 @@
           return false;
         }
         var events = getEvents();
+        var skippedRoutineEvents = getRoutineEventSkips();
         var existingIds = {};
         var desiredIds = {};
         var changed = false;
@@ -1182,6 +1424,9 @@
               var dayTemplate = weekTemplate.days[dayIndex];
               (dayTemplate.events || []).forEach(function (eventTemplate) {
                 var eventId = routineEventId(dateKey, eventTemplate);
+                if (skippedRoutineEvents[eventId]) {
+                  return;
+                }
                 desiredIds[eventId] = true;
                 if (existingIds[eventId]) {
                   return;
@@ -1498,7 +1743,7 @@
           goal.steps.forEach(function (step) {
             if (step.id === event.goalStepId) {
               step.eventId = event.id;
-              step.scheduledDay = event.date + "|" + eventDayPart(event);
+              step.scheduledDay = event.date + "|" + calendarCore.eventDayPart(event);
               changed = true;
             }
           });
@@ -1632,10 +1877,12 @@
         return logs.filter(function (log) {
           return log && log.date && log.name;
         }).map(function (log) {
+          var kind = normalizeBodySupportType(log.kind || log.name);
           return {
             id: log.id || makeId("body"),
             date: log.date,
-            name: String(log.name || "Other"),
+            kind: kind,
+            name: String(log.name || bodySupportTypeLabel(kind)),
             status: ["done", "modified", "skipped"].indexOf(log.status) === -1 ? "done" : log.status,
             minutes: Math.max(0, Number(log.minutes) || 0),
             score: Math.max(0, Math.min(5, Number(log.score) || 0)),
@@ -1647,6 +1894,137 @@
 
       function savePhysicalLogs(logs) {
         writeJson(STORAGE.physicalLogs, logs);
+      }
+
+      function normalizeBodySupportType(value) {
+        var normalized = String(value || "").trim().toLowerCase();
+        if (["gym", "yoga", "stretch", "recovery", "walk", "other"].indexOf(normalized) !== -1) {
+          return normalized;
+        }
+        return "other";
+      }
+
+      function bodySupportTypeLabel(type) {
+        var normalized = normalizeBodySupportType(type);
+        if (normalized === "gym") return "Gym";
+        if (normalized === "yoga") return "Yoga";
+        if (normalized === "stretch") return "Stretch";
+        if (normalized === "recovery") return "Recovery";
+        if (normalized === "walk") return "Walk";
+        return "Other";
+      }
+
+      function defaultSkateSettings() {
+        return {
+          intensityByDate: {}
+        };
+      }
+
+      function normalizeSkateSettings(value) {
+        var fallback = defaultSkateSettings();
+        var result = value && typeof value === "object" ? value : {};
+        return {
+          intensityByDate: result.intensityByDate && typeof result.intensityByDate === "object" ? result.intensityByDate : fallback.intensityByDate
+        };
+      }
+
+      function getSkateSettings() {
+        return normalizeSkateSettings(readJson(STORAGE.skateSettings, defaultSkateSettings()));
+      }
+
+      function saveSkateSettings(settings) {
+        writeJson(STORAGE.skateSettings, normalizeSkateSettings(settings));
+      }
+
+      function updateSkateSettings(mutator) {
+        var settings = getSkateSettings();
+        mutator(settings);
+        saveSkateSettings(settings);
+        renderSkatePage();
+      }
+
+      function normalizeReminderMinutes(value) {
+        var minutes = Number(value);
+        if (!Number.isFinite(minutes) || minutes <= 0) {
+          return 0;
+        }
+        return Math.round(minutes);
+      }
+
+      function reminderLabel(minutes) {
+        var normalized = normalizeReminderMinutes(minutes);
+        if (!normalized) {
+          return "";
+        }
+        if (normalized % 1440 === 0) {
+          var days = normalized / 1440;
+          return "Telegram " + days + " day" + (days === 1 ? "" : "s") + " before";
+        }
+        if (normalized % 60 === 0) {
+          var hours = normalized / 60;
+          return "Telegram " + hours + " hour" + (hours === 1 ? "" : "s") + " before";
+        }
+        return "Telegram " + normalized + " min before";
+      }
+
+      function taskScheduleLabel(task) {
+        var parts = [];
+        var scheduledTime = normalizeScheduledTime(task && task.scheduledTime);
+        var reminder = reminderLabel(task && task.reminderMinutes);
+        if (scheduledTime) {
+          parts.push(scheduledTime);
+        }
+        if (reminder) {
+          parts.push(reminder);
+        }
+        return parts.join(" · ");
+      }
+
+      function taskDisplayLabel(task) {
+        var label = String((task && task.label) || "").trim();
+        var scheduledTime = normalizeScheduledTime(task && task.scheduledTime);
+        if (!scheduledTime || parseTaskTimeMinutes(label) !== null) {
+          return label;
+        }
+        return scheduledTime + " " + label;
+      }
+
+      function eventHasTimedTitle(event) {
+        return calendarCore.parseEventTimeMinutes(event && event.title) !== null;
+      }
+
+      function setTelegramReminderStatus(message, isError) {
+        if (!elements.telegramReminderStatus) {
+          return;
+        }
+        elements.telegramReminderStatus.textContent = message;
+        elements.telegramReminderStatus.style.color = isError ? "#9b3d3d" : "";
+      }
+
+      async function refreshTelegramStatus() {
+        if (!elements.telegramReminderStatus) {
+          return;
+        }
+        try {
+          var response = await fetch("/api/telegram/status", { cache: "no-store" });
+          if (!response.ok) {
+            throw new Error("status");
+          }
+          var payload = await response.json();
+          var configured = Boolean(payload && payload.configured);
+          var enabled = Boolean(payload && payload.enabled);
+          if (!configured) {
+            setTelegramReminderStatus("Telegram is not configured yet. Add bot token and chat ID in .env, then restart the planner.", false);
+            return;
+          }
+          if (!enabled) {
+            setTelegramReminderStatus("Telegram credentials are present, but reminders are disabled. Set YUAN_PLANNER_TELEGRAM_ENABLED=1 and restart.", false);
+            return;
+          }
+          setTelegramReminderStatus("Telegram reminders are ready" + (payload.chatHint ? " for chat " + payload.chatHint : "") + ".", false);
+        } catch (error) {
+          setTelegramReminderStatus("Telegram status is unavailable while the backend is offline.", true);
+        }
       }
 
       function normalizeEventCategory(category) {
@@ -1712,6 +2090,13 @@
         window.scrollTo({ top: 0, left: 0, behavior: "auto" });
       }
 
+      function initialViewFromUrl() {
+        var params = new URLSearchParams(window.location.search || "");
+        var requested = (params.get("view") || window.location.hash.replace(/^#/, "") || "").trim();
+        var allowed = ["todayView", "journalView", "moneyView", "calendarView", "skateView", "guitarView"];
+        return allowed.indexOf(requested) !== -1 ? requested : "todayView";
+      }
+
       function getDefaultTasksForToday() {
         return [];
       }
@@ -1769,6 +2154,15 @@
 
         if (!title && !content.trim()) {
           if (existingIndex !== -1) {
+            logActivity({
+              action: "journal_entry_deleted",
+              entityType: "journal_entry",
+              entityId: entries[existingIndex].id,
+              dateKey: selectedJournalDate,
+              before: entries[existingIndex],
+              after: null,
+              meta: { source: "journal-editor" }
+            });
             entries.splice(existingIndex, 1);
             saveJournalEntries(entries);
           }
@@ -1790,8 +2184,26 @@
 
         if (existingIndex === -1) {
           entries.push(nextEntry);
+          logActivity({
+            action: "journal_entry_created",
+            entityType: "journal_entry",
+            entityId: nextEntry.id,
+            dateKey: selectedJournalDate,
+            before: null,
+            after: nextEntry,
+            meta: { source: "journal-editor" }
+          });
         } else {
           entries[existingIndex] = nextEntry;
+          logActivity({
+            action: "journal_entry_updated",
+            entityType: "journal_entry",
+            entityId: nextEntry.id,
+            dateKey: selectedJournalDate,
+            before: existingEntry,
+            after: nextEntry,
+            meta: { source: "journal-editor" }
+          });
         }
 
         saveJournalEntries(entries);
@@ -1937,8 +2349,13 @@
               timerSeconds: 0,
               timerStartedAt: null,
               done: false,
-              createdAt: event.createdAt || new Date().toISOString(),
-              sourceEventId: event.id
+              createdAt: new Date().toISOString(),
+              sourceEventId: event.id,
+              useSourceEventReminder: true,
+              scheduledTime: normalizeScheduledTime(event.startTime) || (calendarCore.parseEventTimeMinutes(event.title) !== null
+                ? pad(Math.floor(calendarCore.parseEventTimeMinutes(event.title) / 60)) + ":" + pad(calendarCore.parseEventTimeMinutes(event.title) % 60)
+                : ""),
+              reminderMinutes: normalizeReminderMinutes(event.reminderMinutes)
             };
           });
       }
@@ -1979,7 +2396,12 @@
               timerStartedAt: typeof task.timerStartedAt === "string" ? task.timerStartedAt : null,
               done: Boolean(task.done),
               createdAt: task.createdAt || new Date().toISOString(),
-              sourceEventId: typeof task.sourceEventId === "string" ? task.sourceEventId : ""
+              sourceEventId: typeof task.sourceEventId === "string" ? task.sourceEventId : "",
+              useSourceEventReminder: task.sourceEventId ? task.useSourceEventReminder !== false : false,
+              scheduledTime: normalizeScheduledTime(task.scheduledTime),
+              reminderMinutes: normalizeReminderMinutes(task.reminderMinutes),
+              reminderSentAt: typeof task.reminderSentAt === "string" ? task.reminderSentAt : "",
+              reminderSentFor: typeof task.reminderSentFor === "string" ? task.reminderSentFor : ""
             };
           })
           .sort(compareTasksChronologically);
@@ -2072,64 +2494,844 @@
         writeJson(dailyTaskStorageKey(today), normalizeTasks(tasks));
       }
 
-      function syncSessionTimeToTodayTask(activityId, durationHours) {
-        var safeHours = Math.max(0, Number(durationHours) || 0);
-        if (!safeHours) {
-          return null;
+      function getTasksForDateKey(dateKey) {
+        if (dateKey === formatDate(today)) {
+          return getTodayTasks();
         }
-        var tasks = getTodayTasks();
-        var matchIndex = tasks.findIndex(function (task) {
-          return task.activity === activityId && !task.done && !task.timerStartedAt;
-        });
-        if (matchIndex === -1) {
-          matchIndex = tasks.findIndex(function (task) {
-            return task.activity === activityId && !task.done;
-          });
-        }
-        if (matchIndex === -1) {
-          matchIndex = tasks.findIndex(function (task) {
-            return task.activity === activityId;
-          });
-        }
-        if (matchIndex === -1) {
-          return null;
-        }
-
-        var task = tasks[matchIndex];
-        var existingSeconds = elapsedTaskSeconds(task);
-        task.timerStartedAt = null;
-        task.timerSeconds = existingSeconds + Math.round(safeHours * 3600);
-        task.hours = hoursFromSeconds(task.timerSeconds);
-        task.done = true;
-        saveTodayTasks(tasks);
-        renderTasks();
-        renderTotals();
-        return task.label;
+        return normalizeTasks(readJson(STORAGE.dailyTasksPrefix + dateKey, []));
       }
 
-      function getJobApplications() {
-        var entries = readJson(STORAGE.jobApplications, []);
-        if (!Array.isArray(entries)) {
-          return [];
+      function saveTasksForDateKey(dateKey, tasks) {
+        writeJson(STORAGE.dailyTasksPrefix + dateKey, normalizeTasks(tasks));
+      }
+
+      function getActivityLog() {
+        var entries = readJson(STORAGE.activityLog, []);
+        if (activityLogCore && typeof activityLogCore.normalizeEntries === "function") {
+          return activityLogCore.normalizeEntries(entries);
         }
-        return entries
-          .map(function (entry) {
-            if (typeof entry === "string") {
-              return { id: makeId("job"), date: entry, createdAt: "" };
-            }
+        return Array.isArray(entries) ? entries.slice() : [];
+      }
+
+      function saveActivityLog(entries) {
+        writeJson(STORAGE.activityLog, entries);
+      }
+
+      function cloneLogValue(value) {
+        if (value === null || value === undefined) {
+          return value;
+        }
+        return JSON.parse(JSON.stringify(value));
+      }
+
+      function logActivity(input) {
+        if (!activityLogCore || typeof activityLogCore.createEntry !== "function") {
+          return null;
+        }
+        var entry = activityLogCore.createEntry({
+          id: makeId("activity"),
+          timestamp: new Date().toISOString(),
+          action: input.action,
+          entityType: input.entityType,
+          entityId: input.entityId,
+          dateKey: input.dateKey || "",
+          field: input.field || "",
+          before: cloneLogValue(input.before),
+          after: cloneLogValue(input.after),
+          meta: cloneLogValue(input.meta || {})
+        });
+        if (!entry) {
+          return null;
+        }
+        var entries = getActivityLog();
+        entries.push(entry);
+        saveActivityLog(entries);
+        return entry;
+      }
+
+      function logTaskFieldChange(taskId, dateKey, field, beforeValue, afterValue, meta) {
+        if (JSON.stringify(beforeValue) === JSON.stringify(afterValue)) {
+          return;
+        }
+        logActivity({
+          action: "task_updated",
+          entityType: "task",
+          entityId: taskId,
+          dateKey: dateKey,
+          field: field,
+          before: beforeValue,
+          after: afterValue,
+          meta: meta || {}
+        });
+      }
+
+      function buildInsightTaskMap() {
+        var taskMap = {};
+        Object.keys(memoryStore).forEach(function (key) {
+          if (key.indexOf(STORAGE.dailyTasksPrefix) !== 0) {
+            return;
+          }
+          var dateKey = key.slice(STORAGE.dailyTasksPrefix.length);
+          taskMap[dateKey] = normalizeTasks(readJson(key, []));
+        });
+        var todayKey = formatDate(today);
+        if (!taskMap[todayKey]) {
+          taskMap[todayKey] = getTodayTasks();
+        }
+        return taskMap;
+      }
+
+      function currentInsightMetrics() {
+        if (!insightCore || typeof insightCore.buildMetrics !== "function") {
+          return null;
+        }
+        return insightCore.buildMetrics({
+          taskMap: buildInsightTaskMap(),
+          activityLog: getActivityLog(),
+          moneyState: getMoneyState(),
+          moneyTransactions: getMoneyTransactions(),
+          journalEntries: getJournalEntries(),
+          currentDateKey: formatDate(today),
+          lookbackDays: INSIGHT_LOOKBACK_DAYS
+        });
+      }
+
+      function currentInsightBundle() {
+        if (!insightRules) {
+          return null;
+        }
+        var metrics = currentInsightMetrics();
+        var insights = insightRules.deriveInsights(metrics || {});
+        var topInsight = insightRules.selectTopInsight(insights);
+        currentInsightBundleState = {
+          metrics: metrics,
+          insights: insights,
+          topInsight: topInsight
+        };
+        return currentInsightBundleState;
+      }
+
+      function focusTodayTaskInput() {
+        setActiveView("todayView");
+        if (elements.taskTitle) {
+          elements.taskTitle.focus();
+        }
+      }
+
+      function scrollToPlannedHours() {
+        if (elements.plannedMount && elements.plannedMount.scrollIntoView) {
+          elements.plannedMount.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }
+
+      function applyInsightAction(actionId) {
+        var actionHandlers = {
+          open_money_view: function () {
+            setActiveView("moneyView");
+          },
+          pause_extra_spending: function () {
+            setActiveView("moneyView");
+          },
+          review_planned_hours: scrollToPlannedHours,
+          focus_today_tasks: focusTodayTaskInput,
+          make_one_task_concrete: focusTodayTaskInput
+        };
+        if (actionHandlers[actionId]) {
+          actionHandlers[actionId]();
+        }
+      }
+
+      function defaultMascotBubbleText() {
+        var bundle = currentInsightBundleState || currentInsightBundle();
+        if (mascotState.bubbleOverride) {
+          return mascotState.bubbleOverride;
+        }
+        if (bundle && bundle.topInsight) {
+          return bundle.topInsight.title;
+        }
+        return randomMascotLine();
+      }
+
+      function syncMascotBubble() {
+        setMascotBubble(defaultMascotBubbleText());
+      }
+
+      function mascotJournalContext() {
+        return getJournalEntries().slice(0, 5).map(function (entry) {
+          return {
+            date: entry.date,
+            title: entry.title,
+            content: entry.content
+          };
+        });
+      }
+
+      function mascotMoneyContext() {
+        var state = getMoneyState();
+        if (!state) {
+          return null;
+        }
+        return {
+          month: {
+            spentCents: state.month && state.month.spentCents,
+            targetCents: state.month && state.month.targetCents,
+            flexibleSpentCents: state.month && state.month.flexibleSpentCents,
+            flexibleBudgetCents: state.month && state.month.flexibleBudgetCents,
+            flexibleRemainingCents: state.month && state.month.flexibleRemainingCents,
+            availableWeekCents: state.month && state.month.availableWeekCents,
+            projectedTotalCents: state.month && state.month.projectedTotalCents
+          },
+          categories: (state.categories || []).slice(0, 8).map(function (category) {
             return {
-              id: entry && entry.id ? entry.id : makeId("job"),
-              date: typeof (entry && entry.date) === "string" ? entry.date : "",
-              createdAt: typeof (entry && entry.createdAt) === "string" ? entry.createdAt : ""
+              id: category.id,
+              name: category.name,
+              kind: category.kind,
+              spentCents: category.spentCents,
+              remainingCents: category.remainingCents,
+              budgetCents: category.budgetCents
+            };
+          }),
+          vendors: (state.vendors || []).slice(0, 5).map(function (vendor) {
+            return {
+              vendor: vendor.vendor,
+              spentCents: vendor.spentCents,
+              count: vendor.count,
+              topCategoryId: vendor.topCategoryId
             };
           })
-          .filter(function (entry) {
-            return /^\d{4}-\d{2}-\d{2}$/.test(entry.date);
-          });
+        };
       }
 
-      function saveJobApplications(entries) {
-        writeJson(STORAGE.jobApplications, entries);
+      function mascotPlannedHoursContext() {
+        return readJson(plannedStorageKey(today), {});
+      }
+
+      function mascotSkateContext() {
+        var hero = currentSkateHero();
+        var session = getCurrentSkateSession();
+        var recentSessions = getSkateSessions().slice().sort(function (left, right) {
+          return String(right.finishedAt || "").localeCompare(String(left.finishedAt || ""));
+        }).slice(0, 8).map(function (entry) {
+          return {
+            date: entry.finishedAt ? entry.finishedAt.slice(0, 10) : "",
+            intensity: entry.intensity || "yellow",
+            mainFocus: entry.mainFocus || entry.focus || "",
+            flowFocus: entry.flowFocus || "",
+            durationHours: Number(entry.durationHours) || 0,
+            improvedNote: entry.improvedNote || "",
+            nextFocusNote: entry.nextFocusNote || ""
+          };
+        });
+        var supportThisWeek = getPhysicalLogs().filter(function (log) {
+          return countsAsDone(log.status) && dateInRange(parseDate(log.date), weekRange(today).start, weekRange(today).end);
+        }).map(function (log) {
+          return {
+            date: log.date,
+            type: bodySupportTypeLabel(log.kind),
+            minutes: log.minutes,
+            note: log.note
+          };
+        });
+        return {
+          todayPlan: hero ? {
+            title: hero.title,
+            phaseWeekLabel: hero.phaseWeekLabel,
+            blockLabel: hero.blockLabel,
+            mainFocus: hero.mainFocus,
+            flow: hero.flow,
+            skateiq: hero.skateiq,
+            benchmark: hero.benchmark,
+            defaultIntensity: hero.defaultIntensity
+          } : null,
+          todayState: {
+            selectedIntensity: skateIntensityForToday(hero, session)
+          },
+          priorities: skateCore ? skateCore.PRIORITIES : [],
+          recentSessions: recentSessions,
+          supportThisWeek: supportThisWeek
+        };
+      }
+
+      function mascotRecentTaskHistory() {
+        var bundle = currentInsightBundleState || currentInsightBundle();
+        var summaries = bundle && bundle.metrics && Array.isArray(bundle.metrics.dailySummaries)
+          ? bundle.metrics.dailySummaries
+          : [];
+        return summaries.slice(-7).map(function (summary) {
+          return {
+            dateKey: summary.dateKey,
+            plannedCount: summary.plannedCount,
+            completedCount: summary.completedCount,
+            plannedHours: summary.plannedHours,
+            completedHours: summary.completedHours,
+            unscheduledCount: summary.unscheduledCount,
+            eveningHours: summary.eveningHours,
+            unfinishedLabels: (summary.unfinishedLabels || []).slice(0, 5)
+          };
+        });
+      }
+
+      function currentAgentActionSuggestions(question) {
+        if (!agentCore || typeof agentCore.proposeActions !== "function") {
+          return [];
+        }
+        var bundle = currentInsightBundleState || currentInsightBundle();
+        return agentCore.proposeActions({
+          question: question || mascotState.lastQuestion || "",
+          dayState: getDayState(formatDate(today)),
+          todayTasks: getTodayTasks(),
+          recentTaskHistory: mascotRecentTaskHistory(),
+          metrics: bundle && bundle.metrics
+        }).slice(0, 2);
+      }
+
+      function currentMascotRagPayload() {
+        var bundle = currentInsightBundleState || currentInsightBundle();
+        return {
+          dayState: getDayState(formatDate(today)),
+          metrics: bundle ? bundle.metrics : null,
+          insights: bundle ? bundle.insights : [],
+          topInsight: bundle ? bundle.topInsight : null,
+          journalEntries: mascotJournalContext(),
+          todayTasks: getTodayTasks(),
+          recentTaskHistory: mascotRecentTaskHistory(),
+          plannedHours: mascotPlannedHoursContext(),
+          moneyState: mascotMoneyContext(),
+          skate: mascotSkateContext(),
+          activityLog: getActivityLog(),
+          currentDateKey: formatDate(today)
+        };
+      }
+
+      function localMascotAnswer(question) {
+        if (!mascotRag || typeof mascotRag.answerMascotQuestion !== "function") {
+          return {
+            answer: "I cannot answer that yet because the mascot engine is missing.",
+            evidence: []
+          };
+        }
+        return mascotRag.answerMascotQuestion(question, currentMascotRagPayload());
+      }
+
+      async function requestMascotServerAnswer(question) {
+        var response = await fetch("/api/mascot/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            question: question,
+            context: currentMascotRagPayload()
+          })
+        });
+        if (!response.ok) {
+          throw new Error("Mascot server unavailable");
+        }
+        var payload = await response.json();
+        if (!payload || !payload.ok || !payload.reply || typeof payload.reply.answer !== "string" || !payload.reply.answer.trim()) {
+          throw new Error("Mascot server returned an invalid reply");
+        }
+        return payload.reply;
+      }
+
+      function syncMascotMobileVisibility() {
+        if (!elements.mascotCard) {
+          return;
+        }
+        elements.mascotCard.classList.toggle("is-mobile-open", mascotState.chatOpen && window.innerWidth <= 1120);
+      }
+
+      function setMascotChatOpen(isOpen) {
+        mascotState.chatOpen = Boolean(isOpen);
+        if (elements.mascotChat) {
+          elements.mascotChat.hidden = !mascotState.chatOpen;
+        }
+        syncMascotMobileVisibility();
+        if (elements.toggleMascotChat) {
+          elements.toggleMascotChat.textContent = mascotState.chatOpen ? "Hide Sprouty" : "Ask Sprouty";
+        }
+        if (!mascotState.chatOpen) {
+          mascotState.bubbleOverride = "";
+          syncMascotBubble();
+        } else if (elements.mascotQuestion) {
+          if (!mascotState.messages.length) {
+            primeMascotConversation();
+          }
+          window.setTimeout(function () {
+            elements.mascotQuestion.focus();
+          }, 0);
+        }
+      }
+
+      function renderDayStateOptions() {
+        if (!elements.dayStateOptions) {
+          return;
+        }
+        var activeState = getDayState(formatDate(today));
+        Array.prototype.forEach.call(elements.dayStateOptions.querySelectorAll("[data-day-state]"), function (button) {
+          button.classList.toggle("is-active", button.dataset.dayState === activeState);
+        });
+      }
+
+      function logAgentActionSummary(result, beforeState, afterState) {
+        logActivity({
+          action: "agent_action_applied",
+          entityType: "agent_action",
+          entityId: result.actionId,
+          dateKey: formatDate(today),
+          before: beforeState,
+          after: afterState,
+          meta: {
+            label: result.actionLabel,
+            dayState: getDayState(formatDate(today))
+          }
+        });
+      }
+
+      function logAgentTaskDiffs(beforeTasks, afterTasks, dateKey, actionId) {
+        var beforeById = {};
+        var afterById = {};
+        (beforeTasks || []).forEach(function (task) {
+          beforeById[task.id] = task;
+        });
+        (afterTasks || []).forEach(function (task) {
+          afterById[task.id] = task;
+        });
+
+        Object.keys(beforeById).forEach(function (taskId) {
+          var beforeTask = beforeById[taskId];
+          var afterTask = afterById[taskId];
+          if (!afterTask) {
+            logActivity({
+              action: "task_deleted",
+              entityType: "task",
+              entityId: taskId,
+              dateKey: dateKey,
+              before: beforeTask,
+              after: null,
+              meta: {
+                label: beforeTask.label,
+                activity: beforeTask.activity,
+                agentAction: actionId
+              }
+            });
+            return;
+          }
+          if (beforeTask.label !== afterTask.label) {
+            logActivity({
+              action: "task_updated",
+              entityType: "task",
+              entityId: taskId,
+              dateKey: dateKey,
+              field: "label",
+              before: beforeTask.label,
+              after: afterTask.label,
+              meta: {
+                label: afterTask.label,
+                activity: afterTask.activity,
+                agentAction: actionId
+              }
+            });
+          }
+        });
+
+        Object.keys(afterById).forEach(function (taskId) {
+          if (beforeById[taskId]) {
+            return;
+          }
+          var afterTask = afterById[taskId];
+          logActivity({
+            action: "task_created",
+            entityType: "task",
+            entityId: taskId,
+            dateKey: dateKey,
+            before: null,
+            after: afterTask,
+            meta: {
+              label: afterTask.label,
+              activity: afterTask.activity,
+              agentAction: actionId
+            }
+          });
+        });
+      }
+
+      function applyAgentAction(actionId) {
+        if (!agentCore || typeof agentCore.applyAction !== "function") {
+          return null;
+        }
+        var todayKey = formatDate(today);
+        var tomorrowKey = nextDateKey(todayKey);
+        var plannedHours = mascotPlannedHoursContext();
+        var currentUiState = getAgentUiState();
+        var result = agentCore.applyAction(actionId, {
+          todayDateKey: todayKey,
+          tomorrowDateKey: tomorrowKey,
+          dayState: getDayState(todayKey),
+          todayTasks: getTasksForDateKey(todayKey),
+          tomorrowTasks: getTasksForDateKey(tomorrowKey),
+          plannedHours: plannedHours,
+          agentState: currentUiState,
+          idFactory: makeId
+        });
+        if (!result || !result.changed) {
+          return null;
+        }
+
+        saveTasksForDateKey(todayKey, result.todayTasks);
+        saveTasksForDateKey(tomorrowKey, result.tomorrowTasks);
+        saveAgentUiState(result.agentState);
+        pushAgentUndo({
+          actionId: result.actionId,
+          actionLabel: result.actionLabel,
+          todayKey: todayKey,
+          tomorrowKey: tomorrowKey,
+          snapshot: result.undo
+        });
+        logAgentActionSummary(result, result.undo.before, result.undo.after);
+        logAgentTaskDiffs(result.undo.before.todayTasks, result.undo.after.todayTasks, todayKey, result.actionId);
+        logAgentTaskDiffs(result.undo.before.tomorrowTasks, result.undo.after.tomorrowTasks, tomorrowKey, result.actionId);
+        expandedHiddenTaskDates[todayKey] = false;
+        renderTasks();
+        renderTotals();
+        renderDashboardInsight();
+        syncMascotBubble();
+        return result;
+      }
+
+      function undoLastAgentAction() {
+        if (!agentCore || typeof agentCore.undoAction !== "function") {
+          return null;
+        }
+        var undoEntry = popAgentUndo();
+        if (!undoEntry) {
+          return null;
+        }
+        var restored = agentCore.undoAction(undoEntry.snapshot);
+        if (!restored) {
+          return null;
+        }
+        saveTasksForDateKey(undoEntry.todayKey, restored.todayTasks);
+        saveTasksForDateKey(undoEntry.tomorrowKey, restored.tomorrowTasks);
+        saveAgentUiState(restored.agentState);
+        logActivity({
+          action: "agent_action_undone",
+          entityType: "agent_action",
+          entityId: undoEntry.actionId,
+          dateKey: undoEntry.todayKey,
+          before: undoEntry.snapshot.after,
+          after: undoEntry.snapshot.before,
+          meta: {
+            label: undoEntry.actionLabel
+          }
+        });
+        expandedHiddenTaskDates[undoEntry.todayKey] = false;
+        renderTasks();
+        renderTotals();
+        renderDashboardInsight();
+        syncMascotBubble();
+        return undoEntry;
+      }
+
+      function primeMascotConversation() {
+        var bundle = currentInsightBundleState || currentInsightBundle();
+        if (bundle && bundle.topInsight) {
+          appendMascotMessage("assistant", bundle.topInsight.title, [bundle.topInsight.why], {
+            source: "local"
+          });
+          renderMascotChatLog();
+          return;
+        }
+        appendMascotMessage("assistant", "Ask me about what keeps slipping, what to cut today, what to move to tomorrow, or which task to make smaller.", [], {
+          source: "local"
+        });
+        renderMascotChatLog();
+      }
+
+      function appendMascotMessage(role, text, evidence, meta) {
+        mascotState.messages.push({
+          role: role,
+          text: text,
+          evidence: Array.isArray(evidence) ? evidence.slice(0, 3) : [],
+          meta: meta && typeof meta === "object" ? meta : {}
+        });
+        mascotState.messages = mascotState.messages.slice(-6);
+      }
+
+      function replaceLastMascotMessage(role, text, evidence, meta) {
+        if (!mascotState.messages.length) {
+          appendMascotMessage(role, text, evidence, meta);
+          return;
+        }
+        mascotState.messages[mascotState.messages.length - 1] = {
+          role: role,
+          text: text,
+          evidence: Array.isArray(evidence) ? evidence.slice(0, 3) : [],
+          meta: meta && typeof meta === "object" ? meta : {}
+        };
+      }
+
+      function renderMascotChatLog() {
+        if (!elements.mascotChatLog) {
+          return;
+        }
+        elements.mascotChatLog.innerHTML = "";
+        mascotState.messages.forEach(function (message) {
+          var card = document.createElement("div");
+          card.className = "mascot-message " + message.role;
+          var label = document.createElement("strong");
+          label.textContent = message.role === "user" ? "You" : "Mascot";
+          if (message.meta && message.meta.source && message.role === "assistant") {
+            var source = document.createElement("span");
+            source.className = "mascot-message-source";
+            source.textContent = message.meta.source === "openai" ? "OpenAI" : message.meta.source;
+            card.appendChild(source);
+          }
+          var text = document.createElement("p");
+          text.textContent = message.text;
+          card.appendChild(label);
+          card.appendChild(text);
+          if (message.role === "assistant" && message.evidence.length) {
+            var evidenceList = document.createElement("ul");
+            message.evidence.forEach(function (line) {
+              var item = document.createElement("li");
+              item.textContent = line;
+              evidenceList.appendChild(item);
+            });
+            card.appendChild(evidenceList);
+          }
+          elements.mascotChatLog.appendChild(card);
+        });
+      }
+
+      function finalizeMascotReply(question, response) {
+        var safeResponse = response && typeof response === "object" ? response : {};
+        var actions = currentAgentActionSuggestions(question);
+        var answer = String(safeResponse.answer || "").trim();
+        if (!answer) {
+          answer = "I do not have a solid answer yet.";
+        }
+        if (actions.length) {
+          var suggestion = actions[0].suggestion || actions[0].label;
+          if (answer.toLowerCase().indexOf("useful next step:") === -1) {
+            answer += " Useful next step: " + suggestion + ".";
+          }
+        }
+        return {
+          answer: answer,
+          evidence: Array.isArray(safeResponse.evidence) ? safeResponse.evidence : [],
+          source: safeResponse.source || "local"
+        };
+      }
+
+      async function askMascot(question) {
+        var trimmed = String(question || "").trim();
+        if (!trimmed) {
+          return;
+        }
+        mascotState.lastQuestion = trimmed;
+        appendMascotMessage("user", trimmed);
+        appendMascotMessage("assistant", "Thinking...", [], { source: "thinking", pending: true });
+        renderMascotChatLog();
+        try {
+          var response = finalizeMascotReply(trimmed, await requestMascotServerAnswer(trimmed));
+          mascotState.lastSource = response.source || "openai";
+          replaceLastMascotMessage("assistant", response.answer, response.evidence, { source: mascotState.lastSource });
+        } catch (error) {
+          try {
+            var fallbackResponse = finalizeMascotReply(trimmed, localMascotAnswer(trimmed));
+            mascotState.lastSource = fallbackResponse.source || "local";
+            replaceLastMascotMessage("assistant", fallbackResponse.answer, fallbackResponse.evidence, { source: mascotState.lastSource });
+          } catch (fallbackError) {
+            mascotState.lastSource = "error";
+            replaceLastMascotMessage("assistant", "The mascot reply failed just now. Try again once, and if it keeps happening I need to inspect the exact response body.", [], { source: mascotState.lastSource });
+          }
+        }
+        mascotState.bubbleOverride = mascotState.messages[mascotState.messages.length - 1].text;
+        renderMascotChatLog();
+        syncMascotBubble();
+      }
+
+      function renderMascotQuickAsks() {
+        if (!elements.mascotQuickAsks || !mascotRag || typeof mascotRag.suggestedPrompts !== "function") {
+          return;
+        }
+        elements.mascotQuickAsks.innerHTML = "";
+        mascotRag.suggestedPrompts(getDayState(formatDate(today))).forEach(function (prompt) {
+          var button = document.createElement("button");
+          button.type = "button";
+          button.className = "mascot-quick-ask";
+          button.textContent = prompt;
+          button.addEventListener("click", function () {
+            setMascotChatOpen(true);
+            askMascot(prompt);
+          });
+          elements.mascotQuickAsks.appendChild(button);
+        });
+      }
+
+      function clearDashboardInsightCard() {
+        elements.dashboardInsightCard.hidden = false;
+        elements.dashboardInsightActions.innerHTML = "";
+        elements.dashboardInsightMode.textContent = "quiet mode";
+        elements.dashboardInsightTitle.textContent = "No strong pattern needs attention yet.";
+        elements.dashboardInsightWhy.textContent = "This space will surface patterns when your recent planner data shows something clear, but right now nothing looks urgent or obviously off-track.";
+        if (elements.openPatternHistory) {
+          elements.openPatternHistory.hidden = false;
+        }
+      }
+
+      function renderDashboardInsightActions(actions) {
+        elements.dashboardInsightActions.innerHTML = "";
+        actions.slice(0, 2).forEach(function (action) {
+          var button = document.createElement("button");
+          button.type = "button";
+          button.className = "insight-action";
+          button.textContent = action.label;
+          button.addEventListener("click", function () {
+            applyInsightAction(action.id);
+          });
+          elements.dashboardInsightActions.appendChild(button);
+        });
+      }
+
+      function renderDashboardInsight() {
+        if (!elements.dashboardInsightCard || !elements.dashboardInsightMode || !elements.dashboardInsightTitle || !elements.dashboardInsightWhy || !elements.dashboardInsightActions || !insightRules) {
+          return;
+        }
+        var bundle = currentInsightBundle();
+        var topInsight = bundle ? bundle.topInsight : null;
+
+        if (!topInsight) {
+          clearDashboardInsightCard();
+          syncMascotBubble();
+          return;
+        }
+
+        elements.dashboardInsightCard.hidden = false;
+        elements.dashboardInsightMode.textContent = topInsight.mode + " · " + topInsight.sampleSize + " days";
+        elements.dashboardInsightTitle.textContent = topInsight.title;
+        elements.dashboardInsightWhy.textContent = topInsight.why;
+        renderDashboardInsightActions(topInsight.actions || []);
+        if (elements.openPatternHistory) {
+          elements.openPatternHistory.hidden = false;
+        }
+        if (!mascotState.chatOpen) {
+          mascotState.bubbleOverride = "";
+          syncMascotBubble();
+        }
+      }
+
+      function renderPatternHistoryDialog() {
+        if (!patternHistory || !elements.patternHistoryBody || !elements.patternHistoryRange) {
+          return;
+        }
+        var bundle = currentInsightBundleState || currentInsightBundle();
+        var model = patternHistory.buildPatternHistoryModel({
+          insights: bundle && bundle.insights,
+          metrics: bundle && bundle.metrics,
+          currentDateKey: formatDate(today),
+          lookbackDays: INSIGHT_LOOKBACK_DAYS
+        });
+
+        elements.patternHistoryRange.textContent = model.rangeLabel;
+        elements.patternHistoryBody.innerHTML = "";
+
+        if (model.isEmpty) {
+          var empty = document.createElement("p");
+          empty.className = "pattern-history-empty";
+          empty.textContent = "There is not enough stable pattern evidence yet. Keep logging normally and this will fill in.";
+          elements.patternHistoryBody.appendChild(empty);
+          return;
+        }
+
+        model.groups.forEach(function (group) {
+          var section = document.createElement("section");
+          section.className = "pattern-history-group";
+
+          var title = document.createElement("h3");
+          title.className = "pattern-history-group-title";
+          title.textContent = group.title;
+          section.appendChild(title);
+
+          group.items.forEach(function (item) {
+            var card = document.createElement("article");
+            card.className = "pattern-history-item";
+
+            var head = document.createElement("div");
+            head.className = "pattern-history-item-head";
+            var heading = document.createElement("strong");
+            heading.textContent = item.title;
+            var meta = document.createElement("span");
+            meta.className = "pattern-history-meta";
+            meta.textContent = item.sampleSize + " days";
+            head.appendChild(heading);
+            head.appendChild(meta);
+            card.appendChild(head);
+
+            var summary = document.createElement("p");
+            summary.className = "pattern-history-summary";
+            summary.textContent = item.summary;
+            card.appendChild(summary);
+
+            if (item.actions && item.actions.length) {
+              var actionRow = document.createElement("div");
+              actionRow.className = "insight-actions";
+              item.actions.forEach(function (action) {
+                var button = document.createElement("button");
+                button.type = "button";
+                button.className = "insight-action";
+                button.textContent = action.label;
+                button.addEventListener("click", function () {
+                  applyInsightAction(action.id);
+                });
+                actionRow.appendChild(button);
+              });
+              card.appendChild(actionRow);
+            }
+
+            if (item.evidence && item.evidence.length) {
+              var details = document.createElement("details");
+              details.className = "pattern-history-evidence";
+              var detailsSummary = document.createElement("summary");
+              detailsSummary.textContent = "Show evidence";
+              details.appendChild(detailsSummary);
+              var list = document.createElement("ul");
+              item.evidence.forEach(function (line) {
+                var row = document.createElement("li");
+                row.textContent = line;
+                list.appendChild(row);
+              });
+              details.appendChild(list);
+              card.appendChild(details);
+            }
+
+            section.appendChild(card);
+          });
+
+          elements.patternHistoryBody.appendChild(section);
+        });
+      }
+
+      function openPatternHistoryDialog() {
+        if (!elements.patternHistoryDialog || typeof elements.patternHistoryDialog.showModal !== "function") {
+          return;
+        }
+        renderPatternHistoryDialog();
+        elements.patternHistoryDialog.showModal();
+      }
+
+      function syncSessionTimeToTodayTask(activityId, durationHours) {
+        var tasks = getTodayTasks();
+        if (!skateSessionCore || typeof skateSessionCore.applySessionDurationToTasks !== "function") {
+          return null;
+        }
+        var result = skateSessionCore.applySessionDurationToTasks(tasks, activityId, durationHours, Date.now());
+        if (!result.linkedTaskLabel) {
+          return null;
+        }
+        saveTodayTasks(result.tasks);
+        renderTasks();
+        renderTotals();
+        return result.linkedTaskLabel;
       }
 
       function formatMoney(centsValue) {
@@ -2409,6 +3611,18 @@
         };
         transactions.unshift(transaction);
         saveMoneyTransactions(transactions);
+        logActivity({
+          action: "money_transaction_created",
+          entityType: "money_transaction",
+          entityId: transaction.id,
+          dateKey: transaction.date,
+          before: null,
+          after: transaction,
+          meta: {
+            amountCents: transaction.amountCents,
+            categoryId: transaction.categoryId
+          }
+        });
         upsertMoneyVendorRule(vendor, categoryId);
         var afterState = getMoneyState();
         moneyLastImpactMessage = moneyImpactMessage(beforeState, afterState, transaction);
@@ -2860,19 +4074,6 @@
         renderMoneyPage();
       }
 
-      function renderJobApplications() {
-        if (!elements.jobStatsLine) {
-          return;
-        }
-        var week = weekRange(today);
-        var entries = getJobApplications();
-        var weekCount = entries.filter(function (entry) {
-          var entryDate = parseDate(entry.date);
-          return dateInRange(entryDate, week.start, week.end);
-        }).length;
-        elements.jobStatsLine.textContent = "This week: " + weekCount + " / 2 · Total sent: " + entries.length;
-      }
-
       function renderActivities() {
         if (!elements.taskActivity) {
           return;
@@ -2891,9 +4092,18 @@
       function renderTasks() {
         var todayKey = formatDate(today);
         var tasks = getTodayTasks();
-        var doneCount = 0;
+        var agentUiState = getAgentUiState();
+        var hiddenTaskIds = Array.isArray(agentUiState.hiddenTaskIdsByDate[todayKey]) ? agentUiState.hiddenTaskIdsByDate[todayKey] : [];
+        var showHidden = Boolean(expandedHiddenTaskDates[todayKey]);
+        var visibleTasks = showHidden ? tasks.slice() : tasks.filter(function (task) {
+          return hiddenTaskIds.indexOf(task.id) === -1;
+        });
+        var doneCount = tasks.filter(function (task) {
+          return Boolean(task.done);
+        }).length;
         var dashboardDate = document.getElementById("dashboardDate");
 
+        renderDayStateOptions();
         elements.todaySubtitle.textContent = "A soft little map for the shape of your day.";
         if (dashboardDate) {
           dashboardDate.textContent = humanDate(todayKey);
@@ -2909,13 +4119,49 @@
             "</p>"
           ].join("");
           elements.progressText.textContent = "0 / 0 tasks done today";
+          renderDashboardInsight();
           return;
         }
-
         var list = document.createElement("ul");
         list.className = "task-list";
 
-        tasks.forEach(function (task, index) {
+        if (hiddenTaskIds.length) {
+          var hiddenBanner = document.createElement("div");
+          hiddenBanner.className = "agent-focus-banner";
+          hiddenBanner.innerHTML = "<strong>Focus mode is on.</strong><span>" + hiddenTaskIds.length + " tasks are hidden to lower the noise.</span>";
+          var hiddenActions = document.createElement("div");
+          hiddenActions.className = "agent-focus-actions";
+          var toggleHidden = document.createElement("button");
+          toggleHidden.type = "button";
+          toggleHidden.className = "secondary-button";
+          toggleHidden.textContent = showHidden ? "Hide extra tasks" : "Show hidden tasks";
+          toggleHidden.addEventListener("click", function () {
+            expandedHiddenTaskDates[todayKey] = !showHidden;
+            renderTasks();
+          });
+          var undoButton = document.createElement("button");
+          undoButton.type = "button";
+          undoButton.className = "secondary-button";
+          undoButton.textContent = "Undo last agent change";
+          undoButton.addEventListener("click", function () {
+            var undone = undoLastAgentAction();
+            if (undone) {
+              appendMascotMessage("assistant", "Undid \"" + undone.actionLabel + "\".", [], {
+                source: "action"
+              });
+              renderMascotChatLog();
+            }
+          });
+          hiddenActions.appendChild(toggleHidden);
+          hiddenActions.appendChild(undoButton);
+          hiddenBanner.appendChild(hiddenActions);
+          elements.tasksMount.appendChild(hiddenBanner);
+        }
+
+        visibleTasks.forEach(function (task) {
+          var index = tasks.findIndex(function (item) {
+            return item.id === task.id;
+          });
           var activity = getActivity(task.activity);
           var tracksTime = taskActivityTracksTime(task.activity);
           var item = document.createElement("li");
@@ -2926,15 +4172,15 @@
           if (task.done) {
             card.classList.add("done");
           }
+          if (editingTaskId === task.id) {
+            card.classList.add("is-editing");
+          }
 
           var checkbox = document.createElement("input");
           checkbox.type = "checkbox";
           checkbox.className = "task-check";
           checkbox.id = "task-" + task.id;
           checkbox.checked = Boolean(task.done);
-          if (checkbox.checked) {
-            doneCount += 1;
-          }
 
           var content = document.createElement("div");
           content.className = "task-content";
@@ -2953,15 +4199,15 @@
 
             var label = document.createElement("span");
             label.className = "task-title";
-            label.textContent = task.label;
+            label.textContent = taskDisplayLabel(task);
+
+            titleButton.appendChild(label);
+            content.appendChild(titleButton);
 
             var badge = document.createElement("span");
             badge.className = "activity-badge " + activity.className;
             badge.textContent = activity.short;
-
-            titleButton.appendChild(label);
-            titleButton.appendChild(badge);
-            content.appendChild(titleButton);
+            content.appendChild(badge);
           }
 
           var hoursWrap = document.createElement("div");
@@ -3012,27 +4258,62 @@
           deleteButton.textContent = "×";
 
           checkbox.addEventListener("change", function () {
+            var beforeDone = Boolean(tasks[index].done);
             tasks[index].done = checkbox.checked;
             saveTodayTasks(tasks);
+            logActivity({
+              action: "task_done_changed",
+              entityType: "task",
+              entityId: task.id,
+              dateKey: todayKey,
+              field: "done",
+              before: beforeDone,
+              after: Boolean(tasks[index].done),
+              meta: { activity: task.activity, label: task.label }
+            });
             renderTasks();
           });
 
           hoursInput.addEventListener("input", function () {
+            var beforeHours = effectiveTaskHours(tasks[index]);
             tasks[index].hours = Math.max(0, Number(hoursInput.value) || 0);
             tasks[index].timerSeconds = Math.round(tasks[index].hours * 3600);
             tasks[index].timerStartedAt = null;
             saveTodayTasks(tasks);
+            logTaskFieldChange(task.id, todayKey, "hours", beforeHours, tasks[index].hours, {
+              activity: task.activity,
+              label: task.label
+            });
             renderTotals();
           });
 
           startPauseButton.addEventListener("click", function () {
             if (tasks[index].timerStartedAt) {
+              var beforePauseSeconds = elapsedTaskSeconds(tasks[index]);
               tasks[index].timerSeconds = elapsedTaskSeconds(tasks[index]);
               tasks[index].timerStartedAt = null;
               tasks[index].hours = hoursFromSeconds(tasks[index].timerSeconds);
+              logActivity({
+                action: "task_timer_paused",
+                entityType: "task",
+                entityId: task.id,
+                dateKey: todayKey,
+                before: beforePauseSeconds,
+                after: tasks[index].timerSeconds,
+                meta: { activity: task.activity, label: task.label }
+              });
             } else {
               tasks[index].timerSeconds = elapsedTaskSeconds(tasks[index]);
               tasks[index].timerStartedAt = new Date().toISOString();
+              logActivity({
+                action: "task_timer_started",
+                entityType: "task",
+                entityId: task.id,
+                dateKey: todayKey,
+                before: tasks[index].timerSeconds,
+                after: tasks[index].timerStartedAt,
+                meta: { activity: task.activity, label: task.label }
+              });
             }
             saveTodayTasks(tasks);
             renderTasks();
@@ -3040,21 +4321,41 @@
           });
 
           endButton.addEventListener("click", function () {
+            var beforeEndSeconds = elapsedTaskSeconds(tasks[index]);
             tasks[index].timerSeconds = elapsedTaskSeconds(tasks[index]);
             tasks[index].timerStartedAt = null;
             tasks[index].hours = hoursFromSeconds(tasks[index].timerSeconds);
             tasks[index].done = true;
             saveTodayTasks(tasks);
+            logActivity({
+              action: "task_timer_ended",
+              entityType: "task",
+              entityId: task.id,
+              dateKey: todayKey,
+              before: beforeEndSeconds,
+              after: tasks[index].timerSeconds,
+              meta: { activity: task.activity, label: task.label, done: true }
+            });
             renderTasks();
             renderTotals();
           });
 
           deleteButton.addEventListener("click", function () {
+            var deletedTask = Object.assign({}, tasks[index]);
             tasks.splice(index, 1);
             if (editingTaskId === task.id) {
               editingTaskId = null;
             }
             saveTodayTasks(tasks);
+            logActivity({
+              action: "task_deleted",
+              entityType: "task",
+              entityId: task.id,
+              dateKey: todayKey,
+              before: deletedTask,
+              after: null,
+              meta: { activity: task.activity, label: task.label }
+            });
             renderTasks();
             renderTotals();
           });
@@ -3079,6 +4380,7 @@
 
         elements.tasksMount.appendChild(list);
         elements.progressText.textContent = doneCount + " / " + tasks.length + " tasks done today";
+        renderDashboardInsight();
       }
 
       function renderTaskEditor(content, tasks, index) {
@@ -3095,13 +4397,37 @@
         titleInput.placeholder = "Task title";
 
         var categorySelect = document.createElement("select");
-        categorySelect.className = "task-category-select";
+        categorySelect.className = "task-category-select task-editor-activity";
         activities.forEach(function (activity) {
           var option = document.createElement("option");
           option.value = activity.id;
           option.textContent = activity.label;
           option.selected = activity.id === task.activity;
           categorySelect.appendChild(option);
+        });
+
+        var timeInput = document.createElement("input");
+        timeInput.type = "text";
+        timeInput.className = "task-category-select task-editor-time";
+        timeInput.inputMode = "numeric";
+        timeInput.maxLength = 17;
+        timeInput.placeholder = "09:30";
+        timeInput.value = normalizeScheduledTime(task.scheduledTime);
+
+        var reminderSelect = document.createElement("select");
+        reminderSelect.className = "task-category-select task-editor-reminder";
+        [
+          { value: "0", label: "No reminder" },
+          { value: "5", label: "Remind me 5 min before" },
+          { value: "10", label: "Remind me 10 min before" },
+          { value: "15", label: "Remind me 15 min before" },
+          { value: "30", label: "Remind me 30 min before" }
+        ].forEach(function (config) {
+          var option = document.createElement("option");
+          option.value = config.value;
+          option.textContent = config.label;
+          option.selected = normalizeReminderMinutes(task.reminderMinutes) === Number(config.value);
+          reminderSelect.appendChild(option);
         });
 
         function saveTaskEdit(keepEditing) {
@@ -3111,12 +4437,34 @@
           hasCommitted = true;
           var nextLabel = titleInput.value.trim() || task.label;
           var nextActivity = categorySelect.value || task.activity;
+          var nextScheduledTime = normalizeScheduledTime(timeInput.value);
+          var nextReminderMinutes = normalizeReminderMinutes(reminderSelect.value);
+          var beforeTask = Object.assign({}, tasks[index]);
           tasks[index].label = nextLabel;
           tasks[index].activity = nextActivity;
+          tasks[index].scheduledTime = nextScheduledTime;
+          tasks[index].reminderMinutes = nextReminderMinutes;
+          if (tasks[index].sourceEventId && (beforeTask.scheduledTime !== nextScheduledTime || Number(beforeTask.reminderMinutes || 0) !== nextReminderMinutes)) {
+            tasks[index].useSourceEventReminder = false;
+          }
+          tasks[index].reminderSentAt = "";
+          tasks[index].reminderSentFor = "";
           if (!taskActivityTracksTime(nextActivity)) {
             tasks[index].timerStartedAt = null;
           }
           saveTodayTasks(tasks);
+          logTaskFieldChange(task.id, formatDate(today), "label", beforeTask.label, tasks[index].label, {
+            activity: tasks[index].activity
+          });
+          logTaskFieldChange(task.id, formatDate(today), "activity", beforeTask.activity, tasks[index].activity, {
+            label: tasks[index].label
+          });
+          logTaskFieldChange(task.id, formatDate(today), "scheduledTime", beforeTask.scheduledTime || "", tasks[index].scheduledTime || "", {
+            label: tasks[index].label
+          });
+          logTaskFieldChange(task.id, formatDate(today), "reminderMinutes", beforeTask.reminderMinutes || 0, tasks[index].reminderMinutes || 0, {
+            label: tasks[index].label
+          });
           editingTaskId = keepEditing ? task.id : null;
           renderTasks();
           renderTotals();
@@ -3154,7 +4502,25 @@
         categorySelect.addEventListener("change", function () {
           saveTaskEdit(true);
         });
+        timeInput.addEventListener("change", function () {
+          saveTaskEdit(true);
+        });
+        reminderSelect.addEventListener("change", function () {
+          saveTaskEdit(true);
+        });
         categorySelect.addEventListener("keydown", function (event) {
+          if (event.key === "Escape") {
+            event.preventDefault();
+            cancelTaskEdit();
+          }
+        });
+        timeInput.addEventListener("keydown", function (event) {
+          if (event.key === "Escape") {
+            event.preventDefault();
+            cancelTaskEdit();
+          }
+        });
+        reminderSelect.addEventListener("keydown", function (event) {
           if (event.key === "Escape") {
             event.preventDefault();
             cancelTaskEdit();
@@ -3170,9 +4536,31 @@
             }
           }, 0);
         });
+        timeInput.addEventListener("blur", function () {
+          window.setTimeout(function () {
+            if (hasCommitted) {
+              return;
+            }
+            if (!editor.contains(document.activeElement)) {
+              saveTaskEdit(false);
+            }
+          }, 0);
+        });
+        reminderSelect.addEventListener("blur", function () {
+          window.setTimeout(function () {
+            if (hasCommitted) {
+              return;
+            }
+            if (!editor.contains(document.activeElement)) {
+              saveTaskEdit(false);
+            }
+          }, 0);
+        });
 
         editor.appendChild(titleInput);
         editor.appendChild(categorySelect);
+        editor.appendChild(timeInput);
+        editor.appendChild(reminderSelect);
         content.appendChild(editor);
 
         window.setTimeout(function () {
@@ -3302,13 +4690,17 @@
 
       function renderTotals() {
         renderWeeklyGoals();
-        renderLifePie();
-        renderPlannedActual();
-        renderJobApplications();
-        renderStudyOverview();
+        renderLiveSummaryPanels();
         renderRoutinePlanner();
         renderGoalPlanner();
         renderMoneyDashboard();
+      }
+
+      function renderLiveSummaryPanels() {
+        renderLifePie();
+        renderPlannedActual();
+        renderDashboardInsight();
+        renderStudyOverview();
       }
 
       function renderWeeklyGoals() {
@@ -3444,8 +4836,22 @@
           input.value = planned[activity.id] || "";
           input.placeholder = "0";
           input.addEventListener("input", function () {
+            var beforePlanned = Number(planned[activity.id]) || 0;
             planned[activity.id] = Math.max(0, Number(input.value) || 0);
             writeJson(plannedStorageKey(today), planned);
+            logActivity({
+              action: "planned_hours_updated",
+              entityType: "planned_hours",
+              entityId: activity.id,
+              dateKey: isoWeekKey(today),
+              field: activity.id,
+              before: beforePlanned,
+              after: planned[activity.id],
+              meta: {
+                group: group,
+                activity: activity.id
+              }
+            });
           });
           input.addEventListener("change", renderPlannedActual);
           row.appendChild(document.createElement("strong")).textContent = activity.short;
@@ -3736,33 +5142,6 @@
         return calendarCore.groupEventsByPart(eventsForDate(dateKey));
       }
 
-      function parseEventTimeRange(title) {
-        var text = String(title || "").trim();
-        var match = text.match(/^(\d{1,2})(?::?(\d{2}))?\s*[-–]\s*(\d{1,2})(?::?(\d{2}))?(?=\s|$)/);
-        if (!match) {
-          return null;
-        }
-        var startHours = Number(match[1]);
-        var startMinutes = match[2] ? Number(match[2]) : 0;
-        var endHours = Number(match[3]);
-        var endMinutes = match[4] ? Number(match[4]) : 0;
-        if (startHours > 23 || startMinutes > 59 || endMinutes > 59) {
-          return null;
-        }
-        if (endHours > 24 || (endHours === 24 && endMinutes !== 0)) {
-          return null;
-        }
-        var start = (startHours * 60) + startMinutes;
-        var end = (endHours * 60) + endMinutes;
-        if (end <= start) {
-          return null;
-        }
-        return {
-          start: start,
-          end: end
-        };
-      }
-
       function timeBoundaryForPart(part) {
         if (part === "morning") {
           return { start: 0, end: MORNING_END };
@@ -3793,7 +5172,7 @@
       }
 
       function weeklyPlannerEventLabel(event, part) {
-        var range = parseEventTimeRange(event && event.title);
+        var range = calendarCore.parseEventTimeRange(event && event.title);
         if (!range) {
           return event.title;
         }
@@ -4233,7 +5612,7 @@
               if (placed) {
                 var status = document.createElement("span");
                 status.className = "goal-step-status";
-                status.textContent = "Placed: " + humanDate(placed.date) + " · " + partLabels[eventDayPart(placed)];
+                status.textContent = "Placed: " + humanDate(placed.date) + " · " + partLabels[calendarCore.eventDayPart(placed)];
                 row.appendChild(status);
               }
             }
@@ -4390,6 +5769,7 @@
             return false;
           }),
           skillDone: false,
+          plannedIntensity: "yellow",
           expandedStage: "warmup",
           startedAt: null
         };
@@ -4429,6 +5809,7 @@
             return Boolean(session.skillChecks && session.skillChecks[index]);
           }),
           skillDone: Boolean(session.skillDone),
+          plannedIntensity: ["blue", "yellow", "green"].indexOf(session.plannedIntensity) !== -1 ? session.plannedIntensity : "yellow",
           expandedStage: ["warmup", "focus", "skill", ""].indexOf(session.expandedStage) !== -1 ? session.expandedStage : "warmup",
           startedAt: transientSessionStarts.skate
         };
@@ -4443,7 +5824,18 @@
 
       function getSkateSessions() {
         var sessions = readJson(STORAGE.skateSessions, []);
-        return Array.isArray(sessions) ? sessions : [];
+        if (!Array.isArray(sessions)) {
+          return [];
+        }
+        return sessions.map(function (session) {
+          if (!session || typeof session !== "object") {
+            return null;
+          }
+          return Object.assign({}, session, {
+            intensity: ["blue", "yellow", "green"].indexOf(session.intensity) !== -1 ? session.intensity : "yellow",
+            benchmarkDone: Boolean(session.benchmarkDone)
+          });
+        }).filter(Boolean);
       }
 
       function saveSkateSessions(sessions) {
@@ -4475,190 +5867,244 @@
         }
       }
 
+      function boardHoursTotal() {
+        if (skateSessionCore && typeof skateSessionCore.boardHoursTotalFromSessions === "function") {
+          return skateSessionCore.boardHoursTotalFromSessions(getSkateSessions());
+        }
+        return getSkateSessions().reduce(function (sum, session) {
+          return sum + Math.max(0, Number(session && session.durationHours) || 0);
+        }, 0);
+      }
+
+      function formatSkateHours(value) {
+        var number = Number(value) || 0;
+        if (!number) {
+          return "0h";
+        }
+        if (number < 0.1) {
+          return Math.max(1, Math.round(number * 60)) + "m";
+        }
+        var rounded = Math.round(number * 10) / 10;
+        return String(rounded).replace(/\.0$/, "") + "h";
+      }
+
+      function currentSkateHero() {
+        var completedThisWeek = countSkateSessionsForWeek(today);
+        return skateCore && typeof skateCore.heroContent === "function"
+          ? skateCore.heroContent(today, completedThisWeek)
+          : null;
+      }
+
+      function skateIntensityForToday(hero, session) {
+        var settings = getSkateSettings();
+        var saved = settings.intensityByDate[formatDate(today)];
+        if (["blue", "yellow", "green"].indexOf(saved) !== -1) {
+          return saved;
+        }
+        return hero && hero.defaultIntensity ? hero.defaultIntensity : "yellow";
+      }
+
+      function skateHeroDayLabel(state) {
+        if (state.streakActive) {
+          return state.streakDay + " / " + skateCore.STREAK_DAYS;
+        }
+        if (state.dayNumber > 0) {
+          return humanDate(formatDate(today)).replace(",", "");
+        }
+        return "Starts Aug 29";
+      }
+
+      function applySkateIntensityButtons(activeIntensityId) {
+        Array.prototype.forEach.call(elements.skateIntensityToggle.querySelectorAll("[data-intensity]"), function (button) {
+          var active = button.dataset.intensity === activeIntensityId;
+          button.classList.toggle("active", active);
+          button.setAttribute("aria-pressed", active ? "true" : "false");
+        });
+      }
+
+      function renderSkateHero(session) {
+        var hero = currentSkateHero();
+        if (!hero || !elements.skatePhaseBadge) {
+          return;
+        }
+        var state = hero.state;
+        var intensityId = skateIntensityForToday(hero, session);
+        var intensity = skateCore.intensityMeta(intensityId);
+        var dayLabel = skateHeroDayLabel(state);
+
+        elements.skateHeroSubtitle.textContent = hero.subtitle;
+        elements.skatePhaseBadge.textContent = hero.phaseWeekLabel;
+        elements.skateWeekCount.textContent = state.weekNumber + " / " + skateCore.TOTAL_WEEKS;
+        elements.skateDayCount.textContent = dayLabel;
+        elements.skateBoardHours.textContent = formatSkateHours(boardHoursTotal());
+        elements.skateBlockLabel.textContent = hero.blockLabel;
+        elements.skateMainFocus.textContent = hero.mainFocus;
+        elements.skateSkateiqBlock.textContent = hero.skateiq;
+        elements.skateMainFocusShort.textContent = hero.mainFocus;
+        elements.skateFlowFocus.textContent = hero.flow;
+        elements.skateBenchmarkChip.hidden = !hero.benchmark;
+        elements.skateBenchmarkLabel.textContent = hero.benchmarkLabel || "Benchmark";
+        elements.skateIntensityDescription.textContent = intensity.tone + " · " + intensity.description;
+        elements.skateIntensityEffort.textContent = intensity.effort;
+        elements.skateAttemptBudget.textContent = intensity.attempts;
+        applySkateIntensityButtons(intensity.id);
+      }
+
       function renderSkateWeeklyMetrics() {
         var counts = {};
         getPhysicalLogs().forEach(function (log) {
-          var label = (log.note || log.name || "").trim();
-          if (!label || !countsAsDone(log.status)) {
+          var logDate = parseDate(log.date);
+          if (!countsAsDone(log.status) || !dateInRange(logDate, weekRange(today).start, weekRange(today).end)) {
             return;
           }
-          counts[label] = (counts[label] || 0) + 1;
+          var label = bodySupportTypeLabel(log.kind);
+          if (!counts[label]) {
+            counts[label] = {
+              count: 0,
+              minutes: 0,
+              note: ""
+            };
+          }
+          counts[label].count += 1;
+          counts[label].minutes += Math.max(0, Number(log.minutes) || 0);
+          if (!counts[label].note && log.note) {
+            counts[label].note = log.note;
+          }
         });
 
         elements.skateWeeklyMetrics.innerHTML = "";
 
         Object.keys(counts).sort(function (left, right) {
-          if (counts[right] !== counts[left]) {
-            return counts[right] - counts[left];
+          if (counts[right].count !== counts[left].count) {
+            return counts[right].count - counts[left].count;
           }
           return left.localeCompare(right);
         }).forEach(function (label) {
           var chip = document.createElement("span");
           chip.className = "body-support-chip";
-          chip.innerHTML = "<strong>" + label + "</strong><em>" + counts[label] + "</em>";
+          chip.innerHTML = "<strong>" + label + "</strong><em>" + counts[label].count + "x</em><span>" + (counts[label].minutes ? counts[label].minutes + " min" : "Logged") + "</span>";
+          if (counts[label].note) {
+            chip.title = counts[label].note;
+          }
           elements.skateWeeklyMetrics.appendChild(chip);
         });
 
         if (!elements.skateWeeklyMetrics.children.length) {
           var empty = document.createElement("p");
           empty.className = "body-support-empty";
-          empty.textContent = "Saved body support will appear here.";
+          empty.textContent = "Saved body support from this week will appear here.";
           elements.skateWeeklyMetrics.appendChild(empty);
         }
       }
 
+      function normalizedSessionIntensity(session) {
+        if (session && ["blue", "yellow", "green"].indexOf(session.intensity) !== -1) {
+          return session.intensity;
+        }
+        return "yellow";
+      }
+
+      function appendRoadmapMonthLabel(container, cursor, leadingBlanks, dayOffset) {
+        var label = document.createElement("span");
+        label.className = "skate-roadmap-month";
+        label.textContent = monthNames[cursor.getMonth()].slice(0, 3);
+        label.style.gridColumn = String(Math.floor((leadingBlanks + dayOffset) / 7) + 1);
+        container.appendChild(label);
+      }
+
+      function createRoadmapDayButton(dateKey, sessions) {
+        var button = document.createElement("button");
+        var latest = sessions.length ? sessions[sessions.length - 1] : null;
+        button.type = "button";
+        button.className = "skate-roadmap-day";
+        button.classList.add("intensity-" + (latest ? normalizedSessionIntensity(latest) : "empty"));
+        button.setAttribute("aria-label", humanDate(dateKey) + (sessions.length ? " · " + sessions.length + " skate session" + (sessions.length === 1 ? "" : "s") : " · no logged session"));
+        button.textContent = "";
+        if (latest) {
+          button.title = [
+            humanDate(dateKey),
+            normalizedSessionIntensity(latest).toUpperCase(),
+            latest.mainFocus || latest.focus || "Saved session"
+          ].join(" · ");
+        } else {
+          button.title = humanDate(dateKey);
+        }
+        return button;
+      }
+
+      function roadmapRange() {
+        var seasonStart = skateCore ? parseDate(skateCore.SEASON_START) : new Date(today.getFullYear(), 0, 1);
+        if (today < seasonStart) {
+          return null;
+        }
+        return {
+          start: seasonStart,
+          end: today
+        };
+      }
+
+      function sessionsByDateKey(range) {
+        return getSkateSessions().reduce(function (map, session) {
+          if (!session || !session.finishedAt) {
+            return map;
+          }
+          var key = session.finishedAt.slice(0, 10);
+          var date = parseDate(key);
+          if (!dateInRange(date, range.start, range.end)) {
+            return map;
+          }
+          if (!map[key]) {
+            map[key] = [];
+          }
+          map[key].push(session);
+          return map;
+        }, {});
+      }
+
       function renderSkateTrendCharts() {
-        var series = trendSeries(skateTrendPeriod);
-        var frequency = sessionFrequency(skateTrendPeriod);
         elements.skateTrendCharts.innerHTML = "";
-        elements.skateTrendCharts.appendChild(createTrendChart("Skate quality over time", [
-          { label: "Quality", values: series.quality, summary: scoreLabel(average(series.quality)), className: "skate" }
-        ]));
-        elements.skateTrendCharts.appendChild(createTrendChart("Leg soreness over time", [
-          { label: "Soreness", values: series.soreness, summary: scoreLabel(average(series.soreness)), className: "gym" }
-        ]));
-        elements.skateTrendCharts.appendChild(createFrequencyChart("Session frequency", frequency.rows, "No sessions in this range yet."));
-        renderSkateTrendPeriodTabs();
-      }
-
-      function trendSeries(period) {
-        var buckets = buildTrendBuckets(period);
-        var series = {
-          labels: [],
-          quality: [],
-          soreness: []
-        };
-
-        buckets.forEach(function (bucket) {
-          var sessions = getSkateSessions().filter(function (session) {
-            return session && session.finishedAt && bucket.matchDate(parseDate(session.finishedAt.slice(0, 10)));
-          });
-
-          series.labels.push(bucket.label);
-          series.quality.push(average(sessions.map(function (session) { return session.skateQuality; })));
-          series.soreness.push(average(sessions.map(function (session) { return session.legSoreness; })));
-        });
-
-        return series;
-      }
-
-      function selectedTrendRange(period) {
-        if (period === "day") {
-          return { start: today, end: today };
+        var range = roadmapRange();
+        if (!range) {
+          var empty = document.createElement("p");
+          empty.className = "body-support-empty";
+          empty.textContent = "Roadmap starts on Saturday, August 29, 2026. Dots appear after the season begins and stay visible as the history grows.";
+          elements.skateTrendCharts.appendChild(empty);
+          return;
         }
-        if (period === "week") {
-          return weekRange(today);
-        }
-        if (period === "month") {
-          return {
-            start: new Date(today.getFullYear(), today.getMonth(), 1),
-            end: new Date(today.getFullYear(), today.getMonth() + 1, 0)
-          };
-        }
-        return {
-          start: new Date(2000, 0, 1),
-          end: new Date(2099, 11, 31)
-        };
-      }
 
-      function sessionFrequency(period) {
-        var range = selectedTrendRange(period);
-        var skateCount = getSkateSessions().filter(function (session) {
-          return session && session.finishedAt && dateInRange(parseDate(session.finishedAt.slice(0, 10)), range.start, range.end);
-        }).length;
-        var bodyCount = getPhysicalLogs().filter(function (log) {
-          return countsAsDone(log.status) && bucketlessBodySession(log) && dateInRange(parseDate(log.date), range.start, range.end);
-        }).length;
-        var totalCount = skateCount + bodyCount;
-        return {
-          rows: totalCount ? [
-            { label: "Skate", count: skateCount, className: "skate" },
-            { label: "Body", count: bodyCount, className: "python" },
-            { label: "Total", count: totalCount, className: "lc" }
-          ] : []
-        };
-      }
-
-      function bucketlessBodySession(log) {
-        return log && (log.note || log.name);
-      }
-
-      function buildTrendBuckets(period) {
-        var now = new Date(today.getFullYear(), today.getMonth(), today.getDate());
-        if (period === "day") {
-          return Array.from({ length: 7 }, function (_, index) {
-            var date = addDays(now, index - 6);
-            var key = formatDate(date);
-            return {
-              label: weekdays[date.getDay()],
-              matchDate: function (target) {
-                return formatDate(target) === key;
-              }
-            };
-          });
+        var sessionsByDate = sessionsByDateKey(range);
+        var monthLabels = document.createElement("div");
+        monthLabels.className = "skate-roadmap-months";
+        var grid = document.createElement("div");
+        grid.className = "skate-roadmap-grid";
+        var leadingBlanks = range.start.getDay();
+        var totalDays = Math.max(1, Math.round((new Date(range.end.getFullYear(), range.end.getMonth(), range.end.getDate()) - new Date(range.start.getFullYear(), range.start.getMonth(), range.start.getDate())) / (24 * 60 * 60 * 1000)) + 1);
+        var columnCount = Math.ceil((leadingBlanks + totalDays) / 7);
+        grid.style.setProperty("--roadmap-columns", String(columnCount));
+        for (var blank = 0; blank < leadingBlanks; blank += 1) {
+          var spacer = document.createElement("span");
+          spacer.className = "skate-roadmap-spacer";
+          spacer.setAttribute("aria-hidden", "true");
+          grid.appendChild(spacer);
         }
-        if (period === "week") {
-          return Array.from({ length: 8 }, function (_, index) {
-            var anchor = addDays(now, (index - 7) * 7);
-            var range = weekRange(anchor);
-            var label = monthNames[range.start.getMonth()].slice(0, 3) + " " + range.start.getDate();
-            return {
-              label: label,
-              matchDate: function (target) {
-                return dateInRange(target, range.start, range.end);
-              }
-            };
-          });
-        }
-        if (period === "month" || period === "all") {
-          var sourceDates = getSkateSessions().filter(function (session) {
-            return session && session.finishedAt;
-          }).map(function (session) {
-            return parseDate(session.finishedAt.slice(0, 10));
-          }).concat(getPhysicalLogs().map(function (log) {
-            return parseDate(log.date);
-          }));
-          var firstDate = sourceDates.length ? sourceDates.sort(function (a, b) { return a - b; })[0] : now;
-          var monthCount = period === "month" ? 6 : Math.max(1, ((now.getFullYear() - firstDate.getFullYear()) * 12) + now.getMonth() - firstDate.getMonth() + 1);
-          return Array.from({ length: monthCount }, function (_, index) {
-            var date = new Date(
-              now.getFullYear(),
-              now.getMonth() - monthCount + index + 1,
-              1
-            );
-            var year = date.getFullYear();
-            var month = date.getMonth();
-            return {
-              label: monthNames[month].slice(0, 3),
-              matchDate: function (target) {
-                return target.getFullYear() === year && target.getMonth() === month;
-              }
-            };
-          });
-        }
-        return [];
-      }
 
-      function renderSkateTrendPeriodTabs() {
-        var periods = [
-          { id: "day", label: "Day" },
-          { id: "week", label: "Week" },
-          { id: "month", label: "Month" },
-          { id: "all", label: "All" }
-        ];
-        elements.skateTrendPeriodTabs.innerHTML = "";
-        periods.forEach(function (period) {
-          var button = document.createElement("button");
-          button.type = "button";
-          button.className = "period-button";
-          button.classList.toggle("active", skateTrendPeriod === period.id);
-          button.textContent = period.label;
-          button.addEventListener("click", function () {
-            skateTrendPeriod = period.id;
-            renderSkateTrendCharts();
-          });
-          elements.skateTrendPeriodTabs.appendChild(button);
-        });
+        var cursor = new Date(range.start.getFullYear(), range.start.getMonth(), range.start.getDate());
+        var lastMonthKey = "";
+        var dayOffset = 0;
+        while (cursor <= range.end) {
+          var key = formatDate(cursor);
+          var sessions = sessionsByDate[key] || [];
+          var monthKey = cursor.getFullYear() + "-" + cursor.getMonth();
+          if (monthKey !== lastMonthKey) {
+            appendRoadmapMonthLabel(monthLabels, cursor, leadingBlanks, dayOffset);
+            lastMonthKey = monthKey;
+          }
+          grid.appendChild(createRoadmapDayButton(key, sessions));
+          cursor = addDays(cursor, 1);
+          dayOffset += 1;
+        }
+        elements.skateTrendCharts.appendChild(monthLabels);
+        elements.skateTrendCharts.appendChild(grid);
       }
 
       function countSkateSessionsForWeek(date) {
@@ -4704,18 +6150,11 @@
       }
 
       function renderSkatePage() {
-        if (!elements.skateFocusInput) {
+        if (!elements.skatePhaseBadge) {
           return;
         }
         var session = getCurrentSkateSession();
-        var template = getSkateCoachTemplate();
-        var target = Math.max(1, Number(readText(STORAGE.skateTarget, "4")) || 4);
-        var skateSessionsThisWeek = countSkateSessionsForWeek(today);
-
-        elements.skateFocusInput.value = readText(STORAGE.skateFocus, "");
-        elements.skateTargetInput.value = target;
         elements.skateWeekLabel.textContent = isoWeekKey(today);
-        elements.skateSessionCount.textContent = skateSessionsThisWeek + " / " + target;
         elements.skateSessionHint.textContent = session.startedAt
           ? "Skate session running · " + formatTimer(startedSessionSeconds(session.startedAt))
           : "Hit start when the session begins. Finish it when you know what actually happened.";
@@ -4726,10 +6165,136 @@
           elements.finishSkateSession.disabled = !session.startedAt;
         }
         elements.skateCoachFlow.innerHTML = "";
+        renderSkateHero(session);
         renderSkateWeeklyMetrics();
         renderSkateTrendCharts();
-        elements.skateCoachFlow.appendChild(renderCoachFocusStage(session, template));
-        elements.skateCoachFlow.appendChild(renderCoachSkillStage(session, template));
+        elements.skateCoachFlow.appendChild(renderSkateTrainingPlan());
+      }
+
+      function renderSkateTrainingPlan() {
+        var hero = currentSkateHero();
+        var state = hero && hero.state ? hero.state : (skateCore ? skateCore.seasonState(today) : null);
+        var wrapper = document.createElement("div");
+        wrapper.className = "skate-plan-stack";
+
+        if (!hero || !state || !skateCore) {
+          var empty = document.createElement("p");
+          empty.className = "body-support-empty";
+          empty.textContent = "The training plan is not available right now.";
+          wrapper.appendChild(empty);
+          return wrapper;
+        }
+
+        var todayCard = document.createElement("section");
+        todayCard.className = "skate-plan-card skate-plan-today";
+        var todayHead = document.createElement("div");
+        todayHead.className = "skate-plan-head";
+        todayHead.innerHTML = "<div><span class=\"skate-plan-kicker\">" + hero.blockLabel + "</span><h3>" + hero.mainFocus + "</h3><p>" + hero.phaseWeekLabel + "</p></div>";
+        todayCard.appendChild(todayHead);
+
+        var todayGrid = document.createElement("div");
+        todayGrid.className = "skate-plan-grid";
+        [
+          { label: "30-min SkateIQ", value: hero.skateiq },
+          { label: "Flow / fun", value: hero.flow },
+          { label: "Default intensity", value: skateCore.intensityMeta(hero.defaultIntensity).label + " · " + skateCore.intensityMeta(hero.defaultIntensity).attempts }
+        ].forEach(function (item) {
+          var block = document.createElement("article");
+          block.className = "skate-plan-block";
+          block.innerHTML = "<span>" + item.label + "</span><strong>" + item.value + "</strong>";
+          todayGrid.appendChild(block);
+        });
+        todayCard.appendChild(todayGrid);
+        if (hero.benchmark || hero.note) {
+          var note = document.createElement("p");
+          note.className = "skate-plan-note";
+          note.textContent = [hero.benchmarkLabel, hero.note].filter(Boolean).join(" · ");
+          todayCard.appendChild(note);
+        }
+        wrapper.appendChild(todayCard);
+
+        var weekCard = document.createElement("section");
+        weekCard.className = "skate-plan-card";
+        var weekHead = document.createElement("div");
+        weekHead.className = "skate-plan-head";
+        var dateLabel = state.dayNumber <= 0
+          ? "Previewing the program before Saturday, August 29, 2026."
+          : "Current training week from your checked-in plan.";
+        weekHead.innerHTML = "<div><span class=\"skate-plan-kicker\">Week " + state.weekNumber + " / " + skateCore.TOTAL_WEEKS + "</span><h3>" + hero.weekPlan.summary + "</h3><p>" + dateLabel + "</p></div>";
+        weekCard.appendChild(weekHead);
+
+        var list = document.createElement("div");
+        list.className = "skate-plan-list";
+        var useDailyWeekList = Array.isArray(hero.weekPlan.days)
+          && hero.weekPlan.days.length
+          && !(state.dayNumber > skateCore.STREAK_DAYS && state.weekNumber === 9);
+        var items = useDailyWeekList
+          ? hero.weekPlan.days.map(function (entry) {
+            return {
+              label: "Day " + entry.dayNumber,
+              title: entry.mainFocus,
+              subtitle: entry.skateiq,
+              detail: entry.flow,
+              intensity: entry.intensity,
+              isCurrent: state.dayNumber === entry.dayNumber,
+              isPreview: state.dayNumber <= 0 && entry.dayNumber === 1,
+              benchmark: entry.benchmark ? (entry.benchmarkLabel || "Benchmark") : ""
+            };
+          })
+          : skateCore.weeklySessionsForDate(today).map(function (entry, index) {
+            var entryDates = Array.isArray(entry.dateKeys) ? entry.dateKeys : [];
+            var currentByDate = entryDates.indexOf(formatDate(today)) !== -1;
+            var currentByHero = hero.blockLabel === (entry.label || ("Session " + (index + 1)));
+            return {
+              label: entry.label || ("Session " + (index + 1)),
+              title: entry.mainFocus,
+              subtitle: entry.skateiq,
+              detail: entry.flow,
+              intensity: entry.intensity,
+              isCurrent: currentByDate || currentByHero,
+              isPreview: false,
+              benchmark: entry.benchmark ? "Benchmark / review" : ""
+            };
+          });
+
+        items.forEach(function (item) {
+          var row = document.createElement("article");
+          row.className = "skate-plan-row intensity-" + item.intensity;
+          if (item.isCurrent) {
+            row.classList.add("is-current");
+          }
+          if (item.isPreview) {
+            row.classList.add("is-preview");
+          }
+
+          var top = document.createElement("div");
+          top.className = "skate-plan-row-top";
+          top.innerHTML = "<span>" + item.label + "</span><strong>" + item.title + "</strong><em>" + skateCore.intensityMeta(item.intensity).label + "</em>";
+          row.appendChild(top);
+
+          var subtitle = document.createElement("p");
+          subtitle.className = "skate-plan-row-copy";
+          subtitle.textContent = item.subtitle;
+          row.appendChild(subtitle);
+
+          var detail = document.createElement("p");
+          detail.className = "skate-plan-row-detail";
+          detail.textContent = item.detail;
+          row.appendChild(detail);
+
+          if (item.benchmark) {
+            var benchmark = document.createElement("span");
+            benchmark.className = "skate-plan-pill";
+            benchmark.textContent = item.benchmark;
+            row.appendChild(benchmark);
+          }
+
+          list.appendChild(row);
+        });
+
+        weekCard.appendChild(list);
+        wrapper.appendChild(weekCard);
+        return wrapper;
       }
 
       function countGuitarSessionsForWeek(date) {
@@ -5261,38 +6826,40 @@
           elements.skateSessionHint.textContent = "Start the skate session first so the time has somewhere to begin.";
           return;
         }
-        if (elements.skateFeedbackDialog && typeof elements.skateFeedbackDialog.showModal === "function") {
-          elements.skateDurationMinutes.value = String(sessionDurationMinutes(session.startedAt, 45));
-          elements.skateImprovedNote.value = "";
-          elements.skateNextFocusNote.value = "";
-          elements.skateFeedbackDialog.showModal();
-          return;
-        }
         saveFinishedSkateSession({ progressToday: 3, confidence: 3, improvedNote: "", nextFocusNote: "", durationMinutes: sessionDurationMinutes(session.startedAt, 45) });
       }
 
-      function saveFinishedSkateSession(feedback) {
-        var session = getCurrentSkateSession();
-        var sessions = getSkateSessions();
-        var template = getSkateCoachTemplate();
+      function finishedSkateDurationHours(feedback, startedAt) {
+        return Math.max(0, (Math.max(1, Number(feedback.durationMinutes) || sessionDurationMinutes(startedAt, 45))) / 60);
+      }
+
+      function selectedWarmupNames(session, warmupItems) {
+        return warmupItems.filter(function (item) {
+          return session.warmupChecks[item.id];
+        }).map(function (item) {
+          return item.name;
+        }).join(", ");
+      }
+
+      function learningItemsForSavedSession(session) {
+        return [
+          { kind: "flat", name: session.selectedFlat, status: session.focusCards.flat.status, goals: session.focusCards.flat.goals, note: session.focusCards.flat.note },
+          { kind: "transition", name: session.selectedTransition, status: session.focusCards.transition.status, goals: session.focusCards.transition.goals, note: session.focusCards.transition.note }
+        ];
+      }
+
+      function savedSkateSessionPayload(session, feedback, template, hero, intensity, durationHours, linkedTask) {
         var focus = [session.selectedFlat, session.selectedTransition].filter(Boolean).join(" · ");
         var warmupItems = flattenWarmupItems(template);
-        var durationHours = Math.max(0, (Math.max(1, Number(feedback.durationMinutes) || sessionDurationMinutes(session.startedAt, 45))) / 60);
-        var linkedTask = syncSessionTimeToTodayTask("skate", durationHours);
-
-        sessions.push({
+        return {
           id: makeId("skate"),
           focus: focus,
-          warmups: warmupItems.filter(function (item) {
-            return session.warmupChecks[item.id];
-          }).map(function (item) {
-            return item.name;
-          }).join(", "),
+          mainFocus: hero ? hero.mainFocus : focus,
+          flowFocus: hero ? hero.flow : "",
+          blockLabel: hero ? hero.blockLabel : "",
+          warmups: selectedWarmupNames(session, warmupItems),
           warmupItems: template.warmupGroups,
-          learningItems: [
-            { kind: "flat", name: session.selectedFlat, status: session.focusCards.flat.status, goals: session.focusCards.flat.goals, note: session.focusCards.flat.note },
-            { kind: "transition", name: session.selectedTransition, status: session.focusCards.transition.status, goals: session.focusCards.transition.goals, note: session.focusCards.transition.note }
-          ],
+          learningItems: learningItemsForSavedSession(session),
           checked: warmupItems.map(function (item) {
             return Boolean(session.warmupChecks[item.id]);
           }),
@@ -5302,19 +6869,35 @@
           skateQuality: Math.max(1, Math.min(5, Number(feedback.progressToday) || 3)),
           confidence: Math.max(1, Math.min(5, Number(feedback.confidence) || 3)),
           progressToday: Math.max(1, Math.min(5, Number(feedback.progressToday) || 3)),
+          intensity: intensity,
+          attemptBudget: skateCore ? skateCore.intensityMeta(intensity).attempts : "",
+          benchmarkDone: Boolean(hero && hero.benchmark),
+          benchmarkLabel: hero && hero.benchmarkLabel ? hero.benchmarkLabel : "",
           improvedNote: feedback.improvedNote || "",
           nextFocusNote: feedback.nextFocusNote || "",
           sessionPlan: {
             selectedFlat: session.selectedFlat,
             selectedTransition: session.selectedTransition,
             focusCards: session.focusCards,
-            skillChecks: session.skillChecks
+            skillChecks: session.skillChecks,
+            plannedIntensity: intensity
           },
           durationHours: durationHours,
           trackedInTask: Boolean(linkedTask),
           startedAt: session.startedAt,
           finishedAt: new Date().toISOString()
-        });
+        };
+      }
+
+      function saveFinishedSkateSession(feedback) {
+        var session = getCurrentSkateSession();
+        var sessions = getSkateSessions();
+        var template = getSkateCoachTemplate();
+        var hero = currentSkateHero();
+        var durationHours = finishedSkateDurationHours(feedback, session.startedAt);
+        var linkedTask = syncSessionTimeToTodayTask("skate", durationHours);
+        var intensity = skateIntensityForToday(hero, session);
+        sessions.push(savedSkateSessionPayload(session, feedback, template, hero, intensity, durationHours, linkedTask));
         saveSkateSessions(sessions);
         resetSkateSessionState(linkedTask
           ? "Session saved and added to \"" + linkedTask + "\"."
@@ -5372,23 +6955,26 @@
 
       function addBodyLog(event) {
         event.preventDefault();
-        var name = elements.bodyWorkoutName.value.trim() || "Body support";
-        var score = Math.max(1, Math.min(5, Number(elements.bodyWorkoutScore.value) || 3));
+        var type = normalizeBodySupportType(elements.bodyWorkoutType.value);
+        var note = elements.bodyWorkoutName.value.trim();
+        var minutes = Math.max(0, Number(elements.bodyWorkoutMinutes.value) || 0);
         var logs = getPhysicalLogs();
 
         logs.push({
           id: makeId("body"),
           date: formatDate(today),
-          name: "Gym",
+          kind: type,
+          name: bodySupportTypeLabel(type),
           status: "done",
-          minutes: 0,
-          score: score,
-          note: name,
+          minutes: minutes,
+          score: 0,
+          note: note,
           createdAt: new Date().toISOString()
         });
         savePhysicalLogs(logs);
+        elements.bodyWorkoutType.value = "gym";
         elements.bodyWorkoutName.value = "";
-        elements.bodyWorkoutScore.value = "";
+        elements.bodyWorkoutMinutes.value = "";
         renderSkatePage();
         renderTotals();
       }
@@ -5478,7 +7064,7 @@
         var dragStart = null;
         var ignoreNextClick = false;
 
-        setMascotBubble(randomMascotLine());
+        syncMascotBubble();
         elements.mascotCard.style.setProperty("--mascot-drag-x", dragPosition.x.toFixed(2) + "px");
         elements.mascotCard.style.setProperty("--mascot-drag-y", dragPosition.y.toFixed(2) + "px");
 
@@ -5567,7 +7153,7 @@
             ignoreNextClick = false;
             return;
           }
-          setMascotBubble(randomMascotLine());
+          setMascotChatOpen(!mascotState.chatOpen);
           elements.softMascot.classList.remove("is-excited");
           window.requestAnimationFrame(function () {
             elements.softMascot.classList.add("is-excited");
@@ -5579,7 +7165,7 @@
 
         window.setInterval(function () {
           if (!document.hidden) {
-            setMascotBubble(randomMascotLine());
+            syncMascotBubble();
           }
         }, 45000);
       }
@@ -5597,7 +7183,7 @@
           }
         });
         if (hasRunningTimer) {
-          renderTotals();
+          renderLiveSummaryPanels();
         }
         if (elements.skateSessionHint) {
           var skateSession = getCurrentSkateSession();
@@ -5625,6 +7211,7 @@
         if (elements.currentMonthLabel) {
           elements.currentMonthLabel.textContent = monthNames[month] + " " + year;
         }
+        renderWaterReminderSettings();
         elements.calendarGrid.innerHTML = "";
 
         weekdays.forEach(function (name) {
@@ -5643,7 +7230,7 @@
             .filter(function (event) {
               return event.date === dateKey;
             })
-            .sort(compareEventsChronologically);
+            .sort(calendarCore.compareEventsChronologically);
           var monthEvents = visibleMonthlyEvents(dayEvents);
 
           var button = document.createElement("button");
@@ -5713,7 +7300,7 @@
           .filter(function (event) {
             return event.date === selectedDate;
           })
-          .sort(compareEventsChronologically);
+          .sort(calendarCore.compareEventsChronologically);
 
         elements.selectedDateHeading.textContent = "Selected day";
         if (elements.selectedDateHint) {
@@ -5755,6 +7342,14 @@
             item.appendChild(note);
           }
 
+          var reminderText = reminderLabel(event && event.reminderMinutes);
+          if (reminderText) {
+            var reminder = document.createElement("p");
+            reminder.className = "selected-event-note";
+            reminder.textContent = reminderText + (eventHasTimedTitle(event) ? "" : " (add a time like 18:00 at the start of the title)");
+            item.appendChild(reminder);
+          }
+
           var actions = document.createElement("div");
           actions.className = "selected-event-actions";
           var deleteButton = document.createElement("button");
@@ -5783,12 +7378,40 @@
         });
       }
 
+      function renderWaterReminderSettings() {
+        if (!elements.waterReminderCard) {
+          return;
+        }
+        var settings = getWaterReminderSettings();
+        elements.waterReminderCard.classList.toggle("is-enabled", settings.enabled);
+        if (elements.waterReminderEnabled) {
+          elements.waterReminderEnabled.checked = settings.enabled;
+        }
+        if (elements.waterReminderToggleLabel) {
+          elements.waterReminderToggleLabel.textContent = settings.enabled ? "On" : "Off";
+        }
+        if (elements.waterReminderTime1) {
+          elements.waterReminderTime1.value = settings.times[0];
+          elements.waterReminderTime1.disabled = !settings.enabled;
+        }
+        if (elements.waterReminderTime2) {
+          elements.waterReminderTime2.value = settings.times[1];
+          elements.waterReminderTime2.disabled = !settings.enabled;
+        }
+        if (elements.waterReminderTimes) {
+          elements.waterReminderTimes.classList.toggle("is-disabled", !settings.enabled);
+        }
+      }
+
       function resetEventForm(message) {
         editingEventId = null;
         draftEventDayPart = "";
         elements.eventTitle.value = "";
         elements.eventNote.value = "";
         elements.eventDate.value = selectedDate;
+        if (elements.eventReminder) {
+          elements.eventReminder.value = "0";
+        }
         elements.eventSaveButton.textContent = "Save event";
         elements.formHint.textContent = message || "Selected: " + selectedDate;
       }
@@ -5808,6 +7431,9 @@
         elements.eventDate.value = event.date || selectedDate;
         elements.eventNote.value = event.note || "";
         elements.eventCategory.value = normalizeEventCategory(event.category);
+        if (elements.eventReminder) {
+          elements.eventReminder.value = String(normalizeReminderMinutes(event.reminderMinutes));
+        }
         elements.eventSaveButton.textContent = "Update event";
         renderCalendar();
         renderSelectedDate();
@@ -5824,6 +7450,9 @@
         }
         if (!window.confirm("Delete \"" + event.title + "\"?")) {
           return;
+        }
+        if (event.routineManaged) {
+          skipRoutineEvent(id);
         }
         clearGoalStepReferenceByEventId(id);
         saveEvents(events.filter(function (item) {
@@ -5843,6 +7472,7 @@
         var title = elements.eventTitle.value.trim();
         var note = elements.eventNote.value.trim();
         var category = normalizeEventCategory(elements.eventCategory.value);
+        var reminderMinutes = normalizeReminderMinutes(elements.eventReminder && elements.eventReminder.value);
         var eventDate = elements.eventDate.value || selectedDate;
 
         if (!title) {
@@ -5863,11 +7493,19 @@
               title: title,
               note: note,
               category: category,
+              reminderMinutes: reminderMinutes,
               dayPart: draftEventDayPart || item.dayPart || "",
               startTime: "",
               endTime: "",
               updatedAt: new Date().toISOString()
             });
+            if (savedEvent.reminderMinutes) {
+              delete savedEvent.reminderSentAt;
+              delete savedEvent.reminderSentFor;
+            } else {
+              delete savedEvent.reminderSentAt;
+              delete savedEvent.reminderSentFor;
+            }
             return savedEvent;
           });
         } else {
@@ -5877,6 +7515,7 @@
             title: title,
             note: note,
             category: category,
+            reminderMinutes: reminderMinutes,
             dayPart: draftEventDayPart || "",
             startTime: "",
             endTime: "",
@@ -5901,12 +7540,14 @@
       function addTask(event) {
         event.preventDefault();
         var label = elements.taskTitle.value.trim();
+        var scheduledTime = normalizeScheduledTime(elements.taskTime && elements.taskTime.value);
+        var reminderMinutes = normalizeReminderMinutes(elements.taskReminder && elements.taskReminder.value);
         if (!label) {
           elements.taskTitle.focus();
           return;
         }
         var tasks = getTodayTasks();
-        tasks.push({
+        var nextTask = {
           id: makeId("task"),
           label: label,
           activity: elements.taskActivity.value,
@@ -5914,10 +7555,33 @@
           timerSeconds: 0,
           timerStartedAt: null,
           done: false,
-          createdAt: new Date().toISOString()
-        });
+          createdAt: new Date().toISOString(),
+          scheduledTime: scheduledTime,
+          reminderMinutes: reminderMinutes,
+          reminderSentAt: "",
+          reminderSentFor: ""
+        };
+        tasks.push(nextTask);
         saveTodayTasks(tasks);
+        logActivity({
+          action: "task_created",
+          entityType: "task",
+          entityId: nextTask.id,
+          dateKey: formatDate(today),
+          before: null,
+          after: nextTask,
+          meta: {
+            activity: nextTask.activity,
+            label: nextTask.label
+          }
+        });
         elements.taskTitle.value = "";
+        if (elements.taskTime) {
+          elements.taskTime.value = "";
+        }
+        if (elements.taskReminder) {
+          elements.taskReminder.value = "0";
+        }
         renderTasks();
       }
 
@@ -6033,6 +7697,43 @@
         if (elements.taskForm) {
           elements.taskForm.addEventListener("submit", addTask);
         }
+        if (elements.waterReminderEnabled) {
+          elements.waterReminderEnabled.addEventListener("change", function () {
+            updateWaterReminderSettings(function (settings) {
+              settings.enabled = Boolean(elements.waterReminderEnabled.checked);
+            });
+            renderWaterReminderSettings();
+          });
+        }
+        [
+          { element: elements.waterReminderTime1, index: 0 },
+          { element: elements.waterReminderTime2, index: 1 }
+        ].forEach(function (config) {
+          if (!config.element) {
+            return;
+          }
+          config.element.addEventListener("change", function () {
+            updateWaterReminderSettings(function (settings) {
+              var next = normalizeClockValue(config.element.value) || settings.times[config.index];
+              settings.times[config.index] = next;
+            });
+            renderWaterReminderSettings();
+          });
+          config.element.addEventListener("blur", function () {
+            renderWaterReminderSettings();
+          });
+        });
+        if (elements.dayStateOptions) {
+          Array.prototype.forEach.call(elements.dayStateOptions.querySelectorAll("[data-day-state]"), function (button) {
+            button.addEventListener("click", function () {
+              saveDayState(formatDate(today), button.dataset.dayState);
+              renderDayStateOptions();
+              renderMascotQuickAsks();
+              renderDashboardInsight();
+              syncMascotBubble();
+            });
+          });
+        }
         if (elements.moneyQuickForm) {
           elements.moneyQuickForm.addEventListener("submit", addMoneyTransaction);
         }
@@ -6054,19 +7755,6 @@
             });
             expandedGoalId = newGoalId;
             renderGoalPlanner();
-          });
-        }
-
-        if (elements.addJobApplication) {
-          elements.addJobApplication.addEventListener("click", function () {
-            var entries = getJobApplications();
-            entries.push({
-              id: makeId("job"),
-              date: formatDate(today),
-              createdAt: new Date().toISOString()
-            });
-            saveJobApplications(entries);
-            renderJobApplications();
           });
         }
 
@@ -6094,19 +7782,21 @@
           elements.journalSearch.addEventListener("input", renderJournalArchive);
         }
 
-        elements.skateFocusInput.addEventListener("input", function () {
-          writeText(STORAGE.skateFocus, elements.skateFocusInput.value);
-        });
-
-        elements.skateTargetInput.addEventListener("input", function () {
-          var value = Math.max(1, Math.floor(Number(elements.skateTargetInput.value) || 1));
-          writeText(STORAGE.skateTarget, String(value));
-          renderSkatePage();
-        });
-
         elements.startSkateSession.addEventListener("click", startSkateSession);
         elements.finishSkateSession.addEventListener("click", finishSkateSession);
         elements.bodyLogForm.addEventListener("submit", addBodyLog);
+        if (elements.skateIntensityToggle) {
+          Array.prototype.forEach.call(elements.skateIntensityToggle.querySelectorAll("[data-intensity]"), function (button) {
+            button.addEventListener("click", function () {
+              updateSkateSettings(function (settings) {
+                settings.intensityByDate[formatDate(today)] = button.dataset.intensity;
+              });
+              updateSkateSession(function (latest) {
+                latest.plannedIntensity = button.dataset.intensity;
+              });
+            });
+          });
+        }
         elements.skateFeedbackForm.addEventListener("submit", submitSkateFeedback);
         elements.cancelSkateFeedback.addEventListener("click", function () {
           elements.skateFeedbackDialog.close();
@@ -6124,6 +7814,42 @@
         elements.cancelGuitarSession.addEventListener("click", function () {
           elements.guitarSessionDialog.close();
         });
+
+        if (elements.toggleMascotChat) {
+          elements.toggleMascotChat.addEventListener("click", function () {
+            setMascotChatOpen(!mascotState.chatOpen);
+          });
+        }
+
+        if (elements.openAiAssist) {
+          elements.openAiAssist.addEventListener("click", function () {
+            setMascotChatOpen(true);
+            if (window.innerWidth <= 1120) {
+              window.scrollTo({ top: 0, behavior: "smooth" });
+            }
+          });
+        }
+
+        window.addEventListener("resize", syncMascotMobileVisibility);
+
+        if (elements.openPatternHistory) {
+          elements.openPatternHistory.addEventListener("click", function () {
+            openPatternHistoryDialog();
+          });
+        }
+
+        if (elements.mascotChatForm) {
+          elements.mascotChatForm.addEventListener("submit", function (event) {
+            event.preventDefault();
+            var question = elements.mascotQuestion ? elements.mascotQuestion.value : "";
+            if (!String(question || "").trim()) {
+              return;
+            }
+            setMascotChatOpen(true);
+            askMascot(question);
+            elements.mascotQuestion.value = "";
+          });
+        }
       }
 
       async function init() {
@@ -6139,9 +7865,12 @@
         renderGuitarPage();
         renderSelectedDate();
         renderCalendar();
+        refreshTelegramStatus();
+        renderMascotQuickAsks();
+        syncMascotBubble();
         bindEvents();
         bindSoftMascot();
-        setActiveView("todayView");
+        setActiveView(initialViewFromUrl());
         window.setInterval(updateLiveTimers, 1000);
       }
 

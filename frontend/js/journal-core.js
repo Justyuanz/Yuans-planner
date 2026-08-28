@@ -32,12 +32,14 @@
     };
   }
 
+  function hasEntryContent(entry) {
+    return Boolean(entry && (entry.title || entry.content.trim()));
+  }
+
   function normalizeEntries(entries) {
     return (Array.isArray(entries) ? entries : [])
       .map(normalizeEntry)
-      .filter(function (entry) {
-        return entry && (entry.title || entry.content.trim());
-      });
+      .filter(hasEntryContent);
   }
 
   function compareEntriesNewestFirst(a, b) {
