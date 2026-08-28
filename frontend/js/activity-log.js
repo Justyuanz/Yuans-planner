@@ -72,33 +72,23 @@
     };
   }
 
+  function compareEntriesChronologically(a, b) {
+    return String(a.timestamp).localeCompare(String(b.timestamp))
+      || String(a.id).localeCompare(String(b.id));
+  }
+
   function normalizeEntries(entries) {
     return (Array.isArray(entries) ? entries : [])
       .map(normalizeEntry)
       .filter(Boolean)
-      .sort(function (a, b) {
-        return String(a.timestamp).localeCompare(String(b.timestamp))
-          || String(a.id).localeCompare(String(b.id));
-      });
+      .sort(compareEntriesChronologically);
   }
 
   function createEntry(input) {
     if (!input || typeof input !== "object") {
       return null;
     }
-    var entry = normalizeEntry({
-      id: input.id,
-      timestamp: input.timestamp,
-      action: input.action,
-      entityType: input.entityType,
-      entityId: input.entityId,
-      dateKey: input.dateKey,
-      field: input.field,
-      before: input.before,
-      after: input.after,
-      meta: input.meta
-    });
-    return entry;
+    return normalizeEntry(input);
   }
 
   return {

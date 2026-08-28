@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import os
+from datetime import timezone
 from pathlib import Path
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -54,6 +56,17 @@ def planner_db_path() -> Path:
     return path
 
 
+def planner_timezone_name() -> str:
+    return os.environ.get("YUAN_PLANNER_TIMEZONE", "Europe/Helsinki").strip() or "Europe/Helsinki"
+
+
+def planner_timezone():
+    try:
+        return ZoneInfo(planner_timezone_name())
+    except ZoneInfoNotFoundError:
+        return timezone.utc
+
+
 def openai_api_key() -> str:
     return os.environ.get("OPENAI_API_KEY", "").strip()
 
@@ -68,3 +81,16 @@ def openai_timeout_seconds() -> int:
         return max(5, min(60, int(raw)))
     except ValueError:
         return 20
+
+
+def telegram_enabled() -> bool:
+    raw = os.environ.get("YUAN_PLANNER_TELEGRAM_ENABLED", "0").strip().lower()
+    return raw in {"1", "true", "yes", "on"}
+
+
+def telegram_bot_token() -> str:
+    return os.environ.get("YUAN_PLANNER_TELEGRAM_BOT_TOKEN", "").strip()
+
+
+def telegram_chat_id() -> str:
+    return os.environ.get("YUAN_PLANNER_TELEGRAM_CHAT_ID", "").strip()

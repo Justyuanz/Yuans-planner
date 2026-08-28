@@ -177,9 +177,17 @@
               </div>
               <div id="tasksMount"></div>
               <form class="task-form" id="taskForm">
-                <input id="taskTitle" maxlength="90" autocomplete="off" placeholder="Add the next thing that actually matters">
-                <select id="taskActivity" aria-label="Task activity"></select>
-                <button class="secondary-button" type="submit">Add</button>
+                <input class="task-form-title" id="taskTitle" maxlength="90" autocomplete="off" placeholder="Add the next thing that actually matters">
+                <input class="task-form-time" id="taskTime" inputmode="text" maxlength="17" autocomplete="off" aria-label="Task time" placeholder="09:30">
+                <button class="secondary-button task-form-add" type="submit">Add</button>
+                <select class="task-form-reminder" id="taskReminder" aria-label="Task Telegram reminder">
+                  <option value="0">No reminder</option>
+                  <option value="5">Remind me 5 min before</option>
+                  <option value="10">Remind me 10 min before</option>
+                  <option value="15">Remind me 15 min before</option>
+                  <option value="30">Remind me 30 min before</option>
+                </select>
+                <select class="task-form-activity" id="taskActivity" aria-label="Task activity"></select>
               </form>
             </div>
           </article>
@@ -232,23 +240,6 @@
 
     <section class="view" id="journalView" aria-labelledby="journalHeading">
       <div class="journal-page">
-        <article class="panel page-story-card journal-story-card">
-          <div class="panel-inner">
-            <div class="page-story-head">
-              <div>
-                <span class="page-story-kicker">Journal</span>
-                <h2>Hold the feeling gently.</h2>
-                <p>Keep this page soft, spacious, and easy to return to. Write today, revisit older days only when it helps.</p>
-              </div>
-              <div class="page-story-pills">
-                <span>Today first</span>
-                <span>Archive second</span>
-                <span>Quiet tone</span>
-              </div>
-            </div>
-          </div>
-        </article>
-
         <article class="panel journal-editor-card">
           <div class="panel-inner">
             <div class="section-head">
@@ -305,23 +296,6 @@
 
     <section class="view" id="moneyView" aria-labelledby="moneyHeading">
       <div class="money-page">
-        <article class="panel page-story-card money-story-card">
-          <div class="panel-inner">
-            <div class="page-story-head">
-              <div>
-                <span class="page-story-kicker">Money</span>
-                <h2>Clarity before guilt.</h2>
-                <p>See the month, feel the pace, and keep the next decision small. The goal is calm visibility, not pressure.</p>
-              </div>
-              <div class="page-story-pills">
-                <span>Month view</span>
-                <span>Fast logging</span>
-                <span>Gentle pacing</span>
-              </div>
-            </div>
-          </div>
-        </article>
-
         <article class="panel money-overview-card">
           <div class="panel-inner">
             <div class="section-head">
@@ -417,23 +391,6 @@
 
     <section class="view" id="skateView" aria-labelledby="skateHeading">
       <div class="skate-page">
-        <article class="panel page-story-card skate-story-card">
-          <div class="panel-inner">
-            <div class="page-story-head">
-              <div>
-                <span class="page-story-kicker">Skate</span>
-                <h2>One glance, then go skate.</h2>
-                <p>Keep the page visual, precise, and low-pressure. See today, set intensity, start the session, and let the rest sit below when you need it.</p>
-              </div>
-              <div class="page-story-pills">
-                <span>Today first</span>
-                <span>Roadmap always visible</span>
-                <span>Program below</span>
-              </div>
-            </div>
-          </div>
-        </article>
-
         <article class="panel skate-hero-card">
           <div class="panel-inner">
             <div class="section-head">
@@ -569,23 +526,6 @@
 
     <section class="view" id="guitarView" aria-labelledby="guitarHeading">
       <div class="guitar-page">
-        <article class="panel page-story-card guitar-story-card">
-          <div class="panel-inner">
-            <div class="page-story-head">
-              <div>
-                <span class="page-story-kicker">Guitar</span>
-                <h2>Practice without the guilt spiral.</h2>
-                <p>Keep one musical thread alive, capture the real time, and make the next session obvious before you leave.</p>
-              </div>
-              <div class="page-story-pills">
-                <span>One focus</span>
-                <span>One next step</span>
-                <span>Real session time</span>
-              </div>
-            </div>
-          </div>
-        </article>
-
         <article class="panel guitar-goal-card">
           <div class="panel-inner">
             <div class="section-head">
@@ -664,6 +604,27 @@
               <p class="small-note" id="selectedDateHint">Pick a date, then drop in the thing you do not want to forget.</p>
             </div>
             <ul class="selected-events" id="selectedDateEvents" aria-label="Selected date events"></ul>
+            <section class="water-reminder-card" id="waterReminderCard" aria-label="Water reminder settings">
+              <div class="water-reminder-head">
+                <div>
+                  <p class="water-reminder-kicker">Water reminders</p>
+                </div>
+                <label class="water-reminder-toggle" for="waterReminderEnabled">
+                  <input id="waterReminderEnabled" type="checkbox" role="switch">
+                  <span id="waterReminderToggleLabel">Off</span>
+                </label>
+              </div>
+              <div class="water-reminder-times" id="waterReminderTimes">
+                <label class="water-reminder-field" for="waterReminderTime1">
+                  <span>Noon</span>
+                  <input id="waterReminderTime1" inputmode="numeric" maxlength="5" autocomplete="off" placeholder="12:30">
+                </label>
+                <label class="water-reminder-field" for="waterReminderTime2">
+                  <span>Afternoon</span>
+                  <input id="waterReminderTime2" inputmode="numeric" maxlength="5" autocomplete="off" placeholder="17:00">
+                </label>
+              </div>
+            </section>
             <form class="event-form" id="eventForm">
               <div class="form-row">
                 <label for="eventTitle">Title</label>
@@ -688,6 +649,16 @@
                   <option value="Guitar">Guitar</option>
                   <option value="Chore">Chore</option>
                   <option value="Other">Other</option>
+                </select>
+              </div>
+              <div class="form-row">
+                <label for="eventReminder">Telegram reminder</label>
+                <select id="eventReminder" name="eventReminder">
+                  <option value="0">No reminder</option>
+                  <option value="5">Remind me 5 min before</option>
+                  <option value="10">Remind me 10 min before</option>
+                  <option value="15">Remind me 15 min before</option>
+                  <option value="30">Remind me 30 min before</option>
                 </select>
               </div>
               <div class="form-actions">
@@ -782,6 +753,6 @@
   <script src="/js/skate-core.js?v=20260807a"></script>
   <script src="/js/skate-session-core.js?v=20260807a"></script>
   <script src="/js/mascot-rag.js?v=20260806a"></script>
-  <script src="/js/app.js?v=20260807a"></script>
+  <script src="/js/app.js?v=20260812b"></script>
 </body>
 </html>

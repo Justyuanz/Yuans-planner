@@ -19,6 +19,10 @@
     return Math.round((seconds / 3600) * 100) / 100;
   }
 
+  function defaultSessionLabel(activityId) {
+    return activityId === "skate" ? "Skate session" : "Saved session";
+  }
+
   function findMatchingTaskIndex(tasks, activityId) {
     var list = Array.isArray(tasks) ? tasks : [];
     var matchIndex = list.findIndex(function (task) {
@@ -55,7 +59,7 @@
       var seconds = Math.round(safeHours * 3600);
       list.push({
         id: "auto-" + activityId + "-" + String(currentMs),
-        label: activityId === "skate" ? "Skate session" : "Saved session",
+        label: defaultSessionLabel(activityId),
         activity: activityId,
         hours: hoursFromSeconds(seconds),
         timerSeconds: seconds,
@@ -66,7 +70,7 @@
       });
       return {
         tasks: list,
-        linkedTaskLabel: activityId === "skate" ? "Skate session" : "Saved session"
+        linkedTaskLabel: defaultSessionLabel(activityId)
       };
     }
 

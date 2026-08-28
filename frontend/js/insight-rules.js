@@ -21,6 +21,14 @@
     action("focus_today_tasks", "Focus today's tasks"),
     action("review_planned_hours", "Review planned hours")
   ];
+  var MONEY_ACTIONS = [
+    action("open_money_view", "Open money view"),
+    action("pause_extra_spending", "Pause extra spending")
+  ];
+  var REDUCE_AND_CLARIFY_ACTIONS = [
+    action("focus_today_tasks", "Lighten today's task load"),
+    action("make_one_task_concrete", "Make one task concrete")
+  ];
 
   function round(value, digits) {
     var precision = Math.pow(10, digits == null ? 1 : digits);
@@ -134,7 +142,7 @@
       82,
       "Spending is pressing on this week's room a bit.",
       "The weekly flexible buffer is below zero, and the current month is running tighter than usual.",
-      [action("open_money_view", "Open money view"), action("pause_extra_spending", "Pause extra spending")],
+      MONEY_ACTIONS,
       moneySummary.sampleSize
     );
   }
@@ -217,7 +225,7 @@
       74,
       "Journal check-ins tend to get shorter on overloaded days.",
       "On overloaded days, recent journal entries averaged about " + round(pattern.overloadedAverageLength, 0) + " characters compared with " + round(pattern.regularAverageLength, 0) + " on lighter days.",
-      [action("focus_today_tasks", "Lighten today's task load"), action("make_one_task_concrete", "Make one task concrete")],
+      REDUCE_AND_CLARIFY_ACTIONS,
       pattern.sampleSize
     );
   }

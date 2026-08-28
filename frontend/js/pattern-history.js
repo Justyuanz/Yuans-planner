@@ -12,6 +12,7 @@
     focus: "Focus friction",
     money: "Money patterns"
   };
+  var MODE_ORDER = ["reality", "focus", "money"];
 
   function round(value, digits) {
     var precision = Math.pow(10, digits == null ? 1 : digits);
@@ -136,8 +137,7 @@
     });
 
     var groups = Object.keys(groupsByMode).sort(function (left, right) {
-      var order = ["reality", "focus", "money"];
-      return order.indexOf(left) - order.indexOf(right);
+      return MODE_ORDER.indexOf(left) - MODE_ORDER.indexOf(right);
     }).map(function (mode) {
       return {
         mode: mode,

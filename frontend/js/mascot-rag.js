@@ -96,6 +96,12 @@
     });
   }
 
+  function sortNewestFirstByDateKey(items) {
+    return (Array.isArray(items) ? items : []).sort(function (a, b) {
+      return String(b.dateKey).localeCompare(String(a.dateKey));
+    });
+  }
+
   function recentTaskShiftSummary(options) {
     var activityLog = Array.isArray(options && options.activityLog) ? options.activityLog : [];
     var laterMoves = [];
@@ -133,12 +139,8 @@
       }
     });
 
-    laterMoves.sort(function (a, b) {
-      return String(b.dateKey).localeCompare(String(a.dateKey));
-    });
-    growingEstimates.sort(function (a, b) {
-      return String(b.dateKey).localeCompare(String(a.dateKey));
-    });
+    sortNewestFirstByDateKey(laterMoves);
+    sortNewestFirstByDateKey(growingEstimates);
 
     return {
       laterMoveCount: laterMoves.length,

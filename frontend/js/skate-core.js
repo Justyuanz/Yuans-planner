@@ -9,7 +9,7 @@
 
   var TOTAL_WEEKS = 21;
   var STREAK_DAYS = 60;
-  var SEASON_START = new Date(2026, 7, 8);
+  var SEASON_START = new Date(2026, 7, 29);
   var DAY_MS = 24 * 60 * 60 * 1000;
 
   function cloneDate(date) {
@@ -220,8 +220,8 @@
         dayPlan(60, "yellow", "Final 30-min review: Full Swing Push 5 min; Snakes 5 min; Tic Tacs 5 min; micro-manuals 5 min; easy switch 5 min; gentle carving 5 min.", "Day 60 benchmark.", "Same baseline first, then favorite improvements and one fun line.", { benchmark: true, benchmarkLabel: "Day 60 benchmark" })
       ],
       afterStreak: [
-        weeklySession("Post-Day-60 Session A", "yellow", "Essentials W3D5: Single Leg Snakes 5 min; Alt. Nose Lift + Tail Tap 50; FS Powerslide 10; Walking Snakes 5 min.", "180 or shove-it.", "Choose one.", { dateKeys: ["2026-10-08"] }),
-        weeklySession("Post-Day-60 Session B", "yellow", "Essentials W4D1: Tuck Hippy Jump 3x10; One Foot Ollie 25; Ollie Complex 10; BS Ollie Tail Scrapes 25.", "Bowl / transition after the block.", "Keep it fun.", { dateKeys: ["2026-10-09", "2026-10-10"] })
+        weeklySession("Post-Day-60 Session A", "yellow", "Essentials W3D5: Single Leg Snakes 5 min; Alt. Nose Lift + Tail Tap 50; FS Powerslide 10; Walking Snakes 5 min.", "180 or shove-it.", "Choose one.", { dateKeys: ["2026-10-29"] }),
+        weeklySession("Post-Day-60 Session B", "yellow", "Essentials W4D1: Tuck Hippy Jump 3x10; One Foot Ollie 25; Ollie Complex 10; BS Ollie Tail Scrapes 25.", "Bowl / transition after the block.", "Keep it fun.", { dateKeys: ["2026-10-30", "2026-10-31"] })
       ]
     },
     {
@@ -477,13 +477,14 @@
     var planDay = dayPlanForDate(previewDate);
     var weeklySessions = weeklySessionsForDate(previewDate);
     var previewMode = state.dayNumber <= 0;
+    var daysUntilStart = previewMode ? diffDays(SEASON_START, date) : 0;
 
     if (planDay) {
       return {
         state: state,
         weekPlan: weekPlan,
-        title: previewMode ? "Program starts tomorrow" : "Today",
-        subtitle: previewMode ? "Previewing Day 1 for Saturday, August 8, 2026." : weekPlan.summary,
+        title: previewMode ? (daysUntilStart === 1 ? "Program starts tomorrow" : "Program starts soon") : "Today",
+        subtitle: previewMode ? "Previewing Day 1 for Saturday, August 29, 2026." : weekPlan.summary,
         phaseWeekLabel: weekPlan.phase + " · Week " + weekPlan.weekNumber,
         blockLabel: "Day " + planDay.dayNumber,
         skateiq: planDay.skateiq,
@@ -506,9 +507,9 @@
           subtitle: weekPlan ? weekPlan.summary : "Long-form skate progression",
           phaseWeekLabel: (weekPlan ? weekPlan.phase : state.phase) + " · Week " + state.weekNumber,
           blockLabel: "Rest / open week",
-          skateiq: "No fixed 30-minute block is scheduled for Wednesday, October 7, 2026. The daily streak ended on Tuesday, October 6, 2026.",
+          skateiq: "No fixed 30-minute block is scheduled for Wednesday, October 28, 2026. The daily streak ended on Tuesday, October 27, 2026.",
           mainFocus: "Recovery, rest, or open skate only if you want it.",
-          flow: "The next scheduled session starts on Thursday, October 8, 2026.",
+          flow: "The next scheduled session starts on Thursday, October 29, 2026.",
           benchmark: false,
           benchmarkLabel: "",
           defaultIntensity: "blue",

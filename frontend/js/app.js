@@ -25,7 +25,9 @@
         moneyVendorRules: "hivePlanner.money.vendorRules",
         journalEntries: "hivePlanner.journal.entries",
         activityLog: "hivePlanner.activityLog",
+        telegramWaterSettings: "hivePlanner.telegramWater.settings",
         weeklyRoutinePrefix: "hivePlanner.routine.week.",
+        routineEventSkips: "hivePlanner.routine.eventSkips",
         goalPlanner: "hivePlanner.goalPlanner.items",
         studyOverviewPrefix: "hivePlanner.weekOverview.study.",
         skateBodyOverviewPrefix: "hivePlanner.weekOverview.skateBody.",
@@ -42,7 +44,7 @@
         skate: null,
         guitar: null
       };
-      var statsPeriod = "month";
+      var statsPeriod = "week";
       var skateTrendPeriod = "month";
       var editingEventId = null;
       var editingTaskId = null;
@@ -223,9 +225,69 @@
         return (hours * 60) + minutes;
       }
 
+      function normalizeClockValue(value) {
+        var text = String(value || "").trim();
+        if (!text) {
+          return "";
+        }
+        var match = text.match(/^(\d{1,2}):(\d{2})$/);
+        var hours = 0;
+        var minutes = 0;
+        if (match) {
+          hours = Number(match[1]);
+          minutes = Number(match[2]);
+        } else if (/^\d{1,2}$/.test(text)) {
+          hours = Number(text);
+          minutes = 0;
+        } else if (/^\d{3,4}$/.test(text)) {
+          hours = Number(text.slice(0, text.length - 2));
+          minutes = Number(text.slice(-2));
+        } else {
+          return "";
+        }
+        if (hours > 23 || minutes > 59) {
+          return "";
+        }
+        return pad(hours) + ":" + pad(minutes);
+      }
+
+      function normalizeScheduledTime(value) {
+        var text = String(value || "").trim();
+        if (!text) {
+          return "";
+        }
+        var normalized = text.replace(/\s*[–—]\s*/g, "-").replace(/\s+to\s+/gi, "-");
+        var parts = normalized.split("-").map(function (part) {
+          return part.trim();
+        }).filter(Boolean);
+        if (!parts.length) {
+          return "";
+        }
+        var start = normalizeClockValue(parts[0]);
+        if (!start) {
+          return "";
+        }
+        if (parts.length === 1) {
+          return start;
+        }
+        var end = normalizeClockValue(parts[1]);
+        if (!end) {
+          return start;
+        }
+        return start + "-" + end;
+      }
+
+      function parseTaskTimeMinutesFromTask(task) {
+        var scheduled = normalizeScheduledTime(task && task.scheduledTime);
+        if (scheduled) {
+          return parseTaskTimeMinutes(scheduled.split("-")[0]);
+        }
+        return parseTaskTimeMinutes(task && task.label);
+      }
+
       function compareTasksChronologically(a, b) {
-        var timeA = parseTaskTimeMinutes(a && a.label);
-        var timeB = parseTaskTimeMinutes(b && b.label);
+        var timeA = parseTaskTimeMinutesFromTask(a);
+        var timeB = parseTaskTimeMinutesFromTask(b);
         if (timeA !== null && timeB !== null && timeA !== timeB) {
           return timeA - timeB;
         }
@@ -515,6 +577,8 @@
         tasksMount: document.getElementById("tasksMount"),
         taskForm: document.getElementById("taskForm"),
         taskTitle: document.getElementById("taskTitle"),
+        taskTime: document.getElementById("taskTime"),
+        taskReminder: document.getElementById("taskReminder"),
         taskActivity: document.getElementById("taskActivity"),
         todayThemeLine: document.getElementById("todayThemeLine"),
         todayThemeBadge: document.getElementById("todayThemeBadge"),
@@ -599,11 +663,19 @@
         selectedDateHeading: document.getElementById("selectedDateHeading"),
         selectedDateHint: document.getElementById("selectedDateHint"),
         selectedDateEvents: document.getElementById("selectedDateEvents"),
+        waterReminderCard: document.getElementById("waterReminderCard"),
+        waterReminderEnabled: document.getElementById("waterReminderEnabled"),
+        waterReminderToggleLabel: document.getElementById("waterReminderToggleLabel"),
+        waterReminderTimes: document.getElementById("waterReminderTimes"),
+        waterReminderTime1: document.getElementById("waterReminderTime1"),
+        waterReminderTime2: document.getElementById("waterReminderTime2"),
         eventForm: document.getElementById("eventForm"),
         eventTitle: document.getElementById("eventTitle"),
         eventDate: document.getElementById("eventDate"),
         eventNote: document.getElementById("eventNote"),
         eventCategory: document.getElementById("eventCategory"),
+        eventReminder: document.getElementById("eventReminder"),
+        telegramReminderStatus: document.getElementById("telegramReminderStatus"),
         eventSaveButton: document.getElementById("eventSaveButton"),
         formHint: document.getElementById("formHint"),
         skateWeeklyMetrics: document.getElementById("skateWeeklyMetrics"),
@@ -700,6 +772,10 @@
       }
 
       function persistRaw(key, value) {
+        if (memoryStore[key] === value) {
+          localStorage.setItem(key, value);
+          return;
+        }
         memoryStore[key] = value;
         localStorage.setItem(key, value);
         if (!serverStorageAvailable) {
@@ -745,6 +821,39 @@
       function getDayStateMap() {
         var stored = readJson(STORAGE.dayState, {});
         return stored && typeof stored === "object" ? stored : {};
+      }
+
+      function defaultWaterReminderSettings() {
+        return {
+          enabled: false,
+          times: ["12:30", "17:00"]
+        };
+      }
+
+      function normalizeWaterReminderSettings(value) {
+        var fallback = defaultWaterReminderSettings();
+        var source = value && typeof value === "object" ? value : {};
+        var rawTimes = Array.isArray(source.times) ? source.times : [];
+        return {
+          enabled: Boolean(source.enabled),
+          times: fallback.times.map(function (defaultTime, index) {
+            return normalizeClockValue(rawTimes[index]) || defaultTime;
+          })
+        };
+      }
+
+      function getWaterReminderSettings() {
+        return normalizeWaterReminderSettings(readJson(STORAGE.telegramWaterSettings, defaultWaterReminderSettings()));
+      }
+
+      function saveWaterReminderSettings(settings) {
+        writeJson(STORAGE.telegramWaterSettings, normalizeWaterReminderSettings(settings));
+      }
+
+      function updateWaterReminderSettings(mutator) {
+        var settings = getWaterReminderSettings();
+        mutator(settings);
+        saveWaterReminderSettings(settings);
       }
 
       function getDayState(dateKey) {
@@ -962,27 +1071,26 @@
         writeJson(STORAGE.events, events);
       }
 
-      function parseEventTimeMinutes(title) {
-        return calendarCore.parseEventTimeMinutes(title);
+      function getRoutineEventSkips() {
+        var stored = readJson(STORAGE.routineEventSkips, {});
+        return stored && typeof stored === "object" ? stored : {};
       }
 
-      function compareEventsChronologically(a, b) {
-        return calendarCore.compareEventsChronologically(a, b);
+      function saveRoutineEventSkips(skips) {
+        writeJson(STORAGE.routineEventSkips, skips && typeof skips === "object" ? skips : {});
       }
 
-      function sortedEvents(events) {
-        return calendarCore.sortedEvents(events);
+      function skipRoutineEvent(eventId) {
+        var skips = getRoutineEventSkips();
+        skips[String(eventId || "")] = true;
+        saveRoutineEventSkips(skips);
       }
 
       function eventsForDate(dateKey) {
         ensureRoutineEventsAroundDate(parseDate(dateKey));
-        return sortedEvents(getEvents().filter(function (event) {
+        return calendarCore.sortedEvents(getEvents().filter(function (event) {
           return event.date === dateKey;
         }));
-      }
-
-      function eventDayPart(event) {
-        return calendarCore.eventDayPart(event);
       }
 
       function weekDates(date) {
@@ -1091,8 +1199,7 @@
                 type: "study",
                 events: [
                   routineEventTemplate("09:30 Guitar practice", "Guitar", "morning"),
-                  routineEventTemplate("11:30 Gym/skate", "Other", "morning"),
-                  routineEventTemplate("Study block", "Home study", "afternoon")
+                  routineEventTemplate("11:30 Gym/skate", "Other", "morning")
                 ]
               },
               {
@@ -1151,8 +1258,7 @@
                 type: "study",
                 events: [
                   routineEventTemplate("09:30 Guitar practice", "Guitar", "morning"),
-                  routineEventTemplate("11:30 Gym/skate", "Other", "morning"),
-                  routineEventTemplate("Study block", "Home study", "afternoon")
+                  routineEventTemplate("11:30 Gym/skate", "Other", "morning")
                 ]
               },
               {
@@ -1180,15 +1286,13 @@
                 type: "skate",
                 events: [
                   routineEventTemplate("09:30 Morning skate", "Skate", "morning"),
-                  routineEventTemplate("11:30 School", "School study", "morning"),
-                  routineEventTemplate("Study block", "Home study", "afternoon")
+                  routineEventTemplate("11:30 School", "School study", "morning")
                 ]
               },
               {
                 type: "study",
                 events: [
                   routineEventTemplate("11:30 School", "School study", "morning"),
-                  routineEventTemplate("Study block", "Home study", "afternoon"),
                   routineEventTemplate("18:00 Evening skate with friends", "Skate", "evening")
                 ]
               },
@@ -1196,16 +1300,14 @@
                 type: "study",
                 events: [
                   routineEventTemplate("09:30 Guitar practice", "Guitar", "morning"),
-                  routineEventTemplate("11:30 School", "School study", "morning"),
-                  routineEventTemplate("Study block", "Home study", "afternoon")
+                  routineEventTemplate("11:30 School", "School study", "morning")
                 ]
               },
               {
                 type: "study",
                 events: [
                   routineEventTemplate("09:30 Guitar practice", "Guitar", "morning"),
-                  routineEventTemplate("11:30 School", "School study", "morning"),
-                  routineEventTemplate("Study block", "Home study", "afternoon")
+                  routineEventTemplate("11:30 School", "School study", "morning")
                 ]
               },
               {
@@ -1236,29 +1338,24 @@
             days: [
               {
                 type: "study",
-                events: [
-                  routineEventTemplate("Study block", "Home study", "afternoon")
-                ]
+                events: []
               },
               {
                 type: "study",
                 events: [
-                  routineEventTemplate("Study block", "Home study", "afternoon"),
                   routineEventTemplate("18:00 Evening skate with friends", "Skate", "evening")
                 ]
               },
               {
                 type: "study",
                 events: [
-                  routineEventTemplate("09:30 Guitar practice", "Guitar", "morning"),
-                  routineEventTemplate("Study block", "Home study", "afternoon")
+                  routineEventTemplate("09:30 Guitar practice", "Guitar", "morning")
                 ]
               },
               {
                 type: "study",
                 events: [
-                  routineEventTemplate("09:30 Guitar practice", "Guitar", "morning"),
-                  routineEventTemplate("Study block", "Home study", "afternoon")
+                  routineEventTemplate("09:30 Guitar practice", "Guitar", "morning")
                 ]
               },
               {
@@ -1307,6 +1404,7 @@
           return false;
         }
         var events = getEvents();
+        var skippedRoutineEvents = getRoutineEventSkips();
         var existingIds = {};
         var desiredIds = {};
         var changed = false;
@@ -1326,6 +1424,9 @@
               var dayTemplate = weekTemplate.days[dayIndex];
               (dayTemplate.events || []).forEach(function (eventTemplate) {
                 var eventId = routineEventId(dateKey, eventTemplate);
+                if (skippedRoutineEvents[eventId]) {
+                  return;
+                }
                 desiredIds[eventId] = true;
                 if (existingIds[eventId]) {
                   return;
@@ -1642,7 +1743,7 @@
           goal.steps.forEach(function (step) {
             if (step.id === event.goalStepId) {
               step.eventId = event.id;
-              step.scheduledDay = event.date + "|" + eventDayPart(event);
+              step.scheduledDay = event.date + "|" + calendarCore.eventDayPart(event);
               changed = true;
             }
           });
@@ -1840,6 +1941,90 @@
         mutator(settings);
         saveSkateSettings(settings);
         renderSkatePage();
+      }
+
+      function normalizeReminderMinutes(value) {
+        var minutes = Number(value);
+        if (!Number.isFinite(minutes) || minutes <= 0) {
+          return 0;
+        }
+        return Math.round(minutes);
+      }
+
+      function reminderLabel(minutes) {
+        var normalized = normalizeReminderMinutes(minutes);
+        if (!normalized) {
+          return "";
+        }
+        if (normalized % 1440 === 0) {
+          var days = normalized / 1440;
+          return "Telegram " + days + " day" + (days === 1 ? "" : "s") + " before";
+        }
+        if (normalized % 60 === 0) {
+          var hours = normalized / 60;
+          return "Telegram " + hours + " hour" + (hours === 1 ? "" : "s") + " before";
+        }
+        return "Telegram " + normalized + " min before";
+      }
+
+      function taskScheduleLabel(task) {
+        var parts = [];
+        var scheduledTime = normalizeScheduledTime(task && task.scheduledTime);
+        var reminder = reminderLabel(task && task.reminderMinutes);
+        if (scheduledTime) {
+          parts.push(scheduledTime);
+        }
+        if (reminder) {
+          parts.push(reminder);
+        }
+        return parts.join(" · ");
+      }
+
+      function taskDisplayLabel(task) {
+        var label = String((task && task.label) || "").trim();
+        var scheduledTime = normalizeScheduledTime(task && task.scheduledTime);
+        if (!scheduledTime || parseTaskTimeMinutes(label) !== null) {
+          return label;
+        }
+        return scheduledTime + " " + label;
+      }
+
+      function eventHasTimedTitle(event) {
+        return calendarCore.parseEventTimeMinutes(event && event.title) !== null;
+      }
+
+      function setTelegramReminderStatus(message, isError) {
+        if (!elements.telegramReminderStatus) {
+          return;
+        }
+        elements.telegramReminderStatus.textContent = message;
+        elements.telegramReminderStatus.style.color = isError ? "#9b3d3d" : "";
+      }
+
+      async function refreshTelegramStatus() {
+        if (!elements.telegramReminderStatus) {
+          return;
+        }
+        try {
+          var response = await fetch("/api/telegram/status", { cache: "no-store" });
+          if (!response.ok) {
+            throw new Error("status");
+          }
+          var payload = await response.json();
+          var configured = Boolean(payload && payload.configured);
+          var enabled = Boolean(payload && payload.enabled);
+          if (!configured) {
+            setTelegramReminderStatus("Telegram is not configured yet. Add bot token and chat ID in .env, then restart the planner.", false);
+            return;
+          }
+          if (!enabled) {
+            setTelegramReminderStatus("Telegram credentials are present, but reminders are disabled. Set YUAN_PLANNER_TELEGRAM_ENABLED=1 and restart.", false);
+            return;
+          }
+          setTelegramReminderStatus("Telegram reminders are ready" + (payload.chatHint ? " for chat " + payload.chatHint : "") + ".", false);
+        } catch (error) {
+          setTelegramReminderStatus("Telegram status is unavailable while the backend is offline.", true);
+        }
       }
 
       function normalizeEventCategory(category) {
@@ -2164,8 +2349,13 @@
               timerSeconds: 0,
               timerStartedAt: null,
               done: false,
-              createdAt: event.createdAt || new Date().toISOString(),
-              sourceEventId: event.id
+              createdAt: new Date().toISOString(),
+              sourceEventId: event.id,
+              useSourceEventReminder: true,
+              scheduledTime: normalizeScheduledTime(event.startTime) || (calendarCore.parseEventTimeMinutes(event.title) !== null
+                ? pad(Math.floor(calendarCore.parseEventTimeMinutes(event.title) / 60)) + ":" + pad(calendarCore.parseEventTimeMinutes(event.title) % 60)
+                : ""),
+              reminderMinutes: normalizeReminderMinutes(event.reminderMinutes)
             };
           });
       }
@@ -2206,7 +2396,12 @@
               timerStartedAt: typeof task.timerStartedAt === "string" ? task.timerStartedAt : null,
               done: Boolean(task.done),
               createdAt: task.createdAt || new Date().toISOString(),
-              sourceEventId: typeof task.sourceEventId === "string" ? task.sourceEventId : ""
+              sourceEventId: typeof task.sourceEventId === "string" ? task.sourceEventId : "",
+              useSourceEventReminder: task.sourceEventId ? task.useSourceEventReminder !== false : false,
+              scheduledTime: normalizeScheduledTime(task.scheduledTime),
+              reminderMinutes: normalizeReminderMinutes(task.reminderMinutes),
+              reminderSentAt: typeof task.reminderSentAt === "string" ? task.reminderSentAt : "",
+              reminderSentFor: typeof task.reminderSentFor === "string" ? task.reminderSentFor : ""
             };
           })
           .sort(compareTasksChronologically);
@@ -2637,11 +2832,19 @@
         return payload.reply;
       }
 
+      function syncMascotMobileVisibility() {
+        if (!elements.mascotCard) {
+          return;
+        }
+        elements.mascotCard.classList.toggle("is-mobile-open", mascotState.chatOpen && window.innerWidth <= 1120);
+      }
+
       function setMascotChatOpen(isOpen) {
         mascotState.chatOpen = Boolean(isOpen);
         if (elements.mascotChat) {
           elements.mascotChat.hidden = !mascotState.chatOpen;
         }
+        syncMascotMobileVisibility();
         if (elements.toggleMascotChat) {
           elements.toggleMascotChat.textContent = mascotState.chatOpen ? "Hide Sprouty" : "Ask Sprouty";
         }
@@ -3969,6 +4172,9 @@
           if (task.done) {
             card.classList.add("done");
           }
+          if (editingTaskId === task.id) {
+            card.classList.add("is-editing");
+          }
 
           var checkbox = document.createElement("input");
           checkbox.type = "checkbox";
@@ -3993,15 +4199,15 @@
 
             var label = document.createElement("span");
             label.className = "task-title";
-            label.textContent = task.label;
+            label.textContent = taskDisplayLabel(task);
+
+            titleButton.appendChild(label);
+            content.appendChild(titleButton);
 
             var badge = document.createElement("span");
             badge.className = "activity-badge " + activity.className;
             badge.textContent = activity.short;
-
-            titleButton.appendChild(label);
-            titleButton.appendChild(badge);
-            content.appendChild(titleButton);
+            content.appendChild(badge);
           }
 
           var hoursWrap = document.createElement("div");
@@ -4191,13 +4397,37 @@
         titleInput.placeholder = "Task title";
 
         var categorySelect = document.createElement("select");
-        categorySelect.className = "task-category-select";
+        categorySelect.className = "task-category-select task-editor-activity";
         activities.forEach(function (activity) {
           var option = document.createElement("option");
           option.value = activity.id;
           option.textContent = activity.label;
           option.selected = activity.id === task.activity;
           categorySelect.appendChild(option);
+        });
+
+        var timeInput = document.createElement("input");
+        timeInput.type = "text";
+        timeInput.className = "task-category-select task-editor-time";
+        timeInput.inputMode = "numeric";
+        timeInput.maxLength = 17;
+        timeInput.placeholder = "09:30";
+        timeInput.value = normalizeScheduledTime(task.scheduledTime);
+
+        var reminderSelect = document.createElement("select");
+        reminderSelect.className = "task-category-select task-editor-reminder";
+        [
+          { value: "0", label: "No reminder" },
+          { value: "5", label: "Remind me 5 min before" },
+          { value: "10", label: "Remind me 10 min before" },
+          { value: "15", label: "Remind me 15 min before" },
+          { value: "30", label: "Remind me 30 min before" }
+        ].forEach(function (config) {
+          var option = document.createElement("option");
+          option.value = config.value;
+          option.textContent = config.label;
+          option.selected = normalizeReminderMinutes(task.reminderMinutes) === Number(config.value);
+          reminderSelect.appendChild(option);
         });
 
         function saveTaskEdit(keepEditing) {
@@ -4207,9 +4437,18 @@
           hasCommitted = true;
           var nextLabel = titleInput.value.trim() || task.label;
           var nextActivity = categorySelect.value || task.activity;
+          var nextScheduledTime = normalizeScheduledTime(timeInput.value);
+          var nextReminderMinutes = normalizeReminderMinutes(reminderSelect.value);
           var beforeTask = Object.assign({}, tasks[index]);
           tasks[index].label = nextLabel;
           tasks[index].activity = nextActivity;
+          tasks[index].scheduledTime = nextScheduledTime;
+          tasks[index].reminderMinutes = nextReminderMinutes;
+          if (tasks[index].sourceEventId && (beforeTask.scheduledTime !== nextScheduledTime || Number(beforeTask.reminderMinutes || 0) !== nextReminderMinutes)) {
+            tasks[index].useSourceEventReminder = false;
+          }
+          tasks[index].reminderSentAt = "";
+          tasks[index].reminderSentFor = "";
           if (!taskActivityTracksTime(nextActivity)) {
             tasks[index].timerStartedAt = null;
           }
@@ -4218,6 +4457,12 @@
             activity: tasks[index].activity
           });
           logTaskFieldChange(task.id, formatDate(today), "activity", beforeTask.activity, tasks[index].activity, {
+            label: tasks[index].label
+          });
+          logTaskFieldChange(task.id, formatDate(today), "scheduledTime", beforeTask.scheduledTime || "", tasks[index].scheduledTime || "", {
+            label: tasks[index].label
+          });
+          logTaskFieldChange(task.id, formatDate(today), "reminderMinutes", beforeTask.reminderMinutes || 0, tasks[index].reminderMinutes || 0, {
             label: tasks[index].label
           });
           editingTaskId = keepEditing ? task.id : null;
@@ -4257,7 +4502,25 @@
         categorySelect.addEventListener("change", function () {
           saveTaskEdit(true);
         });
+        timeInput.addEventListener("change", function () {
+          saveTaskEdit(true);
+        });
+        reminderSelect.addEventListener("change", function () {
+          saveTaskEdit(true);
+        });
         categorySelect.addEventListener("keydown", function (event) {
+          if (event.key === "Escape") {
+            event.preventDefault();
+            cancelTaskEdit();
+          }
+        });
+        timeInput.addEventListener("keydown", function (event) {
+          if (event.key === "Escape") {
+            event.preventDefault();
+            cancelTaskEdit();
+          }
+        });
+        reminderSelect.addEventListener("keydown", function (event) {
           if (event.key === "Escape") {
             event.preventDefault();
             cancelTaskEdit();
@@ -4273,9 +4536,31 @@
             }
           }, 0);
         });
+        timeInput.addEventListener("blur", function () {
+          window.setTimeout(function () {
+            if (hasCommitted) {
+              return;
+            }
+            if (!editor.contains(document.activeElement)) {
+              saveTaskEdit(false);
+            }
+          }, 0);
+        });
+        reminderSelect.addEventListener("blur", function () {
+          window.setTimeout(function () {
+            if (hasCommitted) {
+              return;
+            }
+            if (!editor.contains(document.activeElement)) {
+              saveTaskEdit(false);
+            }
+          }, 0);
+        });
 
         editor.appendChild(titleInput);
         editor.appendChild(categorySelect);
+        editor.appendChild(timeInput);
+        editor.appendChild(reminderSelect);
         content.appendChild(editor);
 
         window.setTimeout(function () {
@@ -4405,13 +4690,17 @@
 
       function renderTotals() {
         renderWeeklyGoals();
+        renderLiveSummaryPanels();
+        renderRoutinePlanner();
+        renderGoalPlanner();
+        renderMoneyDashboard();
+      }
+
+      function renderLiveSummaryPanels() {
         renderLifePie();
         renderPlannedActual();
         renderDashboardInsight();
         renderStudyOverview();
-        renderRoutinePlanner();
-        renderGoalPlanner();
-        renderMoneyDashboard();
       }
 
       function renderWeeklyGoals() {
@@ -4853,33 +5142,6 @@
         return calendarCore.groupEventsByPart(eventsForDate(dateKey));
       }
 
-      function parseEventTimeRange(title) {
-        var text = String(title || "").trim();
-        var match = text.match(/^(\d{1,2})(?::?(\d{2}))?\s*[-–]\s*(\d{1,2})(?::?(\d{2}))?(?=\s|$)/);
-        if (!match) {
-          return null;
-        }
-        var startHours = Number(match[1]);
-        var startMinutes = match[2] ? Number(match[2]) : 0;
-        var endHours = Number(match[3]);
-        var endMinutes = match[4] ? Number(match[4]) : 0;
-        if (startHours > 23 || startMinutes > 59 || endMinutes > 59) {
-          return null;
-        }
-        if (endHours > 24 || (endHours === 24 && endMinutes !== 0)) {
-          return null;
-        }
-        var start = (startHours * 60) + startMinutes;
-        var end = (endHours * 60) + endMinutes;
-        if (end <= start) {
-          return null;
-        }
-        return {
-          start: start,
-          end: end
-        };
-      }
-
       function timeBoundaryForPart(part) {
         if (part === "morning") {
           return { start: 0, end: MORNING_END };
@@ -4910,7 +5172,7 @@
       }
 
       function weeklyPlannerEventLabel(event, part) {
-        var range = parseEventTimeRange(event && event.title);
+        var range = calendarCore.parseEventTimeRange(event && event.title);
         if (!range) {
           return event.title;
         }
@@ -5350,7 +5612,7 @@
               if (placed) {
                 var status = document.createElement("span");
                 status.className = "goal-step-status";
-                status.textContent = "Placed: " + humanDate(placed.date) + " · " + partLabels[eventDayPart(placed)];
+                status.textContent = "Placed: " + humanDate(placed.date) + " · " + partLabels[calendarCore.eventDayPart(placed)];
                 row.appendChild(status);
               }
             }
@@ -5642,6 +5904,24 @@
         return hero && hero.defaultIntensity ? hero.defaultIntensity : "yellow";
       }
 
+      function skateHeroDayLabel(state) {
+        if (state.streakActive) {
+          return state.streakDay + " / " + skateCore.STREAK_DAYS;
+        }
+        if (state.dayNumber > 0) {
+          return humanDate(formatDate(today)).replace(",", "");
+        }
+        return "Starts Aug 29";
+      }
+
+      function applySkateIntensityButtons(activeIntensityId) {
+        Array.prototype.forEach.call(elements.skateIntensityToggle.querySelectorAll("[data-intensity]"), function (button) {
+          var active = button.dataset.intensity === activeIntensityId;
+          button.classList.toggle("active", active);
+          button.setAttribute("aria-pressed", active ? "true" : "false");
+        });
+      }
+
       function renderSkateHero(session) {
         var hero = currentSkateHero();
         if (!hero || !elements.skatePhaseBadge) {
@@ -5650,13 +5930,7 @@
         var state = hero.state;
         var intensityId = skateIntensityForToday(hero, session);
         var intensity = skateCore.intensityMeta(intensityId);
-        var dayLabel = "Starts Aug 8";
-
-        if (state.streakActive) {
-          dayLabel = state.streakDay + " / " + skateCore.STREAK_DAYS;
-        } else if (state.dayNumber > 0) {
-          dayLabel = humanDate(formatDate(today)).replace(",", "");
-        }
+        var dayLabel = skateHeroDayLabel(state);
 
         elements.skateHeroSubtitle.textContent = hero.subtitle;
         elements.skatePhaseBadge.textContent = hero.phaseWeekLabel;
@@ -5673,12 +5947,7 @@
         elements.skateIntensityDescription.textContent = intensity.tone + " · " + intensity.description;
         elements.skateIntensityEffort.textContent = intensity.effort;
         elements.skateAttemptBudget.textContent = intensity.attempts;
-
-        Array.prototype.forEach.call(elements.skateIntensityToggle.querySelectorAll("[data-intensity]"), function (button) {
-          var active = button.dataset.intensity === intensity.id;
-          button.classList.toggle("active", active);
-          button.setAttribute("aria-pressed", active ? "true" : "false");
-        });
+        applySkateIntensityButtons(intensity.id);
       }
 
       function renderSkateWeeklyMetrics() {
@@ -5735,6 +6004,34 @@
         return "yellow";
       }
 
+      function appendRoadmapMonthLabel(container, cursor, leadingBlanks, dayOffset) {
+        var label = document.createElement("span");
+        label.className = "skate-roadmap-month";
+        label.textContent = monthNames[cursor.getMonth()].slice(0, 3);
+        label.style.gridColumn = String(Math.floor((leadingBlanks + dayOffset) / 7) + 1);
+        container.appendChild(label);
+      }
+
+      function createRoadmapDayButton(dateKey, sessions) {
+        var button = document.createElement("button");
+        var latest = sessions.length ? sessions[sessions.length - 1] : null;
+        button.type = "button";
+        button.className = "skate-roadmap-day";
+        button.classList.add("intensity-" + (latest ? normalizedSessionIntensity(latest) : "empty"));
+        button.setAttribute("aria-label", humanDate(dateKey) + (sessions.length ? " · " + sessions.length + " skate session" + (sessions.length === 1 ? "" : "s") : " · no logged session"));
+        button.textContent = "";
+        if (latest) {
+          button.title = [
+            humanDate(dateKey),
+            normalizedSessionIntensity(latest).toUpperCase(),
+            latest.mainFocus || latest.focus || "Saved session"
+          ].join(" · ");
+        } else {
+          button.title = humanDate(dateKey);
+        }
+        return button;
+      }
+
       function roadmapRange() {
         var seasonStart = skateCore ? parseDate(skateCore.SEASON_START) : new Date(today.getFullYear(), 0, 1);
         if (today < seasonStart) {
@@ -5770,7 +6067,7 @@
         if (!range) {
           var empty = document.createElement("p");
           empty.className = "body-support-empty";
-          empty.textContent = "Roadmap starts on Saturday, August 8, 2026. Dots appear after the season begins and stay visible as the history grows.";
+          empty.textContent = "Roadmap starts on Saturday, August 29, 2026. Dots appear after the season begins and stay visible as the history grows.";
           elements.skateTrendCharts.appendChild(empty);
           return;
         }
@@ -5799,30 +6096,10 @@
           var sessions = sessionsByDate[key] || [];
           var monthKey = cursor.getFullYear() + "-" + cursor.getMonth();
           if (monthKey !== lastMonthKey) {
-            var label = document.createElement("span");
-            label.className = "skate-roadmap-month";
-            label.textContent = monthNames[cursor.getMonth()].slice(0, 3);
-            label.style.gridColumn = String(Math.floor((leadingBlanks + dayOffset) / 7) + 1);
-            monthLabels.appendChild(label);
+            appendRoadmapMonthLabel(monthLabels, cursor, leadingBlanks, dayOffset);
             lastMonthKey = monthKey;
           }
-          var button = document.createElement("button");
-          button.type = "button";
-          button.className = "skate-roadmap-day";
-          button.classList.add("intensity-" + (sessions.length ? normalizedSessionIntensity(sessions[sessions.length - 1]) : "empty"));
-          button.setAttribute("aria-label", humanDate(key) + (sessions.length ? " · " + sessions.length + " skate session" + (sessions.length === 1 ? "" : "s") : " · no logged session"));
-          button.textContent = "";
-          if (sessions.length) {
-            var latest = sessions[sessions.length - 1];
-            button.title = [
-              humanDate(key),
-              normalizedSessionIntensity(latest).toUpperCase(),
-              latest.mainFocus || latest.focus || "Saved session"
-            ].join(" · ");
-          } else {
-            button.title = humanDate(key);
-          }
-          grid.appendChild(button);
+          grid.appendChild(createRoadmapDayButton(key, sessions));
           cursor = addDays(cursor, 1);
           dayOffset += 1;
         }
@@ -5941,7 +6218,7 @@
         var weekHead = document.createElement("div");
         weekHead.className = "skate-plan-head";
         var dateLabel = state.dayNumber <= 0
-          ? "Previewing the program before Saturday, August 8, 2026."
+          ? "Previewing the program before Saturday, August 29, 2026."
           : "Current training week from your checked-in plan.";
         weekHead.innerHTML = "<div><span class=\"skate-plan-kicker\">Week " + state.weekNumber + " / " + skateCore.TOTAL_WEEKS + "</span><h3>" + hero.weekPlan.summary + "</h3><p>" + dateLabel + "</p></div>";
         weekCard.appendChild(weekHead);
@@ -6552,33 +6829,37 @@
         saveFinishedSkateSession({ progressToday: 3, confidence: 3, improvedNote: "", nextFocusNote: "", durationMinutes: sessionDurationMinutes(session.startedAt, 45) });
       }
 
-      function saveFinishedSkateSession(feedback) {
-        var session = getCurrentSkateSession();
-        var sessions = getSkateSessions();
-        var template = getSkateCoachTemplate();
-        var hero = currentSkateHero();
+      function finishedSkateDurationHours(feedback, startedAt) {
+        return Math.max(0, (Math.max(1, Number(feedback.durationMinutes) || sessionDurationMinutes(startedAt, 45))) / 60);
+      }
+
+      function selectedWarmupNames(session, warmupItems) {
+        return warmupItems.filter(function (item) {
+          return session.warmupChecks[item.id];
+        }).map(function (item) {
+          return item.name;
+        }).join(", ");
+      }
+
+      function learningItemsForSavedSession(session) {
+        return [
+          { kind: "flat", name: session.selectedFlat, status: session.focusCards.flat.status, goals: session.focusCards.flat.goals, note: session.focusCards.flat.note },
+          { kind: "transition", name: session.selectedTransition, status: session.focusCards.transition.status, goals: session.focusCards.transition.goals, note: session.focusCards.transition.note }
+        ];
+      }
+
+      function savedSkateSessionPayload(session, feedback, template, hero, intensity, durationHours, linkedTask) {
         var focus = [session.selectedFlat, session.selectedTransition].filter(Boolean).join(" · ");
         var warmupItems = flattenWarmupItems(template);
-        var durationHours = Math.max(0, (Math.max(1, Number(feedback.durationMinutes) || sessionDurationMinutes(session.startedAt, 45))) / 60);
-        var linkedTask = syncSessionTimeToTodayTask("skate", durationHours);
-        var intensity = skateIntensityForToday(hero, session);
-
-        sessions.push({
+        return {
           id: makeId("skate"),
           focus: focus,
           mainFocus: hero ? hero.mainFocus : focus,
           flowFocus: hero ? hero.flow : "",
           blockLabel: hero ? hero.blockLabel : "",
-          warmups: warmupItems.filter(function (item) {
-            return session.warmupChecks[item.id];
-          }).map(function (item) {
-            return item.name;
-          }).join(", "),
+          warmups: selectedWarmupNames(session, warmupItems),
           warmupItems: template.warmupGroups,
-          learningItems: [
-            { kind: "flat", name: session.selectedFlat, status: session.focusCards.flat.status, goals: session.focusCards.flat.goals, note: session.focusCards.flat.note },
-            { kind: "transition", name: session.selectedTransition, status: session.focusCards.transition.status, goals: session.focusCards.transition.goals, note: session.focusCards.transition.note }
-          ],
+          learningItems: learningItemsForSavedSession(session),
           checked: warmupItems.map(function (item) {
             return Boolean(session.warmupChecks[item.id]);
           }),
@@ -6605,7 +6886,18 @@
           trackedInTask: Boolean(linkedTask),
           startedAt: session.startedAt,
           finishedAt: new Date().toISOString()
-        });
+        };
+      }
+
+      function saveFinishedSkateSession(feedback) {
+        var session = getCurrentSkateSession();
+        var sessions = getSkateSessions();
+        var template = getSkateCoachTemplate();
+        var hero = currentSkateHero();
+        var durationHours = finishedSkateDurationHours(feedback, session.startedAt);
+        var linkedTask = syncSessionTimeToTodayTask("skate", durationHours);
+        var intensity = skateIntensityForToday(hero, session);
+        sessions.push(savedSkateSessionPayload(session, feedback, template, hero, intensity, durationHours, linkedTask));
         saveSkateSessions(sessions);
         resetSkateSessionState(linkedTask
           ? "Session saved and added to \"" + linkedTask + "\"."
@@ -6891,7 +7183,7 @@
           }
         });
         if (hasRunningTimer) {
-          renderTotals();
+          renderLiveSummaryPanels();
         }
         if (elements.skateSessionHint) {
           var skateSession = getCurrentSkateSession();
@@ -6919,6 +7211,7 @@
         if (elements.currentMonthLabel) {
           elements.currentMonthLabel.textContent = monthNames[month] + " " + year;
         }
+        renderWaterReminderSettings();
         elements.calendarGrid.innerHTML = "";
 
         weekdays.forEach(function (name) {
@@ -6937,7 +7230,7 @@
             .filter(function (event) {
               return event.date === dateKey;
             })
-            .sort(compareEventsChronologically);
+            .sort(calendarCore.compareEventsChronologically);
           var monthEvents = visibleMonthlyEvents(dayEvents);
 
           var button = document.createElement("button");
@@ -7007,7 +7300,7 @@
           .filter(function (event) {
             return event.date === selectedDate;
           })
-          .sort(compareEventsChronologically);
+          .sort(calendarCore.compareEventsChronologically);
 
         elements.selectedDateHeading.textContent = "Selected day";
         if (elements.selectedDateHint) {
@@ -7049,6 +7342,14 @@
             item.appendChild(note);
           }
 
+          var reminderText = reminderLabel(event && event.reminderMinutes);
+          if (reminderText) {
+            var reminder = document.createElement("p");
+            reminder.className = "selected-event-note";
+            reminder.textContent = reminderText + (eventHasTimedTitle(event) ? "" : " (add a time like 18:00 at the start of the title)");
+            item.appendChild(reminder);
+          }
+
           var actions = document.createElement("div");
           actions.className = "selected-event-actions";
           var deleteButton = document.createElement("button");
@@ -7077,12 +7378,40 @@
         });
       }
 
+      function renderWaterReminderSettings() {
+        if (!elements.waterReminderCard) {
+          return;
+        }
+        var settings = getWaterReminderSettings();
+        elements.waterReminderCard.classList.toggle("is-enabled", settings.enabled);
+        if (elements.waterReminderEnabled) {
+          elements.waterReminderEnabled.checked = settings.enabled;
+        }
+        if (elements.waterReminderToggleLabel) {
+          elements.waterReminderToggleLabel.textContent = settings.enabled ? "On" : "Off";
+        }
+        if (elements.waterReminderTime1) {
+          elements.waterReminderTime1.value = settings.times[0];
+          elements.waterReminderTime1.disabled = !settings.enabled;
+        }
+        if (elements.waterReminderTime2) {
+          elements.waterReminderTime2.value = settings.times[1];
+          elements.waterReminderTime2.disabled = !settings.enabled;
+        }
+        if (elements.waterReminderTimes) {
+          elements.waterReminderTimes.classList.toggle("is-disabled", !settings.enabled);
+        }
+      }
+
       function resetEventForm(message) {
         editingEventId = null;
         draftEventDayPart = "";
         elements.eventTitle.value = "";
         elements.eventNote.value = "";
         elements.eventDate.value = selectedDate;
+        if (elements.eventReminder) {
+          elements.eventReminder.value = "0";
+        }
         elements.eventSaveButton.textContent = "Save event";
         elements.formHint.textContent = message || "Selected: " + selectedDate;
       }
@@ -7102,6 +7431,9 @@
         elements.eventDate.value = event.date || selectedDate;
         elements.eventNote.value = event.note || "";
         elements.eventCategory.value = normalizeEventCategory(event.category);
+        if (elements.eventReminder) {
+          elements.eventReminder.value = String(normalizeReminderMinutes(event.reminderMinutes));
+        }
         elements.eventSaveButton.textContent = "Update event";
         renderCalendar();
         renderSelectedDate();
@@ -7118,6 +7450,9 @@
         }
         if (!window.confirm("Delete \"" + event.title + "\"?")) {
           return;
+        }
+        if (event.routineManaged) {
+          skipRoutineEvent(id);
         }
         clearGoalStepReferenceByEventId(id);
         saveEvents(events.filter(function (item) {
@@ -7137,6 +7472,7 @@
         var title = elements.eventTitle.value.trim();
         var note = elements.eventNote.value.trim();
         var category = normalizeEventCategory(elements.eventCategory.value);
+        var reminderMinutes = normalizeReminderMinutes(elements.eventReminder && elements.eventReminder.value);
         var eventDate = elements.eventDate.value || selectedDate;
 
         if (!title) {
@@ -7157,11 +7493,19 @@
               title: title,
               note: note,
               category: category,
+              reminderMinutes: reminderMinutes,
               dayPart: draftEventDayPart || item.dayPart || "",
               startTime: "",
               endTime: "",
               updatedAt: new Date().toISOString()
             });
+            if (savedEvent.reminderMinutes) {
+              delete savedEvent.reminderSentAt;
+              delete savedEvent.reminderSentFor;
+            } else {
+              delete savedEvent.reminderSentAt;
+              delete savedEvent.reminderSentFor;
+            }
             return savedEvent;
           });
         } else {
@@ -7171,6 +7515,7 @@
             title: title,
             note: note,
             category: category,
+            reminderMinutes: reminderMinutes,
             dayPart: draftEventDayPart || "",
             startTime: "",
             endTime: "",
@@ -7195,6 +7540,8 @@
       function addTask(event) {
         event.preventDefault();
         var label = elements.taskTitle.value.trim();
+        var scheduledTime = normalizeScheduledTime(elements.taskTime && elements.taskTime.value);
+        var reminderMinutes = normalizeReminderMinutes(elements.taskReminder && elements.taskReminder.value);
         if (!label) {
           elements.taskTitle.focus();
           return;
@@ -7208,7 +7555,11 @@
           timerSeconds: 0,
           timerStartedAt: null,
           done: false,
-          createdAt: new Date().toISOString()
+          createdAt: new Date().toISOString(),
+          scheduledTime: scheduledTime,
+          reminderMinutes: reminderMinutes,
+          reminderSentAt: "",
+          reminderSentFor: ""
         };
         tasks.push(nextTask);
         saveTodayTasks(tasks);
@@ -7225,6 +7576,12 @@
           }
         });
         elements.taskTitle.value = "";
+        if (elements.taskTime) {
+          elements.taskTime.value = "";
+        }
+        if (elements.taskReminder) {
+          elements.taskReminder.value = "0";
+        }
         renderTasks();
       }
 
@@ -7340,6 +7697,32 @@
         if (elements.taskForm) {
           elements.taskForm.addEventListener("submit", addTask);
         }
+        if (elements.waterReminderEnabled) {
+          elements.waterReminderEnabled.addEventListener("change", function () {
+            updateWaterReminderSettings(function (settings) {
+              settings.enabled = Boolean(elements.waterReminderEnabled.checked);
+            });
+            renderWaterReminderSettings();
+          });
+        }
+        [
+          { element: elements.waterReminderTime1, index: 0 },
+          { element: elements.waterReminderTime2, index: 1 }
+        ].forEach(function (config) {
+          if (!config.element) {
+            return;
+          }
+          config.element.addEventListener("change", function () {
+            updateWaterReminderSettings(function (settings) {
+              var next = normalizeClockValue(config.element.value) || settings.times[config.index];
+              settings.times[config.index] = next;
+            });
+            renderWaterReminderSettings();
+          });
+          config.element.addEventListener("blur", function () {
+            renderWaterReminderSettings();
+          });
+        });
         if (elements.dayStateOptions) {
           Array.prototype.forEach.call(elements.dayStateOptions.querySelectorAll("[data-day-state]"), function (button) {
             button.addEventListener("click", function () {
@@ -7447,6 +7830,8 @@
           });
         }
 
+        window.addEventListener("resize", syncMascotMobileVisibility);
+
         if (elements.openPatternHistory) {
           elements.openPatternHistory.addEventListener("click", function () {
             openPatternHistoryDialog();
@@ -7480,6 +7865,7 @@
         renderGuitarPage();
         renderSelectedDate();
         renderCalendar();
+        refreshTelegramStatus();
         renderMascotQuickAsks();
         syncMascotBubble();
         bindEvents();
