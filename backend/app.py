@@ -29,10 +29,7 @@ from openai_mascot import ask_mascot, openai_enabled
 from telegram_notifier import (
     DAILY_TASKS_PREFIX,
     EVENTS_KEY,
-    WATER_REMINDER_KEY,
     build_due_reminders,
-    build_due_water_reminders,
-    normalize_water_settings,
     send_telegram_message,
     telegram_status,
 )
@@ -253,14 +250,6 @@ def deliver_due_telegram_reminders() -> int:
         tracked_lists[key] = tasks
         reminders.extend(build_due_reminders(tasks, now=date_now, storage_key=key, date_text=date_key, kind_label="Task"))
 
-    raw_water_settings = values.get(WATER_REMINDER_KEY, "{}")
-    try:
-        water_settings = json.loads(raw_water_settings)
-    except json.JSONDecodeError:
-        water_settings = {}
-    if isinstance(water_settings, dict):
-        reminders.extend(build_due_water_reminders(water_settings, now=date_now, storage_key=WATER_REMINDER_KEY))
-
     if not reminders:
         return 0
 
@@ -286,17 +275,6 @@ def deliver_due_telegram_reminders() -> int:
         if changed:
             put_value(storage_key, json.dumps(entries))
 
-    water_reminders = reminders_by_storage.get(WATER_REMINDER_KEY, {})
-    if water_reminders:
-        changed = False
-        water_settings = normalize_water_settings(water_settings)
-        for slot_id, reminder in water_reminders.items():
-            send_telegram_message(reminder.text)
-            water_settings["sentForBySlot"][slot_id] = reminder.reminder_key
-            changed = True
-            sent_count += 1
-        if changed:
-            put_value(WATER_REMINDER_KEY, json.dumps(water_settings))
     return sent_count
 
 

@@ -156,10 +156,8 @@
               <div class="intention-block" aria-label="Today's intention">
                 <div class="intention-block-head">
                   <strong>Today's intention</strong>
-                <span class="progress-pill" id="todayThemeBadge">Normal Day</span>
-              </div>
-                <p class="intention-line" id="todayThemeLine">Getting today's thread together...</p>
-                <div class="intention-list" id="todayIntentionMount"></div>
+                  <span class="progress-pill" id="todayThemeBadge">Normal Day</span>
+                </div>
               </div>
               <div class="day-state-strip" aria-label="How today feels">
                 <strong>How does today feel?</strong>
@@ -598,7 +596,7 @@
             <div class="calendar-grid" id="calendarGrid" aria-label="Monthly calendar"></div>
           </div>
         </article>
-        <article class="panel event-editor-card" id="eventEditorCard" style="width:100%;max-width:none;flex:0 0 auto;">
+        <article class="panel event-editor-card" id="eventEditorCard" style="width:100%;max-width:none;flex:0 0 auto;" hidden>
           <div class="panel-inner">
             <div class="section-head">
               <h2 id="selectedDateHeading">Selected day</h2>
@@ -607,13 +605,13 @@
             <ul class="selected-events" id="selectedDateEvents" aria-label="Selected date events"></ul>
             <div class="selected-day-actions">
               <button class="primary-button" type="button" id="plannerAddActivityButton">Add activity</button>
-              <span class="hint" id="plannerDayStatusHint">Space left.</span>
+              <span class="hint" id="plannerDayStatusHint">Points left will show here.</span>
             </div>
             <section class="planner-activity-picker" id="plannerActivityPicker" hidden>
               <div class="section-head">
                 <div>
                   <h3>Choose an activity</h3>
-                  <p class="small-note" id="plannerActivityPickerHint">Only what still fits is ready to save.</p>
+                  <p class="small-note" id="plannerActivityPickerHint">Points are based on time. Up to 30 min = 1, 31-90 min = 2, more than 90 min = 3.</p>
                 </div>
               </div>
               <div class="planner-activity-options" id="plannerActivityOptions"></div>
@@ -643,6 +641,10 @@
               <div class="form-row">
                 <label for="eventEndTime">End time</label>
                 <input id="eventEndTime" name="eventEndTime" type="time">
+              </div>
+              <div class="planner-points-summary" aria-live="polite">
+                <strong id="eventPointsSummary">Pick a start and end time to see the point cost.</strong>
+                <span class="hint" id="eventPointsRule">Points are based only on time: up to 30 min = 1, 31-90 min = 2, more than 90 min = 3.</span>
               </div>
               <div class="form-row">
                 <label for="eventNote">Optional note</label>

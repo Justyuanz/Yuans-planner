@@ -11,8 +11,6 @@ if str(BACKEND_DIR) not in sys.path:
 
 from telegram_notifier import (
     build_due_reminders,
-    build_due_water_reminders,
-    normalize_water_settings,
     parse_event_time,
     reminder_key_for_entry,
 )
@@ -95,31 +93,6 @@ class TelegramNotifierTests(unittest.TestCase):
 
         self.assertEqual(len(due), 1)
         self.assertEqual(due[0].event_id, "task-3")
-
-    def test_build_due_water_reminders_uses_fixed_daily_slots(self) -> None:
-        settings = {
-            "enabled": True,
-            "times": ["12:30", "17:00"],
-        }
-
-        due = build_due_water_reminders(settings, datetime(2026, 8, 12, 12, 30))
-
-        self.assertEqual(len(due), 1)
-        self.assertEqual(due[0].event_id, "slot0")
-        self.assertIn("First water check", due[0].text)
-
-    def test_build_due_water_reminders_skips_already_sent_slot(self) -> None:
-        settings = normalize_water_settings(
-            {
-                "enabled": True,
-                "times": ["12:30", "17:00"],
-                "sentForBySlot": {"slot0": "slot0|2026-08-12|12:30"},
-            }
-        )
-
-        due = build_due_water_reminders(settings, datetime(2026, 8, 12, 12, 35))
-
-        self.assertEqual(due, [])
 
     def test_build_due_reminders_normalizes_utc_now_to_planner_timezone(self) -> None:
         events = [

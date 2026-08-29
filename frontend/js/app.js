@@ -87,7 +87,8 @@
         weekSetupOpen: false,
         weekSetupDraft: null,
         activityPickerOpen: false,
-        selectedActivityCategory: ""
+        selectedActivityCategory: "",
+        expandedDateKey: ""
       };
       var mascotState = {
         chatOpen: false,
@@ -587,9 +588,7 @@
         taskTime: document.getElementById("taskTime"),
         taskReminder: document.getElementById("taskReminder"),
         taskActivity: document.getElementById("taskActivity"),
-        todayThemeLine: document.getElementById("todayThemeLine"),
         todayThemeBadge: document.getElementById("todayThemeBadge"),
-        todayIntentionMount: document.getElementById("todayIntentionMount"),
         dayStateOptions: document.getElementById("dayStateOptions"),
         weeklyPlannerLabel: document.getElementById("weeklyPlannerLabel"),
         weeklyPlannerMount: document.getElementById("weeklyPlannerMount"),
@@ -680,6 +679,8 @@
         telegramReminderStatus: document.getElementById("telegramReminderStatus"),
         eventSaveButton: document.getElementById("eventSaveButton"),
         formHint: document.getElementById("formHint"),
+        eventPointsSummary: document.getElementById("eventPointsSummary"),
+        eventPointsRule: document.getElementById("eventPointsRule"),
         plannerAddActivityButton: document.getElementById("plannerAddActivityButton"),
         plannerDayStatusHint: document.getElementById("plannerDayStatusHint"),
         plannerActivityPicker: document.getElementById("plannerActivityPicker"),
@@ -4631,6 +4632,7 @@
         elements.formHint.textContent = message || ("Selected: " + dateKey);
         renderCalendar();
         renderSelectedDate();
+        updateEventPointsSummary();
         if (elements.eventStartTime) {
           elements.eventStartTime.focus();
         }
@@ -4726,40 +4728,13 @@
           .trim();
       }
 
-      function weeklyPlannerEventLabel(event, part) {
-        var range = calendarCore.parseEventTimeRange(event && (event.startTime && event.endTime
-          ? { startTime: event.startTime, endTime: event.endTime }
-          : event.title));
-        if (!range) {
-          return event.title;
-        }
-        var boundary = timeBoundaryForPart(part);
-        var clippedStart = Math.max(range.start, boundary.start);
-        var clippedEnd = Math.min(range.end, boundary.end);
-        if (clippedEnd <= clippedStart) {
-          return event.title;
-        }
-        var label = eventTitleWithoutLeadingTime(event.title);
-        var clippedTime = formatEventClock(clippedStart) + "-" + formatEventClock(clippedEnd);
-        return label ? clippedTime + " " + label : clippedTime;
-      }
-
-      function todayFocusText(eventsByPart, part, fallback) {
-        var items = eventsByPart[part] || [];
-        return items.length ? items.map(function (item) {
-          return formatPlannerRange(item) ? formatPlannerRange(item) + " " + item.title : item.title;
-        }).join(" · ") : fallback;
-      }
-
       function renderTodayIntention() {
-        if (!elements.todayIntentionMount || !elements.todayThemeBadge || !elements.todayThemeLine) {
+        if (!elements.todayThemeBadge) {
           return;
         }
         var dashboardDate = document.getElementById("dashboardDate");
         var todayKey = formatDate(today);
         var type = dayTypeById(weeklyPlannerDayForDate(today).day.type);
-        var grouped = groupedEventsForDate(todayKey);
-        var allTodayEvents = eventsForDate(todayKey);
 
         elements.todaySubtitle.textContent = "A soft little map for the shape of your day.";
         elements.weekKeyLabel.textContent = isoWeekKey(today) + " · " + plannerDaySummary(todayKey).status;
@@ -4768,35 +4743,6 @@
         }
         elements.todayThemeBadge.textContent = type.label;
         elements.todayThemeBadge.className = "progress-pill day-type-pill " + type.className;
-        elements.todayThemeLine.textContent = humanDate(todayKey) + " is set up as a " + type.label.toLowerCase() + ".";
-
-        elements.todayIntentionMount.innerHTML = "";
-        [
-          {
-            label: "Morning",
-            text: todayFocusText(grouped, "morning", "Start with the thing that unlocks the rest of the day.")
-          },
-          {
-            label: "Afternoon",
-            text: todayFocusText(grouped, "afternoon", "Protect one real work block here.")
-          },
-          {
-            label: "Evening",
-            text: todayFocusText(grouped, "evening", "Close loops, then let the day end properly.")
-          }
-        ].forEach(function (entry) {
-          var row = document.createElement("div");
-          row.className = "overview-row";
-          row.innerHTML = "<strong>" + entry.label + "</strong><span>" + entry.text + "</span>";
-          elements.todayIntentionMount.appendChild(row);
-        });
-
-        if (!allTodayEvents.length) {
-          var note = document.createElement("p");
-          note.className = "balance-note";
-          note.textContent = "Nothing is locked in yet. That can still be a smart day.";
-          elements.todayIntentionMount.appendChild(note);
-        }
       }
 
       function renderWeeklyPlanner() {
@@ -4817,6 +4763,10 @@
         }
 
         elements.weeklyPlannerMount.innerHTML = "";
+        if (elements.eventEditorCard) {
+          elements.eventEditorCard.hidden = true;
+          elements.eventEditorCard.classList.remove("inline-day-editor");
+        }
         if (weeklyPlannerUiState.weekSetupOpen) {
           renderWeekSetup(referenceDate, routine);
           return;
@@ -4828,13 +4778,21 @@
           var summary = plannerDaySummary(dateKey);
           var card = document.createElement("section");
           card.className = "week-day-panel " + type.className;
+          var isExpanded = weeklyPlannerUiState.expandedDateKey === dateKey;
           if (dateKey === selectedDate) {
             card.classList.add("selected-day");
           }
-          card.addEventListener("click", function () {
+          card.addEventListener("click", function (event) {
+            if (event.target && typeof event.target.closest === "function" && event.target.closest("button, input, select, textarea, label, form")) {
+              return;
+            }
+            event.stopPropagation();
             selectedDate = dateKey;
             calendarCursor = new Date(date.getFullYear(), date.getMonth(), 1);
-            weeklyPlannerUiState.activityPickerOpen = false;
+            weeklyPlannerUiState.expandedDateKey = isExpanded ? "" : dateKey;
+            if (!weeklyPlannerUiState.expandedDateKey) {
+              weeklyPlannerUiState.activityPickerOpen = false;
+            }
             renderWeeklyPlannerSection();
             renderCalendar();
             renderSelectedDate();
@@ -4848,6 +4806,21 @@
           badge.className = "progress-pill day-type-pill " + type.className;
           badge.textContent = type.shortLabel || type.label;
           header.appendChild(badge);
+
+          if (isExpanded) {
+            var collapseButton = document.createElement("button");
+            collapseButton.type = "button";
+            collapseButton.className = "planner-collapse-button";
+            collapseButton.setAttribute("aria-label", "Collapse " + weekLabels[index]);
+            collapseButton.textContent = "Minimize";
+            collapseButton.addEventListener("click", function (clickEvent) {
+              clickEvent.stopPropagation();
+              weeklyPlannerUiState.expandedDateKey = "";
+              weeklyPlannerUiState.activityPickerOpen = false;
+              renderWeeklyPlannerSection();
+            });
+            header.appendChild(collapseButton);
+          }
           card.appendChild(header);
 
           var statusRow = document.createElement("div");
@@ -4872,6 +4845,12 @@
           }
           card.appendChild(summaryRow);
 
+          if (isExpanded && elements.eventEditorCard) {
+            elements.eventEditorCard.hidden = false;
+            elements.eventEditorCard.classList.add("inline-day-editor");
+            card.appendChild(elements.eventEditorCard);
+          }
+
           elements.weeklyPlannerMount.appendChild(card);
         });
       }
@@ -4881,15 +4860,93 @@
           return skateStreakActiveForDate(dateKey || selectedDate) ? "Only one 10-minute Recovery Skate can fit." : "No optional activities fit.";
         }
         if (summary.remainingPoints <= 0) {
-          return "Move, shorten, or remove a block.";
+          return "0 points left. Move, shorten, or remove a block.";
         }
         if (summary.recommendedMaxMinutes === 30) {
-          return "Only activities up to 30 minutes fit.";
+          return summary.remainingPoints + " point" + (summary.remainingPoints === 1 ? "" : "s") + " left. Only activities up to 30 minutes fit.";
         }
         if (summary.recommendedMaxMinutes === 90) {
-          return "Only activities up to 90 minutes fit.";
+          return summary.remainingPoints + " points left. Only activities up to 90 minutes fit.";
         }
         return summary.remainingPoints + " points left.";
+      }
+
+      function plannerPointsBaseState(dateKey) {
+        var targetDateKey = dateKey || selectedDate;
+        var routineInfo = weeklyPlannerDayForDate(parseDate(targetDateKey));
+        var typeId = routineInfo.day.type;
+        var events = plannerEventsForDate(targetDateKey).filter(function (item) {
+          return item.id !== editingEventId;
+        });
+        return {
+          dateKey: targetDateKey,
+          dayTypeId: typeId,
+          summary: weeklyPlannerCore.daySummary(typeId, events, {
+            skateStreakActive: skateStreakActiveForDate(targetDateKey)
+          })
+        };
+      }
+
+      function updateEventPointsSummary() {
+        if (!elements.eventPointsSummary || !elements.eventPointsRule || !weeklyPlannerCore) {
+          return;
+        }
+        var baseState = plannerPointsBaseState(elements.eventDate && elements.eventDate.value);
+        var summary = baseState.summary;
+        var startTime = normalizeClockValue(elements.eventStartTime && elements.eventStartTime.value);
+        var endTime = normalizeClockValue(elements.eventEndTime && elements.eventEndTime.value);
+        var category = normalizeEventCategory(elements.eventCategory && elements.eventCategory.value);
+        var minutes = weeklyPlannerCore.durationMinutes(startTime, endTime);
+        var points = weeklyPlannerCore.pointsForDuration(minutes);
+        var candidate = {
+          category: category,
+          startTime: startTime,
+          endTime: endTime,
+          title: plannerCategoryMeta(category).shortLabel
+        };
+        var fitResult = weeklyPlannerCore.canAddActivity(baseState.dayTypeId, summary.activities, candidate, {
+          skateStreakActive: skateStreakActiveForDate(baseState.dateKey)
+        });
+
+        if (summary.dayType.id === "recovery") {
+          elements.eventPointsSummary.textContent = skateStreakActiveForDate(baseState.dateKey)
+            ? "Recovery Day has 0 points. Only one 10-minute Recovery Skate is allowed."
+            : "Recovery Day has 0 points. No optional activities fit.";
+          elements.eventPointsRule.textContent = "Points are based only on time: up to 30 min = 1, 31-90 min = 2, more than 90 min = 3.";
+          return;
+        }
+
+        if (!minutes) {
+          elements.eventPointsSummary.textContent = summary.remainingPoints + " point" + (summary.remainingPoints === 1 ? "" : "s") + " left before this block.";
+          elements.eventPointsRule.textContent = "Points are based only on time: up to 30 min = 1, 31-90 min = 2, more than 90 min = 3.";
+          return;
+        }
+
+        var remainingAfterSave = Math.max(0, summary.remainingPoints - points);
+        if (fitResult.allowed) {
+          elements.eventPointsSummary.textContent = "This block costs " + points + " point" + (points === 1 ? "" : "s") + ". " + remainingAfterSave + " point" + (remainingAfterSave === 1 ? "" : "s") + " would be left after saving.";
+          elements.eventPointsRule.textContent = "Points are based only on time: up to 30 min = 1, 31-90 min = 2, more than 90 min = 3.";
+          return;
+        }
+
+        elements.eventPointsSummary.textContent = "This block costs " + points + " point" + (points === 1 ? "" : "s") + ", but only " + summary.remainingPoints + " point" + (summary.remainingPoints === 1 ? "" : "s") + " are left on this day.";
+        elements.eventPointsRule.textContent = fitResult.reason || "Points are based only on time: up to 30 min = 1, 31-90 min = 2, more than 90 min = 3.";
+      }
+
+      function plannerActivityOptionHint(summary, option) {
+        if (option.disabled) {
+          return option.reason || "This does not fit today.";
+        }
+        if (summary.dayType.id === "recovery") {
+          return "Only a 10-minute Recovery Skate is allowed.";
+        }
+        if (summary.recommendedMaxMinutes === 30) {
+          return "Keep it 30 minutes or less.";
+        }
+        if (summary.recommendedMaxMinutes === 90) {
+          return "Keep it 90 minutes or less.";
+        }
+        return "Time decides the cost: 1 to 3 points.";
       }
 
       function renderWeekSetup(referenceDate, routine) {
@@ -4973,6 +5030,7 @@
       function renderWeeklyPlannerSection() {
         renderTodayIntention();
         renderWeeklyPlanner();
+        renderSelectedDate();
       }
 
       function renderGoalPlanner() {
@@ -6882,10 +6940,13 @@
           button.classList.add(routineType.className);
           button.setAttribute("aria-label", "Select " + humanDate(dateKey));
           button.addEventListener("click", function (key) {
-            return function () {
+            return function (event) {
+              event.stopPropagation();
               selectedDate = key;
+              weeklyPlannerUiState.expandedDateKey = key;
+              weeklyPlannerUiState.activityPickerOpen = false;
+              renderWeeklyPlannerSection();
               renderCalendar();
-              renderSelectedDate();
               if (elements.eventStartTime) {
                 elements.eventStartTime.focus();
               }
@@ -7004,6 +7065,7 @@
           });
         }
         renderPlannerActivityPicker();
+        updateEventPointsSummary();
       }
 
       function renderPlannerActivityPicker() {
@@ -7020,7 +7082,7 @@
           return;
         }
         if (elements.plannerActivityPickerHint) {
-          elements.plannerActivityPickerHint.textContent = plannerCapacityHint(summary, selectedDate);
+          elements.plannerActivityPickerHint.textContent = plannerCapacityHint(summary, selectedDate) + " Points are based on time: up to 30 min = 1, 31-90 min = 2, more than 90 min = 3.";
         }
         elements.plannerActivityOptions.innerHTML = "";
         options.forEach(function (option) {
@@ -7028,7 +7090,14 @@
           button.type = "button";
           button.className = "planner-activity-option " + option.className;
           button.disabled = option.disabled;
-          button.textContent = option.label;
+          var title = document.createElement("span");
+          title.className = "planner-activity-option-title";
+          title.textContent = option.label;
+          var detail = document.createElement("span");
+          detail.className = "planner-activity-option-detail";
+          detail.textContent = plannerActivityOptionHint(summary, option);
+          button.appendChild(title);
+          button.appendChild(detail);
           if (option.reason) {
             button.title = option.reason;
           }
@@ -7054,6 +7123,7 @@
         weeklyPlannerUiState.selectedActivityCategory = "";
         elements.eventSaveButton.textContent = "Save activity";
         elements.formHint.textContent = message || "Selected: " + selectedDate;
+        updateEventPointsSummary();
       }
 
       function startEditEvent(id) {
@@ -7067,6 +7137,7 @@
         draftEventDayPart = event.dayPart || "";
         selectedDate = event.date;
         calendarCursor = parseDate(event.date);
+        weeklyPlannerUiState.expandedDateKey = event.date;
         weeklyPlannerUiState.activityPickerOpen = false;
         weeklyPlannerUiState.selectedActivityCategory = normalizeEventCategory(event.category);
         elements.eventDate.value = event.date || selectedDate;
@@ -7079,8 +7150,9 @@
         elements.eventNote.value = event.note || "";
         elements.eventCategory.value = normalizeEventCategory(event.category);
         elements.eventSaveButton.textContent = "Update activity";
+        renderWeeklyPlannerSection();
         renderCalendar();
-        renderSelectedDate();
+        updateEventPointsSummary();
         if (elements.eventStartTime) {
           elements.eventStartTime.focus();
         }
@@ -7108,6 +7180,7 @@
         renderGoalPlanner();
         renderWeeklyPlannerSection();
         renderSelectedDate();
+        updateEventPointsSummary();
       }
 
       function addEvent(event) {
@@ -7181,12 +7254,14 @@
 
         selectedDate = eventDate;
         calendarCursor = new Date(parseDate(selectedDate).getFullYear(), parseDate(selectedDate).getMonth(), 1);
+        weeklyPlannerUiState.expandedDateKey = selectedDate;
         weeklyPlannerUiState.activityPickerOpen = false;
         resetEventForm((editingEventId ? "Updated " : "Saved for ") + humanDate(selectedDate) + ".");
         renderGoalPlanner();
         renderWeeklyPlannerSection();
         renderCalendar();
         renderSelectedDate();
+        updateEventPointsSummary();
       }
 
       function addTask(event) {
@@ -7349,10 +7424,24 @@
           if (elements.eventDate.value) {
             selectedDate = elements.eventDate.value;
             calendarCursor = new Date(parseDate(selectedDate).getFullYear(), parseDate(selectedDate).getMonth(), 1);
+            weeklyPlannerUiState.expandedDateKey = selectedDate;
+            weeklyPlannerUiState.activityPickerOpen = false;
+            renderWeeklyPlannerSection();
             renderCalendar();
-            renderSelectedDate();
+            updateEventPointsSummary();
           }
         });
+        if (elements.eventCategory) {
+          elements.eventCategory.addEventListener("change", updateEventPointsSummary);
+        }
+        if (elements.eventStartTime) {
+          elements.eventStartTime.addEventListener("input", updateEventPointsSummary);
+          elements.eventStartTime.addEventListener("change", updateEventPointsSummary);
+        }
+        if (elements.eventEndTime) {
+          elements.eventEndTime.addEventListener("input", updateEventPointsSummary);
+          elements.eventEndTime.addEventListener("change", updateEventPointsSummary);
+        }
         if (elements.plannerAddActivityButton) {
           elements.plannerAddActivityButton.addEventListener("click", function () {
             weeklyPlannerUiState.activityPickerOpen = !weeklyPlannerUiState.activityPickerOpen;
