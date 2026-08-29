@@ -453,7 +453,7 @@
                 <div class="skate-session-actions-card">
                   <div class="skate-readiness-head">
                     <strong>Session timer</strong>
-                    <span>Board hours update from finished skate sessions.</span>
+                    <span>Board hours update from saved skate time this week.</span>
                   </div>
                   <div class="form-actions skate-hero-actions">
                     <button class="secondary-button" type="button" id="startSkateSession">Start session</button>
@@ -631,20 +631,36 @@
                 </select>
               </div>
               <div class="form-row">
+                <label for="eventTitle">Name</label>
+                <input id="eventTitle" name="eventTitle" type="text" maxlength="120" autocomplete="off" placeholder="Meet somebody, Kontula skate, call clinic...">
+              </div>
+              <div class="form-row">
                 <label for="eventDate">Date</label>
                 <input id="eventDate" name="eventDate" type="date">
               </div>
               <div class="form-row">
                 <label for="eventStartTime">Start time</label>
-                <input id="eventStartTime" name="eventStartTime" type="time">
+                <input id="eventStartTime" name="eventStartTime" type="text" inputmode="numeric" autocomplete="off" placeholder="13:00">
               </div>
               <div class="form-row">
                 <label for="eventEndTime">End time</label>
-                <input id="eventEndTime" name="eventEndTime" type="time">
+                <input id="eventEndTime" name="eventEndTime" type="text" inputmode="numeric" autocomplete="off" placeholder="14:30">
               </div>
-              <div class="planner-points-summary" aria-live="polite">
-                <strong id="eventPointsSummary">Pick a start and end time to see the point cost.</strong>
-                <span class="hint" id="eventPointsRule">Points are based only on time: up to 30 min = 1, 31-90 min = 2, more than 90 min = 3.</span>
+              <div class="form-row">
+                <label for="eventReminder">Telegram reminder</label>
+                <select id="eventReminder" name="eventReminder">
+                  <option value="0">No reminder</option>
+                  <option value="5">Remind me 5 min before</option>
+                  <option value="10">Remind me 10 min before</option>
+                  <option value="15">Remind me 15 min before</option>
+                  <option value="30">Remind me 30 min before</option>
+                </select>
+              </div>
+              <div class="form-row planner-reminder-row">
+                <label class="planner-checkbox" for="eventReminderOnly">
+                  <input id="eventReminderOnly" name="eventReminderOnly" type="checkbox">
+                  <span>Reminder-only item. Costs 0 points.</span>
+                </label>
               </div>
               <div class="form-row">
                 <label for="eventNote">Optional note</label>

@@ -236,10 +236,23 @@
         if (!text) {
           return "";
         }
+        var amPmMatch = text.match(/^(\d{1,2})(?::(\d{2}))?\s*([AaPp][Mm])$/);
         var match = text.match(/^(\d{1,2}):(\d{2})$/);
         var hours = 0;
         var minutes = 0;
-        if (match) {
+        if (amPmMatch) {
+          hours = Number(amPmMatch[1]);
+          minutes = amPmMatch[2] ? Number(amPmMatch[2]) : 0;
+          if (hours < 1 || hours > 12 || minutes > 59) {
+            return "";
+          }
+          if (hours === 12) {
+            hours = 0;
+          }
+          if (amPmMatch[3].charAt(0).toLowerCase() === "p") {
+            hours += 12;
+          }
+        } else if (match) {
           hours = Number(match[1]);
           minutes = Number(match[2]);
         } else if (/^\d{1,2}$/.test(text)) {
@@ -674,13 +687,14 @@
         eventDate: document.getElementById("eventDate"),
         eventStartTime: document.getElementById("eventStartTime"),
         eventEndTime: document.getElementById("eventEndTime"),
+        eventReminder: document.getElementById("eventReminder"),
         eventNote: document.getElementById("eventNote"),
         eventCategory: document.getElementById("eventCategory"),
+        eventTitle: document.getElementById("eventTitle"),
+        eventReminderOnly: document.getElementById("eventReminderOnly"),
         telegramReminderStatus: document.getElementById("telegramReminderStatus"),
         eventSaveButton: document.getElementById("eventSaveButton"),
         formHint: document.getElementById("formHint"),
-        eventPointsSummary: document.getElementById("eventPointsSummary"),
-        eventPointsRule: document.getElementById("eventPointsRule"),
         plannerAddActivityButton: document.getElementById("plannerAddActivityButton"),
         plannerDayStatusHint: document.getElementById("plannerDayStatusHint"),
         plannerActivityPicker: document.getElementById("plannerActivityPicker"),
@@ -1829,7 +1843,7 @@
         var existingSourceIds = existing.map(function (task) {
           return task.sourceEventId;
         }).filter(Boolean);
-        return eventsForDate(dateKey)
+        return plannerEventsForDate(dateKey)
           .filter(function (event) {
             return existingSourceIds.indexOf(event.id) === -1;
           })
@@ -1845,9 +1859,7 @@
               createdAt: new Date().toISOString(),
               sourceEventId: event.id,
               useSourceEventReminder: true,
-              scheduledTime: normalizeScheduledTime(event.startTime) || (calendarCore.parseEventTimeMinutes(event.title) !== null
-                ? pad(Math.floor(calendarCore.parseEventTimeMinutes(event.title) / 60)) + ":" + pad(calendarCore.parseEventTimeMinutes(event.title) % 60)
-                : ""),
+              scheduledTime: normalizeScheduledTime(event.startTime),
               reminderMinutes: normalizeReminderMinutes(event.reminderMinutes)
             };
           });
@@ -1855,15 +1867,23 @@
 
       function mergedTodayTasks(tasks) {
         var normalized = normalizeTasks(tasks);
-        var imported = importedCalendarTasksForDate(formatDate(today), normalized);
+        var todayKey = formatDate(today);
+        var todaysEventIds = plannerEventsForDate(todayKey).map(function (event) {
+          return event.id;
+        });
+        var keptTasks = normalized.filter(function (task) {
+          return !task.sourceEventId || todaysEventIds.indexOf(task.sourceEventId) !== -1;
+        });
+        var imported = importedCalendarTasksForDate(todayKey, keptTasks);
+        var changed = keptTasks.length !== normalized.length || imported.length > 0;
         if (!imported.length) {
           return {
-            tasks: normalized,
-            changed: false
+            tasks: keptTasks,
+            changed: changed
           };
         }
         return {
-          tasks: normalizeTasks(normalized.concat(imported)),
+          tasks: normalizeTasks(keptTasks.concat(imported)),
           changed: true
         };
       }
@@ -4187,6 +4207,7 @@
         renderWeeklyPlannerSection();
         renderGoalPlanner();
         renderMoneyDashboard();
+        renderSkatePage();
       }
 
       function renderLiveSummaryPanels() {
@@ -4626,14 +4647,24 @@
         elements.eventDate.value = dateKey;
         elements.eventStartTime.value = summary.recommendedMaxMinutes === 30 ? "18:00" : "10:00";
         elements.eventEndTime.value = summary.recommendedMaxMinutes === 30 ? "18:10" : "11:00";
+        if (elements.eventTitle) {
+          elements.eventTitle.value = "";
+        }
+        if (elements.eventReminderOnly) {
+          elements.eventReminderOnly.checked = false;
+        }
+        if (elements.eventReminder) {
+          elements.eventReminder.value = "0";
+        }
         elements.eventNote.value = "";
         elements.eventCategory.value = weeklyPlannerUiState.selectedActivityCategory || "Study/school";
         elements.eventSaveButton.textContent = "Save activity";
         elements.formHint.textContent = message || ("Selected: " + dateKey);
         renderCalendar();
         renderSelectedDate();
-        updateEventPointsSummary();
-        if (elements.eventStartTime) {
+        if (elements.eventTitle) {
+          elements.eventTitle.focus();
+        } else if (elements.eventStartTime) {
           elements.eventStartTime.focus();
         }
       }
@@ -4653,13 +4684,34 @@
         };
       }
 
+      function eventTimeFallback(title) {
+        var range = calendarCore.parseEventTimeRange(title);
+        if (!range) {
+          return { startTime: "", endTime: "" };
+        }
+        return {
+          startTime: pad(Math.floor(range.start / 60)) + ":" + pad(range.start % 60),
+          endTime: pad(Math.floor(range.end / 60)) + ":" + pad(range.end % 60)
+        };
+      }
+
       function plannerEventsForDate(dateKey) {
         return eventsForDate(dateKey).map(function (event) {
           var category = normalizeEventCategory(event.category);
           var meta = plannerCategoryMeta(category);
+          var fallback = eventTimeFallback(event.title);
+          var startTime = normalizeClockValue(event.startTime || fallback.startTime);
+          var endTime = normalizeClockValue(event.endTime || fallback.endTime);
+          var cleanTitle = String(event.title || "").trim();
+          var legacyTitle = eventTitleWithoutLeadingTime(cleanTitle);
+          var reminderOnly = Boolean(event.reminderOnly);
           return Object.assign({}, event, {
             category: category,
-            title: event.title || meta.shortLabel
+            title: legacyTitle || cleanTitle || meta.shortLabel,
+            startTime: startTime,
+            endTime: endTime,
+            reminderOnly: reminderOnly,
+            reminderMinutes: normalizeReminderMinutes(event.reminderMinutes)
           });
         });
       }
@@ -4690,10 +4742,46 @@
         };
       }
 
+      function plannerGuidanceHint(summary, dateKey) {
+        var type = summary && summary.dayType ? summary.dayType : dayTypeById("normal");
+        if (type.id === "recovery") {
+          return skateStreakActiveForDate(dateKey)
+            ? "Recovery Day: keep it gentle. Cooking, chores, guitar, personal care, reminders, or one 10-minute Recovery Skate are okay."
+            : "Recovery Day: keep it gentle. Cooking, chores, guitar, personal care, and reminders are okay.";
+        }
+        if (type.id === "high") {
+          if (summary.remainingPoints <= 0) {
+            return "High-Intensity Day: this is for your biggest blocks. Today is full, so only move, shorten, or remove something.";
+          }
+          if (summary.remainingPoints <= 2) {
+            return "High-Intensity Day: use it for big work, training, or school. You still have room, but only for a smaller extra block.";
+          }
+          return "High-Intensity Day: use this for your biggest work, skate, gym, or school blocks.";
+        }
+        if (summary.remainingPoints <= 0) {
+          return "Normal Day: aim for one real main block and a couple of supporting things. Today is already full.";
+        }
+        if (summary.remainingPoints <= 1) {
+          return "Normal Day: one main block is enough. The rest of today should stay light.";
+        }
+        return "Normal Day: aim for one real main block and one or two smaller supporting blocks.";
+      }
+
+      function formatPlannerPoints(value) {
+        var amount = Math.max(0, Number(value) || 0);
+        return Number.isInteger(amount) ? String(amount) : amount.toFixed(1).replace(/\.0$/, "");
+      }
+
       function formatPlannerRange(event) {
         var start = event && event.startTime ? event.startTime : "";
         var end = event && event.endTime ? event.endTime : "";
-        return start && end ? start + "-" + end : "";
+        if (start && end) {
+          return start + "-" + end;
+        }
+        if (event && event.reminderOnly) {
+          return "Reminder";
+        }
+        return "";
       }
 
       function timeBoundaryForPart(part) {
@@ -4862,91 +4950,16 @@
         if (summary.remainingPoints <= 0) {
           return "0 points left. Move, shorten, or remove a block.";
         }
-        if (summary.recommendedMaxMinutes === 30) {
-          return summary.remainingPoints + " point" + (summary.remainingPoints === 1 ? "" : "s") + " left. Only activities up to 30 minutes fit.";
+        if (summary.remainingPoints < 1) {
+          return formatPlannerPoints(summary.remainingPoints) + " point left. Only very light blocks like skate, guitar, or personal fit well.";
         }
-        if (summary.recommendedMaxMinutes === 90) {
-          return summary.remainingPoints + " points left. Only activities up to 90 minutes fit.";
+        if (summary.remainingPoints <= 1) {
+          return formatPlannerPoints(summary.remainingPoints) + " point left. Keep the next block light.";
         }
-        return summary.remainingPoints + " points left.";
-      }
-
-      function plannerPointsBaseState(dateKey) {
-        var targetDateKey = dateKey || selectedDate;
-        var routineInfo = weeklyPlannerDayForDate(parseDate(targetDateKey));
-        var typeId = routineInfo.day.type;
-        var events = plannerEventsForDate(targetDateKey).filter(function (item) {
-          return item.id !== editingEventId;
-        });
-        return {
-          dateKey: targetDateKey,
-          dayTypeId: typeId,
-          summary: weeklyPlannerCore.daySummary(typeId, events, {
-            skateStreakActive: skateStreakActiveForDate(targetDateKey)
-          })
-        };
-      }
-
-      function updateEventPointsSummary() {
-        if (!elements.eventPointsSummary || !elements.eventPointsRule || !weeklyPlannerCore) {
-          return;
+        if (summary.remainingPoints <= 2) {
+          return formatPlannerPoints(summary.remainingPoints) + " points left. A smaller extra block still fits.";
         }
-        var baseState = plannerPointsBaseState(elements.eventDate && elements.eventDate.value);
-        var summary = baseState.summary;
-        var startTime = normalizeClockValue(elements.eventStartTime && elements.eventStartTime.value);
-        var endTime = normalizeClockValue(elements.eventEndTime && elements.eventEndTime.value);
-        var category = normalizeEventCategory(elements.eventCategory && elements.eventCategory.value);
-        var minutes = weeklyPlannerCore.durationMinutes(startTime, endTime);
-        var points = weeklyPlannerCore.pointsForDuration(minutes);
-        var candidate = {
-          category: category,
-          startTime: startTime,
-          endTime: endTime,
-          title: plannerCategoryMeta(category).shortLabel
-        };
-        var fitResult = weeklyPlannerCore.canAddActivity(baseState.dayTypeId, summary.activities, candidate, {
-          skateStreakActive: skateStreakActiveForDate(baseState.dateKey)
-        });
-
-        if (summary.dayType.id === "recovery") {
-          elements.eventPointsSummary.textContent = skateStreakActiveForDate(baseState.dateKey)
-            ? "Recovery Day has 0 points. Only one 10-minute Recovery Skate is allowed."
-            : "Recovery Day has 0 points. No optional activities fit.";
-          elements.eventPointsRule.textContent = "Points are based only on time: up to 30 min = 1, 31-90 min = 2, more than 90 min = 3.";
-          return;
-        }
-
-        if (!minutes) {
-          elements.eventPointsSummary.textContent = summary.remainingPoints + " point" + (summary.remainingPoints === 1 ? "" : "s") + " left before this block.";
-          elements.eventPointsRule.textContent = "Points are based only on time: up to 30 min = 1, 31-90 min = 2, more than 90 min = 3.";
-          return;
-        }
-
-        var remainingAfterSave = Math.max(0, summary.remainingPoints - points);
-        if (fitResult.allowed) {
-          elements.eventPointsSummary.textContent = "This block costs " + points + " point" + (points === 1 ? "" : "s") + ". " + remainingAfterSave + " point" + (remainingAfterSave === 1 ? "" : "s") + " would be left after saving.";
-          elements.eventPointsRule.textContent = "Points are based only on time: up to 30 min = 1, 31-90 min = 2, more than 90 min = 3.";
-          return;
-        }
-
-        elements.eventPointsSummary.textContent = "This block costs " + points + " point" + (points === 1 ? "" : "s") + ", but only " + summary.remainingPoints + " point" + (summary.remainingPoints === 1 ? "" : "s") + " are left on this day.";
-        elements.eventPointsRule.textContent = fitResult.reason || "Points are based only on time: up to 30 min = 1, 31-90 min = 2, more than 90 min = 3.";
-      }
-
-      function plannerActivityOptionHint(summary, option) {
-        if (option.disabled) {
-          return option.reason || "This does not fit today.";
-        }
-        if (summary.dayType.id === "recovery") {
-          return "Only a 10-minute Recovery Skate is allowed.";
-        }
-        if (summary.recommendedMaxMinutes === 30) {
-          return "Keep it 30 minutes or less.";
-        }
-        if (summary.recommendedMaxMinutes === 90) {
-          return "Keep it 90 minutes or less.";
-        }
-        return "Time decides the cost: 1 to 3 points.";
+        return formatPlannerPoints(summary.remainingPoints) + " points left.";
       }
 
       function renderWeekSetup(referenceDate, routine) {
@@ -5563,12 +5576,9 @@
       }
 
       function boardHoursTotal() {
-        if (skateSessionCore && typeof skateSessionCore.boardHoursTotalFromSessions === "function") {
-          return skateSessionCore.boardHoursTotalFromSessions(getSkateSessions());
-        }
-        return getSkateSessions().reduce(function (sum, session) {
-          return sum + Math.max(0, Number(session && session.durationHours) || 0);
-        }, 0);
+        var week = weekRange(today);
+        var totals = totalHoursForRange(week.start, week.end);
+        return Math.max(0, Number(totals.skate) || 0);
       }
 
       function formatSkateHours(value) {
@@ -6999,7 +7009,7 @@
 
         elements.selectedDateHeading.textContent = humanDate(selectedDate);
         if (elements.selectedDateHint) {
-          elements.selectedDateHint.textContent = type.label + " · " + summary.status;
+          elements.selectedDateHint.textContent = plannerGuidanceHint(summary, selectedDate);
         }
         elements.formHint.textContent = editingEventId ? "Edit this block to move, shorten, or change it." : "Selected: " + selectedDate;
         elements.eventDate.value = selectedDate;
@@ -7023,7 +7033,9 @@
 
             var title = document.createElement("div");
             title.className = "selected-event-title";
-            title.textContent = formatPlannerRange(event) + "  " + plannerCategoryMeta(event.category).shortLabel;
+            title.textContent = [formatPlannerRange(event), event.title || plannerCategoryMeta(event.category).shortLabel]
+              .filter(Boolean)
+              .join("  ");
 
             var tag = document.createElement("span");
             tag.className = "tag " + categoryClass(event.category);
@@ -7065,7 +7077,6 @@
           });
         }
         renderPlannerActivityPicker();
-        updateEventPointsSummary();
       }
 
       function renderPlannerActivityPicker() {
@@ -7082,7 +7093,7 @@
           return;
         }
         if (elements.plannerActivityPickerHint) {
-          elements.plannerActivityPickerHint.textContent = plannerCapacityHint(summary, selectedDate) + " Points are based on time: up to 30 min = 1, 31-90 min = 2, more than 90 min = 3.";
+          elements.plannerActivityPickerHint.textContent = "Points are based on time: up to 30 min = 1, 31-90 min = 2, more than 90 min = 3.";
         }
         elements.plannerActivityOptions.innerHTML = "";
         options.forEach(function (option) {
@@ -7090,14 +7101,7 @@
           button.type = "button";
           button.className = "planner-activity-option " + option.className;
           button.disabled = option.disabled;
-          var title = document.createElement("span");
-          title.className = "planner-activity-option-title";
-          title.textContent = option.label;
-          var detail = document.createElement("span");
-          detail.className = "planner-activity-option-detail";
-          detail.textContent = plannerActivityOptionHint(summary, option);
-          button.appendChild(title);
-          button.appendChild(detail);
+          button.textContent = option.label;
           if (option.reason) {
             button.title = option.reason;
           }
@@ -7114,16 +7118,24 @@
         draftEventDayPart = "";
         elements.eventNote.value = "";
         elements.eventDate.value = selectedDate;
+        if (elements.eventTitle) {
+          elements.eventTitle.value = "";
+        }
         if (elements.eventStartTime) {
           elements.eventStartTime.value = "";
         }
         if (elements.eventEndTime) {
           elements.eventEndTime.value = "";
         }
+        if (elements.eventReminderOnly) {
+          elements.eventReminderOnly.checked = false;
+        }
+        if (elements.eventReminder) {
+          elements.eventReminder.value = "0";
+        }
         weeklyPlannerUiState.selectedActivityCategory = "";
         elements.eventSaveButton.textContent = "Save activity";
         elements.formHint.textContent = message || "Selected: " + selectedDate;
-        updateEventPointsSummary();
       }
 
       function startEditEvent(id) {
@@ -7140,20 +7152,32 @@
         weeklyPlannerUiState.expandedDateKey = event.date;
         weeklyPlannerUiState.activityPickerOpen = false;
         weeklyPlannerUiState.selectedActivityCategory = normalizeEventCategory(event.category);
+        var fallback = eventTimeFallback(event.title);
+        var cleanTitle = eventTitleWithoutLeadingTime(event.title);
         elements.eventDate.value = event.date || selectedDate;
+        if (elements.eventTitle) {
+          elements.eventTitle.value = cleanTitle || event.title || "";
+        }
         if (elements.eventStartTime) {
-          elements.eventStartTime.value = event.startTime || "";
+          elements.eventStartTime.value = normalizeClockValue(event.startTime || fallback.startTime);
         }
         if (elements.eventEndTime) {
-          elements.eventEndTime.value = event.endTime || "";
+          elements.eventEndTime.value = normalizeClockValue(event.endTime || fallback.endTime);
+        }
+        if (elements.eventReminderOnly) {
+          elements.eventReminderOnly.checked = Boolean(event.reminderOnly);
+        }
+        if (elements.eventReminder) {
+          elements.eventReminder.value = String(normalizeReminderMinutes(event.reminderMinutes));
         }
         elements.eventNote.value = event.note || "";
         elements.eventCategory.value = normalizeEventCategory(event.category);
         elements.eventSaveButton.textContent = "Update activity";
         renderWeeklyPlannerSection();
         renderCalendar();
-        updateEventPointsSummary();
-        if (elements.eventStartTime) {
+        if (elements.eventTitle) {
+          elements.eventTitle.focus();
+        } else if (elements.eventStartTime) {
           elements.eventStartTime.focus();
         }
       }
@@ -7180,17 +7204,35 @@
         renderGoalPlanner();
         renderWeeklyPlannerSection();
         renderSelectedDate();
-        updateEventPointsSummary();
+        renderTasks();
+        renderTotals();
       }
 
       function addEvent(event) {
         event.preventDefault();
         var category = normalizeEventCategory(elements.eventCategory.value);
-        var title = plannerCategoryMeta(category).shortLabel;
+        var customTitle = String((elements.eventTitle && elements.eventTitle.value) || "").trim();
+        var reminderOnly = Boolean(elements.eventReminderOnly && elements.eventReminderOnly.checked);
+        var reminderMinutes = normalizeReminderMinutes(elements.eventReminder && elements.eventReminder.value);
+        var title = customTitle || plannerCategoryMeta(category).shortLabel;
         var note = elements.eventNote.value.trim();
         var startTime = normalizeClockValue(elements.eventStartTime && elements.eventStartTime.value);
         var endTime = normalizeClockValue(elements.eventEndTime && elements.eventEndTime.value);
         var eventDate = elements.eventDate.value || selectedDate;
+        if (!title) {
+          elements.formHint.textContent = "Add a name so you can find this again.";
+          if (elements.eventTitle) {
+            elements.eventTitle.focus();
+          }
+          return;
+        }
+        if (reminderMinutes > 0 && !startTime) {
+          elements.formHint.textContent = "Pick a start time to send a Telegram reminder.";
+          if (elements.eventStartTime) {
+            elements.eventStartTime.focus();
+          }
+          return;
+        }
         var routineInfo = weeklyPlannerDayForDate(parseDate(eventDate));
         var fitResult = weeklyPlannerCore.canAddActivity(routineInfo.day.type, plannerEventsForDate(eventDate).filter(function (item) {
           return item.id !== editingEventId;
@@ -7198,7 +7240,8 @@
           category: category,
           title: title,
           startTime: startTime,
-          endTime: endTime
+          endTime: endTime,
+          reminderOnly: reminderOnly
         }, {
           skateStreakActive: skateStreakActiveForDate(eventDate)
         });
@@ -7226,9 +7269,10 @@
               dayPart: draftEventDayPart || item.dayPart || "",
               startTime: startTime,
               endTime: endTime,
+              reminderOnly: reminderOnly,
+              reminderMinutes: reminderMinutes,
               updatedAt: new Date().toISOString()
             });
-            delete savedEvent.reminderMinutes;
             delete savedEvent.reminderSentAt;
             delete savedEvent.reminderSentFor;
             return savedEvent;
@@ -7243,6 +7287,8 @@
             dayPart: draftEventDayPart || "",
             startTime: startTime,
             endTime: endTime,
+            reminderOnly: reminderOnly,
+            reminderMinutes: reminderMinutes,
             createdAt: new Date().toISOString()
           };
           events.push(savedEvent);
@@ -7261,7 +7307,8 @@
         renderWeeklyPlannerSection();
         renderCalendar();
         renderSelectedDate();
-        updateEventPointsSummary();
+        renderTasks();
+        renderTotals();
       }
 
       function addTask(event) {
@@ -7428,20 +7475,8 @@
             weeklyPlannerUiState.activityPickerOpen = false;
             renderWeeklyPlannerSection();
             renderCalendar();
-            updateEventPointsSummary();
           }
         });
-        if (elements.eventCategory) {
-          elements.eventCategory.addEventListener("change", updateEventPointsSummary);
-        }
-        if (elements.eventStartTime) {
-          elements.eventStartTime.addEventListener("input", updateEventPointsSummary);
-          elements.eventStartTime.addEventListener("change", updateEventPointsSummary);
-        }
-        if (elements.eventEndTime) {
-          elements.eventEndTime.addEventListener("input", updateEventPointsSummary);
-          elements.eventEndTime.addEventListener("change", updateEventPointsSummary);
-        }
         if (elements.plannerAddActivityButton) {
           elements.plannerAddActivityButton.addEventListener("click", function () {
             weeklyPlannerUiState.activityPickerOpen = !weeklyPlannerUiState.activityPickerOpen;

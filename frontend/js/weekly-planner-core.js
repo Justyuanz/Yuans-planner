@@ -9,8 +9,8 @@
 
   var DAY_TYPES = [
     { id: "recovery", label: "Recovery Day", shortLabel: "Recovery", className: "recovery-day", capacityPoints: 0 },
-    { id: "normal", label: "Normal Day", shortLabel: "Normal", className: "normal-day", capacityPoints: 4 },
-    { id: "high", label: "High-Intensity Day", shortLabel: "High-Intensity", className: "high-day", capacityPoints: 6 }
+    { id: "normal", label: "Normal Day", shortLabel: "Normal", className: "normal-day", capacityPoints: 5 },
+    { id: "high", label: "High-Intensity Day", shortLabel: "High-Intensity", className: "high-day", capacityPoints: 8 }
   ];
 
   var CATEGORY_ORDER = [
@@ -34,6 +34,17 @@
     "Guitar": { label: "Guitar", shortLabel: "Guitar", className: "guitar-block" },
     "Personal": { label: "Personal", shortLabel: "Personal", className: "personal-block" }
   };
+  var RECOVERY_FRIENDLY_CATEGORIES = [
+    "Cooking",
+    "Chores/groceries",
+    "Guitar",
+    "Personal"
+  ];
+  var GENTLE_CATEGORIES = [
+    "Skate",
+    "Guitar",
+    "Personal"
+  ];
 
   function pad(value) {
     return String(value).padStart(2, "0");
@@ -41,12 +52,28 @@
 
   function normalizeClock(value) {
     var text = String(value || "").trim();
+    var amPmMatch = text.match(/^(\d{1,2})(?::(\d{2}))?\s*([AaPp][Mm])$/);
     var match = text.match(/^(\d{1,2}):(\d{2})$/);
-    if (!match) {
+    var hours = 0;
+    var minutes = 0;
+    if (amPmMatch) {
+      hours = Number(amPmMatch[1]);
+      minutes = amPmMatch[2] ? Number(amPmMatch[2]) : 0;
+      if (hours < 1 || hours > 12 || minutes > 59) {
+        return "";
+      }
+      if (hours === 12) {
+        hours = 0;
+      }
+      if (amPmMatch[3].charAt(0).toLowerCase() === "p") {
+        hours += 12;
+      }
+    } else if (match) {
+      hours = Number(match[1]);
+      minutes = Number(match[2]);
+    } else {
       return "";
     }
-    var hours = Number(match[1]);
-    var minutes = Number(match[2]);
     if (hours > 23 || minutes > 59) {
       return "";
     }
@@ -83,6 +110,42 @@
       return 2;
     }
     return 3;
+  }
+
+  function pointsForActivity(category, minutes) {
+    var normalizedCategory = normalizeCategory(category);
+    var safeMinutes = Math.max(0, Number(minutes) || 0);
+    if (!safeMinutes) {
+      return 0;
+    }
+    if (GENTLE_CATEGORIES.indexOf(normalizedCategory) !== -1) {
+      if (safeMinutes <= 60) {
+        return 0.5;
+      }
+      if (safeMinutes <= 120) {
+        return 2;
+      }
+      return 3;
+    }
+    return pointsForDuration(safeMinutes);
+  }
+
+  function minimumPointsForCategory(category) {
+    return GENTLE_CATEGORIES.indexOf(normalizeCategory(category)) !== -1 ? 0.5 : 1;
+  }
+
+  function overCapacityReason(category, remainingPoints) {
+    var normalizedCategory = normalizeCategory(category);
+    if (remainingPoints < 1) {
+      if (GENTLE_CATEGORIES.indexOf(normalizedCategory) !== -1) {
+        return "Only a light " + categoryMeta(normalizedCategory).shortLabel + " block fits right now.";
+      }
+      return "Only the gentlest activities fit right now.";
+    }
+    if (remainingPoints <= 2) {
+      return "Only a smaller block fits today.";
+    }
+    return "That block is too heavy for the points left today.";
   }
 
   function normalizeCategory(category) {
@@ -194,6 +257,7 @@
   function normalizeActivity(activity) {
     var source = activity && typeof activity === "object" ? activity : {};
     var category = normalizeCategory(source.category);
+    var reminderOnly = Boolean(source.reminderOnly);
     var startTime = normalizeClock(source.startTime);
     var endTime = normalizeClock(source.endTime);
     var minutes = durationMinutes(startTime, endTime);
@@ -204,7 +268,8 @@
       startTime: startTime,
       endTime: endTime,
       minutes: minutes,
-      points: pointsForDuration(minutes)
+      points: reminderOnly ? 0 : pointsForActivity(category, minutes),
+      reminderOnly: reminderOnly
     };
   }
 
@@ -212,10 +277,21 @@
     return (Array.isArray(activities) ? activities : [])
       .map(normalizeActivity)
       .filter(function (activity) {
-        return activity.startTime && activity.endTime && activity.minutes > 0;
+        return Boolean(activity.title) && (activity.reminderOnly || (activity.startTime && activity.endTime && activity.minutes > 0));
       })
       .sort(function (left, right) {
-        return clockToMinutes(left.startTime) - clockToMinutes(right.startTime);
+        var leftMinutes = clockToMinutes(left.startTime);
+        var rightMinutes = clockToMinutes(right.startTime);
+        if (leftMinutes === null && rightMinutes === null) {
+          return String(left.title).localeCompare(String(right.title));
+        }
+        if (leftMinutes === null) {
+          return 1;
+        }
+        if (rightMinutes === null) {
+          return -1;
+        }
+        return leftMinutes - rightMinutes;
       });
   }
 
@@ -236,16 +312,22 @@
     var normalized = normalizeActivity(candidate);
     var streakActive = Boolean(options && options.skateStreakActive);
     var current = normalizeActivities(activities);
+    if (normalized.reminderOnly) {
+      return { allowed: true, reason: "" };
+    }
+    if (RECOVERY_FRIENDLY_CATEGORIES.indexOf(normalized.category) !== -1) {
+      return { allowed: true, reason: "" };
+    }
     if (!streakActive) {
       return {
         allowed: false,
-        reason: "Rest protected."
+        reason: "Recovery Day allows only cooking, chores, guitar, personal items, or a 10-minute Recovery Skate."
       };
     }
     if (normalized.category !== "Skate") {
       return {
         allowed: false,
-        reason: "Recovery Day only allows a 10-minute Recovery Skate."
+        reason: "Recovery Day allows only cooking, chores, guitar, personal items, or a 10-minute Recovery Skate."
       };
     }
     if (normalized.minutes > 10) {
@@ -271,7 +353,28 @@
     var current = normalizeActivities(activities);
     var summary = daySummary(dayTypeId, current, options);
     var normalized = normalizeActivity(candidate);
+    if (!normalized.title) {
+      return {
+        allowed: false,
+        reason: "Add a name for this item."
+      };
+    }
+    if (normalized.reminderOnly) {
+      if ((normalized.startTime && !normalized.endTime) || (!normalized.startTime && normalized.endTime)) {
+        return {
+          allowed: false,
+          reason: "Pick both a start and end time, or leave both blank."
+        };
+      }
+      return { allowed: true, reason: "" };
+    }
     if (!normalized.startTime || !normalized.endTime || !normalized.minutes) {
+      if (clockToMinutes(normalized.startTime) !== null && clockToMinutes(normalized.endTime) !== null) {
+        return {
+          allowed: false,
+          reason: "End time needs to be after start time."
+        };
+      }
       return {
         allowed: false,
         reason: "Pick a valid start and end time."
@@ -289,9 +392,7 @@
     if (normalized.points > summary.remainingPoints) {
       return {
         allowed: false,
-        reason: recommendedMaxMinutes(summary.remainingPoints) === 30
-          ? "Only a short activity fits today."
-          : "Only up to 90 minutes fits today."
+        reason: overCapacityReason(normalized.category, summary.remainingPoints)
       };
     }
     return { allowed: true, reason: "" };
@@ -375,6 +476,9 @@
         }, activities, options);
         disabled = !allowed.allowed;
         reason = allowed.reason;
+      } else if (summary.remainingPoints < minimumPointsForCategory(category)) {
+        disabled = true;
+        reason = overCapacityReason(category, summary.remainingPoints);
       }
       return {
         category: category,
@@ -382,7 +486,7 @@
         className: meta.className,
         disabled: disabled,
         reason: reason,
-        recommended: !disabled && summary.recommendedMaxMinutes !== null
+        recommended: !disabled && summary.remainingPoints <= 1 && minimumPointsForCategory(category) <= summary.remainingPoints
       };
     }).sort(function (left, right) {
       if (left.disabled !== right.disabled) {
@@ -411,6 +515,7 @@
     normalizeActivity: normalizeActivity,
     normalizeCategory: normalizeCategory,
     normalizeWeekPlan: normalizeWeekPlan,
+    pointsForActivity: pointsForActivity,
     pointsForDuration: pointsForDuration,
     recommendedMaxMinutes: recommendedMaxMinutes,
     validateWeekPlan: validateWeekPlan
