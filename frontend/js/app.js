@@ -25,9 +25,7 @@
         moneyVendorRules: "hivePlanner.money.vendorRules",
         journalEntries: "hivePlanner.journal.entries",
         activityLog: "hivePlanner.activityLog",
-        telegramWaterSettings: "hivePlanner.telegramWater.settings",
         weeklyRoutinePrefix: "hivePlanner.routine.week.",
-        routineEventSkips: "hivePlanner.routine.eventSkips",
         goalPlanner: "hivePlanner.goalPlanner.items",
         studyOverviewPrefix: "hivePlanner.weekOverview.study.",
         skateBodyOverviewPrefix: "hivePlanner.weekOverview.skateBody.",
@@ -82,8 +80,15 @@
       var skateCore = globalThis.YuanSkateCore;
       var skateSessionCore = globalThis.YuanSkateSessionCore;
       var mascotRag = globalThis.YuanMascotRag;
+      var weeklyPlannerCore = globalThis.YuanWeeklyPlannerCore;
       var currentInsightBundleState = null;
       var expandedHiddenTaskDates = {};
+      var weeklyPlannerUiState = {
+        weekSetupOpen: false,
+        weekSetupDraft: null,
+        activityPickerOpen: false,
+        selectedActivityCategory: ""
+      };
       var mascotState = {
         chatOpen: false,
         messages: [],
@@ -505,11 +510,13 @@
         afternoon: 2,
         evening: 1
       };
-      var dayTypes = [
-        { id: "study", label: "Study Day", className: "study-day" },
-        { id: "skate", label: "Skate Day", className: "skate-day" },
-        { id: "rest", label: "Rest Day", className: "rest-day" }
-      ];
+      var dayTypes = weeklyPlannerCore && Array.isArray(weeklyPlannerCore.DAY_TYPES)
+        ? weeklyPlannerCore.DAY_TYPES.slice()
+        : [
+          { id: "recovery", label: "Recovery Day", shortLabel: "Recovery", className: "recovery-day", capacityPoints: 0 },
+          { id: "normal", label: "Normal Day", shortLabel: "Normal", className: "normal-day", capacityPoints: 4 },
+          { id: "high", label: "High-Intensity Day", shortLabel: "High-Intensity", className: "high-day", capacityPoints: 6 }
+        ];
       var partLabels = {
         morning: "Morning",
         afternoon: "Afternoon",
@@ -586,6 +593,7 @@
         dayStateOptions: document.getElementById("dayStateOptions"),
         weeklyPlannerLabel: document.getElementById("weeklyPlannerLabel"),
         weeklyPlannerMount: document.getElementById("weeklyPlannerMount"),
+        setWeekButton: document.getElementById("setWeekButton"),
         prevWeek: document.getElementById("prevWeek"),
         nextWeek: document.getElementById("nextWeek"),
         goalPlannerIntro: document.getElementById("goalPlannerIntro"),
@@ -663,21 +671,20 @@
         selectedDateHeading: document.getElementById("selectedDateHeading"),
         selectedDateHint: document.getElementById("selectedDateHint"),
         selectedDateEvents: document.getElementById("selectedDateEvents"),
-        waterReminderCard: document.getElementById("waterReminderCard"),
-        waterReminderEnabled: document.getElementById("waterReminderEnabled"),
-        waterReminderToggleLabel: document.getElementById("waterReminderToggleLabel"),
-        waterReminderTimes: document.getElementById("waterReminderTimes"),
-        waterReminderTime1: document.getElementById("waterReminderTime1"),
-        waterReminderTime2: document.getElementById("waterReminderTime2"),
         eventForm: document.getElementById("eventForm"),
-        eventTitle: document.getElementById("eventTitle"),
         eventDate: document.getElementById("eventDate"),
+        eventStartTime: document.getElementById("eventStartTime"),
+        eventEndTime: document.getElementById("eventEndTime"),
         eventNote: document.getElementById("eventNote"),
         eventCategory: document.getElementById("eventCategory"),
-        eventReminder: document.getElementById("eventReminder"),
         telegramReminderStatus: document.getElementById("telegramReminderStatus"),
         eventSaveButton: document.getElementById("eventSaveButton"),
         formHint: document.getElementById("formHint"),
+        plannerAddActivityButton: document.getElementById("plannerAddActivityButton"),
+        plannerDayStatusHint: document.getElementById("plannerDayStatusHint"),
+        plannerActivityPicker: document.getElementById("plannerActivityPicker"),
+        plannerActivityPickerHint: document.getElementById("plannerActivityPickerHint"),
+        plannerActivityOptions: document.getElementById("plannerActivityOptions"),
         skateWeeklyMetrics: document.getElementById("skateWeeklyMetrics"),
         bodyLogForm: document.getElementById("bodyLogForm"),
         bodyWorkoutType: document.getElementById("bodyWorkoutType"),
@@ -821,39 +828,6 @@
       function getDayStateMap() {
         var stored = readJson(STORAGE.dayState, {});
         return stored && typeof stored === "object" ? stored : {};
-      }
-
-      function defaultWaterReminderSettings() {
-        return {
-          enabled: false,
-          times: ["12:30", "17:00"]
-        };
-      }
-
-      function normalizeWaterReminderSettings(value) {
-        var fallback = defaultWaterReminderSettings();
-        var source = value && typeof value === "object" ? value : {};
-        var rawTimes = Array.isArray(source.times) ? source.times : [];
-        return {
-          enabled: Boolean(source.enabled),
-          times: fallback.times.map(function (defaultTime, index) {
-            return normalizeClockValue(rawTimes[index]) || defaultTime;
-          })
-        };
-      }
-
-      function getWaterReminderSettings() {
-        return normalizeWaterReminderSettings(readJson(STORAGE.telegramWaterSettings, defaultWaterReminderSettings()));
-      }
-
-      function saveWaterReminderSettings(settings) {
-        writeJson(STORAGE.telegramWaterSettings, normalizeWaterReminderSettings(settings));
-      }
-
-      function updateWaterReminderSettings(mutator) {
-        var settings = getWaterReminderSettings();
-        mutator(settings);
-        saveWaterReminderSettings(settings);
       }
 
       function getDayState(dateKey) {
@@ -1071,25 +1045,9 @@
         writeJson(STORAGE.events, events);
       }
 
-      function getRoutineEventSkips() {
-        var stored = readJson(STORAGE.routineEventSkips, {});
-        return stored && typeof stored === "object" ? stored : {};
-      }
-
-      function saveRoutineEventSkips(skips) {
-        writeJson(STORAGE.routineEventSkips, skips && typeof skips === "object" ? skips : {});
-      }
-
-      function skipRoutineEvent(eventId) {
-        var skips = getRoutineEventSkips();
-        skips[String(eventId || "")] = true;
-        saveRoutineEventSkips(skips);
-      }
-
       function eventsForDate(dateKey) {
-        ensureRoutineEventsAroundDate(parseDate(dateKey));
         return calendarCore.sortedEvents(getEvents().filter(function (event) {
-          return event.date === dateKey;
+          return event.date === dateKey && !event.routineManaged;
         }));
       }
 
@@ -1102,511 +1060,51 @@
         return dates;
       }
 
-      function routineStorageKey(date) {
+      function weeklyPlannerStorageKey(date) {
         return STORAGE.weeklyRoutinePrefix + isoWeekKey(date);
       }
 
       function dayTypeById(id) {
-        if (id === "personal") {
-          id = "rest";
+        if (weeklyPlannerCore && typeof weeklyPlannerCore.dayTypeById === "function") {
+          return weeklyPlannerCore.dayTypeById(id);
         }
         return dayTypes.find(function (type) {
           return type.id === id;
-        }) || dayTypes[0];
-      }
-
-      function defaultRoutineItem(title, kind) {
-        return {
-          id: makeId("routine"),
-          title: title,
-          kind: kind || "flexible"
-        };
-      }
-
-      function routineEventTemplate(title, category, part, note) {
-        return {
-          title: title,
-          category: category,
-          part: part,
-          note: note || ""
-        };
-      }
-
-      function routineWeekDateKey(date) {
-        return formatDate(weekRange(date).start);
-      }
-
-      function routineStudyTargetForWeek(date) {
-        var weekKey = routineWeekDateKey(date);
-        if (weekKey === "2026-08-10") {
-          return "4 study days";
-        }
-        if (weekKey === "2026-08-17") {
-          return "24-25h";
-        }
-        if (weekKey === "2026-08-24") {
-          return "Close to 28h";
-        }
-        if (weekKey >= "2026-08-31") {
-          return "28h";
-        }
-        return "";
-      }
-
-      function routineWeekTemplate(date) {
-        var weekKey = routineWeekDateKey(date);
-        if (weekKey < "2026-08-10") {
-          return null;
-        }
-
-        if (weekKey >= "2026-08-31" && formatDate(date) <= "2026-10-31") {
-          return {
-            label: "Full routine",
-            studyTarget: "28h",
-            days: [
-              {
-                type: "skate",
-                events: [
-                  routineEventTemplate("09:30 Morning skate", "Skate", "morning"),
-                  routineEventTemplate("11:30 School", "School study", "morning"),
-                  routineEventTemplate("18:00 Instructed gym course", "Other", "evening"),
-                  routineEventTemplate("19:00 Evening skate", "Skate", "evening")
-                ]
-              },
-              {
-                type: "skate",
-                events: [
-                  routineEventTemplate("09:30 Morning skate", "Skate", "morning"),
-                  routineEventTemplate("11:30 School", "School study", "morning"),
-                  routineEventTemplate("18:00 Evening skate with friends", "Skate", "evening")
-                ]
-              },
-              {
-                type: "study",
-                events: [
-                  routineEventTemplate("09:30 Guitar practice", "Guitar", "morning"),
-                  routineEventTemplate("11:30 School", "School study", "morning")
-                ]
-              },
-              {
-                type: "study",
-                events: [
-                  routineEventTemplate("09:30 Guitar practice", "Guitar", "morning"),
-                  routineEventTemplate("11:30 School", "School study", "morning")
-                ]
-              },
-              {
-                type: "study",
-                events: [
-                  routineEventTemplate("09:30 Guitar practice", "Guitar", "morning"),
-                  routineEventTemplate("11:30 Gym/skate", "Other", "morning")
-                ]
-              },
-              {
-                type: "rest",
-                events: []
-              },
-              {
-                type: "skate",
-                events: [
-                  routineEventTemplate("12:00-14:00 Light study", "Home study", "afternoon"),
-                  routineEventTemplate("16:00 Short gym session", "Other", "afternoon"),
-                  routineEventTemplate("18:00 Evening skate", "Skate", "evening")
-                ]
-              }
-            ]
-          };
-        }
-
-        if (weekKey === "2026-08-24") {
-          return {
-            label: "Transition week 3",
-            studyTarget: "Close to 28h",
-            days: [
-              {
-                type: "skate",
-                events: [
-                  routineEventTemplate("09:30 Morning skate", "Skate", "morning"),
-                  routineEventTemplate("11:30 School", "School study", "morning"),
-                  routineEventTemplate("18:00 Instructed gym course", "Other", "evening"),
-                  routineEventTemplate("19:00 Evening skate", "Skate", "evening")
-                ]
-              },
-              {
-                type: "skate",
-                events: [
-                  routineEventTemplate("09:30 Morning skate", "Skate", "morning"),
-                  routineEventTemplate("11:30 School", "School study", "morning"),
-                  routineEventTemplate("18:00 Evening skate with friends", "Skate", "evening")
-                ]
-              },
-              {
-                type: "study",
-                events: [
-                  routineEventTemplate("09:30 Guitar practice", "Guitar", "morning"),
-                  routineEventTemplate("11:30 School", "School study", "morning")
-                ]
-              },
-              {
-                type: "study",
-                events: [
-                  routineEventTemplate("09:30 Guitar practice", "Guitar", "morning"),
-                  routineEventTemplate("11:30 School", "School study", "morning")
-                ]
-              },
-              {
-                type: "study",
-                events: [
-                  routineEventTemplate("09:30 Guitar practice", "Guitar", "morning"),
-                  routineEventTemplate("11:30 Gym/skate", "Other", "morning")
-                ]
-              },
-              {
-                type: "rest",
-                events: []
-              },
-              {
-                type: "skate",
-                events: [
-                  routineEventTemplate("12:00-14:00 Light study", "Home study", "afternoon"),
-                  routineEventTemplate("16:00 Short gym session", "Other", "afternoon"),
-                  routineEventTemplate("18:00 Evening skate", "Skate", "evening")
-                ]
-              }
-            ]
-          };
-        }
-
-        if (weekKey === "2026-08-17") {
-          return {
-            label: "Transition week 2",
-            studyTarget: "24-25h",
-            days: [
-              {
-                type: "skate",
-                events: [
-                  routineEventTemplate("09:30 Morning skate", "Skate", "morning"),
-                  routineEventTemplate("11:30 School", "School study", "morning")
-                ]
-              },
-              {
-                type: "study",
-                events: [
-                  routineEventTemplate("11:30 School", "School study", "morning"),
-                  routineEventTemplate("18:00 Evening skate with friends", "Skate", "evening")
-                ]
-              },
-              {
-                type: "study",
-                events: [
-                  routineEventTemplate("09:30 Guitar practice", "Guitar", "morning"),
-                  routineEventTemplate("11:30 School", "School study", "morning")
-                ]
-              },
-              {
-                type: "study",
-                events: [
-                  routineEventTemplate("09:30 Guitar practice", "Guitar", "morning"),
-                  routineEventTemplate("11:30 School", "School study", "morning")
-                ]
-              },
-              {
-                type: "study",
-                events: [
-                  routineEventTemplate("09:30 Guitar practice", "Guitar", "morning"),
-                  routineEventTemplate("11:30 Gym/skate", "Other", "morning")
-                ]
-              },
-              {
-                type: "rest",
-                events: []
-              },
-              {
-                type: "skate",
-                events: [
-                  routineEventTemplate("18:00 Evening skate", "Skate", "evening")
-                ]
-              }
-            ]
-          };
-        }
-
-        if (weekKey === "2026-08-10") {
-          return {
-            label: "Transition week 1",
-            studyTarget: "4 study days",
-            days: [
-              {
-                type: "study",
-                events: []
-              },
-              {
-                type: "study",
-                events: [
-                  routineEventTemplate("18:00 Evening skate with friends", "Skate", "evening")
-                ]
-              },
-              {
-                type: "study",
-                events: [
-                  routineEventTemplate("09:30 Guitar practice", "Guitar", "morning")
-                ]
-              },
-              {
-                type: "study",
-                events: [
-                  routineEventTemplate("09:30 Guitar practice", "Guitar", "morning")
-                ]
-              },
-              {
-                type: "study",
-                events: [
-                  routineEventTemplate("11:30 Gym/skate", "Other", "morning")
-                ]
-              },
-              {
-                type: "rest",
-                events: []
-              },
-              {
-                type: "skate",
-                events: [
-                  routineEventTemplate("18:00 Evening skate", "Skate", "evening")
-                ]
-              }
-            ]
-          };
-        }
-
-        return null;
-      }
-
-      function routineSlug(value) {
-        return String(value || "")
-          .toLowerCase()
-          .replace(/[^a-z0-9]+/g, "-")
-          .replace(/^-+|-+$/g, "");
-      }
-
-      function routineEventId(dateKey, eventTemplate) {
-        return [
-          "routine",
-          dateKey,
-          routineSlug(eventTemplate.part),
-          routineSlug(eventTemplate.category),
-          routineSlug(eventTemplate.title)
-        ].join("-");
-      }
-
-      function ensureRoutineEventsForRange(startDate, endDate) {
-        var endKey = formatDate(endDate);
-        if (endKey < "2026-08-10") {
-          return false;
-        }
-        var events = getEvents();
-        var skippedRoutineEvents = getRoutineEventSkips();
-        var existingIds = {};
-        var desiredIds = {};
-        var changed = false;
-        events.forEach(function (entry) {
-          if (entry && entry.id) {
-            existingIds[entry.id] = true;
-          }
-        });
-
-        var cursor = new Date(startDate.getFullYear(), startDate.getMonth(), startDate.getDate());
-        while (formatDate(cursor) <= endKey) {
-          var dateKey = formatDate(cursor);
-          if (dateKey >= "2026-08-10") {
-            var weekTemplate = routineWeekTemplate(cursor);
-            if (weekTemplate) {
-              var dayIndex = routineDayIndex(cursor);
-              var dayTemplate = weekTemplate.days[dayIndex];
-              (dayTemplate.events || []).forEach(function (eventTemplate) {
-                var eventId = routineEventId(dateKey, eventTemplate);
-                if (skippedRoutineEvents[eventId]) {
-                  return;
-                }
-                desiredIds[eventId] = true;
-                if (existingIds[eventId]) {
-                  return;
-                }
-                events.push({
-                  id: eventId,
-                  date: dateKey,
-                  title: eventTemplate.title,
-                  note: eventTemplate.note,
-                  category: eventTemplate.category,
-                  dayPart: eventTemplate.part,
-                  startTime: "",
-                  endTime: "",
-                  createdAt: "routine",
-                  routineManaged: true
-                });
-                existingIds[eventId] = true;
-                changed = true;
-              });
-            }
-          }
-          cursor = addDays(cursor, 1);
-        }
-
-        events = events.filter(function (entry) {
-          if (!entry || !entry.routineManaged) {
-            return true;
-          }
-          if (entry.date < "2026-08-10" || entry.date > endKey || entry.date < formatDate(startDate)) {
-            return true;
-          }
-          if (desiredIds[entry.id]) {
-            return true;
-          }
-          changed = true;
-          return false;
-        });
-
-        if (changed) {
-          saveEvents(events);
-        }
-        return changed;
-      }
-
-      function ensureRoutineEventsAroundDate(date) {
-        var monthStart = new Date(date.getFullYear(), date.getMonth(), 1);
-        var monthEnd = new Date(date.getFullYear(), date.getMonth() + 1, 0);
-        return ensureRoutineEventsForRange(monthStart, monthEnd);
+        }) || dayTypes[1];
       }
 
       function defaultWeeklyRoutine(date) {
-        var template = routineWeekTemplate(date);
-        if (template) {
-          return {
+        return weeklyPlannerCore && typeof weeklyPlannerCore.defaultWeekPlan === "function"
+          ? weeklyPlannerCore.defaultWeekPlan(isoWeekKey(date))
+          : {
             week: isoWeekKey(date),
-            days: weekDates(date).map(function (_, index) {
-              var source = template.days[index];
-              var grouped = {
-                morning: [],
-                afternoon: [],
-                evening: []
-              };
-              (source.events || []).forEach(function (entry) {
-                grouped[entry.part].push(defaultRoutineItem(entry.title, "fixed"));
-              });
-              return {
-                type: source.type,
-                allowFullDay: false,
-                morning: grouped.morning,
-                afternoon: grouped.afternoon,
-                evening: grouped.evening
-              };
+            isConfigured: false,
+            days: weekDates(date).map(function () {
+              return { type: "normal" };
             })
           };
-        }
-        var defaults = [
-          {
-            type: "study",
-            morning: [defaultRoutineItem("Leetcode warm-up", "flexible")],
-            afternoon: [defaultRoutineItem("IRC main block", "flexible")],
-            evening: []
-          },
-          {
-            type: "study",
-            morning: [defaultRoutineItem("Review priorities", "flexible")],
-            afternoon: [defaultRoutineItem("Python project", "flexible")],
-            evening: []
-          },
-          {
-            type: "skate",
-            morning: [],
-            afternoon: [defaultRoutineItem("Skate session", "fixed")],
-            evening: []
-          },
-          {
-            type: "study",
-            morning: [defaultRoutineItem("Leetcode warm-up", "flexible")],
-            afternoon: [defaultRoutineItem("IRC deep work", "flexible")],
-            evening: []
-          },
-          {
-            type: "study",
-            morning: [],
-            afternoon: [defaultRoutineItem("Applications or portfolio", "flexible")],
-            evening: []
-          },
-          {
-            type: "rest",
-            morning: [defaultRoutineItem("Errands or life admin", "flexible")],
-            afternoon: [],
-            evening: []
-          },
-          {
-            type: "rest",
-            morning: [],
-            afternoon: [],
-            evening: [defaultRoutineItem("Gentle reset for the week", "flexible")]
-          }
-        ];
-        return {
-          week: isoWeekKey(date),
-          days: weekDates(date).map(function (_, index) {
-            var source = defaults[index] || defaults[0];
-            return {
-              type: source.type,
-              allowFullDay: false,
-              morning: source.morning.slice(),
-              afternoon: source.afternoon.slice(),
-              evening: source.evening.slice()
-            };
-          })
-        };
-      }
-
-      function normalizeRoutineItem(item) {
-        var title = typeof (item && item.title) === "string" ? item.title.trim() : "";
-        return {
-          id: item && item.id ? item.id : makeId("routine"),
-          title: title || "Untitled block",
-          kind: item && item.kind === "fixed" ? "fixed" : "flexible"
-        };
       }
 
       function normalizeRoutineDay(day, fallback) {
-        var source = day || fallback;
-        var normalized = {
-          type: dayTypeById(source.type).id,
-          allowFullDay: Boolean(source.allowFullDay)
-        };
-        dayParts.forEach(function (part) {
-          var items = Array.isArray(source[part]) ? source[part] : fallback[part];
-          normalized[part] = items.map(normalizeRoutineItem).filter(function (item) {
-            return item.title;
-          });
-        });
-        return normalized;
-      }
-
-      function getWeeklyRoutine(date) {
-        var fallback = defaultWeeklyRoutine(date);
-        var stored = readJson(routineStorageKey(date), null);
-        if (!stored || !Array.isArray(stored.days)) {
-          return fallback;
-        }
         return {
-          week: isoWeekKey(date),
-          days: weekDates(date).map(function (_, index) {
-            return normalizeRoutineDay(stored.days[index], fallback.days[index]);
-          })
+          type: dayTypeById(day && day.type || fallback && fallback.type).id
         };
       }
 
-      function saveWeeklyRoutine(date, routine) {
-        var fallback = defaultWeeklyRoutine(date);
-        writeJson(routineStorageKey(date), {
-          week: isoWeekKey(date),
-          days: weekDates(date).map(function (_, index) {
-            return normalizeRoutineDay(routine.days[index], fallback.days[index]);
-          })
-        });
+      function getWeeklyPlannerWeek(date) {
+        var stored = readJson(weeklyPlannerStorageKey(date), null);
+        if (weeklyPlannerCore && typeof weeklyPlannerCore.normalizeWeekPlan === "function") {
+          return weeklyPlannerCore.normalizeWeekPlan(stored, isoWeekKey(date));
+        }
+        return stored && Array.isArray(stored.days) ? stored : defaultWeeklyRoutine(date);
+      }
+
+      function saveWeeklyPlannerWeek(date, routine) {
+        writeJson(weeklyPlannerStorageKey(date), getWeeklyPlannerWeek(date).week === (routine && routine.week)
+          ? routine
+          : (weeklyPlannerCore && typeof weeklyPlannerCore.normalizeWeekPlan === "function"
+            ? weeklyPlannerCore.normalizeWeekPlan(routine, isoWeekKey(date))
+            : routine));
       }
 
       function emptyGoalStep() {
@@ -1657,15 +1155,15 @@
         writeJson(STORAGE.goalPlanner, items);
       }
 
-      function routineDayIndex(date) {
+      function weeklyPlannerDayIndex(date) {
         return weekDates(date).findIndex(function (entry) {
           return formatDate(entry) === formatDate(date);
         });
       }
 
-      function routineDayForDate(date) {
-        var routine = getWeeklyRoutine(date);
-        var index = routineDayIndex(date);
+      function weeklyPlannerDayForDate(date) {
+        var routine = getWeeklyPlannerWeek(date);
+        var index = weeklyPlannerDayIndex(date);
         return {
           routine: routine,
           index: index,
@@ -1673,21 +1171,11 @@
         };
       }
 
-      function updateWeeklyRoutine(mutator) {
-        var referenceDate = parseDate(selectedDate);
-        var routine = getWeeklyRoutine(referenceDate);
-        mutator(routine);
-        saveWeeklyRoutine(referenceDate, routine);
-        renderRoutinePlanner();
-        renderCalendar();
-        renderSelectedDate();
-      }
-
       function shiftSelectedWeek(amount) {
         var nextDate = addDays(parseDate(selectedDate), amount * 7);
         selectedDate = formatDate(nextDate);
         calendarCursor = new Date(nextDate.getFullYear(), nextDate.getMonth(), 1);
-        renderRoutinePlanner();
+        renderWeeklyPlannerSection();
         renderCalendar();
         renderSelectedDate();
       }
@@ -1781,7 +1269,7 @@
           date: dayKey,
           title: step.text.trim(),
           note: noteParts.join(" · "),
-          category: "Study deadline",
+          category: "Study/school",
           dayPart: part,
           goalId: goal.id,
           goalStepId: step.id,
@@ -1804,7 +1292,7 @@
         syncGoalStepReferenceFromEvent(linkedEvent);
         selectedDate = dayKey;
         calendarCursor = new Date(parseDate(dayKey).getFullYear(), parseDate(dayKey).getMonth(), 1);
-        renderRoutinePlanner();
+        renderWeeklyPlannerSection();
         renderGoalPlanner();
         renderCalendar();
         renderSelectedDate();
@@ -2028,30 +1516,31 @@
       }
 
       function normalizeEventCategory(category) {
-        if (category === "Routine") {
-          return "Chore";
+        if (weeklyPlannerCore && typeof weeklyPlannerCore.normalizeCategory === "function") {
+          return weeklyPlannerCore.normalizeCategory(category);
         }
-        return category || "Study deadline";
+        return category || "Personal";
       }
 
       function categoryClass(category) {
-          var normalized = normalizeEventCategory(category);
-          if (normalized === "Personal") return "personal";
-          if (normalized === "Chore") return "chore-event";
-          if (normalized === "Home study" || normalized === "School study") return "routine-event";
-          if (normalized === "Other") return "other-event";
-          if (normalized === "Skate") return "skate-event";
-          if (normalized === "Guitar") return "guitar-event";
-          return "study";
+        var normalized = normalizeEventCategory(category);
+        if (normalized === "Study/school") return "study-block";
+        if (normalized === "Skate") return "skate-block";
+        if (normalized === "Gym") return "gym-block";
+        if (normalized === "Cooking") return "cooking-block";
+        if (normalized === "Chores/groceries") return "chores-block";
+        if (normalized === "Social") return "social-block";
+        if (normalized === "Guitar") return "guitar-block";
+        return "personal-block";
       }
 
       function isRoutineCategory(category) {
-        return normalizeEventCategory(category) === "Home study";
+        return false;
       }
 
       function visibleMonthlyEvents(events) {
         return (Array.isArray(events) ? events : []).filter(function (event) {
-          return !isRoutineCategory(event.category);
+          return !event.routineManaged && !isRoutineCategory(event.category);
         });
       }
 
@@ -2074,7 +1563,7 @@
           view.classList.toggle("active", view.id === viewId);
         });
         if (viewId === "calendarView") {
-          renderRoutinePlanner();
+          renderWeeklyPlannerSection();
           renderCalendar();
           renderSelectedDate();
         }
@@ -2316,16 +1805,19 @@
 
       function calendarEventTaskActivity(category) {
         var normalized = normalizeEventCategory(category);
-        if (normalized === "Home study" || normalized === "School study" || normalized === "Study deadline") {
+        if (normalized === "Study/school") {
           return "cpp";
         }
         if (normalized === "Skate") {
           return "skate";
         }
+        if (normalized === "Gym") {
+          return "p90x3";
+        }
         if (normalized === "Guitar") {
           return "guitar";
         }
-        if (normalized === "Chore" || normalized === "Personal" || normalized === "Other") {
+        if (normalized === "Cooking" || normalized === "Chores/groceries" || normalized === "Social" || normalized === "Personal") {
           return "other";
         }
         return "other";
@@ -4691,7 +4183,7 @@
       function renderTotals() {
         renderWeeklyGoals();
         renderLiveSummaryPanels();
-        renderRoutinePlanner();
+        renderWeeklyPlannerSection();
         renderGoalPlanner();
         renderMoneyDashboard();
       }
@@ -5123,23 +4615,83 @@
       }
 
       function openEventComposer(dateKey, part, message) {
-        draftEventDayPart = part || "";
+        var date = parseDate(dateKey);
+        var summary = plannerDaySummary(dateKey);
         editingEventId = null;
+        draftEventDayPart = part || "";
         selectedDate = dateKey;
-        calendarCursor = new Date(parseDate(dateKey).getFullYear(), parseDate(dateKey).getMonth(), 1);
+        weeklyPlannerUiState.activityPickerOpen = false;
+        calendarCursor = new Date(date.getFullYear(), date.getMonth(), 1);
         elements.eventDate.value = dateKey;
-        elements.eventTitle.value = "";
+        elements.eventStartTime.value = summary.recommendedMaxMinutes === 30 ? "18:00" : "10:00";
+        elements.eventEndTime.value = summary.recommendedMaxMinutes === 30 ? "18:10" : "11:00";
         elements.eventNote.value = "";
-        elements.eventCategory.value = "Study deadline";
-        elements.eventSaveButton.textContent = "Save event";
+        elements.eventCategory.value = weeklyPlannerUiState.selectedActivityCategory || "Study/school";
+        elements.eventSaveButton.textContent = "Save activity";
         elements.formHint.textContent = message || ("Selected: " + dateKey);
         renderCalendar();
         renderSelectedDate();
-        elements.eventTitle.focus();
+        if (elements.eventStartTime) {
+          elements.eventStartTime.focus();
+        }
       }
 
       function groupedEventsForDate(dateKey) {
         return calendarCore.groupEventsByPart(eventsForDate(dateKey));
+      }
+
+      function plannerCategoryMeta(category) {
+        if (weeklyPlannerCore && typeof weeklyPlannerCore.categoryMeta === "function") {
+          return weeklyPlannerCore.categoryMeta(category);
+        }
+        return {
+          label: normalizeEventCategory(category),
+          shortLabel: normalizeEventCategory(category),
+          className: categoryClass(category)
+        };
+      }
+
+      function plannerEventsForDate(dateKey) {
+        return eventsForDate(dateKey).map(function (event) {
+          var category = normalizeEventCategory(event.category);
+          var meta = plannerCategoryMeta(category);
+          return Object.assign({}, event, {
+            category: category,
+            title: event.title || meta.shortLabel
+          });
+        });
+      }
+
+      function skateStreakActiveForDate(dateKey) {
+        if (skateCore && typeof skateCore.seasonState === "function") {
+          return Boolean(skateCore.seasonState(parseDate(dateKey)).streakActive);
+        }
+        return false;
+      }
+
+      function plannerDaySummary(dateKey) {
+        var day = weeklyPlannerDayForDate(parseDate(dateKey)).day;
+        if (weeklyPlannerCore && typeof weeklyPlannerCore.daySummary === "function") {
+          return weeklyPlannerCore.daySummary(day.type, plannerEventsForDate(dateKey), {
+            skateStreakActive: skateStreakActiveForDate(dateKey)
+          });
+        }
+        return {
+          dayType: dayTypeById(day.type),
+          activities: plannerEventsForDate(dateKey),
+          status: "Space left",
+          remainingPoints: 0,
+          usedPoints: 0,
+          capacityPoints: 0,
+          recommendedMaxMinutes: null,
+          canAddActivity: true
+        };
+      }
+
+      function formatPlannerRange(event) {
+        var start = event && event.startTime ? event.startTime : "";
+        var end = event && event.endTime ? event.endTime : "";
+        return start && end ? start + "-" + end : "";
       }
 
       function timeBoundaryForPart(part) {
@@ -5166,13 +4718,18 @@
       }
 
       function eventTitleWithoutLeadingTime(title) {
+        if (title && typeof title === "object") {
+          return String(title.title || "");
+        }
         return String(title || "")
           .replace(/^(\d{1,2})(?::?(\d{2}))?(?:\s*[-–]\s*(\d{1,2})(?::?(\d{2}))?)?\s*/, "")
           .trim();
       }
 
       function weeklyPlannerEventLabel(event, part) {
-        var range = calendarCore.parseEventTimeRange(event && event.title);
+        var range = calendarCore.parseEventTimeRange(event && (event.startTime && event.endTime
+          ? { startTime: event.startTime, endTime: event.endTime }
+          : event.title));
         if (!range) {
           return event.title;
         }
@@ -5189,7 +4746,9 @@
 
       function todayFocusText(eventsByPart, part, fallback) {
         var items = eventsByPart[part] || [];
-        return items.length ? items.map(function (item) { return item.title; }).join(" · ") : fallback;
+        return items.length ? items.map(function (item) {
+          return formatPlannerRange(item) ? formatPlannerRange(item) + " " + item.title : item.title;
+        }).join(" · ") : fallback;
       }
 
       function renderTodayIntention() {
@@ -5198,13 +4757,12 @@
         }
         var dashboardDate = document.getElementById("dashboardDate");
         var todayKey = formatDate(today);
-        var type = dayTypeById(routineDayForDate(today).day.type);
+        var type = dayTypeById(weeklyPlannerDayForDate(today).day.type);
         var grouped = groupedEventsForDate(todayKey);
         var allTodayEvents = eventsForDate(todayKey);
-        var studyTarget = routineStudyTargetForWeek(today);
 
         elements.todaySubtitle.textContent = "A soft little map for the shape of your day.";
-        elements.weekKeyLabel.textContent = isoWeekKey(today) + (studyTarget ? " · Study target " + studyTarget : "");
+        elements.weekKeyLabel.textContent = isoWeekKey(today) + " · " + plannerDaySummary(todayKey).status;
         if (dashboardDate) {
           dashboardDate.textContent = humanDate(todayKey);
         }
@@ -5246,94 +4804,173 @@
           return;
         }
         var referenceDate = parseDate(selectedDate);
-        ensureRoutineEventsAroundDate(referenceDate);
         var dates = weekDates(referenceDate);
-        var routine = getWeeklyRoutine(referenceDate);
-        var studyTarget = routineStudyTargetForWeek(referenceDate);
+        var routine = getWeeklyPlannerWeek(referenceDate);
+        var validation = weeklyPlannerCore && typeof weeklyPlannerCore.validateWeekPlan === "function"
+          ? weeklyPlannerCore.validateWeekPlan(routine)
+          : { errors: [] };
 
         if (elements.weeklyPlannerLabel) {
-          elements.weeklyPlannerLabel.textContent = isoWeekKey(referenceDate) + (studyTarget ? " · Study target " + studyTarget : "") + " · Morning · Afternoon · Evening";
+          elements.weeklyPlannerLabel.textContent = validation.errors.length
+            ? validation.errors[0]
+            : "Every week needs at least one Recovery Day and no more than two High-Intensity Days.";
         }
 
         elements.weeklyPlannerMount.innerHTML = "";
+        if (weeklyPlannerUiState.weekSetupOpen) {
+          renderWeekSetup(referenceDate, routine);
+          return;
+        }
+
         dates.forEach(function (date, index) {
           var dateKey = formatDate(date);
           var type = dayTypeById(routine.days[index].type);
-          var groups = groupedEventsForDate(dateKey);
+          var summary = plannerDaySummary(dateKey);
           var card = document.createElement("section");
           card.className = "week-day-panel " + type.className;
+          if (dateKey === selectedDate) {
+            card.classList.add("selected-day");
+          }
+          card.addEventListener("click", function () {
+            selectedDate = dateKey;
+            calendarCursor = new Date(date.getFullYear(), date.getMonth(), 1);
+            weeklyPlannerUiState.activityPickerOpen = false;
+            renderWeeklyPlannerSection();
+            renderCalendar();
+            renderSelectedDate();
+          });
 
           var header = document.createElement("div");
           header.className = "week-day-header";
           header.innerHTML = "<div><strong>" + weekLabels[index] + "</strong><span>" + humanDate(dateKey) + "</span></div>";
 
-          var typeSelect = document.createElement("select");
-          typeSelect.className = "routine-day-select";
-          dayTypes.forEach(function (optionType) {
-            var option = document.createElement("option");
-            option.value = optionType.id;
-            option.textContent = optionType.label;
-            option.selected = optionType.id === type.id;
-            typeSelect.appendChild(option);
-          });
-          typeSelect.addEventListener("change", function () {
-            updateWeeklyRoutine(function (latest) {
-              latest.days[index].type = typeSelect.value;
-            });
-            renderTodayIntention();
-          });
-          header.appendChild(typeSelect);
+          var badge = document.createElement("span");
+          badge.className = "progress-pill day-type-pill " + type.className;
+          badge.textContent = type.shortLabel || type.label;
+          header.appendChild(badge);
           card.appendChild(header);
 
-          dayParts.forEach(function (part) {
-            var row = document.createElement("div");
-            row.className = "week-day-part";
+          var statusRow = document.createElement("div");
+          statusRow.className = "week-day-status";
+          statusRow.innerHTML = "<strong>" + summary.status + "</strong><span>" + plannerCapacityHint(summary, dateKey) + "</span>";
+          card.appendChild(statusRow);
 
-            var label = document.createElement("span");
-            label.className = "week-day-part-label";
-            label.textContent = partLabels[part];
-            row.appendChild(label);
-
-            var content = document.createElement("div");
-            content.className = "week-day-part-content";
-
-            if (!groups[part].length) {
-              var empty = document.createElement("span");
-              empty.className = "week-day-part-empty";
-              empty.textContent = part === "evening" ? "Keep it light." : "Open";
-              content.appendChild(empty);
-            } else {
-              groups[part].forEach(function (event) {
-                var button = document.createElement("button");
-                button.type = "button";
-                button.className = "week-event-button " + categoryClass(event.category);
-                button.textContent = weeklyPlannerEventLabel(event, part);
-                button.title = event.note ? event.title + " - " + event.note : event.title;
-                button.addEventListener("click", function () {
-                  startEditEvent(event.id);
-                });
-                content.appendChild(button);
-              });
-            }
-
-            var addButton = document.createElement("button");
-            addButton.type = "button";
-            addButton.className = "week-add-button";
-            addButton.textContent = "Add";
-            addButton.addEventListener("click", function () {
-              openEventComposer(dateKey, part, "Adding to " + weekLabels[index] + " " + partLabels[part].toLowerCase() + ".");
+          var summaryRow = document.createElement("div");
+          summaryRow.className = "week-day-summary";
+          if (!summary.activities.length) {
+            var empty = document.createElement("span");
+            empty.className = "week-day-part-empty";
+            empty.textContent = summary.status === "Rest protected" ? "Rest protected." : "No activities yet.";
+            summaryRow.appendChild(empty);
+          } else {
+            summary.activities.forEach(function (activity) {
+              var pill = document.createElement("span");
+              pill.className = "week-event-button " + categoryClass(activity.category);
+              pill.textContent = plannerCategoryMeta(activity.category).shortLabel;
+              summaryRow.appendChild(pill);
             });
-            content.appendChild(addButton);
-
-            row.appendChild(content);
-            card.appendChild(row);
-          });
+          }
+          card.appendChild(summaryRow);
 
           elements.weeklyPlannerMount.appendChild(card);
         });
       }
 
-      function renderRoutinePlanner() {
+      function plannerCapacityHint(summary, dateKey) {
+        if (summary.dayType.id === "recovery") {
+          return skateStreakActiveForDate(dateKey || selectedDate) ? "Only one 10-minute Recovery Skate can fit." : "No optional activities fit.";
+        }
+        if (summary.remainingPoints <= 0) {
+          return "Move, shorten, or remove a block.";
+        }
+        if (summary.recommendedMaxMinutes === 30) {
+          return "Only activities up to 30 minutes fit.";
+        }
+        if (summary.recommendedMaxMinutes === 90) {
+          return "Only activities up to 90 minutes fit.";
+        }
+        return summary.remainingPoints + " points left.";
+      }
+
+      function renderWeekSetup(referenceDate, routine) {
+        var draft = weeklyPlannerUiState.weekSetupDraft || (weeklyPlannerCore && weeklyPlannerCore.normalizeWeekPlan
+          ? weeklyPlannerCore.normalizeWeekPlan(routine, isoWeekKey(referenceDate))
+          : routine);
+        var validation = weeklyPlannerCore.validateWeekPlan(draft);
+        var wrap = document.createElement("section");
+        wrap.className = "week-setup-card";
+
+        var intro = document.createElement("div");
+        intro.className = "week-setup-header";
+        intro.innerHTML = "<strong>Plan the week first</strong><span>Choose Recovery, Normal, or High-Intensity for each day.</span>";
+        wrap.appendChild(intro);
+
+        var dates = weekDates(referenceDate);
+        dates.forEach(function (date, index) {
+          var dateKey = formatDate(date);
+          var row = document.createElement("div");
+          row.className = "week-setup-row";
+          row.innerHTML = "<strong>" + weekLabels[index] + "</strong><span>" + humanDate(dateKey) + "</span>";
+          var options = document.createElement("div");
+          options.className = "week-setup-options";
+          dayTypes.forEach(function (type) {
+            var button = document.createElement("button");
+            button.type = "button";
+            button.className = "day-state-chip";
+            if (draft.days[index].type === type.id) {
+              button.classList.add("is-active");
+            }
+            button.textContent = type.shortLabel || type.label;
+            button.addEventListener("click", function () {
+              var nextDraft = JSON.parse(JSON.stringify(draft));
+              var allowed = weeklyPlannerCore.dayTypeChangeAllowed(nextDraft, index, type.id, plannerEventsForDate(dateKey), {
+                skateStreakActive: skateStreakActiveForDate(dateKey)
+              });
+              if (!allowed.allowed) {
+                elements.weeklyPlannerLabel.textContent = allowed.reason;
+                return;
+              }
+              nextDraft.days[index].type = type.id;
+              weeklyPlannerUiState.weekSetupDraft = nextDraft;
+              renderWeeklyPlanner();
+            });
+            options.appendChild(button);
+          });
+          row.appendChild(options);
+          wrap.appendChild(row);
+        });
+
+        var footer = document.createElement("div");
+        footer.className = "week-setup-footer";
+        var save = document.createElement("button");
+        save.type = "button";
+        save.className = "primary-button";
+        save.textContent = "Save week";
+        save.disabled = !validation.valid;
+        save.addEventListener("click", function () {
+          saveWeeklyPlannerWeek(referenceDate, Object.assign({}, draft, { isConfigured: true }));
+          weeklyPlannerUiState.weekSetupOpen = false;
+          weeklyPlannerUiState.weekSetupDraft = null;
+          renderWeeklyPlannerSection();
+        });
+        footer.appendChild(save);
+
+        var cancel = document.createElement("button");
+        cancel.type = "button";
+        cancel.className = "secondary-button";
+        cancel.textContent = "Cancel";
+        cancel.addEventListener("click", function () {
+          weeklyPlannerUiState.weekSetupOpen = false;
+          weeklyPlannerUiState.weekSetupDraft = null;
+          renderWeeklyPlanner();
+        });
+        footer.appendChild(cancel);
+
+        wrap.appendChild(footer);
+        elements.weeklyPlannerMount.appendChild(wrap);
+      }
+
+      function renderWeeklyPlannerSection() {
         renderTodayIntention();
         renderWeeklyPlanner();
       }
@@ -5343,9 +4980,9 @@
           return;
         }
         var referenceDate = parseDate(selectedDate);
-        var routine = getWeeklyRoutine(referenceDate);
+        var routine = getWeeklyPlannerWeek(referenceDate);
         var studyOptions = weekDates(referenceDate).reduce(function (all, date, index) {
-          if (routine.days[index].type !== "study") {
+          if (routine.days[index].type === "recovery") {
             return all;
           }
           dayParts.forEach(function (part) {
@@ -5555,7 +5192,7 @@
             scheduleSelect.className = "task-category-select goal-schedule-select";
             var blankOption = document.createElement("option");
             blankOption.value = "";
-            blankOption.textContent = studyOptions.length ? "Study block" : "Add a study day first";
+            blankOption.textContent = studyOptions.length ? "Day block" : "Add a non-recovery day first";
             scheduleSelect.appendChild(blankOption);
             studyOptions.forEach(function (optionData) {
               var option = document.createElement("option");
@@ -7203,15 +6840,12 @@
         var month = calendarCursor.getMonth();
         var firstOfMonth = new Date(year, month, 1);
         var start = new Date(year, month, 1 - firstOfMonth.getDay());
-        var end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 41);
-        ensureRoutineEventsForRange(firstOfMonth, end);
         var events = getEvents();
         var todayKey = formatDate(today);
 
         if (elements.currentMonthLabel) {
           elements.currentMonthLabel.textContent = monthNames[month] + " " + year;
         }
-        renderWaterReminderSettings();
         elements.calendarGrid.innerHTML = "";
 
         weekdays.forEach(function (name) {
@@ -7224,7 +6858,7 @@
         for (var i = 0; i < 42; i += 1) {
           var cellDate = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i);
           var dateKey = formatDate(cellDate);
-          var routineInfo = routineDayForDate(cellDate);
+          var routineInfo = weeklyPlannerDayForDate(cellDate);
           var routineType = dayTypeById(routineInfo.day.type);
           var dayEvents = events
             .filter(function (event) {
@@ -7252,7 +6886,9 @@
               selectedDate = key;
               renderCalendar();
               renderSelectedDate();
-              elements.eventTitle.focus();
+              if (elements.eventStartTime) {
+                elements.eventStartTime.focus();
+              }
             };
           }(dateKey));
 
@@ -7296,123 +6932,127 @@
         if (!elements.eventEditorCard) {
           return;
         }
-        var events = getEvents()
-          .filter(function (event) {
-            return event.date === selectedDate;
-          })
-          .sort(calendarCore.compareEventsChronologically);
+        var events = plannerEventsForDate(selectedDate);
+        var summary = plannerDaySummary(selectedDate);
+        var type = summary.dayType;
 
-        elements.selectedDateHeading.textContent = "Selected day";
+        elements.selectedDateHeading.textContent = humanDate(selectedDate);
         if (elements.selectedDateHint) {
-          elements.selectedDateHint.textContent = humanDate(selectedDate) + (editingEventId ? " · Edit event" : " · Add event");
+          elements.selectedDateHint.textContent = type.label + " · " + summary.status;
         }
-        elements.formHint.textContent = editingEventId ? "Editing selected event." : "Selected: " + selectedDate;
+        elements.formHint.textContent = editingEventId ? "Edit this block to move, shorten, or change it." : "Selected: " + selectedDate;
         elements.eventDate.value = selectedDate;
+        if (elements.plannerDayStatusHint) {
+          elements.plannerDayStatusHint.textContent = plannerCapacityHint(summary, selectedDate);
+        }
+        if (elements.plannerAddActivityButton) {
+          elements.plannerAddActivityButton.disabled = !summary.canAddActivity;
+        }
         elements.selectedDateEvents.innerHTML = "";
 
         if (events.length === 0) {
           var empty = document.createElement("li");
           empty.className = "selected-event empty";
-          empty.textContent = "No events on this date yet.";
+          empty.textContent = type.id === "recovery" ? "Rest protected." : "No activities on this day yet.";
           elements.selectedDateEvents.appendChild(empty);
-          return;
-        }
+        } else {
+          events.forEach(function (event) {
+            var item = document.createElement("li");
+            item.className = "selected-event " + categoryClass(event.category);
 
-        events.forEach(function (event) {
-          var item = document.createElement("li");
-          item.className = "selected-event";
-          item.tabIndex = 0;
-          item.setAttribute("role", "button");
+            var title = document.createElement("div");
+            title.className = "selected-event-title";
+            title.textContent = formatPlannerRange(event) + "  " + plannerCategoryMeta(event.category).shortLabel;
 
-          var title = document.createElement("div");
-          title.className = "selected-event-title";
-          title.textContent = event.title;
+            var tag = document.createElement("span");
+            tag.className = "tag " + categoryClass(event.category);
+            tag.textContent = plannerCategoryMeta(event.category).label;
 
-          var tag = document.createElement("span");
-          tag.className = "tag " + categoryClass(event.category);
-          tag.textContent = normalizeEventCategory(event.category);
+            item.appendChild(title);
+            item.appendChild(tag);
 
-          item.appendChild(title);
-          item.appendChild(tag);
-
-          if (event.note) {
-            var note = document.createElement("p");
-            note.className = "selected-event-note";
-            note.textContent = event.note;
-            item.appendChild(note);
-          }
-
-          var reminderText = reminderLabel(event && event.reminderMinutes);
-          if (reminderText) {
-            var reminder = document.createElement("p");
-            reminder.className = "selected-event-note";
-            reminder.textContent = reminderText + (eventHasTimedTitle(event) ? "" : " (add a time like 18:00 at the start of the title)");
-            item.appendChild(reminder);
-          }
-
-          var actions = document.createElement("div");
-          actions.className = "selected-event-actions";
-          var deleteButton = document.createElement("button");
-          deleteButton.type = "button";
-          deleteButton.className = "secondary-button quiet-danger";
-          deleteButton.textContent = "Delete";
-          deleteButton.addEventListener("click", function () {
-            deleteEvent(event.id);
-          });
-          actions.appendChild(deleteButton);
-          item.appendChild(actions);
-          item.addEventListener("click", function () {
-            startEditEvent(event.id);
-          });
-          item.addEventListener("keydown", function (keyboardEvent) {
-            if (keyboardEvent.key === "Enter" || keyboardEvent.key === " ") {
-              keyboardEvent.preventDefault();
-              startEditEvent(event.id);
+            if (event.note) {
+              var note = document.createElement("p");
+              note.className = "selected-event-note";
+              note.textContent = event.note;
+              item.appendChild(note);
             }
-          });
-          deleteButton.addEventListener("click", function (clickEvent) {
-            clickEvent.stopPropagation();
-          });
 
-          elements.selectedDateEvents.appendChild(item);
-        });
+            var actions = document.createElement("div");
+            actions.className = "selected-event-actions";
+
+            var editButton = document.createElement("button");
+            editButton.type = "button";
+            editButton.className = "secondary-button";
+            editButton.textContent = "Move or shorten";
+            editButton.addEventListener("click", function () {
+              startEditEvent(event.id);
+            });
+            actions.appendChild(editButton);
+
+            var deleteButton = document.createElement("button");
+            deleteButton.type = "button";
+            deleteButton.className = "secondary-button quiet-danger";
+            deleteButton.textContent = "Remove";
+            deleteButton.addEventListener("click", function () {
+              deleteEvent(event.id);
+            });
+            actions.appendChild(deleteButton);
+            item.appendChild(actions);
+
+            elements.selectedDateEvents.appendChild(item);
+          });
+        }
+        renderPlannerActivityPicker();
       }
 
-      function renderWaterReminderSettings() {
-        if (!elements.waterReminderCard) {
+      function renderPlannerActivityPicker() {
+        if (!elements.plannerActivityPicker || !elements.plannerActivityOptions) {
           return;
         }
-        var settings = getWaterReminderSettings();
-        elements.waterReminderCard.classList.toggle("is-enabled", settings.enabled);
-        if (elements.waterReminderEnabled) {
-          elements.waterReminderEnabled.checked = settings.enabled;
+        var summary = plannerDaySummary(selectedDate);
+        var options = weeklyPlannerCore.categoryOptions(summary.dayType.id, plannerEventsForDate(selectedDate), {
+          skateStreakActive: skateStreakActiveForDate(selectedDate)
+        });
+        elements.plannerActivityPicker.hidden = !weeklyPlannerUiState.activityPickerOpen;
+        if (!weeklyPlannerUiState.activityPickerOpen) {
+          elements.plannerActivityOptions.innerHTML = "";
+          return;
         }
-        if (elements.waterReminderToggleLabel) {
-          elements.waterReminderToggleLabel.textContent = settings.enabled ? "On" : "Off";
+        if (elements.plannerActivityPickerHint) {
+          elements.plannerActivityPickerHint.textContent = plannerCapacityHint(summary, selectedDate);
         }
-        if (elements.waterReminderTime1) {
-          elements.waterReminderTime1.value = settings.times[0];
-          elements.waterReminderTime1.disabled = !settings.enabled;
-        }
-        if (elements.waterReminderTime2) {
-          elements.waterReminderTime2.value = settings.times[1];
-          elements.waterReminderTime2.disabled = !settings.enabled;
-        }
-        if (elements.waterReminderTimes) {
-          elements.waterReminderTimes.classList.toggle("is-disabled", !settings.enabled);
-        }
+        elements.plannerActivityOptions.innerHTML = "";
+        options.forEach(function (option) {
+          var button = document.createElement("button");
+          button.type = "button";
+          button.className = "planner-activity-option " + option.className;
+          button.disabled = option.disabled;
+          button.textContent = option.label;
+          if (option.reason) {
+            button.title = option.reason;
+          }
+          button.addEventListener("click", function () {
+            weeklyPlannerUiState.selectedActivityCategory = option.category;
+            openEventComposer(selectedDate, "", option.reason || "Add a time block for " + option.label + ".");
+          });
+          elements.plannerActivityOptions.appendChild(button);
+        });
       }
 
       function resetEventForm(message) {
         editingEventId = null;
         draftEventDayPart = "";
-        elements.eventTitle.value = "";
         elements.eventNote.value = "";
         elements.eventDate.value = selectedDate;
-        if (elements.eventReminder) {
-          elements.eventReminder.value = "0";
+        if (elements.eventStartTime) {
+          elements.eventStartTime.value = "";
         }
-        elements.eventSaveButton.textContent = "Save event";
+        if (elements.eventEndTime) {
+          elements.eventEndTime.value = "";
+        }
+        weeklyPlannerUiState.selectedActivityCategory = "";
+        elements.eventSaveButton.textContent = "Save activity";
         elements.formHint.textContent = message || "Selected: " + selectedDate;
       }
 
@@ -7427,17 +7067,23 @@
         draftEventDayPart = event.dayPart || "";
         selectedDate = event.date;
         calendarCursor = parseDate(event.date);
-        elements.eventTitle.value = event.title || "";
+        weeklyPlannerUiState.activityPickerOpen = false;
+        weeklyPlannerUiState.selectedActivityCategory = normalizeEventCategory(event.category);
         elements.eventDate.value = event.date || selectedDate;
+        if (elements.eventStartTime) {
+          elements.eventStartTime.value = event.startTime || "";
+        }
+        if (elements.eventEndTime) {
+          elements.eventEndTime.value = event.endTime || "";
+        }
         elements.eventNote.value = event.note || "";
         elements.eventCategory.value = normalizeEventCategory(event.category);
-        if (elements.eventReminder) {
-          elements.eventReminder.value = String(normalizeReminderMinutes(event.reminderMinutes));
-        }
-        elements.eventSaveButton.textContent = "Update event";
+        elements.eventSaveButton.textContent = "Update activity";
         renderCalendar();
         renderSelectedDate();
-        elements.eventTitle.focus();
+        if (elements.eventStartTime) {
+          elements.eventStartTime.focus();
+        }
       }
 
       function deleteEvent(id) {
@@ -7451,9 +7097,6 @@
         if (!window.confirm("Delete \"" + event.title + "\"?")) {
           return;
         }
-        if (event.routineManaged) {
-          skipRoutineEvent(id);
-        }
         clearGoalStepReferenceByEventId(id);
         saveEvents(events.filter(function (item) {
           return item.id !== id;
@@ -7463,21 +7106,35 @@
         }
         renderCalendar();
         renderGoalPlanner();
-        renderRoutinePlanner();
+        renderWeeklyPlannerSection();
         renderSelectedDate();
       }
 
       function addEvent(event) {
         event.preventDefault();
-        var title = elements.eventTitle.value.trim();
-        var note = elements.eventNote.value.trim();
         var category = normalizeEventCategory(elements.eventCategory.value);
-        var reminderMinutes = normalizeReminderMinutes(elements.eventReminder && elements.eventReminder.value);
+        var title = plannerCategoryMeta(category).shortLabel;
+        var note = elements.eventNote.value.trim();
+        var startTime = normalizeClockValue(elements.eventStartTime && elements.eventStartTime.value);
+        var endTime = normalizeClockValue(elements.eventEndTime && elements.eventEndTime.value);
         var eventDate = elements.eventDate.value || selectedDate;
+        var routineInfo = weeklyPlannerDayForDate(parseDate(eventDate));
+        var fitResult = weeklyPlannerCore.canAddActivity(routineInfo.day.type, plannerEventsForDate(eventDate).filter(function (item) {
+          return item.id !== editingEventId;
+        }), {
+          category: category,
+          title: title,
+          startTime: startTime,
+          endTime: endTime
+        }, {
+          skateStreakActive: skateStreakActiveForDate(eventDate)
+        });
 
-        if (!title) {
-          elements.formHint.textContent = "Add a title before saving.";
-          elements.eventTitle.focus();
+        if (!fitResult.allowed) {
+          elements.formHint.textContent = fitResult.reason;
+          if (elements.eventStartTime) {
+            elements.eventStartTime.focus();
+          }
           return;
         }
 
@@ -7493,19 +7150,14 @@
               title: title,
               note: note,
               category: category,
-              reminderMinutes: reminderMinutes,
               dayPart: draftEventDayPart || item.dayPart || "",
-              startTime: "",
-              endTime: "",
+              startTime: startTime,
+              endTime: endTime,
               updatedAt: new Date().toISOString()
             });
-            if (savedEvent.reminderMinutes) {
-              delete savedEvent.reminderSentAt;
-              delete savedEvent.reminderSentFor;
-            } else {
-              delete savedEvent.reminderSentAt;
-              delete savedEvent.reminderSentFor;
-            }
+            delete savedEvent.reminderMinutes;
+            delete savedEvent.reminderSentAt;
+            delete savedEvent.reminderSentFor;
             return savedEvent;
           });
         } else {
@@ -7515,10 +7167,9 @@
             title: title,
             note: note,
             category: category,
-            reminderMinutes: reminderMinutes,
             dayPart: draftEventDayPart || "",
-            startTime: "",
-            endTime: "",
+            startTime: startTime,
+            endTime: endTime,
             createdAt: new Date().toISOString()
           };
           events.push(savedEvent);
@@ -7530,9 +7181,10 @@
 
         selectedDate = eventDate;
         calendarCursor = new Date(parseDate(selectedDate).getFullYear(), parseDate(selectedDate).getMonth(), 1);
+        weeklyPlannerUiState.activityPickerOpen = false;
         resetEventForm((editingEventId ? "Updated " : "Saved for ") + humanDate(selectedDate) + ".");
         renderGoalPlanner();
-        renderRoutinePlanner();
+        renderWeeklyPlannerSection();
         renderCalendar();
         renderSelectedDate();
       }
@@ -7684,6 +7336,13 @@
             shiftSelectedWeek(1);
           });
         }
+        if (elements.setWeekButton) {
+          elements.setWeekButton.addEventListener("click", function () {
+            weeklyPlannerUiState.weekSetupOpen = true;
+            weeklyPlannerUiState.weekSetupDraft = getWeeklyPlannerWeek(parseDate(selectedDate));
+            renderWeeklyPlanner();
+          });
+        }
 
         elements.eventForm.addEventListener("submit", addEvent);
         elements.eventDate.addEventListener("change", function () {
@@ -7694,35 +7353,15 @@
             renderSelectedDate();
           }
         });
+        if (elements.plannerAddActivityButton) {
+          elements.plannerAddActivityButton.addEventListener("click", function () {
+            weeklyPlannerUiState.activityPickerOpen = !weeklyPlannerUiState.activityPickerOpen;
+            renderPlannerActivityPicker();
+          });
+        }
         if (elements.taskForm) {
           elements.taskForm.addEventListener("submit", addTask);
         }
-        if (elements.waterReminderEnabled) {
-          elements.waterReminderEnabled.addEventListener("change", function () {
-            updateWaterReminderSettings(function (settings) {
-              settings.enabled = Boolean(elements.waterReminderEnabled.checked);
-            });
-            renderWaterReminderSettings();
-          });
-        }
-        [
-          { element: elements.waterReminderTime1, index: 0 },
-          { element: elements.waterReminderTime2, index: 1 }
-        ].forEach(function (config) {
-          if (!config.element) {
-            return;
-          }
-          config.element.addEventListener("change", function () {
-            updateWaterReminderSettings(function (settings) {
-              var next = normalizeClockValue(config.element.value) || settings.times[config.index];
-              settings.times[config.index] = next;
-            });
-            renderWaterReminderSettings();
-          });
-          config.element.addEventListener("blur", function () {
-            renderWaterReminderSettings();
-          });
-        });
         if (elements.dayStateOptions) {
           Array.prototype.forEach.call(elements.dayStateOptions.querySelectorAll("[data-day-state]"), function (button) {
             button.addEventListener("click", function () {
