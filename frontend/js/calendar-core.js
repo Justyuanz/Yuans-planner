@@ -11,6 +11,9 @@
   var EVENING_START = 19 * 60;
 
   function parseEventTimeMinutes(title) {
+    if (title && typeof title === "object" && title.startTime) {
+      return parseEventTimeMinutes(String(title.startTime));
+    }
     var match = String(title || "").trim().match(/^(\d{1,2})(?::?(\d{2}))?(?=\s|$|[-–])/);
     if (!match) {
       return null;
@@ -24,6 +27,9 @@
   }
 
   function parseEventTimeRange(title) {
+    if (title && typeof title === "object" && title.startTime && title.endTime) {
+      return parseEventTimeRange(String(title.startTime) + "-" + String(title.endTime));
+    }
     var text = String(title || "").trim();
     var match = text.match(/^(\d{1,2})(?::?(\d{2}))?\s*[-–]\s*(\d{1,2})(?::?(\d{2}))?(?=\s|$)/);
     if (!match) {
@@ -51,8 +57,8 @@
   }
 
   function compareEventsChronologically(a, b) {
-    var timeA = parseEventTimeMinutes(a.title);
-    var timeB = parseEventTimeMinutes(b.title);
+    var timeA = parseEventTimeMinutes(a && (a.startTime || a.title));
+    var timeB = parseEventTimeMinutes(b && (b.startTime || b.title));
     if (timeA !== null && timeB !== null && timeA !== timeB) {
       return timeA - timeB;
     }

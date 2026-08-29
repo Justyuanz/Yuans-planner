@@ -13,13 +13,6 @@ from config import planner_timezone, telegram_bot_token, telegram_chat_id, teleg
 
 EVENTS_KEY = "hivePlanner.events"
 DAILY_TASKS_PREFIX = "hivePlanner.dailyTasks."
-WATER_REMINDER_KEY = "hivePlanner.telegramWater.settings"
-DEFAULT_WATER_TIMES = ("12:30", "17:00")
-DEFAULT_WATER_MESSAGES = (
-    "💧 First water check — maybe have a glass with lunch.",
-    "💧 Afternoon check — how’s your water today?",
-)
-
 
 @dataclass
 class DueReminder:
@@ -138,27 +131,6 @@ def format_reminder_label(reminder_minutes: int) -> str:
     return f"{reminder_minutes} minutes"
 
 
-def normalize_water_settings(value: Any) -> dict[str, Any]:
-    source = value if isinstance(value, dict) else {}
-    raw_times = source.get("times")
-    sent_for_by_slot = source.get("sentForBySlot")
-    times = []
-    for index, default_time in enumerate(DEFAULT_WATER_TIMES):
-        raw_time = raw_times[index] if isinstance(raw_times, list) and index < len(raw_times) else default_time
-        normalized_time = format_clock_time(parse_clock_time(raw_time)) or default_time
-        times.append(normalized_time)
-    normalized_sent = {}
-    if isinstance(sent_for_by_slot, dict):
-        for key, item in sent_for_by_slot.items():
-            if item:
-                normalized_sent[str(key)] = str(item)
-    return {
-        "enabled": bool(source.get("enabled")),
-        "times": times,
-        "sentForBySlot": normalized_sent,
-    }
-
-
 def build_due_reminders(entries: list[dict[str, Any]], now: datetime, storage_key: str, date_text: str, kind_label: str) -> list[DueReminder]:
     now = normalize_now(now)
     due: list[DueReminder] = []
@@ -197,39 +169,6 @@ def build_due_reminders(entries: list[dict[str, Any]], now: datetime, storage_ke
             )
         )
     return due
-
-
-def build_due_water_reminders(settings: dict[str, Any], now: datetime, storage_key: str = WATER_REMINDER_KEY) -> list[DueReminder]:
-    now = normalize_now(now)
-    normalized = normalize_water_settings(settings)
-    if not normalized["enabled"]:
-        return []
-
-    due: list[DueReminder] = []
-    date_text = now.strftime("%Y-%m-%d")
-    sent_for_by_slot = normalized["sentForBySlot"]
-    for index, time_text in enumerate(normalized["times"]):
-        time_parts = parse_clock_time(time_text)
-        if not time_parts:
-            continue
-        slot_id = f"slot{index}"
-        reminder_key = "|".join([slot_id, date_text, time_text])
-        if sent_for_by_slot.get(slot_id) == reminder_key:
-            continue
-        remind_at = now.replace(hour=time_parts[0], minute=time_parts[1], second=0, microsecond=0)
-        if now < remind_at or now > remind_at + timedelta(minutes=30):
-            continue
-        due.append(
-            DueReminder(
-                storage_key=storage_key,
-                event_id=slot_id,
-                reminder_key=reminder_key,
-                text=DEFAULT_WATER_MESSAGES[index],
-            )
-        )
-    return due
-
-
 def send_telegram_message(text: str) -> None:
     token = telegram_bot_token()
     chat_id = telegram_chat_id()

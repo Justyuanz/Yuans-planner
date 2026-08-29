@@ -156,10 +156,8 @@
               <div class="intention-block" aria-label="Today's intention">
                 <div class="intention-block-head">
                   <strong>Today's intention</strong>
-                <span class="progress-pill" id="todayThemeBadge">Study Day</span>
-              </div>
-                <p class="intention-line" id="todayThemeLine">Getting today's thread together...</p>
-                <div class="intention-list" id="todayIntentionMount"></div>
+                  <span class="progress-pill" id="todayThemeBadge">Normal Day</span>
+                </div>
               </div>
               <div class="day-state-strip" aria-label="How today feels">
                 <strong>How does today feel?</strong>
@@ -572,9 +570,10 @@
             <div class="section-head">
               <div class="calendar-section-head">
                 <h2 id="calendarHeading">Weekly planner</h2>
-                <p class="small-note" id="weeklyPlannerLabel">Morning · Afternoon · Evening</p>
+                <p class="small-note" id="weeklyPlannerLabel">Shape the week first, then plan each day with activity blocks.</p>
               </div>
               <div class="week-controls" aria-label="Week controls">
+                <button class="secondary-button" type="button" id="setWeekButton">Set week</button>
                 <button class="icon-button" type="button" id="prevWeek" aria-label="Previous week">‹</button>
                 <button class="icon-button" type="button" id="nextWeek" aria-label="Next week">›</button>
               </div>
@@ -597,72 +596,62 @@
             <div class="calendar-grid" id="calendarGrid" aria-label="Monthly calendar"></div>
           </div>
         </article>
-        <article class="panel event-editor-card" id="eventEditorCard" style="width:100%;max-width:none;flex:0 0 auto;">
+        <article class="panel event-editor-card" id="eventEditorCard" style="width:100%;max-width:none;flex:0 0 auto;" hidden>
           <div class="panel-inner">
             <div class="section-head">
               <h2 id="selectedDateHeading">Selected day</h2>
-              <p class="small-note" id="selectedDateHint">Pick a date, then drop in the thing you do not want to forget.</p>
+              <p class="small-note" id="selectedDateHint">Pick a day to review its blocks and add what still fits.</p>
             </div>
             <ul class="selected-events" id="selectedDateEvents" aria-label="Selected date events"></ul>
-            <section class="water-reminder-card" id="waterReminderCard" aria-label="Water reminder settings">
-              <div class="water-reminder-head">
+            <div class="selected-day-actions">
+              <button class="primary-button" type="button" id="plannerAddActivityButton">Add activity</button>
+              <span class="hint" id="plannerDayStatusHint">Points left will show here.</span>
+            </div>
+            <section class="planner-activity-picker" id="plannerActivityPicker" hidden>
+              <div class="section-head">
                 <div>
-                  <p class="water-reminder-kicker">Water reminders</p>
+                  <h3>Choose an activity</h3>
+                  <p class="small-note" id="plannerActivityPickerHint">Points are based on time. Up to 30 min = 1, 31-90 min = 2, more than 90 min = 3.</p>
                 </div>
-                <label class="water-reminder-toggle" for="waterReminderEnabled">
-                  <input id="waterReminderEnabled" type="checkbox" role="switch">
-                  <span id="waterReminderToggleLabel">Off</span>
-                </label>
               </div>
-              <div class="water-reminder-times" id="waterReminderTimes">
-                <label class="water-reminder-field" for="waterReminderTime1">
-                  <span>Noon</span>
-                  <input id="waterReminderTime1" inputmode="numeric" maxlength="5" autocomplete="off" placeholder="12:30">
-                </label>
-                <label class="water-reminder-field" for="waterReminderTime2">
-                  <span>Afternoon</span>
-                  <input id="waterReminderTime2" inputmode="numeric" maxlength="5" autocomplete="off" placeholder="17:00">
-                </label>
-              </div>
+              <div class="planner-activity-options" id="plannerActivityOptions"></div>
             </section>
             <form class="event-form" id="eventForm">
               <div class="form-row">
-                <label for="eventTitle">Title</label>
-                <input id="eventTitle" name="eventTitle" maxlength="80" autocomplete="off" placeholder="Deadline, flight, coffee, study checkpoint">
+                <label for="eventCategory">Activity</label>
+                <select id="eventCategory" name="eventCategory">
+                  <option value="Study/school">Study/school</option>
+                  <option value="Skate">Skate</option>
+                  <option value="Gym">Gym</option>
+                  <option value="Cooking">Cooking</option>
+                  <option value="Chores/groceries">Chores/groceries</option>
+                  <option value="Social">Social</option>
+                  <option value="Guitar">Guitar</option>
+                  <option value="Personal">Personal</option>
+                </select>
               </div>
               <div class="form-row">
                 <label for="eventDate">Date</label>
                 <input id="eventDate" name="eventDate" type="date">
               </div>
               <div class="form-row">
+                <label for="eventStartTime">Start time</label>
+                <input id="eventStartTime" name="eventStartTime" type="time">
+              </div>
+              <div class="form-row">
+                <label for="eventEndTime">End time</label>
+                <input id="eventEndTime" name="eventEndTime" type="time">
+              </div>
+              <div class="planner-points-summary" aria-live="polite">
+                <strong id="eventPointsSummary">Pick a start and end time to see the point cost.</strong>
+                <span class="hint" id="eventPointsRule">Points are based only on time: up to 30 min = 1, 31-90 min = 2, more than 90 min = 3.</span>
+              </div>
+              <div class="form-row">
                 <label for="eventNote">Optional note</label>
-                <textarea id="eventNote" name="eventNote" maxlength="600" placeholder="Useful detail, link, address, or note to future you."></textarea>
-              </div>
-              <div class="form-row">
-                <label for="eventCategory">Category</label>
-                <select id="eventCategory" name="eventCategory">
-                  <option value="Study deadline">Study deadline</option>
-                  <option value="Home study">Home study</option>
-                  <option value="School study">School study</option>
-                  <option value="Personal">Personal</option>
-                  <option value="Skate">Skate</option>
-                  <option value="Guitar">Guitar</option>
-                  <option value="Chore">Chore</option>
-                  <option value="Other">Other</option>
-                </select>
-              </div>
-              <div class="form-row">
-                <label for="eventReminder">Telegram reminder</label>
-                <select id="eventReminder" name="eventReminder">
-                  <option value="0">No reminder</option>
-                  <option value="5">Remind me 5 min before</option>
-                  <option value="10">Remind me 10 min before</option>
-                  <option value="15">Remind me 15 min before</option>
-                  <option value="30">Remind me 30 min before</option>
-                </select>
+                <textarea id="eventNote" name="eventNote" maxlength="220" placeholder="Optional detail for this block."></textarea>
               </div>
               <div class="form-actions">
-                <button class="primary-button" type="submit" id="eventSaveButton">Save event</button>
+                <button class="primary-button" type="submit" id="eventSaveButton">Save activity</button>
                 <span class="hint" id="formHint">No day picked yet.</span>
               </div>
             </form>
@@ -743,6 +732,7 @@
   </dialog>
 
   <script src="/js/calendar-core.js?v=20260801a"></script>
+  <script src="/js/weekly-planner-core.js?v=20260829a"></script>
   <script src="/js/money-core.js?v=20260801a"></script>
   <script src="/js/journal-core.js?v=20260806a"></script>
   <script src="/js/activity-log.js?v=20260806a"></script>
@@ -753,6 +743,6 @@
   <script src="/js/skate-core.js?v=20260807a"></script>
   <script src="/js/skate-session-core.js?v=20260807a"></script>
   <script src="/js/mascot-rag.js?v=20260806a"></script>
-  <script src="/js/app.js?v=20260812b"></script>
+  <script src="/js/app.js?v=20260829a"></script>
 </body>
 </html>
