@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Yuan's Planner</title>
-  <link rel="stylesheet" href="/css/styles.css?v=20260806a">
+  <link rel="stylesheet" href="/css/styles.css?v=20260831a">
 </head>
 <body>
   <main class="app">
@@ -404,13 +404,36 @@
                 <span id="skateWeekCount">1 / 21</span>
               </div>
               <div class="soft-stat compact">
-                <strong>Day</strong>
+                <strong>SkateIQ day</strong>
                 <span id="skateDayCount">1 / 60</span>
+              </div>
+              <div class="soft-stat compact">
+                <strong>Skate days</strong>
+                <span id="skateSessionDaysCount">0 / 6</span>
               </div>
               <div class="soft-stat compact">
                 <strong>Board hours</strong>
                 <span id="skateBoardHours">0h</span>
               </div>
+            </div>
+            <div class="skate-settings-strip">
+              <label class="skate-setting-field" for="skateRestDay">
+                <span>Rest day</span>
+                <select id="skateRestDay" aria-label="Weekly skate rest day">
+                  <option value="0">Sunday</option>
+                  <option value="1">Monday</option>
+                  <option value="2">Tuesday</option>
+                  <option value="3">Wednesday</option>
+                  <option value="4">Thursday</option>
+                  <option value="5">Friday</option>
+                  <option value="6">Saturday</option>
+                </select>
+              </label>
+              <label class="skate-setting-field" for="skateCurrentDay">
+                <span>Current SkateIQ day</span>
+                <input id="skateCurrentDay" type="number" min="1" max="60" step="1" inputmode="numeric" aria-label="Current SkateIQ day">
+              </label>
+              <p class="skate-settings-note" id="skateSettingsNote">SkateIQ only moves when you change the day here.</p>
             </div>
             <div class="skate-hero-layout">
               <div class="skate-hero-primary">
@@ -458,6 +481,7 @@
                   <div class="form-actions skate-hero-actions">
                     <button class="secondary-button" type="button" id="startSkateSession">Start session</button>
                     <button class="primary-button" type="button" id="finishSkateSession">Finish session</button>
+                    <button class="secondary-button" type="button" id="logSkateSession">Log past session</button>
                   </div>
                   <span class="hint" id="skateSessionHint">Start when you roll in. Finish when you know what the session gave you.</span>
                 </div>
@@ -471,7 +495,7 @@
             <div class="section-head">
               <div>
                 <h2>Intensity roadmap</h2>
-                <p class="small-note">Whole-season skate history. Colored days are logged sessions, pale days are gaps.</p>
+                <p class="small-note">Whole-season skate history. Click any day to log a missed session or add another one.</p>
               </div>
             </div>
             <div class="skate-roadmap" id="skateTrendCharts"></div>
@@ -688,6 +712,10 @@
         <span>Actual session minutes</span>
         <input id="skateDurationMinutes" type="number" min="1" max="600" step="1" inputmode="numeric" placeholder="45">
       </label>
+      <label class="form-row" for="skateSessionDate">
+        <span>Session date</span>
+        <input id="skateSessionDate" type="date">
+      </label>
       <div class="feedback-scales">
         <fieldset class="scale-field">
           <legend>Confidence today</legend>
@@ -756,9 +784,9 @@
   <script src="/js/insight-rules.js?v=20260806a"></script>
   <script src="/js/pattern-history.js?v=20260806a"></script>
   <script src="/js/agent-core.js?v=20260806a"></script>
-  <script src="/js/skate-core.js?v=20260807a"></script>
-  <script src="/js/skate-session-core.js?v=20260807a"></script>
+  <script src="/js/skate-core.js?v=20260831a"></script>
+  <script src="/js/skate-session-core.js?v=20260831a"></script>
   <script src="/js/mascot-rag.js?v=20260806a"></script>
-  <script src="/js/app.js?v=20260829a"></script>
+  <script src="/js/app.js?v=20260831a"></script>
 </body>
 </html>

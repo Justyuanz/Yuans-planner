@@ -67,6 +67,7 @@
       var journalSaveStatusTimer = null;
       var draftEventDayPart = "";
       var expandedGoalId = "";
+      var pendingSkateLogDateKey = "";
       var MORNING_END = 12 * 60;
       var EVENING_START = 19 * 60;
       var INSIGHT_LOOKBACK_DAYS = 14;
@@ -615,7 +616,11 @@
         skatePhaseBadge: document.getElementById("skatePhaseBadge"),
         skateWeekCount: document.getElementById("skateWeekCount"),
         skateDayCount: document.getElementById("skateDayCount"),
+        skateSessionDaysCount: document.getElementById("skateSessionDaysCount"),
         skateBoardHours: document.getElementById("skateBoardHours"),
+        skateRestDay: document.getElementById("skateRestDay"),
+        skateCurrentDay: document.getElementById("skateCurrentDay"),
+        skateSettingsNote: document.getElementById("skateSettingsNote"),
         skateBlockLabel: document.getElementById("skateBlockLabel"),
         skateMainFocus: document.getElementById("skateMainFocus"),
         skateSkateiqBlock: document.getElementById("skateSkateiqBlock"),
@@ -631,6 +636,7 @@
         skateCoachFlow: document.getElementById("skateCoachFlow"),
         startSkateSession: document.getElementById("startSkateSession"),
         finishSkateSession: document.getElementById("finishSkateSession"),
+        logSkateSession: document.getElementById("logSkateSession"),
         skateSessionHint: document.getElementById("skateSessionHint"),
         guitarFocusInput: document.getElementById("guitarFocusInput"),
         guitarNextStepInput: document.getElementById("guitarNextStepInput"),
@@ -711,6 +717,7 @@
         confidenceScale: document.getElementById("confidenceScale"),
         progressTodayScale: document.getElementById("progressTodayScale"),
         skateDurationMinutes: document.getElementById("skateDurationMinutes"),
+        skateSessionDate: document.getElementById("skateSessionDate"),
         skateImprovedNote: document.getElementById("skateImprovedNote"),
         skateNextFocusNote: document.getElementById("skateNextFocusNote"),
         cancelSkateFeedback: document.getElementById("cancelSkateFeedback"),
@@ -1419,15 +1426,32 @@
 
       function defaultSkateSettings() {
         return {
-          intensityByDate: {}
+          intensityByDate: {},
+          currentProgramDay: 1,
+          restDayOfWeek: 0
         };
+      }
+
+      function clampSkateProgramDay(value) {
+        var maxDay = skateCore ? skateCore.STREAK_DAYS : 60;
+        return Math.max(1, Math.min(maxDay, Math.round(Number(value) || 1)));
+      }
+
+      function normalizeSkateRestDay(value) {
+        var day = Math.round(Number(value));
+        if (day < 0 || day > 6 || !Number.isFinite(day)) {
+          return 0;
+        }
+        return day;
       }
 
       function normalizeSkateSettings(value) {
         var fallback = defaultSkateSettings();
         var result = value && typeof value === "object" ? value : {};
         return {
-          intensityByDate: result.intensityByDate && typeof result.intensityByDate === "object" ? result.intensityByDate : fallback.intensityByDate
+          intensityByDate: result.intensityByDate && typeof result.intensityByDate === "object" ? result.intensityByDate : fallback.intensityByDate,
+          currentProgramDay: clampSkateProgramDay(result.currentProgramDay),
+          restDayOfWeek: normalizeSkateRestDay(result.restDayOfWeek)
         };
       }
 
@@ -1444,6 +1468,50 @@
         mutator(settings);
         saveSkateSettings(settings);
         renderSkatePage();
+      }
+
+      function skateRestDayName(dayIndex) {
+        var labels = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+        return labels[normalizeSkateRestDay(dayIndex)];
+      }
+
+      function isTodaySkateRestDay() {
+        return getSkateSettings().restDayOfWeek === today.getDay();
+      }
+
+      function countSkateSessionDaysForWeek(date) {
+        var range = weekRange(date);
+        var dayMap = {};
+        getSkateSessions().forEach(function (session) {
+          if (!session || !session.finishedAt) {
+            return;
+          }
+          var key = session.finishedAt.slice(0, 10);
+          var sessionDate = parseDate(key);
+          if (!dateInRange(sessionDate, range.start, range.end)) {
+            return;
+          }
+          dayMap[key] = true;
+        });
+        return Object.keys(dayMap).length;
+      }
+
+      function countSkateLogsForWeek(date) {
+        var range = weekRange(date);
+        return getSkateSessions().filter(function (session) {
+          return session && session.finishedAt && dateInRange(parseDate(session.finishedAt.slice(0, 10)), range.start, range.end);
+        }).length;
+      }
+
+      function currentSkateProgramDay() {
+        return clampSkateProgramDay(getSkateSettings().currentProgramDay);
+      }
+
+      function programWeekNumberFromDay(dayNumber) {
+        if (!skateCore || typeof skateCore.weekNumberForDayNumber !== "function") {
+          return 1;
+        }
+        return skateCore.weekNumberForDayNumber(dayNumber);
       }
 
       function normalizeReminderMinutes(value) {
@@ -5594,10 +5662,65 @@
       }
 
       function currentSkateHero() {
-        var completedThisWeek = countSkateSessionsForWeek(today);
-        return skateCore && typeof skateCore.heroContent === "function"
-          ? skateCore.heroContent(today, completedThisWeek)
-          : null;
+        if (!skateCore) {
+          return null;
+        }
+        var calendarState = typeof skateCore.seasonState === "function" ? skateCore.seasonState(today) : null;
+        var settings = getSkateSettings();
+        var programDayNumber = currentSkateProgramDay();
+        var programWeekNumber = programWeekNumberFromDay(programDayNumber);
+        var programWeek = typeof skateCore.weekPlanForNumber === "function" ? skateCore.weekPlanForNumber(programWeekNumber) : null;
+        var sessionDaysThisWeek = countSkateSessionDaysForWeek(today);
+        var completedThisWeek = countSkateLogsForWeek(today);
+        var restDayName = skateRestDayName(settings.restDayOfWeek);
+        var restDayToday = settings.restDayOfWeek === today.getDay();
+
+        if (calendarState && calendarState.dayNumber <= 0 && typeof skateCore.heroContent === "function") {
+          return skateCore.heroContent(today, completedThisWeek);
+        }
+
+        if (programDayNumber <= skateCore.STREAK_DAYS && typeof skateCore.dayPlanByNumber === "function") {
+          var planDay = skateCore.dayPlanByNumber(programDayNumber);
+          if (!planDay || !programWeek) {
+            return null;
+          }
+          return {
+            state: calendarState,
+            weekPlan: programWeek,
+            programDayNumber: programDayNumber,
+            programWeekNumber: programWeekNumber,
+            title: restDayToday ? "Rest day" : "Today",
+            subtitle: restDayToday
+              ? restDayName + " is your off-board day. SkateIQ stays on Day " + programDayNumber + " until you change it."
+              : programWeek.summary + " Rest day this week: " + restDayName + ".",
+            phaseWeekLabel: programWeek.phase + " · Week " + programWeekNumber,
+            blockLabel: "Day " + planDay.dayNumber,
+            skateiq: planDay.skateiq,
+            mainFocus: planDay.mainFocus,
+            flow: planDay.flow,
+            benchmark: planDay.benchmark,
+            benchmarkLabel: planDay.benchmarkLabel,
+            defaultIntensity: planDay.intensity,
+            note: planDay.note || "",
+            sessionDaysThisWeek: sessionDaysThisWeek,
+            restDayName: restDayName,
+            restDayToday: restDayToday
+          };
+        }
+
+        if (typeof skateCore.heroContent === "function") {
+          var weeklyHero = skateCore.heroContent(today, completedThisWeek);
+          if (weeklyHero) {
+            weeklyHero.sessionDaysThisWeek = sessionDaysThisWeek;
+            weeklyHero.restDayName = restDayName;
+            weeklyHero.restDayToday = restDayToday;
+            if (restDayToday) {
+              weeklyHero.subtitle = restDayName + " is your off-board day. " + weeklyHero.subtitle;
+            }
+          }
+          return weeklyHero;
+        }
+        return null;
       }
 
       function skateIntensityForToday(hero, session) {
@@ -5610,6 +5733,10 @@
       }
 
       function skateHeroDayLabel(state) {
+        var hero = currentSkateHero();
+        if (hero && hero.programDayNumber) {
+          return hero.programDayNumber + " / " + skateCore.STREAK_DAYS;
+        }
         if (state.streakActive) {
           return state.streakDay + " / " + skateCore.STREAK_DAYS;
         }
@@ -5641,7 +5768,21 @@
         elements.skatePhaseBadge.textContent = hero.phaseWeekLabel;
         elements.skateWeekCount.textContent = state.weekNumber + " / " + skateCore.TOTAL_WEEKS;
         elements.skateDayCount.textContent = dayLabel;
+        if (elements.skateSessionDaysCount) {
+          elements.skateSessionDaysCount.textContent = (hero.sessionDaysThisWeek || 0) + " / 6";
+        }
         elements.skateBoardHours.textContent = formatSkateHours(boardHoursTotal());
+        if (elements.skateRestDay) {
+          elements.skateRestDay.value = String(getSkateSettings().restDayOfWeek);
+        }
+        if (elements.skateCurrentDay) {
+          elements.skateCurrentDay.value = String(currentSkateProgramDay());
+        }
+        if (elements.skateSettingsNote) {
+          elements.skateSettingsNote.textContent = hero.restDayToday
+            ? hero.restDayName + " is off. The plan will stay on Day " + currentSkateProgramDay() + " until you move it."
+            : "Rest day: " + (hero.restDayName || skateRestDayName(getSkateSettings().restDayOfWeek)) + ". SkateIQ only moves when you change the day here.";
+        }
         elements.skateBlockLabel.textContent = hero.blockLabel;
         elements.skateMainFocus.textContent = hero.mainFocus;
         elements.skateSkateiqBlock.textContent = hero.skateiq;
@@ -5734,6 +5875,13 @@
         } else {
           button.title = humanDate(dateKey);
         }
+        button.addEventListener("click", function () {
+          openSkateFeedbackDialog({
+            dateKey: dateKey,
+            durationMinutes: latest ? Math.max(1, Math.round((Number(latest.durationHours) || 0) * 60)) : 45,
+            hint: "Logging for " + humanDate(dateKey) + "."
+          });
+        });
         return button;
       }
 
@@ -5812,13 +5960,6 @@
         elements.skateTrendCharts.appendChild(grid);
       }
 
-      function countSkateSessionsForWeek(date) {
-        var range = weekRange(date);
-        return getSkateSessions().filter(function (session) {
-          return session && session.finishedAt && dateInRange(parseDate(session.finishedAt.slice(0, 10)), range.start, range.end);
-        }).length;
-      }
-
       function warmupComplete(session, template) {
         return flattenWarmupItems(template).every(function (item) {
           return session.warmupChecks[item.id];
@@ -5862,7 +6003,7 @@
         elements.skateWeekLabel.textContent = isoWeekKey(today);
         elements.skateSessionHint.textContent = session.startedAt
           ? "Skate session running · " + formatTimer(startedSessionSeconds(session.startedAt))
-          : "Hit start when the session begins. Finish it when you know what actually happened.";
+          : "Hit start when the session begins. Or use \"Log past session\" / the roadmap if you forgot to save yesterday.";
         if (elements.startSkateSession) {
           elements.startSkateSession.disabled = Boolean(session.startedAt);
         }
@@ -5922,17 +6063,18 @@
         weekCard.className = "skate-plan-card";
         var weekHead = document.createElement("div");
         weekHead.className = "skate-plan-head";
+        var programWeekNumber = hero.programWeekNumber || state.weekNumber;
         var dateLabel = state.dayNumber <= 0
           ? "Previewing the program before Saturday, August 29, 2026."
-          : "Current training week from your checked-in plan.";
-        weekHead.innerHTML = "<div><span class=\"skate-plan-kicker\">Week " + state.weekNumber + " / " + skateCore.TOTAL_WEEKS + "</span><h3>" + hero.weekPlan.summary + "</h3><p>" + dateLabel + "</p></div>";
+          : "Current training week from your checked-in plan. Rest day: " + skateRestDayName(getSkateSettings().restDayOfWeek) + ".";
+        weekHead.innerHTML = "<div><span class=\"skate-plan-kicker\">Week " + programWeekNumber + " / " + skateCore.TOTAL_WEEKS + "</span><h3>" + hero.weekPlan.summary + "</h3><p>" + dateLabel + "</p></div>";
         weekCard.appendChild(weekHead);
 
         var list = document.createElement("div");
         list.className = "skate-plan-list";
         var useDailyWeekList = Array.isArray(hero.weekPlan.days)
           && hero.weekPlan.days.length
-          && !(state.dayNumber > skateCore.STREAK_DAYS && state.weekNumber === 9);
+          && Boolean(hero.programDayNumber);
         var items = useDailyWeekList
           ? hero.weekPlan.days.map(function (entry) {
             return {
@@ -5941,7 +6083,7 @@
               subtitle: entry.skateiq,
               detail: entry.flow,
               intensity: entry.intensity,
-              isCurrent: state.dayNumber === entry.dayNumber,
+              isCurrent: hero.programDayNumber === entry.dayNumber,
               isPreview: state.dayNumber <= 0 && entry.dayNumber === 1,
               benchmark: entry.benchmark ? (entry.benchmarkLabel || "Benchmark") : ""
             };
@@ -6514,8 +6656,44 @@
 
       function resetSkateSessionState(message) {
         saveCurrentSkateSession(defaultSkateSession());
+        pendingSkateLogDateKey = "";
         renderSkatePage();
         elements.skateSessionHint.textContent = message || "Fresh session checklist ready.";
+      }
+
+      function openSkateFeedbackDialog(options) {
+        var config = options && typeof options === "object" ? options : {};
+        var dateKey = config.dateKey || formatDate(today);
+        var durationMinutes = Math.max(1, Math.round(Number(config.durationMinutes) || 45));
+        pendingSkateLogDateKey = dateKey;
+        if (elements.skateDurationMinutes) {
+          elements.skateDurationMinutes.value = String(durationMinutes);
+        }
+        if (elements.skateSessionDate) {
+          elements.skateSessionDate.value = dateKey;
+        }
+        if (elements.skateImprovedNote) {
+          elements.skateImprovedNote.value = "";
+        }
+        if (elements.skateNextFocusNote) {
+          elements.skateNextFocusNote.value = "";
+        }
+        renderFeedbackScales();
+        if (elements.skateSessionHint && config.hint) {
+          elements.skateSessionHint.textContent = config.hint;
+        }
+        if (elements.skateFeedbackDialog && typeof elements.skateFeedbackDialog.showModal === "function") {
+          elements.skateFeedbackDialog.showModal();
+          return;
+        }
+        saveFinishedSkateSession({
+          confidence: 3,
+          progressToday: 3,
+          durationMinutes: durationMinutes,
+          improvedNote: "",
+          nextFocusNote: "",
+          dateKey: dateKey
+        });
       }
 
       function startSkateSession() {
@@ -6528,10 +6706,14 @@
       function finishSkateSession() {
         var session = getCurrentSkateSession();
         if (!session.startedAt) {
-          elements.skateSessionHint.textContent = "Start the skate session first so the time has somewhere to begin.";
+          elements.skateSessionHint.textContent = "No session is running yet. Use \"Log past session\" if you just want to save missed skate time.";
           return;
         }
-        saveFinishedSkateSession({ progressToday: 3, confidence: 3, improvedNote: "", nextFocusNote: "", durationMinutes: sessionDurationMinutes(session.startedAt, 45) });
+        openSkateFeedbackDialog({
+          dateKey: formatDate(today),
+          durationMinutes: sessionDurationMinutes(session.startedAt, 45),
+          hint: "Session ready to save for today."
+        });
       }
 
       function finishedSkateDurationHours(feedback, startedAt) {
@@ -6553,7 +6735,7 @@
         ];
       }
 
-      function savedSkateSessionPayload(session, feedback, template, hero, intensity, durationHours, linkedTask) {
+      function savedSkateSessionPayload(session, feedback, template, hero, intensity, durationHours, linkedTask, sessionWindow) {
         var focus = [session.selectedFlat, session.selectedTransition].filter(Boolean).join(" · ");
         var warmupItems = flattenWarmupItems(template);
         return {
@@ -6589,8 +6771,35 @@
           },
           durationHours: durationHours,
           trackedInTask: Boolean(linkedTask),
+          startedAt: sessionWindow.startedAt,
+          finishedAt: sessionWindow.finishedAt
+        };
+      }
+
+      function savedSessionWindow(session, feedback) {
+        var dateKey = skateSessionCore && typeof skateSessionCore.normalizeSessionDateKey === "function"
+          ? skateSessionCore.normalizeSessionDateKey(feedback.dateKey || pendingSkateLogDateKey || formatDate(today))
+          : (feedback.dateKey || pendingSkateLogDateKey || formatDate(today));
+        var durationMinutes = Math.max(1, Number(feedback.durationMinutes) || sessionDurationMinutes(session.startedAt, 45));
+        if (session.startedAt && dateKey === formatDate(today)) {
+          return {
+            startedAt: session.startedAt,
+            finishedAt: new Date().toISOString(),
+            dateKey: dateKey
+          };
+        }
+        if (skateSessionCore && typeof skateSessionCore.datedSessionWindow === "function") {
+          var window = skateSessionCore.datedSessionWindow(dateKey, durationMinutes);
+          return {
+            startedAt: window.startedAt,
+            finishedAt: window.finishedAt,
+            dateKey: dateKey
+          };
+        }
+        return {
           startedAt: session.startedAt,
-          finishedAt: new Date().toISOString()
+          finishedAt: new Date().toISOString(),
+          dateKey: dateKey
         };
       }
 
@@ -6600,13 +6809,18 @@
         var template = getSkateCoachTemplate();
         var hero = currentSkateHero();
         var durationHours = finishedSkateDurationHours(feedback, session.startedAt);
-        var linkedTask = syncSessionTimeToTodayTask("skate", durationHours);
+        var sessionWindow = savedSessionWindow(session, feedback || {});
+        var linkedTask = sessionWindow.dateKey === formatDate(today)
+          ? syncSessionTimeToTodayTask("skate", durationHours)
+          : null;
         var intensity = skateIntensityForToday(hero, session);
-        sessions.push(savedSkateSessionPayload(session, feedback, template, hero, intensity, durationHours, linkedTask));
+        sessions.push(savedSkateSessionPayload(session, feedback, template, hero, intensity, durationHours, linkedTask, sessionWindow));
         saveSkateSessions(sessions);
         resetSkateSessionState(linkedTask
           ? "Session saved and added to \"" + linkedTask + "\"."
-          : "Session saved. No matching skate task was found today.");
+          : (sessionWindow.dateKey === formatDate(today)
+            ? "Session saved. No matching skate task was found today."
+            : "Session saved for " + humanDate(sessionWindow.dateKey) + "."));
         renderTotals();
       }
 
@@ -6722,6 +6936,7 @@
           confidence: selectedScaleValue("confidence"),
           progressToday: selectedScaleValue("progressToday"),
           durationMinutes: Number(elements.skateDurationMinutes.value) || 45,
+          dateKey: elements.skateSessionDate.value || pendingSkateLogDateKey || formatDate(today),
           improvedNote: elements.skateImprovedNote.value.trim(),
           nextFocusNote: elements.skateNextFocusNote.value.trim()
         });
@@ -7030,6 +7245,13 @@
           events.forEach(function (event) {
             var item = document.createElement("li");
             item.className = "selected-event " + categoryClass(event.category);
+            item.addEventListener("click", function (clickEvent) {
+              if (clickEvent.target && typeof clickEvent.target.closest === "function" && clickEvent.target.closest("button")) {
+                return;
+              }
+              clickEvent.stopPropagation();
+              startEditEvent(event.id);
+            });
 
             var title = document.createElement("div");
             title.className = "selected-event-title";
@@ -7058,7 +7280,8 @@
             editButton.type = "button";
             editButton.className = "secondary-button";
             editButton.textContent = "Move or shorten";
-            editButton.addEventListener("click", function () {
+            editButton.addEventListener("click", function (clickEvent) {
+              clickEvent.stopPropagation();
               startEditEvent(event.id);
             });
             actions.appendChild(editButton);
@@ -7067,7 +7290,8 @@
             deleteButton.type = "button";
             deleteButton.className = "secondary-button quiet-danger";
             deleteButton.textContent = "Remove";
-            deleteButton.addEventListener("click", function () {
+            deleteButton.addEventListener("click", function (clickEvent) {
+              clickEvent.stopPropagation();
               deleteEvent(event.id);
             });
             actions.appendChild(deleteButton);
@@ -7547,6 +7771,29 @@
 
         elements.startSkateSession.addEventListener("click", startSkateSession);
         elements.finishSkateSession.addEventListener("click", finishSkateSession);
+        if (elements.logSkateSession) {
+          elements.logSkateSession.addEventListener("click", function () {
+            openSkateFeedbackDialog({
+              dateKey: formatDate(today),
+              durationMinutes: 45,
+              hint: "Logging a skate session without the timer is okay too."
+            });
+          });
+        }
+        if (elements.skateRestDay) {
+          elements.skateRestDay.addEventListener("change", function () {
+            updateSkateSettings(function (settings) {
+              settings.restDayOfWeek = normalizeSkateRestDay(elements.skateRestDay.value);
+            });
+          });
+        }
+        if (elements.skateCurrentDay) {
+          elements.skateCurrentDay.addEventListener("change", function () {
+            updateSkateSettings(function (settings) {
+              settings.currentProgramDay = clampSkateProgramDay(elements.skateCurrentDay.value);
+            });
+          });
+        }
         elements.bodyLogForm.addEventListener("submit", addBodyLog);
         if (elements.skateIntensityToggle) {
           Array.prototype.forEach.call(elements.skateIntensityToggle.querySelectorAll("[data-intensity]"), function (button) {
@@ -7562,6 +7809,7 @@
         }
         elements.skateFeedbackForm.addEventListener("submit", submitSkateFeedback);
         elements.cancelSkateFeedback.addEventListener("click", function () {
+          pendingSkateLogDateKey = "";
           elements.skateFeedbackDialog.close();
         });
 

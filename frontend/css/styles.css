@@ -504,9 +504,9 @@ h1 {
 .event-pill.chores-block,
 .tag.chores-block,
 .selected-event.chores-block {
-  border-color: rgba(182, 226, 233, 0.56);
-  background: linear-gradient(180deg, rgba(242, 252, 255, 0.97), rgba(226, 245, 250, 0.92));
-  color: #6995a3;
+  border-color: rgba(201, 223, 255, 0.58);
+  background: linear-gradient(180deg, rgba(247, 251, 255, 0.98), rgba(232, 241, 255, 0.92));
+  color: #6a87b5;
 }
 
 .week-event-button.social-block,
@@ -620,11 +620,11 @@ h1 {
 }
 
 .planner-activity-option.chores-block {
-  border-color: rgba(182, 226, 233, 0.5);
+  border-color: rgba(201, 223, 255, 0.52);
   background:
     radial-gradient(circle at 84% 16%, rgba(255, 255, 255, 0.8), transparent 24%),
-    linear-gradient(135deg, rgba(243, 252, 255, 0.98), rgba(226, 245, 250, 0.92));
-  color: #688f9e;
+    linear-gradient(135deg, rgba(247, 251, 255, 0.98), rgba(232, 241, 255, 0.92));
+  color: #6a88b2;
 }
 
 .planner-activity-option.social-block {
@@ -3232,9 +3232,37 @@ textarea {
 
 .skate-hero-metrics {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 10px;
   margin-top: 14px;
+}
+
+.skate-settings-strip {
+  display: grid;
+  grid-template-columns: minmax(160px, 200px) minmax(160px, 200px) minmax(0, 1fr);
+  gap: 10px 12px;
+  align-items: end;
+  margin-top: 12px;
+}
+
+.skate-setting-field {
+  display: grid;
+  gap: 6px;
+}
+
+.skate-setting-field span,
+.skate-settings-note {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 520;
+}
+
+.skate-settings-note {
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid rgba(185, 206, 240, 0.28);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.48);
 }
 
 .soft-stat.compact {
@@ -3545,6 +3573,16 @@ textarea {
   border: 1px solid rgba(185, 206, 240, 0.28);
   background: rgba(255, 255, 255, 0.55);
   color: transparent;
+  cursor: pointer;
+  transition: transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s ease;
+}
+
+.skate-roadmap-day:hover,
+.skate-roadmap-day:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(126, 121, 255, 0.45);
+  box-shadow: 0 6px 14px rgba(126, 121, 255, 0.16);
+  outline: none;
 }
 
 .skate-roadmap-day.intensity-blue {
@@ -5041,7 +5079,8 @@ textarea {
   }
 
   .skate-hero-layout,
-  .skate-plan-grid {
+  .skate-plan-grid,
+  .skate-settings-strip {
     grid-template-columns: 1fr;
   }
 

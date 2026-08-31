@@ -30,6 +30,13 @@ test("dayPlanForDate returns the active streak day on Saturday, August 29, 2026"
   assert.match(plan.mainFocus, /baseline video/i);
 });
 
+test("dayPlanByNumber can fetch a specific SkateIQ day without relying on today's date", function () {
+  const plan = skateCore.dayPlanByNumber(2);
+  assert.equal(plan.dayNumber, 2);
+  assert.equal(plan.intensity, "blue");
+  assert.match(plan.mainFocus, /bowl|cruising/i);
+});
+
 test("after Tuesday, October 27, 2026 the plan switches to weekly sessions", function () {
   const state = skateCore.seasonState(localDate("2026-10-28"));
   const weekly = skateCore.weeklySessionsForDate(localDate("2026-10-28"));
@@ -63,6 +70,12 @@ test("phases change on the documented week boundaries", function () {
   assert.equal(skateCore.seasonState(localDate("2026-08-29")).phase, "Balance Blueprint");
   assert.equal(skateCore.seasonState(localDate("2026-10-03")).phase, "Essentials");
   assert.equal(skateCore.seasonState(localDate("2026-11-28")).phase, "Art of Popping");
+});
+
+test("weekPlanForNumber matches the manual day-to-week mapping used by SkateIQ", function () {
+  const week = skateCore.weekPlanForNumber(skateCore.weekNumberForDayNumber(15));
+  assert.equal(week.weekNumber, 3);
+  assert.match(week.summary, /Dynamic balance/i);
 });
 
 test("heroContent shows an open rest day on Wednesday, October 28, 2026", function () {

@@ -9,8 +9,8 @@
 
   var DAY_TYPES = [
     { id: "recovery", label: "Recovery Day", shortLabel: "Recovery", className: "recovery-day", capacityPoints: 0 },
-    { id: "normal", label: "Normal Day", shortLabel: "Normal", className: "normal-day", capacityPoints: 5 },
-    { id: "high", label: "High-Intensity Day", shortLabel: "High-Intensity", className: "high-day", capacityPoints: 8 }
+    { id: "normal", label: "Normal Day", shortLabel: "Normal", className: "normal-day", capacityPoints: 4.5 },
+    { id: "high", label: "High-Intensity Day", shortLabel: "High-Intensity", className: "high-day", capacityPoints: 7 }
   ];
 
   var CATEGORY_ORDER = [
@@ -117,6 +117,18 @@
     var safeMinutes = Math.max(0, Number(minutes) || 0);
     if (!safeMinutes) {
       return 0;
+    }
+    if (normalizedCategory === "Skate" || normalizedCategory === "Guitar") {
+      if (safeMinutes <= 60) {
+        return 0.5;
+      }
+      if (safeMinutes <= 90) {
+        return 2.5;
+      }
+      if (safeMinutes <= 120) {
+        return 3;
+      }
+      return 3;
     }
     if (GENTLE_CATEGORIES.indexOf(normalizedCategory) !== -1) {
       if (safeMinutes <= 60) {

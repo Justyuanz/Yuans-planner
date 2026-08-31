@@ -19,6 +19,34 @@
     return Math.round((seconds / 3600) * 100) / 100;
   }
 
+  function pad(value) {
+    return String(value).padStart(2, "0");
+  }
+
+  function normalizeSessionDateKey(value) {
+    var text = String(value || "").trim();
+    return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : "";
+  }
+
+  function datedSessionWindow(dateKey, durationMinutes) {
+    var safeDateKey = normalizeSessionDateKey(dateKey);
+    var safeMinutes = Math.max(1, Math.round(Number(durationMinutes) || 45));
+    if (!safeDateKey) {
+      return {
+        startedAt: null,
+        finishedAt: null
+      };
+    }
+
+    var parts = safeDateKey.split("-").map(Number);
+    var finishMs = Date.UTC(parts[0], parts[1] - 1, parts[2], 12, 0, 0);
+    var startMs = finishMs - (safeMinutes * 60 * 1000);
+    return {
+      startedAt: new Date(startMs).toISOString(),
+      finishedAt: new Date(finishMs).toISOString()
+    };
+  }
+
   function defaultSessionLabel(activityId) {
     return activityId === "skate" ? "Skate session" : "Saved session";
   }
@@ -96,8 +124,10 @@
   return {
     applySessionDurationToTasks: applySessionDurationToTasks,
     boardHoursTotalFromSessions: boardHoursTotalFromSessions,
+    datedSessionWindow: datedSessionWindow,
     elapsedTaskSeconds: elapsedTaskSeconds,
     findMatchingTaskIndex: findMatchingTaskIndex,
-    hoursFromSeconds: hoursFromSeconds
+    hoursFromSeconds: hoursFromSeconds,
+    normalizeSessionDateKey: normalizeSessionDateKey
   };
 }));

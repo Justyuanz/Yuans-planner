@@ -56,3 +56,11 @@ test("applySessionDurationToTasks creates a done skate task when none exists yet
   assert.equal(result.tasks[0].hours, 0.25);
   assert.equal(result.tasks[0].timerSeconds, 900);
 });
+
+test("datedSessionWindow keeps a retro log anchored to the chosen calendar date", () => {
+  const window = skateSessionCore.datedSessionWindow("2026-08-30", 90);
+
+  assert.equal(window.finishedAt.slice(0, 10), "2026-08-30");
+  assert.equal(window.startedAt.slice(0, 10), "2026-08-30");
+  assert.ok(Date.parse(window.finishedAt) > Date.parse(window.startedAt));
+});

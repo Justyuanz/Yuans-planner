@@ -123,21 +123,21 @@ test("remaining capacity recommendations use only remaining points", function ()
   const stillFlexible = core.daySummary("normal", [
     block("Skate", "10:00", "11:00")
   ]);
-  const twoPointsLeft = core.daySummary("normal", [
+  const mediumRoomLeft = core.daySummary("normal", [
     block("Study/school", "10:00", "12:00")
   ]);
 
-  assert.equal(stillFlexible.remainingPoints, 4.5);
+  assert.equal(stillFlexible.remainingPoints, 4);
   assert.equal(stillFlexible.recommendedMaxMinutes, null);
-  assert.equal(twoPointsLeft.remainingPoints, 2);
-  assert.equal(twoPointsLeft.recommendedMaxMinutes, 90);
+  assert.equal(mediumRoomLeft.remainingPoints, 1.5);
+  assert.equal(mediumRoomLeft.recommendedMaxMinutes, null);
 
   const shortOnly = core.daySummary("normal", [
     block("Study/school", "10:00", "11:40"),
     block("Guitar", "18:00", "19:00")
   ]);
-  assert.equal(shortOnly.remainingPoints, 1.5);
-  assert.equal(shortOnly.recommendedMaxMinutes, null);
+  assert.equal(shortOnly.remainingPoints, 1);
+  assert.equal(shortOnly.recommendedMaxMinutes, 30);
 
   const tooLong = core.canAddActivity("normal", [
     block("Study/school", "10:00", "11:40"),
@@ -145,7 +145,7 @@ test("remaining capacity recommendations use only remaining points", function ()
     block("Cooking", "20:00", "20:30")
   ], block("Personal", "21:00", "23:30"));
   assert.equal(tooLong.allowed, false);
-  assert.match(tooLong.reason, /light personal block|smaller block|too heavy/i);
+  assert.match(tooLong.reason, /Day full|light personal block|smaller block|too heavy/i);
 });
 
 test("normal day allows a 1-hour skate session plus a long school block", function () {
@@ -161,18 +161,40 @@ test("normal day allows a 1-hour skate session plus a long school block", functi
   assert.equal(addResult.allowed, true);
 });
 
-test("high-intensity day allows skate, gym, and a long study block together", function () {
-  const addResult = core.canAddActivity("high", [
-    block("Skate", "10:00", "12:00"),
-    block("Gym", "14:00", "15:00")
-  ], {
-    category: "Study/school",
-    title: "School",
-    startTime: "16:00",
-    endTime: "20:00"
-  });
+test("normal day with long study plus two light blocks leaves only half a point", function () {
+  const summary = core.daySummary("normal", [
+    block("Skate", "10:00", "10:30"),
+    {
+      category: "Study/school",
+      title: "Study",
+      startTime: "13:00",
+      endTime: "16:00"
+    },
+    block("Skate", "18:00", "19:00")
+  ]);
 
-  assert.equal(addResult.allowed, true);
+  assert.equal(summary.usedPoints, 4);
+  assert.equal(summary.remainingPoints, 0.5);
+});
+
+test("high-intensity day does not leave fake room after a packed training-and-study mix", function () {
+  const addResult = core.canAddActivity("high", [
+    block("Skate", "10:00", "11:30"),
+    block("Gym", "14:00", "15:00"),
+    {
+      category: "Study/school",
+      title: "School",
+      startTime: "16:00",
+      endTime: "20:00"
+    }
+  ], block("Cooking", "20:30", "21:00"));
+
+  assert.equal(addResult.allowed, false);
+});
+
+test("study blocks longer than three hours still cap at three points", function () {
+  assert.equal(core.pointsForActivity("Study/school", 181), 3);
+  assert.equal(core.pointsForActivity("Study/school", 300), 3);
 });
 
 test("repeated categories stay as separate blocks in one day", function () {
@@ -203,8 +225,8 @@ test("moving or shortening a block recalculates remaining capacity", function ()
     block("Gym", "19:00", "19:30")
   ]);
 
-  assert.equal(original.remainingPoints, 1);
-  assert.equal(shortened.remainingPoints, 3.5);
+  assert.equal(original.remainingPoints, 0);
+  assert.equal(shortened.remainingPoints, 2.5);
   assert.equal(shortened.status, "Space left");
 });
 
@@ -220,7 +242,7 @@ test("am pm times are accepted and normalized for planner activities", function 
   ]);
 
   assert.equal(addResult.allowed, true);
-  assert.equal(summary.usedPoints, 2);
+  assert.equal(summary.usedPoints, 2.5);
   assert.equal(summary.activities[0].startTime, "10:30");
   assert.equal(summary.activities[0].endTime, "12:00");
 });
@@ -241,6 +263,81 @@ test("one hour skate, guitar, and personal blocks cost half a point", function (
   assert.equal(core.pointsForActivity("Skate", 60), 0.5);
   assert.equal(core.pointsForActivity("Guitar", 60), 0.5);
   assert.equal(core.pointsForActivity("Personal", 60), 0.5);
+});
+
+test("long skate blocks now use more of a high-intensity day", function () {
+  const summary = core.daySummary("high", [
+    block("Skate", "10:30", "12:00"),
+    {
+      category: "Study/school",
+      title: "Home CPP9, ex01",
+      startTime: "13:00",
+      endTime: "17:00"
+    },
+    block("Skate", "18:00", "20:00")
+  ]);
+
+  assert.equal(summary.usedPoints, 8.5);
+  assert.equal(summary.remainingPoints, 0);
+  assert.equal(core.canAddActivity("high", summary.activities, block("Guitar", "20:30", "21:00")).allowed, false);
+  assert.equal(core.canAddActivity("high", summary.activities, block("Guitar", "20:30", "21:00")).reason, "Day full.");
+  assert.equal(core.canAddActivity("high", summary.activities, block("Cooking", "20:30", "21:00")).allowed, false);
+});
+
+test("two-hour skate costs more than a one-hour gentle block", function () {
+  assert.equal(core.pointsForActivity("Skate", 120), 3);
+});
+
+test("guitar follows the same tighter long-session scoring as skate", function () {
+  assert.equal(core.pointsForActivity("Guitar", 60), 0.5);
+  assert.equal(core.pointsForActivity("Guitar", 90), 2.5);
+  assert.equal(core.pointsForActivity("Guitar", 120), 3);
+  assert.equal(core.pointsForActivity("Guitar", 150), 3);
+});
+
+test("very long study plus two skate blocks and a short guitar block leaves almost nothing", function () {
+  const summary = core.daySummary("high", [
+    {
+      category: "Study/school",
+      title: "Study for exam",
+      startTime: "10:00",
+      endTime: "15:00"
+    },
+    block("Skate", "16:30", "17:30"),
+    block("Skate", "18:30", "20:00"),
+    block("Guitar", "20:30", "21:00")
+  ]);
+
+  assert.equal(summary.usedPoints, 6.5);
+  assert.equal(summary.remainingPoints, 0.5);
+});
+
+test("changing a 90-minute skate block to two hours reduces the remaining points", function () {
+  const ninetyMinuteSummary = core.daySummary("high", [
+    {
+      category: "Study/school",
+      title: "Home CPP9, ex01",
+      startTime: "09:00",
+      endTime: "14:00"
+    },
+    block("Skate", "16:30", "17:30"),
+    block("Skate", "18:30", "20:00"),
+    block("Guitar", "20:30", "21:00")
+  ]);
+  const twoHourSummary = core.daySummary("high", [
+    {
+      category: "Study/school",
+      title: "Home CPP9, ex01",
+      startTime: "09:00",
+      endTime: "14:00"
+    },
+    block("Skate", "16:30", "17:30"),
+    block("Skate", "18:30", "20:30"),
+    block("Guitar", "20:30", "21:00")
+  ]);
+
+  assert.equal(ninetyMinuteSummary.remainingPoints, 0.5);
+  assert.equal(twoHourSummary.remainingPoints, 0);
 });
 
 test("reminder-only items cost zero points and can stay on a full day", function () {

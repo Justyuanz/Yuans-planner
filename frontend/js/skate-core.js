@@ -392,6 +392,11 @@
     return Math.max(1, Math.min(TOTAL_WEEKS, Math.floor((dayNumber - 1) / 7) + 1));
   }
 
+  function weekNumberForDayNumber(dayNumber) {
+    var safeDayNumber = Math.max(1, Math.min(STREAK_DAYS, Number(dayNumber) || 1));
+    return Math.max(1, Math.floor((safeDayNumber - 1) / 7) + 1);
+  }
+
   function phaseForWeek(weekNumber) {
     if (weekNumber <= 5) return "Balance Blueprint";
     if (weekNumber <= 13) return "Essentials";
@@ -428,13 +433,46 @@
     if (state.dayNumber <= 0 || state.dayNumber > STREAK_DAYS) {
       return null;
     }
-    var weekPlan = getWeekPlan(state.weekNumber);
+    return dayPlanByNumber(state.dayNumber);
+  }
+
+  function dayPlanByNumber(dayNumber) {
+    var safeDayNumber = Math.max(1, Math.min(STREAK_DAYS, Number(dayNumber) || 1));
+    var weekPlan = getWeekPlan(weekNumberForDayNumber(safeDayNumber));
     if (!weekPlan || !Array.isArray(weekPlan.days)) {
       return null;
     }
     return weekPlan.days.find(function (entry) {
-      return entry.dayNumber === state.dayNumber;
+      return entry.dayNumber === safeDayNumber;
     }) || null;
+  }
+
+  function weekPlanForNumber(weekNumber) {
+    return getWeekPlan(Math.max(1, Math.min(TOTAL_WEEKS, Number(weekNumber) || 1)));
+  }
+
+  function weekPlanForDate(date) {
+    return getWeekPlan(weekNumberForDate(date));
+  }
+
+  function firstDailyPlanDate() {
+    return addDays(SEASON_START, STREAK_DAYS - 1);
+  }
+
+  function isDailyPlanWeek(weekNumber) {
+    return Math.max(1, Number(weekNumber) || 1) <= weekNumberForDayNumber(STREAK_DAYS);
+  }
+
+  function dayPlanWeekSummary(dayNumber) {
+    var weekNumber = weekNumberForDayNumber(dayNumber);
+    var weekPlan = getWeekPlan(weekNumber);
+    if (!weekPlan) {
+      return null;
+    }
+    return {
+      weekNumber: weekNumber,
+      weekPlan: weekPlan
+    };
   }
 
   function weeklySessionsForDate(date) {
@@ -561,6 +599,13 @@
     intensityMeta: intensityMeta,
     seasonState: seasonState,
     dayPlanForDate: dayPlanForDate,
+    dayPlanByNumber: dayPlanByNumber,
+    weekNumberForDayNumber: weekNumberForDayNumber,
+    weekPlanForNumber: weekPlanForNumber,
+    weekPlanForDate: weekPlanForDate,
+    firstDailyPlanDate: firstDailyPlanDate,
+    isDailyPlanWeek: isDailyPlanWeek,
+    dayPlanWeekSummary: dayPlanWeekSummary,
     weeklySessionsForDate: weeklySessionsForDate,
     heroContent: heroContent,
     formatDate: formatDate
