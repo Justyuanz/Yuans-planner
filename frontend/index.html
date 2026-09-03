@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Yuan's Planner</title>
-  <link rel="stylesheet" href="/css/styles.css?v=20260831a">
+  <link rel="stylesheet" href="/css/styles.css?v=20260903b">
 </head>
 <body>
   <main class="app">
@@ -429,6 +429,19 @@
                   <option value="6">Saturday</option>
                 </select>
               </label>
+              <label class="skate-setting-field" for="skateExtraRestDay">
+                <span>Extra rest day</span>
+                <select id="skateExtraRestDay" aria-label="Optional extra skate rest day">
+                  <option value="">None</option>
+                  <option value="0">Sunday</option>
+                  <option value="1">Monday</option>
+                  <option value="2">Tuesday</option>
+                  <option value="3">Wednesday</option>
+                  <option value="4">Thursday</option>
+                  <option value="5">Friday</option>
+                  <option value="6">Saturday</option>
+                </select>
+              </label>
               <label class="skate-setting-field" for="skateCurrentDay">
                 <span>Current SkateIQ day</span>
                 <input id="skateCurrentDay" type="number" min="1" max="60" step="1" inputmode="numeric" aria-label="Current SkateIQ day">
@@ -629,13 +642,13 @@
             <ul class="selected-events" id="selectedDateEvents" aria-label="Selected date events"></ul>
             <div class="selected-day-actions">
               <button class="primary-button" type="button" id="plannerAddActivityButton">Add activity</button>
-              <span class="hint" id="plannerDayStatusHint">Points left will show here.</span>
+              <span class="hint" id="plannerDayStatusHint">Your planned load will show here.</span>
             </div>
             <section class="planner-activity-picker" id="plannerActivityPicker" hidden>
               <div class="section-head">
                 <div>
                   <h3>Choose an activity</h3>
-                  <p class="small-note" id="plannerActivityPickerHint">Points are based on time. Up to 30 min = 1, 31-90 min = 2, more than 90 min = 3.</p>
+                  <p class="small-note" id="plannerActivityPickerHint">Choose a category, then set its time and effort. Your exact load shows before you save.</p>
                 </div>
               </div>
               <div class="planner-activity-options" id="plannerActivityOptions"></div>
@@ -652,6 +665,14 @@
                   <option value="Social">Social</option>
                   <option value="Guitar">Guitar</option>
                   <option value="Personal">Personal</option>
+                </select>
+              </div>
+              <div class="form-row">
+                <label for="eventEffort">Effort</label>
+                <select id="eventEffort" name="eventEffort">
+                  <option value="easy">Easy</option>
+                  <option value="standard">Standard</option>
+                  <option value="demanding">Demanding</option>
                 </select>
               </div>
               <div class="form-row">
@@ -683,9 +704,10 @@
               <div class="form-row planner-reminder-row">
                 <label class="planner-checkbox" for="eventReminderOnly">
                   <input id="eventReminderOnly" name="eventReminderOnly" type="checkbox">
-                  <span>Reminder-only item. Costs 0 points.</span>
+                  <span>Reminder-only item. Costs 0 load hours.</span>
                 </label>
               </div>
+              <p class="planner-load-preview" id="plannerLoadPreview" aria-live="polite">Add a time to see this activity's load.</p>
               <div class="form-row">
                 <label for="eventNote">Optional note</label>
                 <textarea id="eventNote" name="eventNote" maxlength="220" placeholder="Optional detail for this block."></textarea>
@@ -776,17 +798,17 @@
   </dialog>
 
   <script src="/js/calendar-core.js?v=20260801a"></script>
-  <script src="/js/weekly-planner-core.js?v=20260829a"></script>
+  <script src="/js/weekly-planner-core.js?v=20260903b"></script>
   <script src="/js/money-core.js?v=20260801a"></script>
   <script src="/js/journal-core.js?v=20260806a"></script>
   <script src="/js/activity-log.js?v=20260806a"></script>
-  <script src="/js/insight-core.js?v=20260806a"></script>
+  <script src="/js/insight-core.js?v=20260903a"></script>
   <script src="/js/insight-rules.js?v=20260806a"></script>
   <script src="/js/pattern-history.js?v=20260806a"></script>
   <script src="/js/agent-core.js?v=20260806a"></script>
   <script src="/js/skate-core.js?v=20260831a"></script>
   <script src="/js/skate-session-core.js?v=20260831a"></script>
   <script src="/js/mascot-rag.js?v=20260806a"></script>
-  <script src="/js/app.js?v=20260831a"></script>
+  <script src="/js/app.js?v=20260903b"></script>
 </body>
 </html>

@@ -3071,6 +3071,23 @@ textarea {
   line-height: 1.35;
 }
 
+.planner-load-preview {
+  margin: 0;
+  padding: 11px 13px;
+  border: 1px solid rgba(157, 212, 204, 0.52);
+  border-radius: 14px;
+  background: linear-gradient(110deg, rgba(234, 250, 248, 0.72), rgba(255, 252, 232, 0.68));
+  color: #537d79;
+  font-size: 0.92rem;
+  line-height: 1.45;
+}
+
+.planner-load-preview.is-over {
+  border-color: rgba(220, 151, 151, 0.58);
+  background: linear-gradient(110deg, rgba(255, 242, 240, 0.86), rgba(255, 248, 232, 0.76));
+  color: #a86767;
+}
+
 .event-editor-card .panel-inner {
   gap: 12px;
 }

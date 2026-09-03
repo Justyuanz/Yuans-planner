@@ -324,7 +324,7 @@
 
       var activities = [
         { id: "lc", label: "Leetcode", short: "lc", className: "lc", group: "study" },
-        { id: "cpp", label: "C++ / ft_irc", short: "C++", className: "cpp", group: "study" },
+        { id: "cpp", label: "Coding", short: "Coding", className: "cpp", group: "study" },
         { id: "python", label: "Python", short: "Python", className: "python", group: "study" },
         { id: "skate", label: "Skate", short: "Skate", className: "skate", group: "leisure" },
         { id: "p90x3", label: "Gym", short: "Gym", className: "gym", group: "leisure" },
@@ -334,7 +334,7 @@
 
       var routineLabelRenames = {
         "Leetcode morning": "Leetcode",
-        "C++ one task": "C++",
+        "C++ one task": "Coding",
         "Python afternoon": "Python project"
       };
 
@@ -528,9 +528,9 @@
       var dayTypes = weeklyPlannerCore && Array.isArray(weeklyPlannerCore.DAY_TYPES)
         ? weeklyPlannerCore.DAY_TYPES.slice()
         : [
-          { id: "recovery", label: "Recovery Day", shortLabel: "Recovery", className: "recovery-day", capacityPoints: 0 },
-          { id: "normal", label: "Normal Day", shortLabel: "Normal", className: "normal-day", capacityPoints: 4 },
-          { id: "high", label: "High-Intensity Day", shortLabel: "High-Intensity", className: "high-day", capacityPoints: 6 }
+          { id: "recovery", label: "Recovery Day", shortLabel: "Recovery", className: "recovery-day", capacityPoints: 4.5 },
+          { id: "normal", label: "Normal Day", shortLabel: "Normal", className: "normal-day", capacityPoints: 7 },
+          { id: "high", label: "High-Intensity Day", shortLabel: "High-Intensity", className: "high-day", capacityPoints: 9 }
         ];
       var partLabels = {
         morning: "Morning",
@@ -542,7 +542,7 @@
         { id: "body", label: "Body", placeholder: "Skate, gym, or recovery that would help." },
         { id: "mind", label: "Mind", placeholder: "Guitar, reading, or something steadying." }
       ];
-      var studyOverviewPlaceholders = ["IRC 5h · C++ eval 2h", "Rest", "Optional review"];
+      var studyOverviewPlaceholders = ["Coding project · one clear next step", "Rest", "Optional review"];
       var skateBodyOverviewPlaceholders = ["Total Synergistics", "Skate + Ab Ripper", "X3 Yoga"];
       var monthNames = [
         "January", "February", "March", "April", "May", "June",
@@ -619,6 +619,7 @@
         skateSessionDaysCount: document.getElementById("skateSessionDaysCount"),
         skateBoardHours: document.getElementById("skateBoardHours"),
         skateRestDay: document.getElementById("skateRestDay"),
+        skateExtraRestDay: document.getElementById("skateExtraRestDay"),
         skateCurrentDay: document.getElementById("skateCurrentDay"),
         skateSettingsNote: document.getElementById("skateSettingsNote"),
         skateBlockLabel: document.getElementById("skateBlockLabel"),
@@ -696,11 +697,13 @@
         eventReminder: document.getElementById("eventReminder"),
         eventNote: document.getElementById("eventNote"),
         eventCategory: document.getElementById("eventCategory"),
+        eventEffort: document.getElementById("eventEffort"),
         eventTitle: document.getElementById("eventTitle"),
         eventReminderOnly: document.getElementById("eventReminderOnly"),
         telegramReminderStatus: document.getElementById("telegramReminderStatus"),
         eventSaveButton: document.getElementById("eventSaveButton"),
         formHint: document.getElementById("formHint"),
+        plannerLoadPreview: document.getElementById("plannerLoadPreview"),
         plannerAddActivityButton: document.getElementById("plannerAddActivityButton"),
         plannerDayStatusHint: document.getElementById("plannerDayStatusHint"),
         plannerActivityPicker: document.getElementById("plannerActivityPicker"),
@@ -1428,7 +1431,8 @@
         return {
           intensityByDate: {},
           currentProgramDay: 1,
-          restDayOfWeek: 0
+          restDayOfWeek: 0,
+          extraRestDayOfWeek: null
         };
       }
 
@@ -1445,13 +1449,26 @@
         return day;
       }
 
+      function normalizeOptionalSkateRestDay(value, primaryDay) {
+        if (value === "" || value === null || value === undefined) {
+          return null;
+        }
+        var day = Math.round(Number(value));
+        if (!Number.isFinite(day) || day < 0 || day > 6 || day === primaryDay) {
+          return null;
+        }
+        return day;
+      }
+
       function normalizeSkateSettings(value) {
         var fallback = defaultSkateSettings();
         var result = value && typeof value === "object" ? value : {};
+        var restDayOfWeek = normalizeSkateRestDay(result.restDayOfWeek);
         return {
           intensityByDate: result.intensityByDate && typeof result.intensityByDate === "object" ? result.intensityByDate : fallback.intensityByDate,
           currentProgramDay: clampSkateProgramDay(result.currentProgramDay),
-          restDayOfWeek: normalizeSkateRestDay(result.restDayOfWeek)
+          restDayOfWeek: restDayOfWeek,
+          extraRestDayOfWeek: normalizeOptionalSkateRestDay(result.extraRestDayOfWeek, restDayOfWeek)
         };
       }
 
@@ -1475,8 +1492,17 @@
         return labels[normalizeSkateRestDay(dayIndex)];
       }
 
+      function skateRestDaysLabel(settings) {
+        var names = [skateRestDayName(settings.restDayOfWeek)];
+        if (settings.extraRestDayOfWeek !== null) {
+          names.push(skateRestDayName(settings.extraRestDayOfWeek));
+        }
+        return names.join(" and ");
+      }
+
       function isTodaySkateRestDay() {
-        return getSkateSettings().restDayOfWeek === today.getDay();
+        var settings = getSkateSettings();
+        return settings.restDayOfWeek === today.getDay() || settings.extraRestDayOfWeek === today.getDay();
       }
 
       function countSkateSessionDaysForWeek(date) {
@@ -4726,6 +4752,9 @@
         }
         elements.eventNote.value = "";
         elements.eventCategory.value = weeklyPlannerUiState.selectedActivityCategory || "Study/school";
+        if (!editingEventId && elements.eventEffort && weeklyPlannerCore) {
+          elements.eventEffort.value = weeklyPlannerCore.defaultEffortForCategory(elements.eventCategory.value);
+        }
         elements.eventSaveButton.textContent = "Save activity";
         elements.formHint.textContent = message || ("Selected: " + dateKey);
         renderCalendar();
@@ -4813,9 +4842,7 @@
       function plannerGuidanceHint(summary, dateKey) {
         var type = summary && summary.dayType ? summary.dayType : dayTypeById("normal");
         if (type.id === "recovery") {
-          return skateStreakActiveForDate(dateKey)
-            ? "Recovery Day: keep it gentle. Cooking, chores, guitar, personal care, reminders, or one 10-minute Recovery Skate are okay."
-            : "Recovery Day: keep it gentle. Cooking, chores, guitar, personal care, and reminders are okay.";
+          return "Recovery Day: a quieter stay-home day still has room for study, chores, guitar, and personal care. Keep skate or gym to 30 minutes or less.";
         }
         if (type.id === "high") {
           if (summary.remainingPoints <= 0) {
@@ -4826,10 +4853,10 @@
           }
           return "High-Intensity Day: use this for your biggest work, skate, gym, or school blocks.";
         }
-        if (summary.remainingPoints <= 0) {
-          return "Normal Day: aim for one real main block and a couple of supporting things. Today is already full.";
+        if (summary.remainingLoad <= 0) {
+          return "Normal Day: one real main block plus smaller supporting things. This plan is already at capacity.";
         }
-        if (summary.remainingPoints <= 1) {
+        if (summary.remainingLoad <= 1) {
           return "Normal Day: one main block is enough. The rest of today should stay light.";
         }
         return "Normal Day: aim for one real main block and one or two smaller supporting blocks.";
@@ -4838,6 +4865,55 @@
       function formatPlannerPoints(value) {
         var amount = Math.max(0, Number(value) || 0);
         return Number.isInteger(amount) ? String(amount) : amount.toFixed(1).replace(/\.0$/, "");
+      }
+
+      function formatPlannerLoad(value) {
+        var amount = Math.abs(Number(value) || 0);
+        return Number.isInteger(amount) ? String(amount) : amount.toFixed(1).replace(/\.0$/, "");
+      }
+
+      function renderPlannerLoadPreview() {
+        if (!elements.plannerLoadPreview || !weeklyPlannerCore || !elements.eventCategory) {
+          return;
+        }
+        var category = normalizeEventCategory(elements.eventCategory.value);
+        var effort = weeklyPlannerCore.normalizeEffort(
+          elements.eventEffort && elements.eventEffort.value,
+          category
+        );
+        var title = String((elements.eventTitle && elements.eventTitle.value) || "").trim() || plannerCategoryMeta(category).shortLabel;
+        var reminderOnly = Boolean(elements.eventReminderOnly && elements.eventReminderOnly.checked);
+        var startTime = normalizeClockValue(elements.eventStartTime && elements.eventStartTime.value);
+        var endTime = normalizeClockValue(elements.eventEndTime && elements.eventEndTime.value);
+        var eventDate = (elements.eventDate && elements.eventDate.value) || selectedDate;
+        var type = weeklyPlannerDayForDate(parseDate(eventDate)).day.type;
+        var existing = plannerEventsForDate(eventDate).filter(function (item) {
+          return item.id !== editingEventId;
+        });
+        var preview = weeklyPlannerCore.previewActivityLoad(type, existing, {
+          category: category,
+          effort: effort,
+          title: title,
+          startTime: startTime,
+          endTime: endTime,
+          reminderOnly: reminderOnly
+        });
+        var className = "planner-load-preview";
+        if (reminderOnly) {
+          elements.plannerLoadPreview.textContent = "Reminder-only item = 0 load hours. It does not use your day budget.";
+        } else if (!preview.candidate.minutes) {
+          elements.plannerLoadPreview.textContent = "Add a valid start and end time to see this activity's load.";
+        } else {
+          var effortLabel = weeklyPlannerCore.effortMeta(effort, category).label;
+          elements.plannerLoadPreview.textContent = preview.candidate.minutes + " min " + plannerCategoryMeta(category).shortLabel + " · " + effortLabel + " = " + formatPlannerLoad(preview.candidate.load) + " load hours. Would become " + formatPlannerLoad(preview.projected.usedLoad) + " / " + formatPlannerLoad(preview.projected.capacityLoad) + ".";
+          if (!preview.allowed) {
+            className += " is-over";
+            elements.plannerLoadPreview.textContent += " " + preview.reason;
+          } else {
+            elements.plannerLoadPreview.textContent += " " + formatPlannerLoad(preview.projected.remainingLoad) + " left.";
+          }
+        }
+        elements.plannerLoadPreview.className = className;
       }
 
       function formatPlannerRange(event) {
@@ -5012,22 +5088,13 @@
       }
 
       function plannerCapacityHint(summary, dateKey) {
-        if (summary.dayType.id === "recovery") {
-          return skateStreakActiveForDate(dateKey || selectedDate) ? "Only one 10-minute Recovery Skate can fit." : "No optional activities fit.";
+        var used = formatPlannerLoad(summary.usedLoad);
+        var budget = formatPlannerLoad(summary.capacityLoad);
+        var switchNote = summary.contextSwitchLoad ? " + " + formatPlannerLoad(summary.contextSwitchLoad) + " switching" : "";
+        if (summary.remainingLoad < 0) {
+          return used + " / " + budget + " load hours planned" + switchNote + " · over by " + formatPlannerLoad(summary.remainingLoad) + ".";
         }
-        if (summary.remainingPoints <= 0) {
-          return "0 points left. Move, shorten, or remove a block.";
-        }
-        if (summary.remainingPoints < 1) {
-          return formatPlannerPoints(summary.remainingPoints) + " point left. Only very light blocks like skate, guitar, or personal fit well.";
-        }
-        if (summary.remainingPoints <= 1) {
-          return formatPlannerPoints(summary.remainingPoints) + " point left. Keep the next block light.";
-        }
-        if (summary.remainingPoints <= 2) {
-          return formatPlannerPoints(summary.remainingPoints) + " points left. A smaller extra block still fits.";
-        }
-        return formatPlannerPoints(summary.remainingPoints) + " points left.";
+        return used + " / " + budget + " load hours planned" + switchNote + " · " + formatPlannerLoad(summary.remainingLoad) + " left.";
       }
 
       function renderWeekSetup(referenceDate, routine) {
@@ -5672,8 +5739,8 @@
         var programWeek = typeof skateCore.weekPlanForNumber === "function" ? skateCore.weekPlanForNumber(programWeekNumber) : null;
         var sessionDaysThisWeek = countSkateSessionDaysForWeek(today);
         var completedThisWeek = countSkateLogsForWeek(today);
-        var restDayName = skateRestDayName(settings.restDayOfWeek);
-        var restDayToday = settings.restDayOfWeek === today.getDay();
+        var restDayName = skateRestDaysLabel(settings);
+        var restDayToday = settings.restDayOfWeek === today.getDay() || settings.extraRestDayOfWeek === today.getDay();
 
         if (calendarState && calendarState.dayNumber <= 0 && typeof skateCore.heroContent === "function") {
           return skateCore.heroContent(today, completedThisWeek);
@@ -5692,7 +5759,7 @@
             title: restDayToday ? "Rest day" : "Today",
             subtitle: restDayToday
               ? restDayName + " is your off-board day. SkateIQ stays on Day " + programDayNumber + " until you change it."
-              : programWeek.summary + " Rest day this week: " + restDayName + ".",
+              : programWeek.summary + " Rest days this week: " + restDayName + ".",
             phaseWeekLabel: programWeek.phase + " · Week " + programWeekNumber,
             blockLabel: "Day " + planDay.dayNumber,
             skateiq: planDay.skateiq,
@@ -5769,11 +5836,14 @@
         elements.skateWeekCount.textContent = state.weekNumber + " / " + skateCore.TOTAL_WEEKS;
         elements.skateDayCount.textContent = dayLabel;
         if (elements.skateSessionDaysCount) {
-          elements.skateSessionDaysCount.textContent = (hero.sessionDaysThisWeek || 0) + " / 6";
+          elements.skateSessionDaysCount.textContent = (hero.sessionDaysThisWeek || 0) + " / " + (getSkateSettings().extraRestDayOfWeek === null ? 6 : 5);
         }
         elements.skateBoardHours.textContent = formatSkateHours(boardHoursTotal());
         if (elements.skateRestDay) {
           elements.skateRestDay.value = String(getSkateSettings().restDayOfWeek);
+        }
+        if (elements.skateExtraRestDay) {
+          elements.skateExtraRestDay.value = getSkateSettings().extraRestDayOfWeek === null ? "" : String(getSkateSettings().extraRestDayOfWeek);
         }
         if (elements.skateCurrentDay) {
           elements.skateCurrentDay.value = String(currentSkateProgramDay());
@@ -5781,7 +5851,7 @@
         if (elements.skateSettingsNote) {
           elements.skateSettingsNote.textContent = hero.restDayToday
             ? hero.restDayName + " is off. The plan will stay on Day " + currentSkateProgramDay() + " until you move it."
-            : "Rest day: " + (hero.restDayName || skateRestDayName(getSkateSettings().restDayOfWeek)) + ". SkateIQ only moves when you change the day here.";
+            : "Rest days: " + (hero.restDayName || skateRestDaysLabel(getSkateSettings())) + ". SkateIQ only moves when you change the day here.";
         }
         elements.skateBlockLabel.textContent = hero.blockLabel;
         elements.skateMainFocus.textContent = hero.mainFocus;
@@ -6066,7 +6136,7 @@
         var programWeekNumber = hero.programWeekNumber || state.weekNumber;
         var dateLabel = state.dayNumber <= 0
           ? "Previewing the program before Saturday, August 29, 2026."
-          : "Current training week from your checked-in plan. Rest day: " + skateRestDayName(getSkateSettings().restDayOfWeek) + ".";
+          : "Current training week from your checked-in plan. Rest days: " + skateRestDaysLabel(getSkateSettings()) + ".";
         weekHead.innerHTML = "<div><span class=\"skate-plan-kicker\">Week " + programWeekNumber + " / " + skateCore.TOTAL_WEEKS + "</span><h3>" + hero.weekPlan.summary + "</h3><p>" + dateLabel + "</p></div>";
         weekCard.appendChild(weekHead);
 
@@ -7228,11 +7298,14 @@
         }
         elements.formHint.textContent = editingEventId ? "Edit this block to move, shorten, or change it." : "Selected: " + selectedDate;
         elements.eventDate.value = selectedDate;
+        if (elements.eventEffort && weeklyPlannerCore) {
+          elements.eventEffort.value = weeklyPlannerCore.defaultEffortForCategory(elements.eventCategory.value);
+        }
         if (elements.plannerDayStatusHint) {
           elements.plannerDayStatusHint.textContent = plannerCapacityHint(summary, selectedDate);
         }
         if (elements.plannerAddActivityButton) {
-          elements.plannerAddActivityButton.disabled = !summary.canAddActivity;
+          elements.plannerAddActivityButton.disabled = false;
         }
         elements.selectedDateEvents.innerHTML = "";
 
@@ -7301,6 +7374,7 @@
           });
         }
         renderPlannerActivityPicker();
+        renderPlannerLoadPreview();
       }
 
       function renderPlannerActivityPicker() {
@@ -7317,7 +7391,7 @@
           return;
         }
         if (elements.plannerActivityPickerHint) {
-          elements.plannerActivityPickerHint.textContent = "Points are based on time: up to 30 min = 1, 31-90 min = 2, more than 90 min = 3.";
+          elements.plannerActivityPickerHint.textContent = "Choose a category, then set its time and effort. Your exact load shows before you save.";
         }
         elements.plannerActivityOptions.innerHTML = "";
         options.forEach(function (option) {
@@ -7358,8 +7432,12 @@
           elements.eventReminder.value = "0";
         }
         weeklyPlannerUiState.selectedActivityCategory = "";
+        if (elements.eventEffort && weeklyPlannerCore) {
+          elements.eventEffort.value = weeklyPlannerCore.defaultEffortForCategory(elements.eventCategory.value);
+        }
         elements.eventSaveButton.textContent = "Save activity";
         elements.formHint.textContent = message || "Selected: " + selectedDate;
+        renderPlannerLoadPreview();
       }
 
       function startEditEvent(id) {
@@ -7396,6 +7474,9 @@
         }
         elements.eventNote.value = event.note || "";
         elements.eventCategory.value = normalizeEventCategory(event.category);
+        if (elements.eventEffort && weeklyPlannerCore) {
+          elements.eventEffort.value = weeklyPlannerCore.normalizeEffort(event.effort, event.category);
+        }
         elements.eventSaveButton.textContent = "Update activity";
         renderWeeklyPlannerSection();
         renderCalendar();
@@ -7435,6 +7516,9 @@
       function addEvent(event) {
         event.preventDefault();
         var category = normalizeEventCategory(elements.eventCategory.value);
+        var effort = weeklyPlannerCore && elements.eventEffort
+          ? weeklyPlannerCore.normalizeEffort(elements.eventEffort.value, category)
+          : "standard";
         var customTitle = String((elements.eventTitle && elements.eventTitle.value) || "").trim();
         var reminderOnly = Boolean(elements.eventReminderOnly && elements.eventReminderOnly.checked);
         var reminderMinutes = normalizeReminderMinutes(elements.eventReminder && elements.eventReminder.value);
@@ -7462,6 +7546,7 @@
           return item.id !== editingEventId;
         }), {
           category: category,
+          effort: effort,
           title: title,
           startTime: startTime,
           endTime: endTime,
@@ -7490,6 +7575,7 @@
               title: title,
               note: note,
               category: category,
+              effort: effort,
               dayPart: draftEventDayPart || item.dayPart || "",
               startTime: startTime,
               endTime: endTime,
@@ -7508,6 +7594,7 @@
             title: title,
             note: note,
             category: category,
+            effort: effort,
             dayPart: draftEventDayPart || "",
             startTime: startTime,
             endTime: endTime,
@@ -7691,6 +7778,17 @@
         }
 
         elements.eventForm.addEventListener("submit", addEvent);
+        [elements.eventCategory, elements.eventEffort, elements.eventStartTime, elements.eventEndTime, elements.eventDate, elements.eventReminderOnly].filter(Boolean).forEach(function (field) {
+          field.addEventListener("input", function () {
+            renderPlannerLoadPreview();
+          });
+          field.addEventListener("change", function () {
+            if (field === elements.eventCategory && elements.eventEffort && weeklyPlannerCore) {
+              elements.eventEffort.value = weeklyPlannerCore.defaultEffortForCategory(elements.eventCategory.value);
+            }
+            renderPlannerLoadPreview();
+          });
+        });
         elements.eventDate.addEventListener("change", function () {
           if (elements.eventDate.value) {
             selectedDate = elements.eventDate.value;
@@ -7784,6 +7882,14 @@
           elements.skateRestDay.addEventListener("change", function () {
             updateSkateSettings(function (settings) {
               settings.restDayOfWeek = normalizeSkateRestDay(elements.skateRestDay.value);
+              settings.extraRestDayOfWeek = normalizeOptionalSkateRestDay(settings.extraRestDayOfWeek, settings.restDayOfWeek);
+            });
+          });
+        }
+        if (elements.skateExtraRestDay) {
+          elements.skateExtraRestDay.addEventListener("change", function () {
+            updateSkateSettings(function (settings) {
+              settings.extraRestDayOfWeek = normalizeOptionalSkateRestDay(elements.skateExtraRestDay.value, settings.restDayOfWeek);
             });
           });
         }

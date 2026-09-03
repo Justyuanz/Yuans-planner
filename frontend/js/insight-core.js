@@ -395,7 +395,7 @@
       "work",
       "admin",
       "python",
-      "c++",
+      "coding",
       "leetcode",
       "guitar",
       "skate",
