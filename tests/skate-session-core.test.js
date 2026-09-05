@@ -64,3 +64,18 @@ test("datedSessionWindow keeps a retro log anchored to the chosen calendar date"
   assert.equal(window.startedAt.slice(0, 10), "2026-08-30");
   assert.ok(Date.parse(window.finishedAt) > Date.parse(window.startedAt));
 });
+
+test("session helpers ignore invalid timer and duration values", () => {
+  const elapsed = skateSessionCore.elapsedTaskSeconds({
+    timerSeconds: Infinity,
+    timerStartedAt: "not-a-date"
+  }, Date.parse("2026-08-07T12:30:00Z"));
+  const total = skateSessionCore.boardHoursTotalFromSessions([
+    { durationHours: Infinity },
+    { durationHours: "not-a-number" },
+    { durationHours: 0.5 }
+  ]);
+
+  assert.equal(elapsed, 0);
+  assert.equal(total, 0.5);
+});

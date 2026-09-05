@@ -38,6 +38,7 @@
       };
       var memoryStore = {};
       var serverStorageAvailable = false;
+      var browserStorageAvailable = true;
       var transientSessionStarts = {
         skate: null,
         guitar: null
@@ -71,6 +72,10 @@
       var MORNING_END = 12 * 60;
       var EVENING_START = 19 * 60;
       var INSIGHT_LOOKBACK_DAYS = 14;
+      var MAX_MANUAL_TASK_HOURS = 24;
+      // An active timer should never silently turn an overnight pause into a full workday.
+      var MAX_TASK_TIMER_HOURS = 8;
+      var MAX_TASK_TIMER_SECONDS = MAX_TASK_TIMER_HOURS * 60 * 60;
       var moneyCore = globalThis.YuanMoneyCore;
       var journalCore = globalThis.YuanJournalCore;
       var activityLogCore = globalThis.YuanActivityLog;
@@ -571,6 +576,19 @@
       var calendarCursor = new Date(today.getFullYear(), today.getMonth(), 1);
       var selectedDate = formatDate(today);
       var selectedJournalDate = formatDate(today);
+      var ENERGY_STATE_LABELS = {
+        empty: "Empty",
+        low: "Low",
+        okay: "Okay",
+        good: "Good",
+        strong: "Strong"
+      };
+      var FOCUS_STATE_LABELS = {
+        foggy: "Foggy",
+        wavy: "Wavy",
+        steady: "Steady",
+        clear: "Clear"
+      };
 
       var elements = {
         tabs: document.querySelectorAll("[data-view-target]"),
@@ -583,6 +601,9 @@
         journalDate: document.getElementById("journalDate"),
         journalDateLabel: document.getElementById("journalDateLabel"),
         journalTodayButton: document.getElementById("journalTodayButton"),
+        journalEnergyOptions: document.getElementById("journalEnergyOptions"),
+        journalFocusOptions: document.getElementById("journalFocusOptions"),
+        journalStateContext: document.getElementById("journalStateContext"),
         journalTitle: document.getElementById("journalTitle"),
         journalContent: document.getElementById("journalContent"),
         journalSaveStatus: document.getElementById("journalSaveStatus"),
@@ -666,6 +687,8 @@
         patternHistoryDialog: document.getElementById("patternHistoryDialog"),
         patternHistoryRange: document.getElementById("patternHistoryRange"),
         patternHistoryBody: document.getElementById("patternHistoryBody"),
+        energyTrailList: document.getElementById("energyTrailList"),
+        energyPatternNote: document.getElementById("energyPatternNote"),
         moneyMonthLabel: document.getElementById("moneyMonthLabel"),
         moneyOverviewGrid: document.getElementById("moneyOverviewGrid"),
         moneyMonthlyTarget: document.getElementById("moneyMonthlyTarget"),
@@ -745,12 +768,36 @@
       };
 
       function isPlannerKey(key) {
-        return key.indexOf("hivePlanner.") === 0;
+        return typeof key === "string" && key.indexOf("hivePlanner.") === 0;
+      }
+
+      function writeBrowserStorage(key, value) {
+        if (!browserStorageAvailable) {
+          return;
+        }
+        try {
+          localStorage.setItem(key, value);
+        } catch (error) {
+          browserStorageAvailable = false;
+          console.warn("Planner browser storage is unavailable; using the server copy instead.", error);
+        }
+      }
+
+      function removeBrowserStorage(key) {
+        if (!browserStorageAvailable) {
+          return;
+        }
+        try {
+          localStorage.removeItem(key);
+        } catch (error) {
+          browserStorageAvailable = false;
+          console.warn("Planner browser storage is unavailable; using the server copy instead.", error);
+        }
       }
 
       function removePlannerKey(key) {
         delete memoryStore[key];
-        localStorage.removeItem(key);
+        removeBrowserStorage(key);
         if (!serverStorageAvailable) {
           return;
         }
@@ -786,30 +833,40 @@
           var response = await fetch("/api/kv", { cache: "no-store" });
           if (response.ok) {
             var payload = await response.json();
-            memoryStore = payload.data || {};
+            memoryStore = payload && payload.data && typeof payload.data === "object" && !Array.isArray(payload.data)
+              ? payload.data
+              : {};
             serverStorageAvailable = true;
           }
         } catch (error) {
           serverStorageAvailable = false;
         }
 
-        for (var i = 0; i < localStorage.length; i += 1) {
-          var key = localStorage.key(i);
-          if (key && isPlannerKey(key) && memoryStore[key] === undefined) {
-            memoryStore[key] = localStorage.getItem(key);
-            persistRaw(key, memoryStore[key]);
+        try {
+          for (var i = 0; i < localStorage.length; i += 1) {
+            var key = localStorage.key(i);
+            if (key && isPlannerKey(key) && memoryStore[key] === undefined) {
+              var storedValue = localStorage.getItem(key);
+              if (typeof storedValue === "string") {
+                memoryStore[key] = storedValue;
+                persistRaw(key, storedValue);
+              }
+            }
           }
+        } catch (error) {
+          browserStorageAvailable = false;
+          console.warn("Planner browser storage could not be read; using the server copy instead.", error);
         }
         sanitizeTransientSessionData();
       }
 
       function persistRaw(key, value) {
         if (memoryStore[key] === value) {
-          localStorage.setItem(key, value);
+          writeBrowserStorage(key, value);
           return;
         }
         memoryStore[key] = value;
-        localStorage.setItem(key, value);
+        writeBrowserStorage(key, value);
         if (!serverStorageAvailable) {
           return;
         }
@@ -879,6 +936,58 @@
           before: before,
           after: normalized
         });
+      }
+
+      function normalizeJournalTracker(value) {
+        if (journalCore && typeof journalCore.normalizeTracker === "function") {
+          return journalCore.normalizeTracker(value);
+        }
+        var tracker = value && typeof value === "object" ? value : {};
+        return {
+          energy: typeof tracker.energy === "string" ? tracker.energy.trim().toLowerCase() : "",
+          focus: typeof tracker.focus === "string" ? tracker.focus.trim().toLowerCase() : "",
+          context: typeof tracker.context === "string" ? tracker.context.trim() : ""
+        };
+      }
+
+      function getSelectedJournalTracker() {
+        var energyButton = elements.journalEnergyOptions
+          ? elements.journalEnergyOptions.querySelector(".is-active[data-energy-state]")
+          : null;
+        var focusButton = elements.journalFocusOptions
+          ? elements.journalFocusOptions.querySelector(".is-active[data-focus-state]")
+          : null;
+        return normalizeJournalTracker({
+          energy: energyButton ? energyButton.dataset.energyState : "",
+          focus: focusButton ? focusButton.dataset.focusState : "",
+          context: elements.journalStateContext ? elements.journalStateContext.value : ""
+        });
+      }
+
+      function setActiveTrackerButtons(container, attributeName, value) {
+        if (!container) {
+          return;
+        }
+        Array.prototype.forEach.call(container.querySelectorAll("[" + attributeName + "]"), function (button) {
+          button.classList.toggle("is-active", button.getAttribute(attributeName) === value);
+        });
+      }
+
+      function renderJournalTracker(tracker) {
+        var safeTracker = normalizeJournalTracker(tracker);
+        setActiveTrackerButtons(elements.journalEnergyOptions, "data-energy-state", safeTracker.energy);
+        setActiveTrackerButtons(elements.journalFocusOptions, "data-focus-state", safeTracker.focus);
+        if (elements.journalStateContext) {
+          elements.journalStateContext.value = safeTracker.context || "";
+        }
+      }
+
+      function trackerSummaryBits(tracker) {
+        var safeTracker = normalizeJournalTracker(tracker);
+        return [
+          safeTracker.energy ? "Energy " + (ENERGY_STATE_LABELS[safeTracker.energy] || safeTracker.energy) : "",
+          safeTracker.focus ? "Focus " + (FOCUS_STATE_LABELS[safeTracker.focus] || safeTracker.focus) : ""
+        ].filter(Boolean);
       }
 
       function normalizeAgentUiState(value) {
@@ -991,7 +1100,8 @@
       }
 
       function formatHours(value) {
-        var number = Number(value) || 0;
+        var number = Number(value);
+        number = Number.isFinite(number) ? number : 0;
         if (Math.abs(number - Math.round(number)) < 0.001) {
           return String(Math.round(number)) + "h";
         }
@@ -1672,20 +1782,49 @@
           view.classList.toggle("active", view.id === viewId);
         });
         if (viewId === "calendarView") {
-          renderWeeklyPlannerSection();
-          renderCalendar();
-          renderSelectedDate();
+          runUiSafely("weekly planner", renderWeeklyPlannerSection);
+          runUiSafely("calendar", renderCalendar);
+          runUiSafely("selected day", renderSelectedDate);
         }
         if (viewId === "moneyView") {
-          renderMoneyPage();
+          runUiSafely("money", renderMoneyPage);
         }
         if (viewId === "journalView") {
-          renderJournalPage();
+          runUiSafely("journal", renderJournalPage);
         }
         if (viewId === "guitarView") {
-          renderGuitarPage();
+          runUiSafely("guitar", renderGuitarPage);
         }
-        window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+        try {
+          window.scrollTo({ top: 0, left: 0, behavior: "auto" });
+        } catch (error) {
+          // Older embedded browsers may not support object-form scrollTo.
+          window.scrollTo(0, 0);
+        }
+      }
+
+      // Keep the rest of the planner usable if one optional dashboard panel fails.
+      function runUiSafely(label, callback) {
+        try {
+          callback();
+        } catch (error) {
+          console.error("Planner UI error while rendering " + label + ".", error);
+        }
+      }
+
+      function bindNavigation() {
+        elements.tabs.forEach(function (button) {
+          bindEvent(button, "click", function () {
+            setActiveView(button.dataset.viewTarget);
+          });
+        });
+      }
+
+      function bindEvent(element, eventName, handler) {
+        if (!element || typeof element.addEventListener !== "function") {
+          return;
+        }
+        element.addEventListener(eventName, handler);
       }
 
       function initialViewFromUrl() {
@@ -1745,12 +1884,13 @@
 
         var title = elements.journalTitle.value.trim();
         var content = elements.journalContent.value;
+        var tracker = getSelectedJournalTracker();
         var entries = getJournalEntries().slice();
         var existingIndex = entries.findIndex(function (entry) {
           return entry.date === selectedJournalDate;
         });
 
-        if (!title && !content.trim()) {
+        if (!title && !content.trim() && !tracker.energy && !tracker.focus && !tracker.context) {
           if (existingIndex !== -1) {
             logActivity({
               action: "journal_entry_deleted",
@@ -1764,7 +1904,9 @@
             entries.splice(existingIndex, 1);
             saveJournalEntries(entries);
           }
+          currentInsightBundleState = null;
           renderJournalArchive();
+          renderDashboardInsight();
           flashJournalSavedState("");
           return;
         }
@@ -1776,6 +1918,7 @@
           date: selectedJournalDate,
           title: title,
           content: content,
+          tracker: tracker,
           createdAt: existingEntry ? existingEntry.createdAt : nowStamp,
           updatedAt: nowStamp
         };
@@ -1805,7 +1948,9 @@
         }
 
         saveJournalEntries(entries);
+        currentInsightBundleState = null;
         renderJournalArchive();
+        renderDashboardInsight();
         flashJournalSavedState("");
       }
 
@@ -1865,8 +2010,18 @@
             preview.textContent = entry.content;
           }
 
-          button.appendChild(header);
-          button.appendChild(preview);
+          var trackerBits = trackerSummaryBits(entry.tracker);
+          if (trackerBits.length || (entry.tracker && entry.tracker.context)) {
+            var trackerMeta = document.createElement("p");
+            trackerMeta.className = "journal-entry-meta";
+            trackerMeta.textContent = trackerBits.concat(entry.tracker && entry.tracker.context ? [entry.tracker.context] : []).join(" · ");
+            button.appendChild(header);
+            button.appendChild(trackerMeta);
+            button.appendChild(preview);
+          } else {
+            button.appendChild(header);
+            button.appendChild(preview);
+          }
           button.addEventListener("click", function () {
             selectJournalDate(entry.date);
           });
@@ -1884,6 +2039,7 @@
         elements.journalDateLabel.textContent = longHumanDate(selectedJournalDate);
         elements.journalTitle.value = entry ? entry.title : "";
         elements.journalContent.value = entry ? entry.content : "";
+        renderJournalTracker(entry && entry.tracker);
         setJournalStatus("");
         renderJournalArchive();
       }
@@ -1998,9 +2154,9 @@
               activity: activities.some(function (activity) {
                 return activity.id === (task.activity || task.track);
               }) ? (task.activity || task.track) : "lc",
-              hours: Math.max(0, Number(task.hours) || 0),
-              timerSeconds: Math.max(0, Number(task.timerSeconds) || 0),
-              timerStartedAt: typeof task.timerStartedAt === "string" ? task.timerStartedAt : null,
+              hours: normalizeTaskHours(task.hours),
+              timerSeconds: normalizeTaskTimerSeconds(task.timerSeconds),
+              timerStartedAt: validTimerStartedAt(task.timerStartedAt),
               done: Boolean(task.done),
               createdAt: task.createdAt || new Date().toISOString(),
               sourceEventId: typeof task.sourceEventId === "string" ? task.sourceEventId : "",
@@ -2014,23 +2170,42 @@
           .sort(compareTasksChronologically);
       }
 
+      function normalizeTaskHours(value) {
+        var hours = Number(value);
+        return Number.isFinite(hours) ? Math.min(MAX_MANUAL_TASK_HOURS, Math.max(0, hours)) : 0;
+      }
+
+      function normalizeTaskTimerSeconds(value) {
+        var seconds = Number(value);
+        return Number.isFinite(seconds) ? Math.min(MAX_TASK_TIMER_SECONDS, Math.max(0, seconds)) : 0;
+      }
+
+      function validTimerStartedAt(value) {
+        var timestamp = typeof value === "string" ? Date.parse(value) : NaN;
+        return Number.isFinite(timestamp) ? value : null;
+      }
+
       function elapsedTaskSeconds(task) {
-        var seconds = Math.max(0, Number(task.timerSeconds) || 0);
-        if (task.timerStartedAt) {
-          seconds += Math.max(0, Math.floor((Date.now() - Date.parse(task.timerStartedAt)) / 1000));
+        var seconds = normalizeTaskTimerSeconds(task && task.timerSeconds);
+        var startedAt = task && validTimerStartedAt(task.timerStartedAt);
+        if (startedAt) {
+          var elapsed = Math.floor((Date.now() - Date.parse(startedAt)) / 1000);
+          if (Number.isFinite(elapsed)) {
+            seconds += Math.max(0, elapsed);
+          }
         }
-        return seconds;
+        return normalizeTaskTimerSeconds(seconds);
       }
 
       function hoursFromSeconds(seconds) {
-        return Math.round((seconds / 3600) * 100) / 100;
+        return Math.round((normalizeTaskTimerSeconds(seconds) / 3600) * 100) / 100;
       }
 
       function effectiveTaskHours(task) {
         if (task.timerStartedAt || Number(task.timerSeconds) > 0) {
           return hoursFromSeconds(elapsedTaskSeconds(task));
         }
-        return Math.max(0, Number(task.hours) || 0);
+        return normalizeTaskHours(task.hours);
       }
 
       function effectiveTaskHoursForDate(dateKey, task) {
@@ -2040,11 +2215,12 @@
         if (Number(task.timerSeconds) > 0) {
           return hoursFromSeconds(task.timerSeconds);
         }
-        return Math.max(0, Number(task.hours) || 0);
+        return normalizeTaskHours(task.hours);
       }
 
       function formatTimer(seconds) {
-        var safeSeconds = Math.max(0, Math.floor(seconds));
+        var numericSeconds = Number(seconds);
+        var safeSeconds = Number.isFinite(numericSeconds) ? Math.max(0, Math.floor(numericSeconds)) : 0;
         var hours = Math.floor(safeSeconds / 3600);
         var minutes = Math.floor((safeSeconds % 3600) / 60);
         var secs = safeSeconds % 60;
@@ -2055,10 +2231,11 @@
       }
 
       function startedSessionSeconds(startedAt) {
-        if (!startedAt) {
+        var timestamp = typeof startedAt === "string" ? Date.parse(startedAt) : NaN;
+        if (!Number.isFinite(timestamp)) {
           return 0;
         }
-        return Math.max(0, Math.floor((Date.now() - Date.parse(startedAt)) / 1000));
+        return Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
       }
 
       function sessionDurationMinutes(startedAt, fallbackMinutes) {
@@ -2802,6 +2979,7 @@
 
       function renderDashboardInsight() {
         if (!elements.dashboardInsightCard || !elements.dashboardInsightMode || !elements.dashboardInsightTitle || !elements.dashboardInsightWhy || !elements.dashboardInsightActions || !insightRules) {
+          renderEnergyTrail();
           return;
         }
         var bundle = currentInsightBundle();
@@ -2810,6 +2988,7 @@
         if (!topInsight) {
           clearDashboardInsightCard();
           syncMascotBubble();
+          renderEnergyTrail();
           return;
         }
 
@@ -2824,6 +3003,67 @@
         if (!mascotState.chatOpen) {
           mascotState.bubbleOverride = "";
           syncMascotBubble();
+        }
+        renderEnergyTrail();
+      }
+
+      function renderEnergyTrail() {
+        if (!elements.energyTrailList || !elements.energyPatternNote) {
+          return;
+        }
+        var entries = getJournalEntries().filter(function (entry) {
+          var tracker = normalizeJournalTracker(entry && entry.tracker);
+          return tracker.energy || tracker.focus || tracker.context;
+        }).slice(0, 7);
+        var bundle = currentInsightBundle();
+        var pattern = bundle && bundle.metrics ? bundle.metrics.energyCrashPattern : null;
+
+        elements.energyTrailList.innerHTML = "";
+        if (!entries.length) {
+          var empty = document.createElement("p");
+          empty.className = "pattern-history-empty";
+          empty.textContent = "Start with one tiny check-in. Your recent energy trail will show up here.";
+          elements.energyTrailList.appendChild(empty);
+        } else {
+          entries.forEach(function (entry) {
+            var item = document.createElement("button");
+            item.type = "button";
+            item.className = "state-trail-item";
+
+            var head = document.createElement("div");
+            head.className = "state-trail-head";
+            var title = document.createElement("strong");
+            title.textContent = humanDate(entry.date);
+            var chips = document.createElement("span");
+            chips.className = "state-trail-chips";
+            chips.textContent = trackerSummaryBits(entry.tracker).join(" · ") || "Check-in saved";
+            head.appendChild(title);
+            head.appendChild(chips);
+            item.appendChild(head);
+
+            if (entry.tracker && entry.tracker.context) {
+              var context = document.createElement("p");
+              context.className = "state-trail-context";
+              context.textContent = entry.tracker.context;
+              item.appendChild(context);
+            }
+
+            item.addEventListener("click", function () {
+              setActiveView("journalView");
+              selectJournalDate(entry.date);
+            });
+            elements.energyTrailList.appendChild(item);
+          });
+        }
+
+        if (pattern && pattern.lowEnergyDays >= 2) {
+          elements.energyPatternNote.textContent = "Low-energy check-ins have recently followed evenings averaging "
+            + round(pattern.lowEnergyPreviousEveningHours, 1)
+            + "h, compared with "
+            + round(pattern.otherPreviousEveningHours, 1)
+            + "h before steadier days.";
+        } else {
+          elements.energyPatternNote.textContent = "Once a few rough days are logged, this will compare what tended to come before them.";
         }
       }
 
@@ -3697,6 +3937,9 @@
 
       // Today's tasks are editable and saved by exact date.
       function renderTasks() {
+        if (!elements.todaySubtitle || !elements.weekKeyLabel || !elements.dayMessage || !elements.tasksMount || !elements.progressText) {
+          return;
+        }
         var todayKey = formatDate(today);
         var tasks = getTodayTasks();
         var agentUiState = getAgentUiState();
@@ -3883,7 +4126,7 @@
 
           hoursInput.addEventListener("input", function () {
             var beforeHours = effectiveTaskHours(tasks[index]);
-            tasks[index].hours = Math.max(0, Number(hoursInput.value) || 0);
+            tasks[index].hours = normalizeTaskHours(hoursInput.value);
             tasks[index].timerSeconds = Math.round(tasks[index].hours * 3600);
             tasks[index].timerStartedAt = null;
             saveTodayTasks(tasks);
@@ -3929,7 +4172,7 @@
 
           endButton.addEventListener("click", function () {
             var beforeEndSeconds = elapsedTaskSeconds(tasks[index]);
-            tasks[index].timerSeconds = elapsedTaskSeconds(tasks[index]);
+            tasks[index].timerSeconds = beforeEndSeconds;
             tasks[index].timerStartedAt = null;
             tasks[index].hours = hoursFromSeconds(tasks[index].timerSeconds);
             tasks[index].done = true;
@@ -4296,19 +4539,19 @@
       }
 
       function renderTotals() {
-        renderWeeklyGoals();
-        renderLiveSummaryPanels();
-        renderWeeklyPlannerSection();
-        renderGoalPlanner();
-        renderMoneyDashboard();
-        renderSkatePage();
+        runUiSafely("weekly goals", renderWeeklyGoals);
+        runUiSafely("dashboard summaries", renderLiveSummaryPanels);
+        runUiSafely("weekly planner", renderWeeklyPlannerSection);
+        runUiSafely("goal planner", renderGoalPlanner);
+        runUiSafely("money dashboard", renderMoneyDashboard);
+        runUiSafely("skate page", renderSkatePage);
       }
 
       function renderLiveSummaryPanels() {
-        renderLifePie();
-        renderPlannedActual();
-        renderDashboardInsight();
-        renderStudyOverview();
+        runUiSafely("life pie", renderLifePie);
+        runUiSafely("planned versus actual", renderPlannedActual);
+        runUiSafely("dashboard insight", renderDashboardInsight);
+        runUiSafely("study overview", renderStudyOverview);
       }
 
       function renderWeeklyGoals() {
@@ -4347,6 +4590,9 @@
 
       // Study/leisure stats are calculated from saved task hours.
       function renderLifePie() {
+        if (!elements.lifeDonut || !elements.lifeDonutLabel || !elements.lifeSummary || !elements.lifeBreakdown || !elements.statsPeriodTabs) {
+          return;
+        }
         var totals = totalsForStatsPeriod(statsPeriod);
         var study = sumHours(totals, "study");
         var leisure = sumHours(totals, "leisure");
@@ -4381,6 +4627,9 @@
       }
 
       function renderStatsPeriodTabs() {
+        if (!elements.statsPeriodTabs) {
+          return;
+        }
         var periods = [
           { id: "day", label: "Day" },
           { id: "week", label: "Week" },
@@ -4403,6 +4652,9 @@
       }
 
       function renderPlannedActual() {
+        if (!elements.plannedWeekLabel || !elements.plannedMount) {
+          return;
+        }
         var week = weekRange(today);
         var planned = readJson(plannedStorageKey(today), {});
         var actual = totalHoursForRange(week.start, week.end);
@@ -7733,6 +7985,8 @@
             renderSkatePage();
             renderGuitarPage();
             renderSelectedDate();
+            renderJournalPage();
+            renderDashboardInsight();
           } catch (error) {
             elements.backupStatus.textContent = "That backup file could not be read.";
           }
@@ -7742,18 +7996,12 @@
       }
 
       function bindEvents() {
-        elements.tabs.forEach(function (button) {
-          button.addEventListener("click", function () {
-            setActiveView(button.dataset.viewTarget);
-          });
-        });
-
-        elements.prevMonth.addEventListener("click", function () {
+        bindEvent(elements.prevMonth, "click", function () {
           calendarCursor = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth() - 1, 1);
           renderCalendar();
         });
 
-        elements.nextMonth.addEventListener("click", function () {
+        bindEvent(elements.nextMonth, "click", function () {
           calendarCursor = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth() + 1, 1);
           renderCalendar();
         });
@@ -7777,7 +8025,7 @@
           });
         }
 
-        elements.eventForm.addEventListener("submit", addEvent);
+        bindEvent(elements.eventForm, "submit", addEvent);
         [elements.eventCategory, elements.eventEffort, elements.eventStartTime, elements.eventEndTime, elements.eventDate, elements.eventReminderOnly].filter(Boolean).forEach(function (field) {
           field.addEventListener("input", function () {
             renderPlannerLoadPreview();
@@ -7789,7 +8037,7 @@
             renderPlannerLoadPreview();
           });
         });
-        elements.eventDate.addEventListener("change", function () {
+        bindEvent(elements.eventDate, "change", function () {
           if (elements.eventDate.value) {
             selectedDate = elements.eventDate.value;
             calendarCursor = new Date(parseDate(selectedDate).getFullYear(), parseDate(selectedDate).getMonth(), 1);
@@ -7828,8 +8076,8 @@
         if (elements.moneyTransferForm) {
           elements.moneyTransferForm.addEventListener("submit", addMoneyTransfer);
         }
-        elements.exportData.addEventListener("click", exportBackup);
-        elements.importData.addEventListener("change", importBackup);
+        bindEvent(elements.exportData, "click", exportBackup);
+        bindEvent(elements.importData, "change", importBackup);
         if (elements.addGoalPlannerItem) {
           elements.addGoalPlannerItem.addEventListener("click", function () {
             var newGoalId = makeId("goal");
@@ -7863,12 +8111,34 @@
           elements.journalContent.addEventListener("input", saveJournalDraft);
         }
 
+        if (elements.journalStateContext) {
+          elements.journalStateContext.addEventListener("input", saveJournalDraft);
+        }
+
+        if (elements.journalEnergyOptions) {
+          Array.prototype.forEach.call(elements.journalEnergyOptions.querySelectorAll("[data-energy-state]"), function (button) {
+            button.addEventListener("click", function () {
+              setActiveTrackerButtons(elements.journalEnergyOptions, "data-energy-state", button.dataset.energyState);
+              saveJournalDraft();
+            });
+          });
+        }
+
+        if (elements.journalFocusOptions) {
+          Array.prototype.forEach.call(elements.journalFocusOptions.querySelectorAll("[data-focus-state]"), function (button) {
+            button.addEventListener("click", function () {
+              setActiveTrackerButtons(elements.journalFocusOptions, "data-focus-state", button.dataset.focusState);
+              saveJournalDraft();
+            });
+          });
+        }
+
         if (elements.journalSearch) {
           elements.journalSearch.addEventListener("input", renderJournalArchive);
         }
 
-        elements.startSkateSession.addEventListener("click", startSkateSession);
-        elements.finishSkateSession.addEventListener("click", finishSkateSession);
+        bindEvent(elements.startSkateSession, "click", startSkateSession);
+        bindEvent(elements.finishSkateSession, "click", finishSkateSession);
         if (elements.logSkateSession) {
           elements.logSkateSession.addEventListener("click", function () {
             openSkateFeedbackDialog({
@@ -7900,7 +8170,7 @@
             });
           });
         }
-        elements.bodyLogForm.addEventListener("submit", addBodyLog);
+        bindEvent(elements.bodyLogForm, "submit", addBodyLog);
         if (elements.skateIntensityToggle) {
           Array.prototype.forEach.call(elements.skateIntensityToggle.querySelectorAll("[data-intensity]"), function (button) {
             button.addEventListener("click", function () {
@@ -7913,23 +8183,27 @@
             });
           });
         }
-        elements.skateFeedbackForm.addEventListener("submit", submitSkateFeedback);
-        elements.cancelSkateFeedback.addEventListener("click", function () {
+        bindEvent(elements.skateFeedbackForm, "submit", submitSkateFeedback);
+        bindEvent(elements.cancelSkateFeedback, "click", function () {
           pendingSkateLogDateKey = "";
-          elements.skateFeedbackDialog.close();
+          if (elements.skateFeedbackDialog && typeof elements.skateFeedbackDialog.close === "function") {
+            elements.skateFeedbackDialog.close();
+          }
         });
 
-        elements.guitarFocusInput.addEventListener("input", function () {
+        bindEvent(elements.guitarFocusInput, "input", function () {
           writeText(STORAGE.guitarFocus, elements.guitarFocusInput.value);
         });
-        elements.guitarNextStepInput.addEventListener("input", function () {
+        bindEvent(elements.guitarNextStepInput, "input", function () {
           writeText(STORAGE.guitarNextStep, elements.guitarNextStepInput.value);
         });
-        elements.startGuitarSession.addEventListener("click", startGuitarSession);
-        elements.finishGuitarSession.addEventListener("click", finishGuitarSession);
-        elements.guitarSessionForm.addEventListener("submit", submitGuitarSession);
-        elements.cancelGuitarSession.addEventListener("click", function () {
-          elements.guitarSessionDialog.close();
+        bindEvent(elements.startGuitarSession, "click", startGuitarSession);
+        bindEvent(elements.finishGuitarSession, "click", finishGuitarSession);
+        bindEvent(elements.guitarSessionForm, "submit", submitGuitarSession);
+        bindEvent(elements.cancelGuitarSession, "click", function () {
+          if (elements.guitarSessionDialog && typeof elements.guitarSessionDialog.close === "function") {
+            elements.guitarSessionDialog.close();
+          }
         });
 
         if (elements.toggleMascotChat) {
@@ -7971,23 +8245,27 @@
 
       async function init() {
         await hydrateStore();
-        renderActivities();
-        renderWorkoutOptions();
-        renderFeedbackScales();
-        renderTasks();
-        renderTotals();
-        renderMoney();
-        renderJournalPage();
-        renderSkatePage();
-        renderGuitarPage();
-        renderSelectedDate();
-        renderCalendar();
-        refreshTelegramStatus();
-        renderMascotQuickAsks();
-        syncMascotBubble();
-        bindEvents();
-        bindSoftMascot();
-        setActiveView(initialViewFromUrl());
+        bindNavigation();
+        runUiSafely("activity choices", renderActivities);
+        runUiSafely("workout options", renderWorkoutOptions);
+        runUiSafely("feedback scales", renderFeedbackScales);
+        runUiSafely("today's tasks", renderTasks);
+        runUiSafely("dashboard", renderTotals);
+        runUiSafely("money", renderMoney);
+        runUiSafely("journal", renderJournalPage);
+        runUiSafely("skate", renderSkatePage);
+        runUiSafely("guitar", renderGuitarPage);
+        runUiSafely("selected day", renderSelectedDate);
+        runUiSafely("calendar", renderCalendar);
+        runUiSafely("dashboard insight", renderDashboardInsight);
+        runUiSafely("Telegram status", refreshTelegramStatus);
+        runUiSafely("mascot prompts", renderMascotQuickAsks);
+        runUiSafely("mascot", syncMascotBubble);
+        runUiSafely("page controls", bindEvents);
+        runUiSafely("mascot controls", bindSoftMascot);
+        runUiSafely("initial page", function () {
+          setActiveView(initialViewFromUrl());
+        });
         window.setInterval(updateLiveTimers, 1000);
       }
 

@@ -64,6 +64,14 @@ test("rule wording stays non-judgmental and insight shape is complete", function
 test("cross-domain rules fire with cautious wording only when group sizes are large enough", function () {
   const insights = insightRules.deriveInsights({
     todaySummary: { plannedCount: 3, plannedHours: 3 },
+    energyCrashPattern: {
+      sampleSize: 8,
+      lowEnergyDays: 4,
+      otherDays: 4,
+      lowEnergyPreviousEveningHours: 3.2,
+      otherPreviousEveningHours: 1.4,
+      previousEveningDifference: 1.8
+    },
     foodSpendingOnHighEditDays: {
       sampleSize: 8,
       highEditDays: 4,
@@ -97,6 +105,7 @@ test("cross-domain rules fire with cautious wording only when group sizes are la
     }
   });
 
+  assert.ok(insights.some(function (entry) { return entry.id === "low_energy_after_heavy_evening"; }));
   assert.ok(insights.some(function (entry) { return entry.id === "food_spending_on_high_edit_days"; }));
   assert.ok(insights.some(function (entry) { return entry.id === "journal_behavior_on_overloaded_days"; }));
   assert.ok(insights.some(function (entry) { return entry.id === "late_study_completion_dip"; }));

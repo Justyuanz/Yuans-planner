@@ -110,6 +110,13 @@
         "Completion on crowded-morning days: " + round(safeMetrics.simpleMorningCorrelation.complexMorningCompletionRate * 100, 0) + "%."
       ];
     }
+    if (safeInsight.id === "low_energy_after_heavy_evening" && safeMetrics.energyCrashPattern) {
+      return [
+        "Low-energy days sampled: " + safeMetrics.energyCrashPattern.lowEnergyDays + ".",
+        "Evening hours before low-energy days: " + round(safeMetrics.energyCrashPattern.lowEnergyPreviousEveningHours, 1) + "h.",
+        "Evening hours before steadier days: " + round(safeMetrics.energyCrashPattern.otherPreviousEveningHours, 1) + "h."
+      ];
+    }
     return safeInsight.why ? [safeInsight.why] : [];
   }
 

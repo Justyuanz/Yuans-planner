@@ -6,11 +6,13 @@ test("normalizeEntries keeps only dated entries with real content", function () 
   const entries = journal.normalizeEntries([
     null,
     { id: "blank", date: "2026-08-01", title: "  ", content: "   " },
+    { id: "tracker-only", date: "2026-08-01", tracker: { energy: "low", context: "late night" } },
     { id: "missing-date", content: "hello" },
     { id: "real", date: "2026-08-02", title: "Soft day", content: "I wrote something." }
   ]);
 
-  assert.deepEqual(entries.map(function (entry) { return entry.id; }), ["real"]);
+  assert.deepEqual(entries.map(function (entry) { return entry.id; }), ["tracker-only", "real"]);
+  assert.equal(entries[0].tracker.energy, "low");
 });
 
 test("sortEntriesNewestFirst prefers newer dates, then updated timestamps", function () {
@@ -25,13 +27,14 @@ test("sortEntriesNewestFirst prefers newer dates, then updated timestamps", func
 
 test("filterEntries searches date, title, and content", function () {
   const entries = [
-    { id: "1", date: "2026-08-01", title: "Rainy", content: "Soft little cafe day." },
+    { id: "1", date: "2026-08-01", title: "Rainy", content: "Soft little cafe day.", tracker: { energy: "low", context: "late bedtime" } },
     { id: "2", date: "2026-08-02", title: "Sunny", content: "Went skating after class." }
   ];
 
   assert.deepEqual(journal.filterEntries(entries, "cafe").map(function (entry) { return entry.id; }), ["1"]);
   assert.deepEqual(journal.filterEntries(entries, "2026-08-02").map(function (entry) { return entry.id; }), ["2"]);
   assert.deepEqual(journal.filterEntries(entries, "sunny").map(function (entry) { return entry.id; }), ["2"]);
+  assert.deepEqual(journal.filterEntries(entries, "bedtime").map(function (entry) { return entry.id; }), ["1"]);
 });
 
 test("findEntryByDate returns the matching entry when present", function () {
@@ -46,4 +49,5 @@ test("findEntryByDate returns the matching entry when present", function () {
 test("buildPreview compresses whitespace and trims long entries", function () {
   assert.equal(journal.buildPreview({ content: "hi\n\nthere" }, 40), "hi there");
   assert.equal(journal.buildPreview({ content: "x".repeat(50) }, 20), "xxxxxxxxxxxxxxxxxxxxxxx…");
+  assert.equal(journal.buildPreview({ tracker: { energy: "empty", focus: "foggy", context: "late night" } }, 60), "Energy: empty · Focus: foggy · late night");
 });

@@ -13,6 +13,7 @@
   var JOURNAL_LENGTH_DELTA_CHARS = 40;
   var LATE_STUDY_COMPLETION_DELTA = 0.2;
   var SIMPLE_MORNING_COMPLETION_DELTA = 0.2;
+  var LOW_ENERGY_EVENING_DELTA = 1;
   var PLAN_ACTIONS = [
     action("review_planned_hours", "Review planned hours"),
     action("focus_today_tasks", "Focus today's tasks")
@@ -274,6 +275,28 @@
     );
   }
 
+  function ruleLowEnergyAfterHeavyEvening(metrics) {
+    var pattern = metrics && metrics.energyCrashPattern;
+    if (!pattern || !hasSample(pattern.sampleSize)) {
+      return null;
+    }
+    if (pattern.lowEnergyDays < CROSS_DOMAIN_GROUP_MIN || pattern.otherDays < CROSS_DOMAIN_GROUP_MIN) {
+      return null;
+    }
+    if (pattern.previousEveningDifference < LOW_ENERGY_EVENING_DELTA) {
+      return null;
+    }
+    return insight(
+      "low_energy_after_heavy_evening",
+      "focus",
+      83,
+      "Low-energy days have often come after heavier evenings.",
+      "On recent tracked days, low-energy check-ins followed about " + round(pattern.lowEnergyPreviousEveningHours, 1) + "h of evening tasks the day before, compared with " + round(pattern.otherPreviousEveningHours, 1) + "h before steadier days.",
+      [action("review_planned_hours", "Protect tomorrow night"), action("focus_today_tasks", "Make the next day lighter")],
+      pattern.sampleSize
+    );
+  }
+
   function deriveInsights(metrics) {
     return [
       ruleMorningOverrun(metrics),
@@ -283,6 +306,7 @@
       ruleVagueTaskFriction(metrics),
       ruleRealityBaselineWarning(metrics),
       ruleSimpleMorningCorrelation(metrics),
+      ruleLowEnergyAfterHeavyEvening(metrics),
       ruleFoodSpendingOnHighEditDays(metrics),
       ruleLateStudyCorrelation(metrics),
       ruleJournalBehaviorOnOverloadedDays(metrics)

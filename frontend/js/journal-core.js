@@ -7,6 +7,26 @@
 }(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
+  var ENERGY_STATES = ["", "empty", "low", "okay", "good", "strong"];
+  var FOCUS_STATES = ["", "foggy", "wavy", "steady", "clear"];
+
+  function normalizeTracker(tracker) {
+    var safeTracker = tracker && typeof tracker === "object" ? tracker : {};
+    var energy = typeof safeTracker.energy === "string" ? safeTracker.energy.trim().toLowerCase() : "";
+    var focus = typeof safeTracker.focus === "string" ? safeTracker.focus.trim().toLowerCase() : "";
+    var context = typeof safeTracker.context === "string" ? safeTracker.context : "";
+    return {
+      energy: ENERGY_STATES.indexOf(energy) !== -1 ? energy : "",
+      focus: FOCUS_STATES.indexOf(focus) !== -1 ? focus : "",
+      context: context.trim()
+    };
+  }
+
+  function hasTrackerContent(tracker) {
+    var safeTracker = normalizeTracker(tracker);
+    return Boolean(safeTracker.energy || safeTracker.focus || safeTracker.context);
+  }
+
   function normalizeEntry(entry) {
     if (!entry || typeof entry !== "object") {
       return null;
@@ -21,19 +41,21 @@
     var title = typeof entry.title === "string" ? entry.title : "";
     var createdAt = typeof entry.createdAt === "string" && entry.createdAt ? entry.createdAt : "";
     var updatedAt = typeof entry.updatedAt === "string" && entry.updatedAt ? entry.updatedAt : createdAt;
+    var tracker = normalizeTracker(entry.tracker);
 
     return {
       id: typeof entry.id === "string" && entry.id ? entry.id : "journal-" + date,
       date: date,
       title: title.trim(),
       content: content,
+      tracker: tracker,
       createdAt: createdAt,
       updatedAt: updatedAt
     };
   }
 
   function hasEntryContent(entry) {
-    return Boolean(entry && (entry.title || entry.content.trim()));
+    return Boolean(entry && (entry.title || entry.content.trim() || hasTrackerContent(entry.tracker)));
   }
 
   function normalizeEntries(entries) {
@@ -64,7 +86,10 @@
       var haystack = [
         entry.date,
         entry.title,
-        entry.content
+        entry.content,
+        entry.tracker && entry.tracker.energy,
+        entry.tracker && entry.tracker.focus,
+        entry.tracker && entry.tracker.context
       ].join("\n").toLowerCase();
       return haystack.indexOf(normalizedQuery) !== -1;
     });
@@ -82,10 +107,18 @@
 
   function buildPreview(entry, maxLength) {
     var limit = Math.max(24, Number(maxLength) || 140);
+    var tracker = normalizeTracker(entry && entry.tracker);
     var text = String((entry && entry.content) || "")
       .replace(/\s+/g, " ")
       .trim();
 
+    if (!text && hasTrackerContent(tracker)) {
+      text = [
+        tracker.energy ? "Energy: " + tracker.energy : "",
+        tracker.focus ? "Focus: " + tracker.focus : "",
+        tracker.context
+      ].filter(Boolean).join(" · ");
+    }
     if (!text) {
       return "A tiny note lives here.";
     }
@@ -100,7 +133,9 @@
     compareEntriesNewestFirst: compareEntriesNewestFirst,
     filterEntries: filterEntries,
     findEntryByDate: findEntryByDate,
+    hasTrackerContent: hasTrackerContent,
     normalizeEntries: normalizeEntries,
+    normalizeTracker: normalizeTracker,
     sortEntriesNewestFirst: sortEntriesNewestFirst
   };
 }));

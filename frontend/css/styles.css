@@ -2376,6 +2376,55 @@ textarea {
   line-height: 1.42;
 }
 
+.state-tracker-card {
+  display: grid;
+  gap: 14px;
+  margin-bottom: 18px;
+  padding: 16px;
+  border: 1px solid rgba(224, 219, 209, 0.72);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.state-tracker-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.state-tracker-group {
+  display: grid;
+  gap: 8px;
+}
+
+.state-tracker-group strong,
+.state-pattern-note {
+  color: #5f5b66;
+  font-size: 0.82rem;
+}
+
+.tracker-chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tracker-chip {
+  min-height: 32px;
+  border: 1px solid rgba(224, 219, 209, 0.82);
+  border-radius: 999px;
+  padding: 6px 11px;
+  background: rgba(255, 255, 255, 0.88);
+  color: #645f69;
+  font-size: 0.78rem;
+  font-weight: 580;
+}
+
+.tracker-chip.is-active {
+  border-color: rgba(113, 107, 255, 0.22);
+  background: rgba(236, 235, 255, 0.9);
+  color: var(--violet);
+}
+
 .journal-paper label span {
   color: #767686;
   font-size: 0.82rem;
@@ -2403,6 +2452,54 @@ textarea {
   color: #5f616e;
   font-size: 0.88rem;
   line-height: 1.5;
+}
+
+.journal-entry-meta {
+  margin: 0;
+  color: #726d79;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.state-trail-list {
+  display: grid;
+  gap: 10px;
+}
+
+.state-trail-item {
+  width: 100%;
+  display: grid;
+  gap: 6px;
+  padding: 12px 13px;
+  border: 1px solid rgba(224, 219, 209, 0.72);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #3c3c44;
+  text-align: left;
+}
+
+.state-trail-head {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.state-trail-head strong {
+  color: #383c4a;
+  font-size: 0.86rem;
+}
+
+.state-trail-chips,
+.state-trail-context {
+  color: #686574;
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.state-trail-context,
+.state-pattern-note {
+  margin: 0;
 }
 
 .life-pie {

@@ -18,6 +18,12 @@
   var SIMPLE_MORNING_HOUR_LIMIT = 1.5;
   var COMPLEX_MORNING_TASK_THRESHOLD = 2;
   var COMPLEX_MORNING_HOUR_THRESHOLD = 2.5;
+  var LOW_ENERGY_STATES = ["empty", "low"];
+
+  function finiteNonNegative(value) {
+    var number = Number(value);
+    return Number.isFinite(number) ? Math.max(0, number) : 0;
+  }
 
   function parseTaskTimeMinutes(label) {
     var text = String(label || "").trim();
@@ -37,20 +43,21 @@
     if (!task || typeof task !== "object") {
       return 0;
     }
-    if (Number(task.timerSeconds) > 0) {
-      return round(((Number(task.timerSeconds) || 0) / 3600), 2);
+    var timerSeconds = finiteNonNegative(task.timerSeconds);
+    if (timerSeconds > 0) {
+      return round(timerSeconds / 3600, 2);
     }
-    return Math.max(0, Number(task.hours) || 0);
+    return finiteNonNegative(task.hours);
   }
 
   function round(value, digits) {
     var precision = Math.pow(10, digits == null ? 2 : digits);
-    return Math.round((Number(value) || 0) * precision) / precision;
+    return Math.round(finiteNonNegative(value) * precision) / precision;
   }
 
   function sum(values) {
     return (Array.isArray(values) ? values : []).reduce(function (total, value) {
-      return total + (Number(value) || 0);
+      return total + finiteNonNegative(value);
     }, 0);
   }
 
@@ -106,10 +113,16 @@
       if (!entry || typeof entry !== "object" || !isValidDateKey(entry.date)) {
         return null;
       }
+      var tracker = entry.tracker && typeof entry.tracker === "object" ? entry.tracker : {};
       return {
         date: entry.date,
         title: String(entry.title || "").trim(),
-        content: String(entry.content || "")
+        content: String(entry.content || ""),
+        tracker: {
+          energy: typeof tracker.energy === "string" ? tracker.energy.trim().toLowerCase() : "",
+          focus: typeof tracker.focus === "string" ? tracker.focus.trim().toLowerCase() : "",
+          context: typeof tracker.context === "string" ? tracker.context.trim() : ""
+        }
       };
     }).filter(Boolean);
   }
@@ -121,7 +134,7 @@
       }
       return {
         date: entry.date,
-        amountCents: Math.max(0, Number(entry.amountCents) || 0),
+        amountCents: finiteNonNegative(entry.amountCents),
         categoryId: String(entry.categoryId || "")
       };
     }).filter(function (entry) {
@@ -631,6 +644,62 @@
     };
   }
 
+  function calculateEnergyCrashPattern(summaries, journalEntries, endDateKey, lookbackDays) {
+    var window = selectWindowSummaries(summaries, endDateKey, lookbackDays, false);
+    var summaryByDate = {};
+    window.forEach(function (summary) {
+      summaryByDate[summary.dateKey] = summary;
+    });
+    var windowDates = windowDateKeys(endDateKey, lookbackDays).reduce(function (map, dateKey) {
+      map[dateKey] = true;
+      return map;
+    }, {});
+    var lowEnergyPreviousEveningHours = [];
+    var otherPreviousEveningHours = [];
+    var lowEnergyPreviousPlannedHours = [];
+    var otherPreviousPlannedHours = [];
+    var lowEnergyPreviousUnfinished = [];
+    var otherPreviousUnfinished = [];
+    var lowEnergyDates = [];
+    var consideredDays = 0;
+
+    normalizeJournalEntries(journalEntries).forEach(function (entry) {
+      var tracker = entry.tracker || {};
+      var previousDate = windowDateKeys(entry.date, 2)[0];
+      var previousSummary = summaryByDate[previousDate];
+      if (!windowDates[entry.date] || !previousSummary || !tracker.energy) {
+        return;
+      }
+      consideredDays += 1;
+      if (LOW_ENERGY_STATES.indexOf(tracker.energy) !== -1) {
+        lowEnergyDates.push(entry.date);
+        lowEnergyPreviousEveningHours.push(previousSummary.eveningHours || 0);
+        lowEnergyPreviousPlannedHours.push(previousSummary.plannedHours || 0);
+        lowEnergyPreviousUnfinished.push((previousSummary.plannedCount || 0) - (previousSummary.completedCount || 0));
+      } else {
+        otherPreviousEveningHours.push(previousSummary.eveningHours || 0);
+        otherPreviousPlannedHours.push(previousSummary.plannedHours || 0);
+        otherPreviousUnfinished.push((previousSummary.plannedCount || 0) - (previousSummary.completedCount || 0));
+      }
+    });
+
+    return {
+      sampleSize: consideredDays,
+      lowEnergyDays: lowEnergyPreviousEveningHours.length,
+      otherDays: otherPreviousEveningHours.length,
+      lowEnergyPreviousEveningHours: round(average(lowEnergyPreviousEveningHours), 2),
+      otherPreviousEveningHours: round(average(otherPreviousEveningHours), 2),
+      lowEnergyPreviousPlannedHours: round(average(lowEnergyPreviousPlannedHours), 2),
+      otherPreviousPlannedHours: round(average(otherPreviousPlannedHours), 2),
+      lowEnergyPreviousUnfinishedCount: round(average(lowEnergyPreviousUnfinished), 2),
+      otherPreviousUnfinishedCount: round(average(otherPreviousUnfinished), 2),
+      previousEveningDifference: round(average(lowEnergyPreviousEveningHours) - average(otherPreviousEveningHours), 2),
+      previousPlannedHoursDifference: round(average(lowEnergyPreviousPlannedHours) - average(otherPreviousPlannedHours), 2),
+      previousUnfinishedDifference: round(average(lowEnergyPreviousUnfinished) - average(otherPreviousUnfinished), 2),
+      lowEnergyDates: lowEnergyDates.slice(-4)
+    };
+  }
+
   function buildMetrics(options) {
     var taskMap = options && options.taskMap ? options.taskMap : {};
     var activityLog = Array.isArray(options && options.activityLog) ? options.activityLog : [];
@@ -673,7 +742,8 @@
       foodSpendingOnHighEditDays: calculateFoodSpendingOnHighEditDays(summaries, activityLog, moneyTransactions, currentDateKey, lookbackDays),
       journalBehaviorOnOverloadedDays: calculateJournalBehaviorOnOverloadedDays(summaries, journalEntries, currentDateKey, lookbackDays),
       lateStudyCorrelation: calculateLateStudyCorrelation(summaries, currentDateKey, lookbackDays),
-      simpleMorningCorrelation: calculateSimpleMorningCorrelation(summaries, currentDateKey, lookbackDays)
+      simpleMorningCorrelation: calculateSimpleMorningCorrelation(summaries, currentDateKey, lookbackDays),
+      energyCrashPattern: calculateEnergyCrashPattern(summaries, journalEntries, currentDateKey, lookbackDays)
     };
   }
 
@@ -683,6 +753,7 @@
     calculateCarryoverIndicators: calculateCarryoverIndicators,
     calculateDailyTaskAverages: calculateDailyTaskAverages,
     calculateEditFrequency: calculateEditFrequency,
+    calculateEnergyCrashPattern: calculateEnergyCrashPattern,
     calculateEveningLoad: calculateEveningLoad,
     calculateFoodSpendingOnHighEditDays: calculateFoodSpendingOnHighEditDays,
     calculateHourGapAverages: calculateHourGapAverages,

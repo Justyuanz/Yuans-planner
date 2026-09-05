@@ -157,6 +157,25 @@ test("buildMetrics ignores invalid task-map keys and malformed activity entries 
   assert.equal(metrics.carryoverIndicators.unfinishedTotal, 2);
 });
 
+test("buildMetrics ignores non-finite task and money durations", function () {
+  const metrics = insightCore.buildMetrics({
+    currentDateKey: "2026-08-08",
+    taskMap: {
+      "2026-08-07": [
+        { label: "09 Corrupt timer", timerSeconds: Infinity, hours: Infinity, done: true },
+        { label: "10 Invalid values", timerSeconds: "not-a-number", hours: "not-a-number", done: true }
+      ]
+    },
+    moneyTransactions: [
+      { date: "2026-08-07", amountCents: Infinity, categoryId: "groceries" }
+    ]
+  });
+
+  assert.equal(metrics.hourGapAverages.plannedAverage, 0);
+  assert.equal(metrics.hourGapAverages.completedAverage, 0);
+  assert.equal(metrics.foodSpendingOnHighEditDays.lowerEditAverageFoodCents, 0);
+});
+
 test("calculateCarryoverIndicators spots unfinished tasks that reappear later", function () {
   const summaries = insightCore.buildDailySummaries({
     "2026-08-03": [
@@ -215,12 +234,12 @@ test("buildMetrics calculates cross-domain patterns from tasks, edits, money, an
       { id: "m6", date: "2026-08-06", amountCents: 500, categoryId: "groceries" }
     ],
     journalEntries: [
-      { date: "2026-08-01", title: "A", content: "A fairly reflective journal note with a decent amount of detail." },
-      { date: "2026-08-02", title: "B", content: "Another pretty detailed entry that has enough length to compare." },
-      { date: "2026-08-03", title: "C", content: "Short note." },
-      { date: "2026-08-04", title: "D", content: "Longer calm-day reflection with more words and specifics included." },
-      { date: "2026-08-05", title: "E", content: "Brief." },
-      { date: "2026-08-06", title: "F", content: "A fuller note again with a more settled tone and extra detail." }
+      { date: "2026-08-01", title: "A", content: "A fairly reflective journal note with a decent amount of detail.", tracker: { energy: "good" } },
+      { date: "2026-08-02", title: "B", content: "Another pretty detailed entry that has enough length to compare.", tracker: { energy: "good" } },
+      { date: "2026-08-03", title: "C", content: "Short note.", tracker: { energy: "good" } },
+      { date: "2026-08-04", title: "D", content: "Longer calm-day reflection with more words and specifics included.", tracker: { energy: "low" } },
+      { date: "2026-08-05", title: "E", content: "Brief.", tracker: { energy: "good" } },
+      { date: "2026-08-06", title: "F", content: "A fuller note again with a more settled tone and extra detail.", tracker: { energy: "empty" } }
     ]
   });
 
@@ -230,4 +249,7 @@ test("buildMetrics calculates cross-domain patterns from tasks, edits, money, an
   assert.equal(metrics.simpleMorningCorrelation.simpleMorningDays, 2);
   assert.equal(metrics.simpleMorningCorrelation.completionRateDifference > 0, true);
   assert.equal(metrics.journalBehaviorOnOverloadedDays.overloadedDays, 2);
+  assert.equal(metrics.energyCrashPattern.lowEnergyDays, 2);
+  assert.equal(metrics.energyCrashPattern.otherDays, 3);
+  assert.equal(metrics.energyCrashPattern.previousEveningDifference > 0, true);
 });

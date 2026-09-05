@@ -7,16 +7,25 @@
 }(typeof globalThis !== "undefined" ? globalThis : this, function () {
   "use strict";
 
+  function finiteNonNegative(value) {
+    var number = Number(value);
+    return Number.isFinite(number) ? Math.max(0, number) : 0;
+  }
+
   function elapsedTaskSeconds(task, nowMs) {
-    var seconds = Math.max(0, Number(task && task.timerSeconds) || 0);
+    var seconds = finiteNonNegative(task && task.timerSeconds);
     if (task && task.timerStartedAt) {
-      seconds += Math.max(0, Math.floor((nowMs - Date.parse(task.timerStartedAt)) / 1000));
+      var timestamp = Date.parse(task.timerStartedAt);
+      var elapsed = Math.floor((nowMs - timestamp) / 1000);
+      if (Number.isFinite(elapsed)) {
+        seconds += Math.max(0, elapsed);
+      }
     }
-    return seconds;
+    return finiteNonNegative(seconds);
   }
 
   function hoursFromSeconds(seconds) {
-    return Math.round((seconds / 3600) * 100) / 100;
+    return Math.round((finiteNonNegative(seconds) / 3600) * 100) / 100;
   }
 
   function pad(value) {
@@ -70,7 +79,7 @@
   }
 
   function applySessionDurationToTasks(tasks, activityId, durationHours, nowMs) {
-    var safeHours = Math.max(0, Number(durationHours) || 0);
+    var safeHours = finiteNonNegative(durationHours);
     var list = Array.isArray(tasks) ? tasks.map(function (task) {
       return task && typeof task === "object" ? Object.assign({}, task) : task;
     }) : [];
@@ -117,7 +126,7 @@
 
   function boardHoursTotalFromSessions(sessions) {
     return (Array.isArray(sessions) ? sessions : []).reduce(function (sum, session) {
-      return sum + Math.max(0, Number(session && session.durationHours) || 0);
+      return sum + finiteNonNegative(session && session.durationHours);
     }, 0);
   }
 

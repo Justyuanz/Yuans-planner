@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Yuan's Planner</title>
-  <link rel="stylesheet" href="/css/styles.css?v=20260903b">
+  <link rel="stylesheet" href="/css/styles.css?v=20260905a">
 </head>
 <body>
   <main class="app">
@@ -232,6 +232,19 @@
             </div>
           </article>
 
+          <article class="panel state-history-card">
+            <div class="panel-inner">
+              <div class="section-head">
+                <div>
+                  <h3>Energy trail</h3>
+                  <p class="small-note">Recent check-ins so shutdown days stop disappearing into blur.</p>
+                </div>
+              </div>
+              <div class="state-trail-list" id="energyTrailList" aria-live="polite"></div>
+              <p class="state-pattern-note" id="energyPatternNote"></p>
+            </div>
+          </article>
+
         </aside>
       </div>
     </section>
@@ -258,6 +271,41 @@
                   <strong class="journal-date-label" id="journalDateLabel">Today</strong>
                 </div>
               </div>
+
+              <section class="state-tracker-card" aria-labelledby="stateTrackerHeading">
+                <div class="section-head compact">
+                  <div>
+                    <h3 id="stateTrackerHeading">State tracker</h3>
+                    <p class="small-note">A tiny check-in for the days when your brain needs help remembering what happened.</p>
+                  </div>
+                </div>
+                <div class="state-tracker-grid">
+                  <div class="state-tracker-group">
+                    <strong>Energy</strong>
+                    <div class="tracker-chip-row" id="journalEnergyOptions">
+                      <button class="tracker-chip" type="button" data-energy-state="empty">Empty</button>
+                      <button class="tracker-chip" type="button" data-energy-state="low">Low</button>
+                      <button class="tracker-chip" type="button" data-energy-state="okay">Okay</button>
+                      <button class="tracker-chip" type="button" data-energy-state="good">Good</button>
+                      <button class="tracker-chip" type="button" data-energy-state="strong">Strong</button>
+                    </div>
+                  </div>
+                  <div class="state-tracker-group">
+                    <strong>Focus</strong>
+                    <div class="tracker-chip-row" id="journalFocusOptions">
+                      <button class="tracker-chip" type="button" data-focus-state="foggy">Foggy</button>
+                      <button class="tracker-chip" type="button" data-focus-state="wavy">Wavy</button>
+                      <button class="tracker-chip" type="button" data-focus-state="steady">Steady</button>
+                      <button class="tracker-chip" type="button" data-focus-state="clear">Clear</button>
+                    </div>
+                  </div>
+                </div>
+
+                <label class="form-row state-context-row" for="journalStateContext">
+                  <span>What seems connected to this state?</span>
+                  <input id="journalStateContext" maxlength="180" autocomplete="off" placeholder="Late night, too many hard tasks, conflict, travel, not enough food, social overload...">
+                </label>
+              </section>
 
               <label class="form-row journal-title-row" for="journalTitle">
                 <span>What was most present?</span>
@@ -800,15 +848,15 @@
   <script src="/js/calendar-core.js?v=20260801a"></script>
   <script src="/js/weekly-planner-core.js?v=20260903b"></script>
   <script src="/js/money-core.js?v=20260801a"></script>
-  <script src="/js/journal-core.js?v=20260806a"></script>
+  <script src="/js/journal-core.js?v=20260905a"></script>
   <script src="/js/activity-log.js?v=20260806a"></script>
-  <script src="/js/insight-core.js?v=20260903a"></script>
-  <script src="/js/insight-rules.js?v=20260806a"></script>
-  <script src="/js/pattern-history.js?v=20260806a"></script>
+  <script src="/js/insight-core.js?v=20260905b"></script>
+  <script src="/js/insight-rules.js?v=20260905a"></script>
+  <script src="/js/pattern-history.js?v=20260905a"></script>
   <script src="/js/agent-core.js?v=20260806a"></script>
   <script src="/js/skate-core.js?v=20260831a"></script>
-  <script src="/js/skate-session-core.js?v=20260831a"></script>
+  <script src="/js/skate-session-core.js?v=20260905a"></script>
   <script src="/js/mascot-rag.js?v=20260806a"></script>
-  <script src="/js/app.js?v=20260903b"></script>
+  <script src="/js/app.js?v=20260905c"></script>
 </body>
 </html>
