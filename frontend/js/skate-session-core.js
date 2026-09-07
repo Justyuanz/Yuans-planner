@@ -37,6 +37,20 @@
     return /^\d{4}-\d{2}-\d{2}$/.test(text) ? text : "";
   }
 
+  function sessionDateKey(session) {
+    if (!session) return "";
+    var explicit = normalizeSessionDateKey(session.dateKey);
+    if (explicit) return explicit;
+    var date = new Date(session.finishedAt);
+    return Number.isFinite(date.getTime())
+      ? date.getFullYear() + "-" + pad(date.getMonth() + 1) + "-" + pad(date.getDate()) : "";
+  }
+
+  function sessionIntensity(value, fallback) {
+    return ["blue", "yellow", "green"].includes(value) ? value
+      : ["blue", "yellow", "green"].includes(fallback) ? fallback : "yellow";
+  }
+
   function datedSessionWindow(dateKey, durationMinutes) {
     var safeDateKey = normalizeSessionDateKey(dateKey);
     var safeMinutes = Math.max(1, Math.round(Number(durationMinutes) || 45));
@@ -137,6 +151,8 @@
     elapsedTaskSeconds: elapsedTaskSeconds,
     findMatchingTaskIndex: findMatchingTaskIndex,
     hoursFromSeconds: hoursFromSeconds,
+    sessionDateKey: sessionDateKey,
+    sessionIntensity: sessionIntensity,
     normalizeSessionDateKey: normalizeSessionDateKey
   };
 }));

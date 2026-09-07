@@ -79,3 +79,18 @@ test("session helpers ignore invalid timer and duration values", () => {
   assert.equal(elapsed, 0);
   assert.equal(total, 0.5);
 });
+
+test('session intensity preserves every choice and rejects invalid colors', () => {
+  for (const color of ['blue', 'yellow', 'green']) {
+    assert.equal(skateSessionCore.sessionIntensity(color, 'yellow'), color);
+  }
+  assert.equal(skateSessionCore.sessionIntensity(undefined, 'green'), 'green');
+  assert.equal(skateSessionCore.sessionIntensity('gray', 'invalid'), 'yellow');
+});
+
+test('session date prefers the logged day and uses local time for older sessions', () => {
+  assert.equal(skateSessionCore.sessionDateKey({dateKey:'2026-09-08', finishedAt:'2026-09-07T21:30:00Z'}), '2026-09-08');
+  const stamp = new Date(2026, 8, 8, 0, 30).toISOString();
+  assert.equal(skateSessionCore.sessionDateKey({finishedAt:stamp}), '2026-09-08');
+  assert.equal(skateSessionCore.sessionDateKey({finishedAt:'invalid'}), '');
+});

@@ -585,6 +585,7 @@
                 <span>Support type</span>
                 <select id="bodyWorkoutType">
                   <option value="gym">Gym</option>
+                  <option value="judo">Judo</option>
                   <option value="yoga">Yoga</option>
                   <option value="stretch">Stretch</option>
                   <option value="recovery">Recovery</option>
@@ -797,6 +798,15 @@
         <span>Session date</span>
         <input id="skateSessionDate" type="date">
       </label>
+      <fieldset class="scale-field">
+        <legend>Session intensity</legend>
+        <div class="skate-intensity-toggle" id="skateFeedbackIntensity" aria-label="Session intensity">
+          <button type="button" data-intensity="blue" aria-pressed="false">Blue</button>
+          <button type="button" data-intensity="yellow" aria-pressed="true" class="active">Yellow</button>
+          <button type="button" data-intensity="green" aria-pressed="false">Green</button>
+        </div>
+        <p class="small-note">Choose the color for this session’s roadmap day.</p>
+      </fieldset>
       <div class="feedback-scales">
         <fieldset class="scale-field">
           <legend>Confidence today</legend>
@@ -866,9 +876,9 @@
   <script src="/js/pattern-history.js?v=20260905a"></script>
   <script src="/js/agent-core.js?v=20260806a"></script>
   <script src="/js/skate-core.js?v=20260831a"></script>
-  <script src="/js/skate-session-core.js?v=20260905a"></script>
+  <script src="/js/skate-session-core.js?v=20260908a"></script>
   <script src="/js/mascot-rag.js?v=20260806a"></script>
   <script src="/js/mind-core.js?v=20260907a"></script>
-  <script src="/js/app.js?v=20260907a"></script>
+  <script src="/js/app.js?v=20260908b"></script>
 </body>
 </html>

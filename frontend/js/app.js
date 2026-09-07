@@ -333,7 +333,7 @@
         { id: "cpp", label: "Coding", short: "Coding", className: "cpp", group: "study" },
         { id: "python", label: "Python", short: "Python", className: "python", group: "study" },
         { id: "skate", label: "Skate", short: "Skate", className: "skate", group: "leisure" },
-        { id: "p90x3", label: "Gym", short: "Gym", className: "gym", group: "leisure" },
+        { id: "p90x3", label: "Gym / Judo", short: "Gym / Judo", className: "gym", group: "leisure" },
         { id: "guitar", label: "Guitar", short: "Guitar", className: "guitar", group: "leisure" },
         { id: "other", label: "Other", short: "Other", className: "other", group: "other", showInStats: false }
       ];
@@ -1522,7 +1522,7 @@
 
       function normalizeBodySupportType(value) {
         var normalized = String(value || "").trim().toLowerCase();
-        if (["gym", "yoga", "stretch", "recovery", "walk", "other"].indexOf(normalized) !== -1) {
+        if (["gym", "judo", "yoga", "stretch", "recovery", "walk", "other"].indexOf(normalized) !== -1) {
           return normalized;
         }
         return "other";
@@ -1531,6 +1531,7 @@
       function bodySupportTypeLabel(type) {
         var normalized = normalizeBodySupportType(type);
         if (normalized === "gym") return "Gym";
+        if (normalized === "judo") return "Judo";
         if (normalized === "yoga") return "Yoga";
         if (normalized === "stretch") return "Stretch";
         if (normalized === "recovery") return "Recovery";
@@ -1623,7 +1624,7 @@
           if (!session || !session.finishedAt) {
             return;
           }
-          var key = session.finishedAt.slice(0, 10);
+          var key = skateSessionCore.sessionDateKey(session);
           var sessionDate = parseDate(key);
           if (!dateInRange(sessionDate, range.start, range.end)) {
             return;
@@ -1636,7 +1637,7 @@
       function countSkateLogsForWeek(date) {
         var range = weekRange(date);
         return getSkateSessions().filter(function (session) {
-          return session && session.finishedAt && dateInRange(parseDate(session.finishedAt.slice(0, 10)), range.start, range.end);
+          return session && session.finishedAt && dateInRange(parseDate(skateSessionCore.sessionDateKey(session)), range.start, range.end);
         }).length;
       }
 
@@ -6225,6 +6226,7 @@
         button.addEventListener("click", function () {
           openSkateFeedbackDialog({
             dateKey: dateKey,
+            intensity: latest ? normalizedSessionIntensity(latest) : null,
             durationMinutes: latest ? Math.max(1, Math.round((Number(latest.durationHours) || 0) * 60)) : 45,
             hint: "Logging for " + humanDate(dateKey) + "."
           });
@@ -6248,7 +6250,7 @@
           if (!session || !session.finishedAt) {
             return map;
           }
-          var key = session.finishedAt.slice(0, 10);
+          var key = skateSessionCore.sessionDateKey(session);
           var date = parseDate(key);
           if (!dateInRange(date, range.start, range.end)) {
             return map;
@@ -7008,11 +7010,30 @@
         elements.skateSessionHint.textContent = message || "Fresh session checklist ready.";
       }
 
+      function selectFeedbackIntensity(intensity) {
+        document.querySelectorAll("#skateFeedbackIntensity [data-intensity]").forEach(function (button) {
+          var active = button.dataset.intensity === intensity;
+          button.classList.toggle("active", active);
+          button.setAttribute("aria-pressed", String(active));
+        });
+      }
+
+      function feedbackIntensityForDate(dateKey) {
+        var saved = getSkateSettings().intensityByDate[dateKey];
+        var sessions = getSkateSessions().filter(function (session) {
+          return skateSessionCore.sessionDateKey(session) === dateKey;
+        });
+        return skateSessionCore.sessionIntensity(saved, sessions.length
+          ? normalizedSessionIntensity(sessions[sessions.length - 1])
+          : dateKey === formatDate(today) ? skateIntensityForToday(currentSkateHero(), getCurrentSkateSession()) : "yellow");
+      }
+
       function openSkateFeedbackDialog(options) {
         var config = options && typeof options === "object" ? options : {};
         var dateKey = config.dateKey || formatDate(today);
         var durationMinutes = Math.max(1, Math.round(Number(config.durationMinutes) || 45));
         pendingSkateLogDateKey = dateKey;
+        selectFeedbackIntensity(skateSessionCore.sessionIntensity(config.intensity, feedbackIntensityForDate(dateKey)));
         if (elements.skateDurationMinutes) {
           elements.skateDurationMinutes.value = String(durationMinutes);
         }
@@ -7035,6 +7056,7 @@
         }
         saveFinishedSkateSession({
           confidence: 3,
+          intensity: skateSessionCore.sessionIntensity(config.intensity, feedbackIntensityForDate(dateKey)),
           progressToday: 3,
           durationMinutes: durationMinutes,
           improvedNote: "",
@@ -7118,6 +7140,7 @@
           },
           durationHours: durationHours,
           trackedInTask: Boolean(linkedTask),
+          dateKey: sessionWindow.dateKey,
           startedAt: sessionWindow.startedAt,
           finishedAt: sessionWindow.finishedAt
         };
@@ -7160,9 +7183,12 @@
         var linkedTask = sessionWindow.dateKey === formatDate(today)
           ? syncSessionTimeToTodayTask("skate", durationHours)
           : null;
-        var intensity = skateIntensityForToday(hero, session);
+        var intensity = skateSessionCore.sessionIntensity(feedback.intensity, feedbackIntensityForDate(sessionWindow.dateKey));
         sessions.push(savedSkateSessionPayload(session, feedback, template, hero, intensity, durationHours, linkedTask, sessionWindow));
         saveSkateSessions(sessions);
+        updateSkateSettings(function (settings) {
+          settings.intensityByDate[sessionWindow.dateKey] = intensity;
+        });
         resetSkateSessionState(linkedTask
           ? "Session saved and added to \"" + linkedTask + "\"."
           : (sessionWindow.dateKey === formatDate(today)
@@ -7280,6 +7306,7 @@
       function submitSkateFeedback(event) {
         event.preventDefault();
         saveFinishedSkateSession({
+          intensity: document.querySelector("#skateFeedbackIntensity [aria-pressed=\"true\"]").dataset.intensity,
           confidence: selectedScaleValue("confidence"),
           progressToday: selectedScaleValue("progressToday"),
           durationMinutes: Number(elements.skateDurationMinutes.value) || 45,
@@ -8227,6 +8254,12 @@
             });
           });
         }
+        document.querySelectorAll("#skateFeedbackIntensity [data-intensity]").forEach(function (button) {
+          button.addEventListener("click", function () { selectFeedbackIntensity(button.dataset.intensity); });
+        });
+        bindEvent(elements.skateSessionDate, "change", function () {
+          selectFeedbackIntensity(feedbackIntensityForDate(elements.skateSessionDate.value));
+        });
         bindEvent(elements.skateFeedbackForm, "submit", submitSkateFeedback);
         bindEvent(elements.cancelSkateFeedback, "click", function () {
           pendingSkateLogDateKey = "";
