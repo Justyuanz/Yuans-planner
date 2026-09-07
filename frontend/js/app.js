@@ -24,6 +24,7 @@
         moneyTransactions: "hivePlanner.money.transactions",
         moneyVendorRules: "hivePlanner.money.vendorRules",
         journalEntries: "hivePlanner.journal.entries",
+        meditation: "hivePlanner.meditation",
         activityLog: "hivePlanner.activityLog",
         weeklyRoutinePrefix: "hivePlanner.routine.week.",
         goalPlanner: "hivePlanner.goalPlanner.items",
@@ -1848,6 +1849,7 @@
 
       function saveJournalEntries(entries) {
         writeJson(STORAGE.journalEntries, entries);
+        renderLifePie();
       }
 
       function getJournalEntry(dateString) {
@@ -1884,13 +1886,14 @@
 
         var title = elements.journalTitle.value.trim();
         var content = elements.journalContent.value;
+        var durationMinutes = YuanMindCore.minutes(document.getElementById("journalMinutes").value);
         var tracker = getSelectedJournalTracker();
         var entries = getJournalEntries().slice();
         var existingIndex = entries.findIndex(function (entry) {
           return entry.date === selectedJournalDate;
         });
 
-        if (!title && !content.trim() && !tracker.energy && !tracker.focus && !tracker.context) {
+        if (!durationMinutes && !title && !content.trim() && !tracker.energy && !tracker.focus && !tracker.context) {
           if (existingIndex !== -1) {
             logActivity({
               action: "journal_entry_deleted",
@@ -1918,6 +1921,7 @@
           date: selectedJournalDate,
           title: title,
           content: content,
+          durationMinutes: durationMinutes,
           tracker: tracker,
           createdAt: existingEntry ? existingEntry.createdAt : nowStamp,
           updatedAt: nowStamp
@@ -2039,6 +2043,8 @@
         elements.journalDateLabel.textContent = longHumanDate(selectedJournalDate);
         elements.journalTitle.value = entry ? entry.title : "";
         elements.journalContent.value = entry ? entry.content : "";
+        document.getElementById("journalMinutes").value = entry && entry.durationMinutes ? entry.durationMinutes : "";
+        renderMeditation();
         renderJournalTracker(entry && entry.tracker);
         setJournalStatus("");
         renderJournalArchive();
@@ -4447,7 +4453,7 @@
       function addPhysicalTimeToTotals(totals, start, end) {
         getPhysicalLogs().forEach(function (log) {
           var logDate = parseDate(log.date);
-          if (!dateInRange(logDate, start, end) || !countsAsDone(log.status)) {
+          if ((start && end && !dateInRange(logDate, start, end)) || !countsAsDone(log.status)) {
             return;
           }
           if (workoutKind(log.name) === "skate") {
@@ -4457,15 +4463,13 @@
           }
         });
 
-        getSkateSessions().forEach(function (session) {
-          if (!session || !session.finishedAt) {
-            return;
-          }
-          var sessionDate = parseDate(session.finishedAt.slice(0, 10));
-          if (dateInRange(sessionDate, start, end) && !session.trackedInTask) {
-            totals.skate += Math.max(0, Number(session.durationHours) || 0);
-          }
-        });
+        totals.skate += YuanMindCore.sessionHours(getSkateSessions(), start && formatDate(start), end && formatDate(end));
+        totals.guitar += YuanMindCore.sessionHours(getGuitarSessions(), start && formatDate(start), end && formatDate(end));
+        totals.meditation = YuanMindCore.sessionHours(readJson(STORAGE.meditation, {}).sessions, start && formatDate(start), end && formatDate(end));
+        totals.journal = getJournalEntries().reduce(function (sum, entry) {
+          return (!start || entry.date >= formatDate(start)) && (!end || entry.date <= formatDate(end))
+            ? sum + YuanMindCore.minutes(entry.durationMinutes) / 60 : sum;
+        }, 0);
       }
 
       function totalHoursForRange(start, end) {
@@ -4513,7 +4517,7 @@
           });
         });
 
-        addPhysicalTimeToTotals(totals, new Date(2000, 0, 1), new Date(2099, 11, 31));
+        addPhysicalTimeToTotals(totals, null, null);
         return totals;
       }
 
@@ -4588,42 +4592,63 @@
         });
       }
 
-      // Study/leisure stats are calculated from saved task hours.
       function renderLifePie() {
-        if (!elements.lifeDonut || !elements.lifeDonutLabel || !elements.lifeSummary || !elements.lifeBreakdown || !elements.statsPeriodTabs) {
-          return;
-        }
+        if (!elements.lifeDonut || !elements.lifeSummary || !elements.lifeBreakdown) return;
         var totals = totalsForStatsPeriod(statsPeriod);
-        var study = sumHours(totals, "study");
-        var leisure = sumHours(totals, "leisure");
-        var total = study + leisure;
-        var studyPercent = percent(study, total);
-        var leisurePercent = total ? 100 - studyPercent : 0;
-        var studyDegrees = total ? (study / total) * 360 : 0;
-
-        elements.lifeDonut.style.background = "conic-gradient(var(--green) 0deg " + studyDegrees + "deg, var(--teal) " + studyDegrees + "deg 360deg)";
+        var groups = [
+          { label: "Study", color: "#cbdcf3", ids: ["lc", "cpp", "python"] },
+          { label: "Body", color: "#dbe8c7", ids: ["skate", "p90x3"] },
+          { label: "Mind", color: "#e4d9f3", ids: ["guitar", "meditation", "journal"] }
+        ];
+        var total = 0;
+        groups.forEach(function (group) {
+          group.hours = group.ids.reduce(function (sum, id) { return sum + (totals[id] || 0); }, 0);
+          total += group.hours;
+        });
+        var degrees = 0;
+        var stops = groups.map(function (group) {
+          var from = degrees;
+          degrees += total ? group.hours / total * 360 : 0;
+          return group.color + " " + from + "deg " + degrees + "deg";
+        });
+        elements.lifeDonut.style.background = total ? "conic-gradient(" + stops.join(",") + ")" : "#efedf2";
         elements.lifeDonutLabel.textContent = formatHours(total);
+        elements.lifeDonut.setAttribute("aria-label", groups.map(function (g) { return g.label + " " + formatHours(g.hours); }).join(", "));
         elements.lifeSummary.innerHTML = "";
-        [
-          ["Study", studyPercent + "%", formatHours(study)],
-          ["Leisure", leisurePercent + "%", formatHours(leisure)]
-        ].forEach(function (row) {
+        elements.lifeBreakdown.innerHTML = "";
+        groups.forEach(function (group) {
           var item = document.createElement("div");
           item.className = "pie-summary-row";
-          item.innerHTML = "<strong>" + row[0] + "</strong><span>" + row[1] + " · " + row[2] + "</span>";
+          item.innerHTML = '<strong><i class="life-dot" style="background:' + group.color + '"></i>' + group.label + '</strong><span>' + percent(group.hours, total) + '% · ' + formatHours(group.hours) + '</span>';
           elements.lifeSummary.appendChild(item);
+          group.ids.forEach(function (id) {
+            var activity = activities.find(function (a) { return a.id === id; });
+            var label = activity ? activity.label : id === "meditation" ? "Meditation" : "Journal";
+            var row = document.createElement("div");
+            row.className = "breakdown-row";
+            row.innerHTML = '<strong><i class="life-dot" style="background:' + group.color + '"></i>' + label + '</strong><span>' + percent(totals[id] || 0, total) + '% · ' + formatHours(totals[id] || 0) + '</span>';
+            elements.lifeBreakdown.appendChild(row);
+          });
         });
-
-        elements.lifeBreakdown.innerHTML = "";
-        activities.filter(activityShowsInStats).forEach(function (activity) {
-          var value = totals[activity.id] || 0;
-          var row = document.createElement("div");
-          row.className = "breakdown-row " + activity.className;
-          row.innerHTML = "<strong>" + activity.short + "</strong><span>" + percent(value, total) + "% · " + formatHours(value) + "</span>";
-          elements.lifeBreakdown.appendChild(row);
-        });
-
         renderStatsPeriodTabs();
+      }
+
+      function renderMeditation() {
+        var state = readJson(STORAGE.meditation, { active: null, sessions: [] });
+        var next = YuanMindCore.finishMeditation(state, Date.now());
+        if (next !== state) {
+          writeJson(STORAGE.meditation, next);
+          renderLifePie();
+        }
+        var active = next.active;
+        document.getElementById("meditationMinutes").disabled = Boolean(active);
+        document.getElementById("startMeditation").disabled = Boolean(active);
+        document.getElementById("cancelMeditation").hidden = !active;
+        document.getElementById("meditationCountdown").textContent = active
+          ? formatTimer(Math.max(0, Math.ceil((active.endsAt - Date.now()) / 1000))) : "Ready";
+        var savedMinutes = Math.round(YuanMindCore.sessionHours(next.sessions, selectedJournalDate, selectedJournalDate) * 60);
+        document.getElementById("meditationStatus").textContent = next !== state
+          ? "Meditation complete. Saved to Mind." : savedMinutes + " min saved for " + humanDate(selectedJournalDate) + ".";
       }
 
       function renderStatsPeriodTabs() {
@@ -7413,6 +7438,7 @@
       }
 
       function updateLiveTimers() {
+        renderMeditation();
         var tasks = getTodayTasks();
         var hasRunningTimer = false;
         tasks.forEach(function (task) {
@@ -8103,6 +8129,24 @@
           });
         }
 
+        document.getElementById("journalMinutes").addEventListener("change", saveJournalDraft);
+        document.getElementById("meditationForm").addEventListener("submit", function (event) {
+          event.preventDefault();
+          var state = readJson(STORAGE.meditation, { active: null, sessions: [] });
+          if (state.active) return;
+          var minutes = Number(document.getElementById("meditationMinutes").value);
+          if (!Number.isInteger(minutes) || minutes < 1 || minutes > 180) return;
+          var now = Date.now();
+          state.active = { id: makeId("meditation"), minutes: minutes, dateKey: formatDate(new Date(now)), startedAt: now, endsAt: now + minutes * 60000 };
+          writeJson(STORAGE.meditation, state);
+          renderMeditation();
+        });
+        document.getElementById("cancelMeditation").addEventListener("click", function () {
+          var state = readJson(STORAGE.meditation, { sessions: [] });
+          state.active = null;
+          writeJson(STORAGE.meditation, state);
+          renderMeditation();
+        });
         if (elements.journalTitle) {
           elements.journalTitle.addEventListener("input", saveJournalDraft);
         }

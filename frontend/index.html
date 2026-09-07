@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Yuan's Planner</title>
-  <link rel="stylesheet" href="/css/styles.css?v=20260905a">
+  <link rel="stylesheet" href="/css/styles.css?v=20260907a">
 </head>
 <body>
   <main class="app">
@@ -200,7 +200,7 @@
                 <div class="mini-tabs" id="statsPeriodTabs" aria-label="Statistics period"></div>
               </div>
               <div class="life-pie">
-                <div class="donut" id="lifeDonut" aria-label="Study and leisure time donut chart">
+                <div class="donut" id="lifeDonut" aria-label="Study, Body and Mind time donut chart">
                   <span id="lifeDonutLabel">0h</span>
                 </div>
                 <div class="pie-summary" id="lifeSummary"></div>
@@ -264,6 +264,16 @@
               </div>
             </div>
 
+            <section class="meditation-card" aria-labelledby="meditationHeading">
+              <div><h3 id="meditationHeading">A quiet moment</h3><p class="small-note">Meditate today. Completed minutes flow into Mind.</p></div>
+              <form id="meditationForm" class="meditation-controls">
+                <label for="meditationMinutes">Minutes<input id="meditationMinutes" type="number" min="1" max="180" step="1" value="10" required></label>
+                <output id="meditationCountdown" aria-label="Meditation time remaining">Ready</output>
+                <button class="secondary-button" id="startMeditation" type="submit">Start</button>
+                <button class="secondary-button" id="cancelMeditation" type="button" hidden>Cancel</button>
+              </form>
+              <p class="small-note" id="meditationStatus" role="status"></p>
+            </section>
             <div class="journal-paper">
               <div class="journal-paper-top">
                 <div>
@@ -272,6 +282,7 @@
                 </div>
               </div>
 
+              <label class="journal-minutes" for="journalMinutes">Minutes journaling <span class="small-note">Optional · saved to Mind for this date</span><input id="journalMinutes" type="number" min="0" max="1440" step="1" placeholder="0"></label>
               <section class="state-tracker-card" aria-labelledby="stateTrackerHeading">
                 <div class="section-head compact">
                   <div>
@@ -848,7 +859,7 @@
   <script src="/js/calendar-core.js?v=20260801a"></script>
   <script src="/js/weekly-planner-core.js?v=20260903b"></script>
   <script src="/js/money-core.js?v=20260801a"></script>
-  <script src="/js/journal-core.js?v=20260905a"></script>
+  <script src="/js/journal-core.js?v=20260907a"></script>
   <script src="/js/activity-log.js?v=20260806a"></script>
   <script src="/js/insight-core.js?v=20260905b"></script>
   <script src="/js/insight-rules.js?v=20260905a"></script>
@@ -857,6 +868,7 @@
   <script src="/js/skate-core.js?v=20260831a"></script>
   <script src="/js/skate-session-core.js?v=20260905a"></script>
   <script src="/js/mascot-rag.js?v=20260806a"></script>
-  <script src="/js/app.js?v=20260905c"></script>
+  <script src="/js/mind-core.js?v=20260907a"></script>
+  <script src="/js/app.js?v=20260907a"></script>
 </body>
 </html>

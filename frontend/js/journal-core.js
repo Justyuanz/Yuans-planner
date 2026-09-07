@@ -49,13 +49,14 @@
       title: title.trim(),
       content: content,
       tracker: tracker,
+      durationMinutes: Number.isFinite(Number(entry.durationMinutes)) ? Math.max(0, Math.min(1440, Number(entry.durationMinutes))) : 0,
       createdAt: createdAt,
       updatedAt: updatedAt
     };
   }
 
   function hasEntryContent(entry) {
-    return Boolean(entry && (entry.title || entry.content.trim() || hasTrackerContent(entry.tracker)));
+    return Boolean(entry && (entry.durationMinutes || entry.title || entry.content.trim() || hasTrackerContent(entry.tracker)));
   }
 
   function normalizeEntries(entries) {
