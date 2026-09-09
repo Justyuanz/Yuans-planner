@@ -170,7 +170,7 @@ YUAN_PLANNER_TELEGRAM_CHAT_ID=your_chat_id_here
 YUAN_PLANNER_TIMEZONE=Europe/Helsinki
 ```
 
-Planner reminders are sent by the backend, so they can still reach your phone via Telegram even when the website tab is closed. The planner app itself still needs to be running, and timed reminders currently require the event title to start with a time like `18:00`.
+Planner reminders are sent by the backend, so they can still reach your phone via Telegram even when the website tab is closed. The planner app itself still needs to be running, and timed reminders use the event start-time field (or a legacy title starting with a time like `18:00`).
 
 ## Data Storage
 

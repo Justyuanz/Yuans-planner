@@ -1746,6 +1746,7 @@
       function categoryClass(category) {
         var normalized = normalizeEventCategory(category);
         if (normalized === "Study/school") return "study-block";
+        if (normalized === "Finnish") return "finnish-block";
         if (normalized === "Skate") return "skate-block";
         if (normalized === "Gym") return "gym-block";
         if (normalized === "Cooking") return "cooking-block";
@@ -3065,9 +3066,9 @@
 
         if (pattern && pattern.lowEnergyDays >= 2) {
           elements.energyPatternNote.textContent = "Low-energy check-ins have recently followed evenings averaging "
-            + round(pattern.lowEnergyPreviousEveningHours, 1)
+            + (Math.round((Number(pattern.lowEnergyPreviousEveningHours) || 0) * 10) / 10)
             + "h, compared with "
-            + round(pattern.otherPreviousEveningHours, 1)
+            + (Math.round((Number(pattern.otherPreviousEveningHours) || 0) * 10) / 10)
             + "h before steadier days.";
         } else {
           elements.energyPatternNote.textContent = "Once a few rough days are logged, this will compare what tended to come before them.";
@@ -5195,15 +5196,7 @@
       }
 
       function formatPlannerRange(event) {
-        var start = event && event.startTime ? event.startTime : "";
-        var end = event && event.endTime ? event.endTime : "";
-        if (start && end) {
-          return start + "-" + end;
-        }
-        if (event && event.reminderOnly) {
-          return "Reminder";
-        }
-        return "";
+        return calendarCore.eventTimeLabel(event);
       }
 
       function timeBoundaryForPart(part) {
@@ -7570,8 +7563,19 @@
             var pill = document.createElement("button");
             pill.type = "button";
             pill.className = "event-pill " + categoryClass(event.category);
-            pill.textContent = monthEventChipLabel(event.title);
-            pill.title = event.note ? event.title + " - " + event.note : event.title;
+            var startMinutes = calendarCore.parseEventTimeMinutes(event.startTime || event.title);
+            if (startMinutes !== null) {
+              var startLabel = document.createElement("span");
+              startLabel.className = "event-pill-start";
+              startLabel.textContent = pad(Math.floor(startMinutes / 60)) + ":" + pad(startMinutes % 60);
+              pill.appendChild(startLabel);
+            }
+            var label = document.createElement("span");
+            label.className = "event-pill-name";
+            label.textContent = monthEventChipLabel(event.title);
+            pill.appendChild(label);
+            var timing = calendarCore.eventTimeLabel(event);
+            pill.title = [event.title, timing, event.category, event.note].filter(Boolean).join(" · ");
             pill.addEventListener("click", function (clickEvent) {
               clickEvent.stopPropagation();
               startEditEvent(event.id);

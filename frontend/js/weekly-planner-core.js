@@ -14,9 +14,10 @@
   ];
   DAY_TYPES.forEach(function (type) { type.capacityPoints = type.capacityLoad; });
 
-  var CATEGORY_ORDER = ["Study/school", "Skate", "Gym", "Cooking", "Chores/groceries", "Social", "Guitar", "Personal"];
+  var CATEGORY_ORDER = ["Study/school", "Finnish", "Skate", "Gym", "Cooking", "Chores/groceries", "Social", "Guitar", "Personal"];
   var CATEGORY_META = {
     "Study/school": { label: "Study/school", shortLabel: "Study", className: "study-block", loadMultiplier: 1 },
+    "Finnish": { label: "Finnish", shortLabel: "Finnish", className: "finnish-block", loadMultiplier: 1 },
     "Skate": { label: "Skate", shortLabel: "Skate", className: "skate-block", loadMultiplier: 1.2 },
     "Gym": { label: "Gym", shortLabel: "Gym", className: "gym-block", loadMultiplier: 1.3 },
     "Cooking": { label: "Cooking", shortLabel: "Cooking", className: "cooking-block", loadMultiplier: 0.75 },

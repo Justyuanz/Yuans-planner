@@ -76,3 +76,19 @@ test("groupEventsByPart repeats spanning events across touched planner blocks", 
   assert.deepEqual(grouped.afternoon.map(function (event) { return event.id; }), ["school", "dinner", "study"]);
   assert.deepEqual(grouped.evening.map(function (event) { return event.id; }), ["dinner", "study"]);
 });
+
+test("calendar labels include structured or legacy times and duration", () => {
+  assert.equal(core.eventTimeLabel({startTime:"09:00",endTime:"12:15"}), "09:00–12:15 · 3h 15m");
+  assert.equal(core.eventTimeLabel({title:"18-19 Gym"}), "18:00–19:00 · 1h");
+  assert.equal(core.eventTimeLabel({startTime:"10:00",reminderOnly:true}), "10:00 · Reminder");
+  assert.equal(core.eventTimeLabel({title:"Untimed"}), "");
+  assert.equal(core.eventTimeLabel({startTime:"09:00",endTime:"09:45"}), "09:00–09:45 · 45m");
+});
+
+test("structured times place events in every occupied day part", () => {
+  const event = {title:"Class",startTime:"09:00",endTime:"12:15"};
+  const groups = core.groupEventsByPart([event]);
+  assert.deepEqual(groups.morning, [event]);
+  assert.deepEqual(groups.afternoon, [event]);
+  assert.deepEqual(groups.evening, []);
+});

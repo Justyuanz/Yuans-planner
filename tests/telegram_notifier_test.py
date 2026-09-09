@@ -18,6 +18,13 @@ from config import planner_timezone
 
 
 class TelegramNotifierTests(unittest.TestCase):
+    def test_structured_start_time_schedules_reminder(self) -> None:
+        events = [{"id": "enrollment", "date": "2026-10-12", "title": "Enrollment",
+                   "startTime": "10:00", "reminderOnly": True, "reminderMinutes": 15}]
+        due = build_due_reminders(events, datetime(2026, 10, 12, 9, 45), "hivePlanner.events", "", "Event")
+        self.assertEqual(len(due), 1)
+        self.assertEqual(due[0].event_id, "enrollment")
+
     def test_parse_event_time_reads_leading_clock_time(self) -> None:
         self.assertEqual(parse_event_time("18:30 Evening skate"), (18, 30))
         self.assertEqual(parse_event_time("930 Study block"), (9, 30))

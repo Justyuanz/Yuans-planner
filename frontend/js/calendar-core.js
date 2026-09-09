@@ -56,6 +56,21 @@
     };
   }
 
+  function eventTimeLabel(event) {
+    if (!event) return "";
+    var range = parseEventTimeRange(event.startTime && event.endTime ? event : event.title);
+    function clock(minutes) {
+      return String(Math.floor(minutes / 60)).padStart(2, "0") + ":" + String(minutes % 60).padStart(2, "0");
+    }
+    if (range && !event.reminderOnly) {
+      var minutes = range.end - range.start;
+      var duration = [Math.floor(minutes / 60) ? Math.floor(minutes / 60) + "h" : "", minutes % 60 ? (minutes % 60) + "m" : ""].filter(Boolean).join(" ");
+      return clock(range.start) + "–" + clock(range.end) + " · " + duration;
+    }
+    var start = parseEventTimeMinutes(event.startTime || event.title);
+    return [start === null ? "" : clock(start), event.reminderOnly ? "Reminder" : ""].filter(Boolean).join(" · ");
+  }
+
   function compareEventsChronologically(a, b) {
     var timeA = parseEventTimeMinutes(a && (a.startTime || a.title));
     var timeB = parseEventTimeMinutes(b && (b.startTime || b.title));
@@ -78,7 +93,7 @@
   }
 
   function eventDayPart(event) {
-    var timeValue = parseEventTimeMinutes(event && event.title);
+    var timeValue = parseEventTimeMinutes(event && (event.startTime || event.title));
     if (timeValue !== null) {
       if (timeValue < MORNING_END) {
         return "morning";
@@ -95,7 +110,7 @@
   }
 
   function eventDayParts(event) {
-    var range = parseEventTimeRange(event && event.title);
+    var range = parseEventTimeRange(event && event.startTime && event.endTime ? event : event && event.title);
     if (range) {
       var parts = [];
       if (range.start < MORNING_END) {
@@ -127,6 +142,7 @@
   }
 
   return {
+    eventTimeLabel: eventTimeLabel,
     compareEventsChronologically: compareEventsChronologically,
     eventDayPart: eventDayPart,
     groupEventsByPart: groupEventsByPart,

@@ -86,3 +86,9 @@ test("week validation still protects one recovery day and two high-intensity day
   assert.equal(core.validateWeekPlan(plan).valid, false);
   assert.match(core.validateWeekPlan(plan).errors[0], /two High-Intensity Days/i);
 });
+
+test("Finnish retains its category and counts class time as study load", () => {
+  assert.equal(core.normalizeCategory("Finnish"), "Finnish");
+  assert.equal(core.categoryMeta("Finnish").className, "finnish-block");
+  assert.equal(core.loadForActivity("Finnish", 195, "standard"), core.loadForActivity("Study/school", 195, "standard"));
+});
