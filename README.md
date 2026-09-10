@@ -1,239 +1,104 @@
 # Yuan's Planner
 
-Yuan's Planner is a small personal planning app with a Python backend and a static frontend.
+A hobby vibe coding project: a personal planner built with AI assistance for everyday planning, journaling, and tracking progress. It uses a Python backend, SQLite, and plain HTML, CSS, and JavaScript.
 
-It currently includes:
+## What it does
 
-- a dashboard for weekly goals, daily tasks, and quick summaries
-- a journal view with dated entries and searchable history
-- a money planner with budgets, transactions, and vendor summaries
-- a calendar with weekly and monthly planning
-- skate and guitar tracking pages
-- local backup export and import
+- Dashboard with weekly goals, daily tasks, and planning insights
+- Journal with dated entries and searchable history
+- Money tracking with budgets, transactions, and vendor summaries
+- Weekly and monthly calendar planning
+- Skate and guitar practice tracking
+- JSON backup export and import
+- Optional OpenAI mascot chat and Telegram reminders
 
-The app serves `frontend/` directly and stores planner data in SQLite.
+## Run locally
 
-## Quick Start
-
-For most people, local setup is just:
+You need Python 3.10 or newer. No Python packages, npm install, or frontend build step are required.
 
 ```sh
-git clone git@github.com:Justyuanz/Yuans-planner.git
+git clone https://github.com/Justyuanz/Yuans-planner.git YuanPlanner
 cd YuanPlanner
 ./scripts/start.sh
 ```
 
-Then open:
+Open [localhost:8765](http://127.0.0.1:8765). You can also start the server with `python3 backend/app.py`. On macOS, `./scripts/open-ui.sh` starts the server if needed and opens the app.
 
-- [http://127.0.0.1:8765](http://127.0.0.1:8765)
+To use a different port:
 
-There is no frontend build step and no required dependency install for normal local use.
+```sh
+YUAN_PLANNER_PORT=8876 ./scripts/start.sh
+```
 
-## Tech Stack
-
-- Python standard library backend
-- static HTML, CSS, and vanilla JavaScript frontend
-- SQLite key-value persistence
-- Node's built-in test runner for frontend logic tests
-
-There is no frontend build step.
-
-## Project Structure
+## Project structure
 
 ```text
-YuanPlanner/
-  backend/
-    app.py
-    config.py
-    db.py
-  frontend/
-    index.html
-    css/styles.css
-    js/app.js
-    js/calendar-core.js
-    js/journal-core.js
-    js/money-core.js
-  scripts/
-    start.sh
-    open-ui.sh
-  tests/
-    calendar-core.test.js
-    journal-core.test.js
-    money-core.test.js
-  data/
-    planner.db
-  docker-compose.yml
-  Dockerfile
-  README.md
+backend/       HTTP server, SQLite storage, configuration, and integrations
+frontend/      HTML, CSS, and JavaScript (served directly)
+scripts/       Start, open, and test commands
+tests/         Python backend and JavaScript logic tests
+docs/          Design notes and future plans
+data/          Local database and runtime files (ignored by Git)
 ```
 
-## Requirements
+`backend/app.py` is the server entry point; `config.py` handles settings and `db.py` handles persistence. In the frontend, `app.js` connects the UI to storage and the smaller modules contain feature logic. Scripts load in the order listed in `frontend/index.html`.
 
-- Python 3
-- Node.js only if you want to run the JavaScript tests
-
-`requirements.txt` is intentionally empty because the app uses Python standard library modules only.
-
-That means:
-
-- `pip install -r requirements.txt` is safe but not necessary
-- you do not need `npm install`
-- you do not need any frontend build command
-
-## Run Locally
-
-Start the app:
-
-```sh
-./scripts/start.sh
-```
-
-Equivalent direct command:
-
-```sh
-python3 backend/app.py
-```
-
-Then open:
-
-- [http://127.0.0.1:8765](http://127.0.0.1:8765)
-
-If port `8765` is already being used on your machine:
-
-```sh
-YUAN_PLANNER_PORT=8876 ./scripts/start.sh
-```
-
-Then open:
-
-- [http://127.0.0.1:8876](http://127.0.0.1:8876)
-
-To run on another port:
-
-```sh
-YUAN_PLANNER_PORT=8876 ./scripts/start.sh
-```
-
-If you want the script to launch the UI for you on macOS:
-
-```sh
-./scripts/open-ui.sh
-```
-
-`open-ui.sh` is a convenience script for macOS. It is not required to run the app.
+Design notes: [agent roadmap](docs/agent-intelligence-roadmap.md) and [planner load model](docs/planner-load-model/design.md). These describe design intent and plans, rather than a complete inventory of shipped features.
 
 ## Configuration
 
-Optional environment variables:
+The backend reads an optional `.env` file in the project root. Existing shell environment variables take precedence. Create this file yourself if needed; keep credentials out of Git.
 
-- `YUAN_PLANNER_HOST`
-  Default: `0.0.0.0`
-- `YUAN_PLANNER_PORT`
-  Default: `8765`
-- `YUAN_PLANNER_DB_PATH`
-  Default: `data/planner.db`
-- `YUAN_PLANNER_TIMEZONE`
-  Default: `Europe/Helsinki`
-- `OPENAI_API_KEY`
-  Optional. Enables OpenAI-backed mascot chat.
-- `YUAN_PLANNER_OPENAI_MODEL`
-  Default: `gpt-5-mini`
-- `YUAN_PLANNER_OPENAI_TIMEOUT_SECONDS`
-  Default: `20`
-- `YUAN_PLANNER_TELEGRAM_ENABLED`
-  Default: `0`. Set to `1` to turn on Telegram reminders.
-- `YUAN_PLANNER_TELEGRAM_BOT_TOKEN`
-  Optional. Bot token from BotFather.
-- `YUAN_PLANNER_TELEGRAM_CHAT_ID`
-  Optional. Telegram chat ID that should receive reminders.
+| Variable | Default / purpose |
+| --- | --- |
+| `YUAN_PLANNER_HOST` | `0.0.0.0` (all interfaces); use `127.0.0.1` for local-only access |
+| `YUAN_PLANNER_PORT` | `8765` |
+| `YUAN_PLANNER_DB_PATH` | `data/planner.db`; relative paths resolve from the project root |
+| `YUAN_PLANNER_TIMEZONE` | `Europe/Helsinki` |
+| `OPENAI_API_KEY` | Optional key for mascot chat |
+| `YUAN_PLANNER_OPENAI_MODEL` | `gpt-5-mini` |
+| `YUAN_PLANNER_OPENAI_TIMEOUT_SECONDS` | `20` (clamped to 5–60 seconds) |
+| `YUAN_PLANNER_TELEGRAM_ENABLED` | `0`; set to `1` to enable reminders |
+| `YUAN_PLANNER_TELEGRAM_BOT_TOKEN` | Optional Telegram bot token |
+| `YUAN_PLANNER_TELEGRAM_CHAT_ID` | Optional destination chat ID |
 
-The backend automatically reads `.env` if it exists.
+Telegram reminders require all three Telegram settings and a running backend. The browser can be closed. Timed reminders use an event's start time or a legacy title beginning with a time such as `18:00`.
 
-Example:
+## Data and backups
 
-```sh
-cp .env.example .env
-```
+The server creates `data/planner.db` automatically. The frontend also uses browser local storage as a fallback. Local databases, credentials, logs, and the `backups/` directory are ignored by Git.
 
-If you enable OpenAI-backed mascot chat, set the key only in `.env` or your shell environment:
-
-```sh
-OPENAI_API_KEY=your_key_here
-```
-
-To enable Telegram reminders, set these in `.env` and restart the planner:
-
-```sh
-YUAN_PLANNER_TELEGRAM_ENABLED=1
-YUAN_PLANNER_TELEGRAM_BOT_TOKEN=your_bot_token_here
-YUAN_PLANNER_TELEGRAM_CHAT_ID=your_chat_id_here
-YUAN_PLANNER_TIMEZONE=Europe/Helsinki
-```
-
-Planner reminders are sent by the backend, so they can still reach your phone via Telegram even when the website tab is closed. The planner app itself still needs to be running, and timed reminders use the event start-time field (or a legacy title starting with a time like `18:00`).
-
-## Data Storage
-
-Planner data is stored in SQLite.
-
-Default database location:
-
-```text
-data/planner.db
-```
-
-The database file and parent directory are created automatically if they do not exist yet.
-
-## Backups
-
-You can back up the planner in two ways.
-
-### App export
-
-Use the in-app export button, or download the same JSON backup from:
+Use the app's export/import controls, or export the server's saved data with:
 
 ```sh
 curl http://127.0.0.1:8765/api/export -o yuan-planner-backup.json
 ```
 
-### Raw SQLite copy
+Server imports merge valid planner keys into existing data, replacing matching keys.
 
-Copy the database file directly:
+## Tests
+
+With Python and Node.js 18 or newer installed, run both suites:
 
 ```sh
-cp data/planner.db ./backups/planner.db
+sh scripts/test.sh
 ```
 
-## Run With Docker
+Or run them separately:
 
-Start the app with Docker Compose:
+```sh
+python3 -m unittest discover -s tests -p '*_test.py'
+node --test tests/*.test.js
+```
+
+Tests cover frontend feature logic, backend reminders and mascot helpers, SQLite persistence, HTTP storage/backup endpoints, and static asset delivery. Backend persistence tests use temporary databases; they do not modify your planner data or call external services.
+
+## Docker
 
 ```sh
 docker compose up --build
 ```
 
-Then open:
+Open [localhost:8765](http://127.0.0.1:8765). Compose mounts `./data` for persistent storage. Stop it with `docker compose down`.
 
-- [http://127.0.0.1:8765](http://127.0.0.1:8765)
-
-The compose file mounts `./data` into the container so your SQLite data persists across restarts.
-
-To stop it:
-
-```sh
-docker compose down
-```
-
-## Tests
-
-Run the frontend logic tests with Node:
-
-```sh
-node --test tests/*.test.js
-```
-
-At the moment, that covers:
-
-- calendar core behavior
-- journal core behavior
-- money core behavior
+The default Compose configuration does not forward optional integration settings or copy your `.env` into the image. To use integrations in Docker, explicitly add the desired variables to the service's `environment` configuration.

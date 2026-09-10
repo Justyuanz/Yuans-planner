@@ -48,19 +48,24 @@ def read_all_values() -> dict[str, str]:
     return {key: value for key, value in rows}
 
 
+def _upsert_value(conn: sqlite3.Connection, key: str, value: str) -> None:
+    """Write one value within the caller's transaction."""
+    conn.execute(
+        """
+        INSERT INTO kv_store (key, value, updated_at)
+        VALUES (?, ?, ?)
+        ON CONFLICT(key) DO UPDATE SET
+            value = excluded.value,
+            updated_at = excluded.updated_at
+        """,
+        (key, value, now_iso()),
+    )
+
+
 def put_value(key: str, value: str) -> None:
     conn = connect()
     try:
-        conn.execute(
-            """
-            INSERT INTO kv_store (key, value, updated_at)
-            VALUES (?, ?, ?)
-            ON CONFLICT(key) DO UPDATE SET
-                value = excluded.value,
-                updated_at = excluded.updated_at
-            """,
-            (key, value, now_iso()),
-        )
+        _upsert_value(conn, key, value)
         conn.commit()
     finally:
         conn.close()
@@ -81,16 +86,7 @@ def import_values(data: dict) -> int:
     try:
         for key, value in data.items():
             if isinstance(key, str) and key.startswith("hivePlanner.") and isinstance(value, str):
-                conn.execute(
-                    """
-                    INSERT INTO kv_store (key, value, updated_at)
-                    VALUES (?, ?, ?)
-                    ON CONFLICT(key) DO UPDATE SET
-                        value = excluded.value,
-                        updated_at = excluded.updated_at
-                    """,
-                    (key, value, now_iso()),
-                )
+                _upsert_value(conn, key, value)
                 imported += 1
         conn.commit()
     finally:
