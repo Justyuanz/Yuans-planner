@@ -1,6 +1,6 @@
 # Yuan's Planner
 
-A hobby vibe coding project: a personal planner built with AI assistance for everyday planning, journaling, and tracking progress. It uses a Python backend, SQLite, and plain HTML, CSS, and JavaScript.
+A hobby AI-assisted coding project: a personal planner built with AI assistance for everyday planning, journaling, and tracking progress. It uses a Python backend, SQLite, and plain HTML, CSS, and JavaScript.
 
 ## What it does
 
