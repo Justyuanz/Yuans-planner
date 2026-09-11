@@ -43,8 +43,6 @@ data/          Local database and runtime files (ignored by Git)
 
 `backend/app.py` is the server entry point; `config.py` handles settings and `db.py` handles persistence. In the frontend, `app.js` connects the UI to storage and the smaller modules contain feature logic. Scripts load in the order listed in `frontend/index.html`.
 
-Design notes: [agent roadmap](docs/agent-intelligence-roadmap.md) and [planner load model](docs/planner-load-model/design.md). These describe design intent and plans, rather than a complete inventory of shipped features.
-
 ## Configuration
 
 The backend reads an optional `.env` file in the project root. Existing shell environment variables take precedence. Create this file yourself if needed; keep credentials out of Git.
