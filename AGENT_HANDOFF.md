@@ -140,12 +140,12 @@ For a migrated feature:
 ## Migration Order
 
 ### Phase 1 — Reverse Engineering
-- [ ] Map project files
-- [ ] List existing features
-- [ ] Document SQLite schema
-- [ ] Identify frontend/backend boundaries
-- [ ] Identify duplicated/dead code
-- [ ] Identify critical user flows
+- [x] Map project files
+- [x] List existing features
+- [x] Document SQLite schema
+- [x] Identify frontend/backend boundaries
+- [x] Identify duplicated/dead code
+- [x] Identify critical user flows
 
 ### Phase 2 — Safety Net
 - [ ] Add tests for critical backend behavior
@@ -170,13 +170,13 @@ For each feature:
 - [ ] remove legacy implementation only after tests pass
 
 ## Current Task
-Not started.
+Phase 1 reverse engineering is complete. No production rewrite code has been started.
 
 ## Last Completed Task
-None.
+Created `docs/reverse-engineering.md`, covering the runtime architecture, file and feature maps, HTTP API, SQLite/key/value and domain data shapes, cross-feature coupling, legacy data, duplication/dead code, current test gaps, and critical user flows.
 
 ## Next Task
-Reverse-engineer the existing project and create a feature/file/database map.
+Begin Phase 2 by adding compatibility fixtures and tests for storage hydration/persistence, then protect event-to-task synchronization before introducing React or changing production behavior.
 
 ## Important Decisions
 - Use the same Git repository.
@@ -190,17 +190,35 @@ Reverse-engineer the existing project and create a feature/file/database map.
 - Large rewrites in one step are prohibited.
 - Readability and learnability are priorities.
 - Use short explanatory comments for non-obvious code.
+- Treat every existing `hivePlanner.*` value as a compatibility contract; preserve unknown keys and unknown record fields until a tested migration explicitly handles them.
+- Preserve server-first hydration with local-storage backfill unless a separately documented migration changes it.
+- Keep task timers persistent, but keep current Skate and Guitar session start times transient across refresh.
+- The first React boundary should be read-only and use typed compatibility decoders against the existing `/api/kv` response.
 
 ## Known Problems
 - Existing project is over 20,000 lines.
 - Some files contain thousands of lines.
 - Duplicate/redundant functions likely exist.
 - Current architecture is difficult to understand.
+- `frontend/js/app.js` is 8,354 lines and owns storage, normalization, rendering, event handling, and cross-feature orchestration without direct automated coverage.
+- `frontend/css/styles.css` is 5,631 lines with several accumulated responsive sections.
+- Time/date parsing and normalization are duplicated across frontend modules and backend integrations.
+- Several declared storage keys and an older Study/Body weekly-overview path are inactive, while the real database still contains legacy-only keys that backups must preserve.
+- Browser inspection reports 29 generated form controls without an `id` or `name`.
+- The default `node` on the inspected machine is Node 14 and cannot run `node --test`; use the installed modern Node runtime or fix the local PATH before relying on `scripts/test.sh` without `NODE_BIN`.
+- Most cross-feature behavior in `app.js` has no DOM or end-to-end tests yet.
 
 ## Session Log
 
 ### Session 1
-Not started yet.
+
+- Confirmed the rewrite worktree is clean and on `rewrite/react-typescript`; `main` remains in the original worktree at tag `pre-react-rewrite`.
+- Read the repository instructions and handoff, then inspected recent history, the current diff, the tracked source/test inventory, relevant implementations and tests, and existing design notes.
+- Inspected the existing `main` SQLite schema and field shapes without copying personal content.
+- Ran the app against an empty temporary database and verified all six views at desktop and mobile widths. All 19 initial network requests succeeded; no horizontal overflow was present. Chrome reported one existing form-control issue affecting 29 generated fields.
+- Added `docs/reverse-engineering.md` as the Phase 1 source of truth.
+- Verification: 17 Python tests and 94 JavaScript tests pass using `/Users/yuan/.nvm/versions/node/v24.14.1/bin/node`. The default Node 14 binary is too old for the test runner.
+- No production files were changed.
 
 ---
 
