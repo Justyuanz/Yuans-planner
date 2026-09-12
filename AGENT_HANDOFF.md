@@ -155,9 +155,9 @@ For a migrated feature:
 - [x] Identify critical user flows
 
 ### Phase 2 — Safety Net
-- [ ] Add tests for critical backend behavior
+- [x] Add tests for critical backend behavior
 - [ ] Add tests for critical user flows
-- [ ] Record current expected behavior
+- [x] Record current expected behavior
 
 ### Phase 3 — New Structure
 - [ ] Create React + TypeScript frontend beside the old frontend
@@ -177,15 +177,16 @@ For each feature:
 - [ ] remove legacy implementation only after tests pass
 
 ## Current Task
-Phase 1 reverse engineering is complete. No production rewrite code has been started.
+Phase 2 safety-net work is in progress. Storage compatibility and calendar-event-to-task synchronization are now protected; broader user-flow coverage is still needed. No React rewrite code has been started.
 
 ## Last Completed Task
-Created `docs/reverse-engineering.md`, covering the runtime architecture, file and feature maps, HTTP API, SQLite/key/value and domain data shapes, cross-feature coupling, legacy data, duplication/dead code, current test gaps, and critical user flows.
+Added an anonymized version-2 compatibility fixture, exact backend import/export round-trip coverage, a tested server-first hydration/backup module, and a tested calendar-linked task synchronization module used by the legacy application.
 
 ## Next Task
-Begin Phase 2 by adding compatibility fixtures and tests for storage hydration/persistence, then protect event-to-task synchronization before introducing React or changing production behavior.
+Continue Phase 2 with automated coverage for legacy app startup and the create/edit/delete/refresh task flow. Then protect the remaining session-to-task and no-double-count cross-feature behavior before introducing React.
 
 ## Important Decisions
+- New code must be split into small, clear, single-responsibility modules with short focused functions and short explanatory comments for non-obvious logic; do not create new monolithic files.
 - Use the same Git repository.
 - Keep `main` as the original working application.
 - Perform migration on `rewrite/react-typescript`.
@@ -201,19 +202,21 @@ Begin Phase 2 by adding compatibility fixtures and tests for storage hydration/p
 - Preserve server-first hydration with local-storage backfill unless a separately documented migration changes it.
 - Keep task timers persistent, but keep current Skate and Guitar session start times transient across refresh.
 - The first React boundary should be read-only and use typed compatibility decoders against the existing `/api/kv` response.
+- Keep new compatibility logic in focused, pure UMD modules that the legacy app and Node tests both execute.
+- Calendar-linked task reconciliation must preserve user-edited task state, remove stale source links, and add each missing current event without duplication.
 
 ## Known Problems
 - Existing project is over 20,000 lines.
 - Some files contain thousands of lines.
 - Duplicate/redundant functions likely exist.
 - Current architecture is difficult to understand.
-- `frontend/js/app.js` is 8,354 lines and owns storage, normalization, rendering, event handling, and cross-feature orchestration without direct automated coverage.
+- `frontend/js/app.js` is 8,313 lines and still owns most storage, normalization, rendering, event handling, and cross-feature orchestration; only the newly extracted boundaries have direct coverage.
 - `frontend/css/styles.css` is 5,631 lines with several accumulated responsive sections.
 - Time/date parsing and normalization are duplicated across frontend modules and backend integrations.
 - Several declared storage keys and an older Study/Body weekly-overview path are inactive, while the real database still contains legacy-only keys that backups must preserve.
 - Browser inspection reports 29 generated form controls without an `id` or `name`.
 - The default `node` on the inspected machine is Node 14 and cannot run `node --test`; use the installed modern Node runtime or fix the local PATH before relying on `scripts/test.sh` without `NODE_BIN`.
-- Most cross-feature behavior in `app.js` has no DOM or end-to-end tests yet.
+- Most remaining cross-feature behavior in `app.js` has no DOM or end-to-end tests yet; storage merging and calendar-event-to-task reconciliation are now covered through extracted production modules.
 
 ## Session Log
 
@@ -226,6 +229,18 @@ Begin Phase 2 by adding compatibility fixtures and tests for storage hydration/p
 - Added `docs/reverse-engineering.md` as the Phase 1 source of truth.
 - Verification: 17 Python tests and 94 JavaScript tests pass using `/Users/yuan/.nvm/versions/node/v24.14.1/bin/node`. The default Node 14 binary is too old for the test runner.
 - No production files were changed.
+
+### Session 2
+
+- Re-read the updated code-quality rules and kept all new JavaScript on `const`/`let` with focused files and no `var`.
+- Added `tests/fixtures/planner-v2-compatibility.json` with anonymized current, legacy, unknown-key, and unknown-field data.
+- Added an HTTP test proving the fixture survives import and export byte-for-byte at the stored string-value boundary.
+- Added `frontend/js/storage-core.js` and tests for server-first hydration, browser-only planner-key backfill, malformed input handling, unknown-key preservation, and transient-key backup exclusion.
+- Added `frontend/js/calendar-task-sync.js` and tests for legacy category mapping, imported task shape, stale-link removal, existing user-state preservation, and duplicate-free repeat synchronization.
+- Wired both pure modules into the legacy app and asserted that they load before `app.js`.
+- TDD evidence: the new Node tests first failed because the modules did not exist; the compatibility HTTP test first failed because the fixture did not exist; the script-order test first failed before the calendar-task module was loaded.
+- Browser verification with a temporary database confirmed that a browser-only planner key backfills to SQLite and a calendar event creates one linked Coding task with its reminder after reload. Desktop and 500px layouts have no horizontal overflow; the existing 29-field accessibility warning remains.
+- Verification: JavaScript syntax checks pass; 18 Python tests and 101 JavaScript tests pass using `/Users/yuan/.nvm/versions/node/v24.14.1/bin/node`.
 
 ---
 

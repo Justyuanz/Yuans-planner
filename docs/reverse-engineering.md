@@ -20,7 +20,7 @@ Yuan's Planner is a single-page, server-rendered-static application with six cli
 ```text
 Browser
   index.html + styles.css
-  13 UMD-style pure JavaScript modules
+  15 UMD-style pure JavaScript modules
   app.js (state, DOM rendering, event handlers, orchestration)
        |
        | JSON over same-origin HTTP
@@ -103,7 +103,7 @@ These differences are user-visible contracts and need explicit tests before migr
 | --- | --- | --- |
 | `frontend/index.html` | Complete markup for all six views and three dialogs; declares script order | All views exist in one document and are toggled with `.active` |
 | `frontend/css/styles.css` | Entire visual system and responsive layout | 5,631 lines and 848 rule blocks; styles have accumulated in several breakpoint sections |
-| `frontend/js/app.js` | Storage, normalization, all DOM rendering, all event handlers, cross-feature synchronization, timers, backup UI, and app startup | Primary migration risk: 8,354 lines and more than 200 named functions |
+| `frontend/js/app.js` | Storage, normalization, all DOM rendering, all event handlers, cross-feature synchronization, timers, backup UI, and app startup | Primary migration risk: 8,313 lines and more than 200 named functions |
 
 ### Frontend pure modules
 
@@ -112,6 +112,7 @@ All modules use a small UMD wrapper: CommonJS for Node tests and `globalThis.Yua
 | File | Responsibility |
 | --- | --- |
 | `calendar-core.js` | Parses structured and legacy times; sorts and groups events into day parts |
+| `calendar-task-sync.js` | Reconciles calendar-linked tasks without overwriting user task state |
 | `weekly-planner-core.js` | Day types, continuous load-hours model, effort/category normalization, capacity validation |
 | `money-core.js` | Money normalization, euro parsing, budgets, transfers, pace/projections, vendor summaries |
 | `journal-core.js` | Journal/tracker normalization, sorting, search, previews |
@@ -124,6 +125,7 @@ All modules use a small UMD wrapper: CommonJS for Node tests and `globalThis.Yua
 | `skate-core.js` | Date-driven 21-week/60-day SkateIQ training plan and intensity metadata |
 | `skate-session-core.js` | Skate session dates/intensity and session-to-task duration synchronization |
 | `mind-core.js` | Meditation completion and standalone mind-session hour aggregation |
+| `storage-core.js` | Planner-key filtering, server-first hydration merging, and backup selection |
 
 ### Tests
 
@@ -134,7 +136,7 @@ All modules use a small UMD wrapper: CommonJS for Node tests and `globalThis.Yua
 | Pure frontend logic | 94 Node tests across calendar, load planning, money, journal, activity history, insights, agent actions, mascot RAG, Skate, sessions, and meditation |
 | Missing integration layer | No automated DOM/end-to-end tests for `app.js`; no visual regression; no browser storage failure/recovery test; no test exercising an entire create/edit/delete/refresh user flow |
 
-Baseline on 2026-09-12: 17 Python tests and 94 JavaScript tests pass when the suite uses a modern Node runtime.
+Baseline after the first Phase 2 safety-net step: 18 Python tests and 101 JavaScript tests pass when the suite uses a modern Node runtime.
 
 ## HTTP API Map
 

@@ -16,6 +16,9 @@ import app
 import db
 
 
+FIXTURE_PATH = Path(__file__).resolve().parent / "fixtures" / "planner-v2-compatibility.json"
+
+
 class AssetParser(HTMLParser):
     def __init__(self):
         super().__init__()
@@ -69,6 +72,17 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(json.loads(self.request("POST", "/api/import", exported)[2]), {"ok": True, "imported": 1})
         self.assertEqual(json.loads(self.request("GET", "/api/kv")[2])["data"], exported["data"])
 
+    def test_version_2_fixture_round_trips_without_data_shape_loss(self):
+        fixture = json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
+
+        status, _, body = self.request("POST", "/api/import", fixture)
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(body), {"ok": True, "imported": len(fixture["data"])})
+
+        status, _, body = self.request("GET", "/api/export")
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(body)["data"], fixture["data"])
+
     def test_invalid_writes_do_not_change_data(self):
         for method, path, payload in [
             ("PUT", "/api/kv", {"key": "invalid", "value": "x"}),
@@ -87,6 +101,11 @@ class HttpTests(unittest.TestCase):
         parser = AssetParser()
         parser.feed(body.decode())
         self.assertTrue(parser.urls)
+        storage_script = next(url for url in parser.urls if url.startswith("/js/storage-core.js"))
+        calendar_task_script = next(url for url in parser.urls if url.startswith("/js/calendar-task-sync.js"))
+        app_script = next(url for url in parser.urls if url.startswith("/js/app.js"))
+        self.assertLess(parser.urls.index(storage_script), parser.urls.index(app_script))
+        self.assertLess(parser.urls.index(calendar_task_script), parser.urls.index(app_script))
         for url in ["/"] + parser.urls:
             with self.subTest(url=url):
                 status, headers, body = self.request("GET", url)

@@ -88,6 +88,8 @@
       var skateSessionCore = globalThis.YuanSkateSessionCore;
       var mascotRag = globalThis.YuanMascotRag;
       var weeklyPlannerCore = globalThis.YuanWeeklyPlannerCore;
+      const storageCore = globalThis.YuanStorageCore;
+      const calendarTaskSync = globalThis.YuanCalendarTaskSync;
       var currentInsightBundleState = null;
       var expandedHiddenTaskDates = {};
       var weeklyPlannerUiState = {
@@ -769,7 +771,7 @@
       };
 
       function isPlannerKey(key) {
-        return typeof key === "string" && key.indexOf("hivePlanner.") === 0;
+        return storageCore.isPlannerKey(key);
       }
 
       function writeBrowserStorage(key, value) {
@@ -809,6 +811,19 @@
         });
       }
 
+      function persistServerValue(key, value) {
+        if (!serverStorageAvailable) {
+          return;
+        }
+        fetch("/api/kv", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ key: key, value: value })
+        }).catch(function () {
+          serverStorageAvailable = false;
+        });
+      }
+
       function stripStartedAtFromStoredSkateSession() {
         var session = readJson(STORAGE.skateCurrentSession, null);
         if (!session || typeof session !== "object" || !session.startedAt) {
@@ -843,14 +858,14 @@
           serverStorageAvailable = false;
         }
 
+        const browserValues = {};
         try {
-          for (var i = 0; i < localStorage.length; i += 1) {
-            var key = localStorage.key(i);
-            if (key && isPlannerKey(key) && memoryStore[key] === undefined) {
-              var storedValue = localStorage.getItem(key);
+          for (let index = 0; index < localStorage.length; index += 1) {
+            const key = localStorage.key(index);
+            if (key && isPlannerKey(key)) {
+              const storedValue = localStorage.getItem(key);
               if (typeof storedValue === "string") {
-                memoryStore[key] = storedValue;
-                persistRaw(key, storedValue);
+                browserValues[key] = storedValue;
               }
             }
           }
@@ -858,6 +873,12 @@
           browserStorageAvailable = false;
           console.warn("Planner browser storage could not be read; using the server copy instead.", error);
         }
+
+        const hydration = storageCore.mergeHydrationSources(memoryStore, browserValues);
+        memoryStore = hydration.values;
+        hydration.serverBackfills.forEach(function (entry) {
+          persistServerValue(entry.key, entry.value);
+        });
         sanitizeTransientSessionData();
       }
 
@@ -871,13 +892,7 @@
         if (!serverStorageAvailable) {
           return;
         }
-        fetch("/api/kv", {
-          method: "PUT",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ key: key, value: value })
-        }).catch(function () {
-          serverStorageAvailable = false;
-        });
+        persistServerValue(key, value);
       }
 
       function readText(key, fallback) {
@@ -2076,73 +2091,22 @@
         writeJson(STORAGE.goals, payload);
       }
 
-      function calendarEventTaskActivity(category) {
-        var normalized = normalizeEventCategory(category);
-        if (normalized === "Study/school") {
-          return "cpp";
-        }
-        if (normalized === "Skate") {
-          return "skate";
-        }
-        if (normalized === "Gym") {
-          return "p90x3";
-        }
-        if (normalized === "Guitar") {
-          return "guitar";
-        }
-        if (normalized === "Cooking" || normalized === "Chores/groceries" || normalized === "Social" || normalized === "Personal") {
-          return "other";
-        }
-        return "other";
-      }
-
-      function importedCalendarTasksForDate(dateKey, existingTasks) {
-        var existing = Array.isArray(existingTasks) ? existingTasks : [];
-        var existingSourceIds = existing.map(function (task) {
-          return task.sourceEventId;
-        }).filter(Boolean);
-        return plannerEventsForDate(dateKey)
-          .filter(function (event) {
-            return existingSourceIds.indexOf(event.id) === -1;
-          })
-          .map(function (event) {
-            return {
-              id: makeId("calendar-task"),
-              label: event.title,
-              activity: calendarEventTaskActivity(event.category),
-              hours: 0,
-              timerSeconds: 0,
-              timerStartedAt: null,
-              done: false,
-              createdAt: new Date().toISOString(),
-              sourceEventId: event.id,
-              useSourceEventReminder: true,
-              scheduledTime: normalizeScheduledTime(event.startTime),
-              reminderMinutes: normalizeReminderMinutes(event.reminderMinutes)
-            };
-          });
+      function createCalendarTask(event) {
+        return calendarTaskSync.createTaskFromEvent(event, {
+          id: makeId("calendar-task"),
+          createdAt: new Date().toISOString(),
+          scheduledTime: normalizeScheduledTime(event.startTime),
+          reminderMinutes: normalizeReminderMinutes(event.reminderMinutes)
+        });
       }
 
       function mergedTodayTasks(tasks) {
-        var normalized = normalizeTasks(tasks);
-        var todayKey = formatDate(today);
-        var todaysEventIds = plannerEventsForDate(todayKey).map(function (event) {
-          return event.id;
-        });
-        var keptTasks = normalized.filter(function (task) {
-          return !task.sourceEventId || todaysEventIds.indexOf(task.sourceEventId) !== -1;
-        });
-        var imported = importedCalendarTasksForDate(todayKey, keptTasks);
-        var changed = keptTasks.length !== normalized.length || imported.length > 0;
-        if (!imported.length) {
-          return {
-            tasks: keptTasks,
-            changed: changed
-          };
-        }
+        const normalizedTasks = normalizeTasks(tasks);
+        const events = plannerEventsForDate(formatDate(today));
+        const result = calendarTaskSync.mergeLinkedTasks(normalizedTasks, events, createCalendarTask);
         return {
-          tasks: normalizeTasks(keptTasks.concat(imported)),
-          changed: true
+          tasks: result.importedCount ? normalizeTasks(result.tasks) : result.tasks,
+          changed: result.changed
         };
       }
 
@@ -7980,12 +7944,7 @@
       }
 
       function plannerDataSnapshot() {
-        var data = {};
-        Object.keys(memoryStore).forEach(function (key) {
-          if (isPlannerKey(key) && key !== STORAGE.guitarCurrentSession) {
-            data[key] = memoryStore[key];
-          }
-        });
+        const data = storageCore.selectBackupData(memoryStore, [STORAGE.guitarCurrentSession]);
         return {
           app: "Yuan's Planner",
           version: 2,
