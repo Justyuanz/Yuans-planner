@@ -1,5 +1,17 @@
 # Agent Instructions — Yuan's Planner Rewrite
 
+## Code Quality Rules
+
+- Use `const` by default; use `let` only when reassignment is necessary; never use `var`.
+- Use TypeScript strict mode and avoid `any` unless there is a clear reason.
+- Prefer clear names, small focused functions, and files with one clear responsibility.
+- Avoid duplicated logic, magic values, and unnecessary abstractions.
+- Add short comments only for non-obvious logic, business rules, or edge cases.
+- Run linting, type checking, and relevant tests before committing new React/TypeScript work.
+
+---
+
+
 Before doing any work in this repository:
 
 1. Read `AGENT_HANDOFF.md` completely.

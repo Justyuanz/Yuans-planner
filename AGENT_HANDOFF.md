@@ -1,5 +1,12 @@
 # Yuan's Planner Rewrite — Agent Handoff
 
+## New Code Quality Requirement
+
+All new React/TypeScript code must follow the code-quality rules in `AGENTS.md`, especially: `const` by default, no `var`, strict TypeScript, avoid `any`, clear focused functions/files, short useful comments, and lint/type-check/test before commits.
+
+---
+
+
 ## Goal
 Rewrite Yuan's Planner into a clean, understandable architecture without breaking existing behavior.
 
