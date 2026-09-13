@@ -157,6 +157,9 @@ For a migrated feature:
 ### Phase 2 — Safety Net
 - [x] Add tests for critical backend behavior
 - [ ] Add tests for critical user flows
+  - [x] Protect startup and task create/edit/delete persistence across refreshes
+  - [x] Protect Guitar/Skate session-to-task synchronization and no-double-count totals
+  - [ ] Smoke-test all six primary views in the browser
 - [x] Record current expected behavior
 
 ### Phase 3 — New Structure
@@ -177,13 +180,13 @@ For each feature:
 - [ ] remove legacy implementation only after tests pass
 
 ## Current Task
-Phase 2 safety-net work is in progress. Storage compatibility, calendar-event-to-task synchronization, legacy startup, and the task create/edit/delete/refresh flow are protected. Remaining cross-feature and primary-view coverage is still needed. No React rewrite code has been started.
+Phase 2 safety-net work is in progress. Storage compatibility, calendar-event-to-task synchronization, legacy startup, task persistence, and Guitar/Skate session-to-task totals are protected. Browser coverage for all six primary views remains. No React rewrite code has been started.
 
 ## Last Completed Task
-Added a dependency-free headless Chrome test that starts the real legacy app with a temporary SQLite database and verifies task creation, persistence after reload, multi-field editing, another reload, deletion, and the final empty state without browser errors.
+Added a real-browser test that finishes Guitar and Skate sessions through their actual dialogs, verifies the persisted sessions and completed tasks, confirms `trackedInTask`, reloads the app, and proves each duration contributes to totals exactly once.
 
 ## Next Task
-Continue Phase 2 by protecting the remaining session-to-task and no-double-count cross-feature behavior. Then extend browser smoke coverage to the other primary views before introducing React.
+Extend the browser smoke suite to render and navigate all six primary views using an isolated database. After that coverage passes, review the Phase 2 checklist before introducing React.
 
 ## Important Decisions
 - New code must be split into small, clear, single-responsibility modules with short focused functions and short explanatory comments for non-obvious logic; do not create new monolithic files.
@@ -206,6 +209,7 @@ Continue Phase 2 by protecting the remaining session-to-task and no-double-count
 - Calendar-linked task reconciliation must preserve user-edited task state, remove stale source links, and add each missing current event without duplication.
 - Keep browser-flow assertions separate from reusable Chrome protocol, Chrome lifecycle, and temporary planner-server helpers so each test file has one clear responsibility.
 - Browser tests may use the existing Chrome DevTools Protocol directly to avoid adding a production or test package dependency.
+- Reuse one browser-planner fixture for Chrome and temporary-server lifecycle instead of duplicating setup across user-flow tests.
 
 ## Known Problems
 - Existing project is over 20,000 lines.
@@ -218,8 +222,8 @@ Continue Phase 2 by protecting the remaining session-to-task and no-double-count
 - Several declared storage keys and an older Study/Body weekly-overview path are inactive, while the real database still contains legacy-only keys that backups must preserve.
 - Browser inspection reports 29 generated form controls without an `id` or `name`.
 - The default `node` on the inspected machine is Node 14 and cannot run `node --test`; use the installed modern Node runtime or fix the local PATH before relying on `scripts/test.sh` without `NODE_BIN`.
-- Most remaining cross-feature behavior in `app.js` has no DOM or end-to-end tests yet; one browser test now covers startup and the task lifecycle.
-- The browser smoke test skips when Chrome/Chromium or Node WebSocket support is unavailable; it runs with the documented Node 24 runtime on the inspected machine.
+- Most remaining views in `app.js` still lack DOM or end-to-end tests; two browser tests now cover task and activity-session lifecycles.
+- Browser smoke tests skip when Chrome/Chromium or Node WebSocket support is unavailable; they run with the documented Node 24 runtime on the inspected machine.
 
 ## Session Log
 
@@ -253,6 +257,15 @@ Continue Phase 2 by protecting the remaining session-to-task and no-double-count
 - TDD evidence: the new flow test first failed because its browser/server harness did not exist. A pipe-transport harness failure was then isolated and replaced with Chrome's local debugging endpoint before the planner flow was evaluated.
 - Documented browser-test prerequisites in `README.md` and updated the reverse-engineering test inventory and remaining gaps.
 - Verification: syntax checks pass; 18 Python tests and 102 JavaScript tests pass with no skips using `/Users/yuan/.nvm/versions/node/v24.14.1/bin/node` and the installed Chrome browser.
+
+### Session 4
+
+- Added explicit Phase 2 sub-checks so completed critical user-flow coverage is visibly marked while the overall item remains open.
+- Added a real-browser Guitar and Skate completion flow using the actual session dialogs and a temporary SQLite database.
+- Verified that each session creates or updates a completed activity task, persists `trackedInTask: true`, survives reload, and contributes its duration exactly once through the production totals rule.
+- Added a focused shared browser-planner fixture and refactored the existing task-flow test to reuse it without changing production code.
+- TDD evidence: the session flow first failed because the shared browser-planner boundary did not exist; the fixture was then added and both browser flows passed.
+- Verification: syntax checks pass; 18 Python tests and 103 JavaScript tests pass with no skips using `/Users/yuan/.nvm/versions/node/v24.14.1/bin/node` and the installed Chrome browser.
 
 ---
 

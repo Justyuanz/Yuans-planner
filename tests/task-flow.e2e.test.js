@@ -1,8 +1,7 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const { findChromeExecutable, startChromeSession } = require("./helpers/chrome-cdp");
-const { startPlannerServer } = require("./helpers/planner-server");
+const { startBrowserPlanner } = require("./helpers/browser-planner");
 
 const TEST_DATE = "2026-09-12";
 const TASK_STORAGE_KEY = `hivePlanner.dailyTasks.${TEST_DATE}`;
@@ -50,24 +49,11 @@ async function deleteOnlyTask(browser) {
 }
 
 test("legacy app starts and preserves task create, edit, delete, and refresh behavior", { timeout: 30_000 }, async function (context) {
-  const chromeExecutable = await findChromeExecutable();
-  if (!chromeExecutable) {
-    context.skip("Chrome or Chromium is required for the browser smoke test.");
+  const planner = await startBrowserPlanner(context);
+  if (!planner) {
     return;
   }
-  if (typeof WebSocket !== "function") {
-    context.skip("A Node.js runtime with WebSocket support is required for the browser smoke test.");
-    return;
-  }
-
-  const server = await startPlannerServer();
-  context.after(async function () {
-    await server.close();
-  });
-  const browser = await startChromeSession(chromeExecutable);
-  context.after(async function () {
-    await browser.close();
-  });
+  const { browser, server } = planner;
 
   await browser.open(`${server.url}/?date=${TEST_DATE}`);
   await browser.waitForExpression('document.querySelector("#tasksMount .empty") !== null');

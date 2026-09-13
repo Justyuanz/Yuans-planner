@@ -134,10 +134,10 @@ All modules use a small UMD wrapper: CommonJS for Node tests and `globalThis.Yua
 | Persistence and HTTP | SQLite CRUD/import rollback; KV/export/import/delete API; static files, HEAD, traversal rejection |
 | Integrations | Telegram parsing/due/deduplication/timezone; app reminder write-back; limited mascot reply normalization |
 | Pure frontend logic | 101 Node tests across calendar, load planning, money, journal, activity history, insights, agent actions, mascot RAG, Skate, sessions, meditation, storage hydration, and calendar-task synchronization |
-| Browser integration | 1 dependency-free headless Chrome test covers blank-database startup and task create/edit/delete persistence across reloads |
+| Browser integration | 2 dependency-free headless Chrome tests cover blank-database startup, task create/edit/delete persistence, and Guitar/Skate session-to-task synchronization without double-counting |
 | Missing integration layer | No visual regression; no browser storage failure/recovery test; no automated browser coverage for all six primary views or the remaining cross-feature flows |
 
-Baseline after the second Phase 2 safety-net step: 18 Python tests and 102 JavaScript tests pass when the suite uses a modern Node runtime. The browser test runs when Chrome or Chromium and Node WebSocket support are available.
+Baseline after the third Phase 2 safety-net step: 18 Python tests and 103 JavaScript tests pass when the suite uses a modern Node runtime. Browser tests run when Chrome or Chromium and Node WebSocket support are available.
 
 ## HTTP API Map
 
@@ -405,7 +405,7 @@ These relationships are especially important for migration sequencing:
 
 ### Current quality gaps
 
-- `app.js` now has one browser-level task lifecycle test, but most other cross-feature contracts above remain unprotected.
+- `app.js` now has browser-level task and activity-session lifecycle tests, but most other user-facing views remain unprotected at the browser boundary.
 - Browser inspection found 29 generated form controls without `id` or `name`; Chrome reports this as an accessibility/form issue.
 - There is no domain schema version or explicit data migration mechanism.
 - There is no documented multi-tab or concurrent-write behavior.
