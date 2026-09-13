@@ -202,8 +202,33 @@ test("Energy trail preserves history, pattern, navigation, and visual parity", {
     energyTrailVisualContract('document.querySelector("iframe").contentDocument')
   );
   const previewDesktopScreenshot = await planner.browser.captureScreenshot(PREVIEW_CLIP);
+  assert.equal(await planner.browser.evaluate(
+    'document.querySelector("iframe").contentDocument.querySelector(".state-history-card").dataset.reactOwned'
+  ), "true");
   assert.deepEqual(previewDesktop, legacyDesktop);
   assertSameScreenshot(previewDesktopScreenshot, legacyDesktopScreenshot, "desktop Energy trail screenshot");
+
+  await planner.browser.evaluate(`(() => {
+    const documentRoot = document.querySelector("iframe").contentDocument;
+    documentRoot.querySelector("#energyTrailList .state-trail-item").click();
+  })()`);
+  await planner.browser.waitForExpression(`document.querySelector("iframe").contentDocument.getElementById("journalView").classList.contains("active")`);
+  assert.equal(await planner.browser.evaluate(
+    'document.querySelector("iframe").contentDocument.getElementById("journalDate").value'
+  ), "2026-09-12");
+
+  await planner.browser.evaluate(`(() => {
+    const frame = document.querySelector("iframe");
+    const input = frame.contentDocument.getElementById("journalStateContext");
+    input.value = "Updated from Journal.";
+    input.dispatchEvent(new frame.contentWindow.Event("input", { bubbles: true }));
+  })()`);
+  await planner.browser.waitForExpression(`document.querySelector("iframe").contentDocument.querySelector("#energyTrailList .state-trail-context").textContent === "Updated from Journal."`);
+  await planner.server.waitFor(async function () {
+    const stored = await planner.server.readPlannerData();
+    const entries = JSON.parse(stored[JOURNAL_KEY] || "[]");
+    return entries.some((entry) => entry.id === "good" && entry.tracker?.context === "Updated from Journal.");
+  });
 
   await planner.browser.setViewport(390, 844, true);
   await planner.browser.open(`${planner.server.url}/?date=${TEST_DATE}`);

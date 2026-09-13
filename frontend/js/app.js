@@ -2997,6 +2997,10 @@
         if (!elements.energyTrailList || !elements.energyPatternNote) {
           return;
         }
+        var energyTrailCard = elements.energyTrailList.closest(".state-history-card");
+        if (energyTrailCard && energyTrailCard.dataset.reactOwned === "true") {
+          return;
+        }
         var entries = getJournalEntries().filter(function (entry) {
           var tracker = normalizeJournalTracker(entry && entry.tracker);
           return tracker.energy || tracker.focus || tracker.context;

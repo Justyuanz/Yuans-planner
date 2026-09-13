@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { putPlannerStoreValue } from "../api/planner-store";
+import { EnergyTrailCard } from "../features/energy-trail/EnergyTrailCard";
 import { LifePieCard } from "../features/life-pie/LifePieCard";
 import { plannerDateFromSearch } from "../features/life-pie/life-pie";
 import {
@@ -23,11 +24,17 @@ interface ReactPanelBoundary {
   mount: HTMLElement;
 }
 
+interface EnergyTrailBoundary {
+  frame: HTMLIFrameElement;
+  mount: HTMLElement;
+}
+
 export function App() {
   const plannerStore = usePlannerStore();
   const [weeklyGoalsMount, setWeeklyGoalsMount] = useState<HTMLElement | null>(null);
   const [lifePieBoundary, setLifePieBoundary] = useState<ReactPanelBoundary | null>(null);
   const [plannedBoundary, setPlannedBoundary] = useState<ReactPanelBoundary | null>(null);
+  const [energyTrailBoundary, setEnergyTrailBoundary] = useState<EnergyTrailBoundary | null>(null);
   const [weeklyGoalsOverride, setWeeklyGoalsOverride] = useState<string | null>(null);
   const today = useMemo(() => plannerDateFromSearch(window.location.search, new Date()), []);
 
@@ -56,6 +63,15 @@ export function App() {
       plannedCard.dataset.reactOwned = "true";
       plannedMount.replaceChildren();
       setPlannedBoundary({ initialNowMs: Date.now(), mount: plannedMount });
+    }
+
+    const energyTrailCard = document?.querySelector<HTMLElement>(".state-history-card");
+    const energyTrailMount = energyTrailCard?.querySelector<HTMLElement>(".panel-inner");
+    if (energyTrailCard !== null && energyTrailCard !== undefined
+      && energyTrailMount !== null && energyTrailMount !== undefined) {
+      energyTrailCard.dataset.reactOwned = "true";
+      energyTrailMount.replaceChildren();
+      setEnergyTrailBoundary({ frame, mount: energyTrailMount });
     }
   }
 
@@ -92,6 +108,23 @@ export function App() {
     });
   }
 
+  function openJournalDate(boundary: EnergyTrailBoundary, date: string): void {
+    const frameDocument = boundary.frame.contentDocument;
+    if (frameDocument === null) {
+      return;
+    }
+    const journalTab = frameDocument.querySelector<HTMLButtonElement>('[data-view-target="journalView"]');
+    const journalDate = frameDocument.querySelector<HTMLInputElement>("#journalDate");
+    if (journalTab === null || journalDate === null) {
+      return;
+    }
+    journalTab.click();
+    journalDate.value = date;
+    const changeEvent = frameDocument.createEvent("Event");
+    changeEvent.initEvent("change", true, false);
+    journalDate.dispatchEvent(changeEvent);
+  }
+
   return (
     <>
       <iframe
@@ -126,6 +159,16 @@ export function App() {
             today={today}
           />,
           plannedBoundary.mount
+        )
+      )}
+      {loadedStore !== null && energyTrailBoundary !== null && (
+        createPortal(
+          <EnergyTrailCard
+            onOpenJournalDate={(date) => openJournalDate(energyTrailBoundary, date)}
+            store={loadedStore}
+            today={today}
+          />,
+          energyTrailBoundary.mount
         )
       )}
     </>
