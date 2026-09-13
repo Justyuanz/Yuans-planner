@@ -181,13 +181,13 @@ For each feature:
 - [ ] remove legacy implementation only after tests pass
 
 ## Current Task
-Phase 3 has one visually and behaviorally verified migration boundary. The Vite preview keeps the complete legacy Planner as a temporary migration shell while React owns weekly-goal rendering, editing, browser/server persistence, and compatibility-safe serialization.
+Phase 3 has one visually and behaviorally verified migration boundary. The Vite preview keeps the complete legacy Planner as a temporary migration shell while React owns weekly-goal rendering, editing, browser/server persistence, and compatibility-safe serialization. The adjacent legacy Life Pie is now characterized and protected before React takes ownership.
 
 ## Last Completed Task
-Completed weekly-goal behavior in React without changing its restored legacy design. Inputs retain the 120-character limit, save trimmed values on blur, update browser and server storage, preserve unknown stored fields, and survive reload. The real-browser regression still enforces exact desktop panel rendering and legacy mobile behavior.
+Characterized Life Pie before migration without changing production behavior. A real-browser flow now protects its empty state, default/reload period, Day/Week/Month/All interactions, exact group/detail ordering, totals, excluded Other time, incomplete-task accounting, percentage rounding, and accessible label. The legacy-versus-React gate now compares the populated Life Pie at 1280×720 and 390×844 with exact text/style/geometry assertions and tolerance-based pixel screenshots.
 
 ## Next Task
-Characterize the adjacent Life Pie behavior and interaction states before migrating it. Add focused behavior tests and extend the legacy-versus-React desktop/mobile visual gate before React takes ownership; do not alter the existing design or weekly-goal behavior.
+Implement Life Pie as the next small React-owned boundary using the new characterization and visual regression tests. Add focused TypeScript tests for compatibility decoding and calculations first; preserve the exact legacy markup, styles, wording, periods, totals, responsive behavior, and weekly-goal behavior.
 
 ## Important Decisions
 - The rewrite must preserve visual parity with the legacy Planner; this is an architecture rewrite, not a UI redesign.
@@ -195,6 +195,7 @@ Characterize the adjacent Life Pie behavior and interaction states before migrat
 - During incremental migration, the Vite preview may use the complete legacy app as a temporary same-origin shell so unmigrated features and interactions remain unchanged while React owns one tested mount.
 - The legacy weekly-goal renderer skips `#weeklyGoals` only when the preview marks it `data-react-owned="true"`; the normal legacy application remains unaffected.
 - Visual regression coverage must compare the legacy and React versions at identical desktop and mobile viewports, including computed styles/geometry and a rendered screenshot where stable.
+- Screenshot comparisons decode Chrome PNG pixels and allow at most 1% of pixels to differ by more than eight channel values; exact DOM content and computed style/geometry comparisons remain mandatory so minor cross-frame antialiasing does not create false failures.
 - New code must be split into small, clear, single-responsibility modules with short focused functions and short explanatory comments for non-obvious logic; do not create new monolithic files.
 - Smoke tests alone are insufficient; migration tests must cover behavior, edge cases, persistence/compatibility, and critical cross-feature flows.
 - Use the same Git repository.
@@ -235,6 +236,7 @@ Characterize the adjacent Life Pie behavior and interaction states before migrat
 - Browser inspection reports 29 generated form controls without an `id` or `name`.
 - The default `node` on the inspected machine is Node 14 and cannot run `node --test`; use the installed modern Node runtime or fix the local PATH before relying on `scripts/test.sh` without `NODE_BIN`.
 - Most remaining cross-feature flows in `app.js` still lack DOM or end-to-end tests; three browser tests now cover task and activity-session lifecycles plus all six primary view renders.
+- Life Pie now has a focused browser behavior test and desktop/mobile visual parity coverage, but its calculation and compatibility rules have not yet been extracted into focused React/TypeScript modules.
 - Browser smoke tests skip when Chrome/Chromium or Node WebSocket support is unavailable; they run with the documented Node 24 runtime on the inspected machine.
 - The React preview is not yet served directly by the Python backend. Its temporary legacy shell depends on Vite development proxies and is not the final production integration architecture.
 - The React visual regression test skips when Chrome or `frontend-react` dependencies are unavailable, matching the existing browser-test prerequisite policy.
@@ -321,6 +323,15 @@ Characterize the adjacent Life Pie behavior and interaction states before migrat
 - Kept the existing screenshot/computed-style comparison intact; the same browser test now verifies behavior and persistence before checking the 390×844 mobile-hidden contract.
 - Serialized the root Node test files after the added Chrome/Vite flow caused unrelated legacy browser tests to exceed their timeouts under parallel process saturation.
 - Verification: 16 React tests, React lint, strict type-checking, and the production build pass. The full safety net passes with 18 Python tests and 105 root JavaScript tests, including all browser flows.
+
+### Session 9
+
+- Stopped before further feature migration and characterized the legacy Life Pie as the source of truth.
+- Added a real-browser behavior test covering the stable empty state, default Week selection, all four period interactions, reload reset, group/detail order, exact totals and rounded percentages, excluded Other time, and the legacy rule that unfinished task hours still count.
+- Extended the legacy-versus-React visual gate to compare the populated Life Pie at 1280×720 and 390×844, including wording, computed styles, geometry, responsive reflow, accessibility text, and screenshots.
+- Added a focused dependency-free PNG comparison helper. It rejects visible pixel drift while tolerating minor cross-frame antialiasing differences; exact DOM/style/geometry comparisons remain alongside it.
+- Manual Chrome DevTools verification confirmed matching legacy/React desktop and mobile layouts, working period selection, a 128px desktop donut, one-column mobile reflow, no horizontal overflow, and successful network requests. The existing warning for 29 generated controls without `id`/`name` remains unchanged; there were no console errors.
+- No production or React source files changed. Verification: 16 React tests, React lint, strict type-checking, and the production build pass. The full safety net passes with 18 Python tests and 106 root JavaScript tests, including the new Life Pie behavior and desktop/mobile visual flows.
 
 ---
 

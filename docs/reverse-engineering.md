@@ -180,6 +180,11 @@ Important API properties:
 - Calendar activities for today are copied into daily tasks and linked by `sourceEventId`.
 - Five day-state choices (`good`, `okay`, `low`, `empty`, `scattered`) influence agent suggestions and insight context.
 - Life pie aggregates Study, Body, and Mind time for day/week/month/all-time.
+  - Week is selected by default; Day, Week, Month, and All are in-memory view state and reset to Week on reload.
+  - Study contains Leetcode, Coding, and Python; Body contains Skate and Gym / Judo; Mind contains Guitar, Meditation, and Journal. Other tasks are excluded.
+  - Task hours count whether or not the task is complete. Timer hours take precedence, while standalone sessions and physical/journal records contribute through their existing no-double-count rules.
+  - Each displayed percentage is rounded independently. Empty periods keep all rows visible at `0% · 0h` and use the neutral donut background.
+  - At the mobile breakpoint the donut and summary reflow from two columns to one without changing wording, order, or component styling.
 - Planned-versus-actual weekly hours by activity.
 - One top deterministic insight, actions, undo, and a grouped pattern-history dialog.
 - Energy trail derived from journal tracker entries.

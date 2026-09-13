@@ -2,6 +2,7 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const { startBrowserPlanner } = require("./helpers/browser-planner");
+const { compareScreenshots } = require("./helpers/png-compare");
 const { startReactPreviewServer } = require("./helpers/react-preview-server");
 
 const TEST_DATE = "2026-09-13";
@@ -11,6 +12,11 @@ const WEEKLY_GOALS = {
   mind: "Practice one song",
   futureTrack: { preserve: true }
 };
+const LIFE_PIE_TASKS = [
+  { id: "visual-study", label: "Visual study", activity: "cpp", hours: 2, done: false },
+  { id: "visual-body", label: "Visual body", activity: "skate", hours: 1, done: true },
+  { id: "visual-mind", label: "Visual mind", activity: "guitar", hours: 0.5, done: true }
+];
 
 const LEGACY_GOALS_READY = `document.querySelectorAll("#weeklyGoals .weekly-goal-input").length === 3`;
 const REACT_GOALS_READY = `(() => {
@@ -27,6 +33,18 @@ const LEGACY_PANEL_CLIP = `(() => {
 const REACT_PANEL_CLIP = `(() => {
   const frame = document.querySelector("iframe");
   const rect = frame.contentDocument.querySelector(".goals-card").getBoundingClientRect();
+  const frameRect = frame.getBoundingClientRect();
+  return { x: frameRect.x + rect.x, y: frameRect.y + rect.y, width: rect.width, height: rect.height };
+})()`;
+
+const LEGACY_LIFE_PANEL_CLIP = `(() => {
+  const rect = document.querySelector(".life-card").getBoundingClientRect();
+  return { x: rect.x + scrollX, y: rect.y + scrollY, width: rect.width, height: rect.height };
+})()`;
+
+const REACT_LIFE_PANEL_CLIP = `(() => {
+  const frame = document.querySelector("iframe");
+  const rect = frame.contentDocument.querySelector(".life-card").getBoundingClientRect();
   const frameRect = frame.getBoundingClientRect();
   return { x: frameRect.x + rect.x, y: frameRect.y + rect.y, width: rect.width, height: rect.height };
 })()`;
@@ -75,6 +93,59 @@ function visualContract(documentExpression) {
   })()`;
 }
 
+function lifePieVisualContract(documentExpression) {
+  return `(() => {
+    const documentRoot = ${documentExpression};
+    const view = documentRoot.defaultView;
+    const panel = documentRoot.querySelector(".life-card");
+    const heading = panel.querySelector("h3");
+    const donut = documentRoot.getElementById("lifeDonut");
+    const pick = (element) => {
+      const style = view.getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return {
+        alignItems: style.alignItems,
+        background: style.background,
+        border: style.border,
+        borderRadius: style.borderRadius,
+        boxShadow: style.boxShadow,
+        color: style.color,
+        display: style.display,
+        fontFamily: style.fontFamily,
+        fontSize: style.fontSize,
+        fontWeight: style.fontWeight,
+        gap: style.gap,
+        height: rect.height,
+        lineHeight: style.lineHeight,
+        padding: style.padding,
+        width: rect.width
+      };
+    };
+    const rows = (selector) => [...documentRoot.querySelectorAll(selector)].map((row) => ({
+      text: row.textContent.trim(),
+      visual: pick(row)
+    }));
+    return {
+      breakdown: rows("#lifeBreakdown .breakdown-row"),
+      donut: {
+        ariaLabel: donut.getAttribute("aria-label"),
+        text: donut.textContent.trim(),
+        visual: pick(donut)
+      },
+      heading: { text: heading.textContent.trim(), visual: pick(heading) },
+      lifePie: pick(panel.querySelector(".life-pie")),
+      panel: pick(panel),
+      periods: rows("#statsPeriodTabs .period-button"),
+      summary: rows("#lifeSummary .pie-summary-row")
+    };
+  })()`;
+}
+
+function assertSameScreenshot(actual, expected, label) {
+  const comparison = compareScreenshots(actual, expected);
+  assert.equal(comparison.matches, true, `${label}: ${JSON.stringify(comparison)}`);
+}
+
 async function putWeeklyGoals(serverUrl) {
   const response = await fetch(`${serverUrl}/api/kv`, {
     method: "PUT",
@@ -87,7 +158,19 @@ async function putWeeklyGoals(serverUrl) {
   assert.equal(response.ok, true);
 }
 
-test("React weekly goals preserve the legacy desktop and mobile design", { timeout: 60_000 }, async function (context) {
+async function putLifePieTasks(serverUrl) {
+  const response = await fetch(`${serverUrl}/api/kv`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      key: `hivePlanner.dailyTasks.${TEST_DATE}`,
+      value: JSON.stringify(LIFE_PIE_TASKS)
+    })
+  });
+  assert.equal(response.ok, true);
+}
+
+test("React migration boundary preserves weekly goals and Life Pie design", { timeout: 60_000 }, async function (context) {
   const planner = await startBrowserPlanner(context);
   if (!planner) {
     return;
@@ -101,12 +184,15 @@ test("React weekly goals preserve the legacy desktop and mobile design", { timeo
     await preview.close();
   });
   await putWeeklyGoals(planner.server.url);
+  await putLifePieTasks(planner.server.url);
 
   await planner.browser.setViewport(1280, 720);
   await planner.browser.open(`${planner.server.url}/?date=${TEST_DATE}`);
   await planner.browser.waitForExpression(LEGACY_GOALS_READY);
   const legacyDesktop = await planner.browser.evaluate(visualContract("document"));
   const legacyScreenshot = await planner.browser.captureScreenshot(LEGACY_PANEL_CLIP);
+  const legacyLifeDesktop = await planner.browser.evaluate(lifePieVisualContract("document"));
+  const legacyLifeScreenshot = await planner.browser.captureScreenshot(LEGACY_LIFE_PANEL_CLIP);
 
   await planner.browser.open(`${preview.url}/?date=${TEST_DATE}`);
   await planner.browser.waitForExpression(REACT_GOALS_READY);
@@ -114,9 +200,15 @@ test("React weekly goals preserve the legacy desktop and mobile design", { timeo
     visualContract('document.querySelector("iframe").contentDocument')
   );
   const reactScreenshot = await planner.browser.captureScreenshot(REACT_PANEL_CLIP);
+  const reactLifeDesktop = await planner.browser.evaluate(
+    lifePieVisualContract('document.querySelector("iframe").contentDocument')
+  );
+  const reactLifeScreenshot = await planner.browser.captureScreenshot(REACT_LIFE_PANEL_CLIP);
 
   assert.deepEqual(reactDesktop, legacyDesktop);
-  assert.equal(reactScreenshot, legacyScreenshot);
+  assertSameScreenshot(reactScreenshot, legacyScreenshot, "desktop weekly goals screenshot");
+  assert.deepEqual(reactLifeDesktop, legacyLifeDesktop);
+  assertSameScreenshot(reactLifeScreenshot, legacyLifeScreenshot, "desktop Life Pie screenshot");
 
   const editState = await planner.browser.evaluate(`(() => {
     const frame = document.querySelector("iframe");
@@ -145,6 +237,13 @@ test("React weekly goals preserve the legacy desktop and mobile design", { timeo
     display: getComputedStyle(document.querySelector(".goals-card")).display,
     overflow: document.documentElement.scrollWidth > innerWidth
   }))()`);
+  await planner.browser.evaluate(`(() => {
+    document.documentElement.style.scrollBehavior = "auto";
+    document.querySelector(".life-card").scrollIntoView({ block: "start" });
+  })()`);
+  await planner.browser.waitForExpression('document.querySelector(".life-card").getBoundingClientRect().top > -1');
+  const legacyLifeMobile = await planner.browser.evaluate(lifePieVisualContract("document"));
+  const legacyLifeMobileScreenshot = await planner.browser.captureScreenshot(LEGACY_LIFE_PANEL_CLIP);
 
   await planner.browser.open(`${preview.url}/?date=${TEST_DATE}`);
   await planner.browser.waitForExpression(REACT_GOALS_READY);
@@ -156,8 +255,20 @@ test("React weekly goals preserve the legacy desktop and mobile design", { timeo
       overflow: frameDocument.documentElement.scrollWidth > frame.contentWindow.innerWidth
     };
   })()`);
+  await planner.browser.evaluate(`(() => {
+    const frameDocument = document.querySelector("iframe").contentDocument;
+    frameDocument.documentElement.style.scrollBehavior = "auto";
+    frameDocument.querySelector(".life-card").scrollIntoView({ block: "start" });
+  })()`);
+  await planner.browser.waitForExpression(`document.querySelector("iframe").contentDocument.querySelector(".life-card").getBoundingClientRect().top > -1`);
+  const reactLifeMobile = await planner.browser.evaluate(
+    lifePieVisualContract('document.querySelector("iframe").contentDocument')
+  );
+  const reactLifeMobileScreenshot = await planner.browser.captureScreenshot(REACT_LIFE_PANEL_CLIP);
 
   assert.deepEqual(reactMobile, legacyMobile);
   assert.deepEqual(reactMobile, { display: "none", overflow: false });
+  assert.deepEqual(reactLifeMobile, legacyLifeMobile);
+  assertSameScreenshot(reactLifeMobileScreenshot, legacyLifeMobileScreenshot, "mobile Life Pie screenshot");
   assert.deepEqual(planner.browser.errors(), []);
 });
