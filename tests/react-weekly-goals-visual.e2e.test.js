@@ -17,12 +17,18 @@ const LIFE_PIE_TASKS = [
   { id: "visual-body", label: "Visual body", activity: "skate", hours: 1, done: true },
   { id: "visual-mind", label: "Visual mind", activity: "guitar", hours: 0.5, done: true }
 ];
+const OLDER_LIFE_PIE_TASKS = [
+  { id: "visual-older", label: "Older study", activity: "lc", hours: 3, done: true }
+];
 
 const LEGACY_GOALS_READY = `document.querySelectorAll("#weeklyGoals .weekly-goal-input").length === 3`;
 const REACT_GOALS_READY = `(() => {
   const frame = document.querySelector("iframe");
   const goals = frame && frame.contentDocument && frame.contentDocument.getElementById("weeklyGoals");
-  return goals && goals.dataset.reactOwned === "true" && goals.querySelectorAll(".weekly-goal-input").length === 3;
+  const lifeCard = frame && frame.contentDocument && frame.contentDocument.querySelector(".life-card");
+  return goals && goals.dataset.reactOwned === "true"
+    && goals.querySelectorAll(".weekly-goal-input").length === 3
+    && lifeCard && lifeCard.dataset.reactOwned === "true";
 })()`;
 
 const LEGACY_PANEL_CLIP = `(() => {
@@ -159,15 +165,18 @@ async function putWeeklyGoals(serverUrl) {
 }
 
 async function putLifePieTasks(serverUrl) {
-  const response = await fetch(`${serverUrl}/api/kv`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      key: `hivePlanner.dailyTasks.${TEST_DATE}`,
-      value: JSON.stringify(LIFE_PIE_TASKS)
-    })
-  });
-  assert.equal(response.ok, true);
+  const values = [
+    [`hivePlanner.dailyTasks.${TEST_DATE}`, LIFE_PIE_TASKS],
+    ["hivePlanner.dailyTasks.2026-08-20", OLDER_LIFE_PIE_TASKS]
+  ];
+  await Promise.all(values.map(async function ([key, tasks]) {
+    const response = await fetch(`${serverUrl}/api/kv`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key, value: JSON.stringify(tasks) })
+    });
+    assert.equal(response.ok, true);
+  }));
 }
 
 test("React migration boundary preserves weekly goals and Life Pie design", { timeout: 60_000 }, async function (context) {
@@ -210,6 +219,34 @@ test("React migration boundary preserves weekly goals and Life Pie design", { ti
   assert.deepEqual(reactLifeDesktop, legacyLifeDesktop);
   assertSameScreenshot(reactLifeScreenshot, legacyLifeScreenshot, "desktop Life Pie screenshot");
 
+  await planner.browser.evaluate(`(() => {
+    const frameDocument = document.querySelector("iframe").contentDocument;
+    [...frameDocument.querySelectorAll("#statsPeriodTabs .period-button")]
+      .find((button) => button.textContent.trim() === "All").click();
+  })()`);
+  await planner.browser.waitForExpression(`document.querySelector("iframe").contentDocument.querySelector("#statsPeriodTabs .active").textContent.trim() === "All"`);
+  const periodState = await planner.browser.evaluate(`(() => {
+    const frameDocument = document.querySelector("iframe").contentDocument;
+    return {
+      active: frameDocument.querySelector("#statsPeriodTabs .active").textContent.trim(),
+      total: frameDocument.getElementById("lifeDonutLabel").textContent.trim()
+    };
+  })()`);
+  assert.deepEqual(periodState, { active: "All", total: "6.5h" });
+
+  await planner.browser.evaluate(`(() => {
+    const frame = document.querySelector("iframe");
+    const input = frame.contentDocument.getElementById("task-hours-visual-study");
+    input.value = "4";
+    input.dispatchEvent(new frame.contentWindow.Event("input", { bubbles: true }));
+  })()`);
+  await planner.browser.waitForExpression(`document.querySelector("iframe").contentDocument.getElementById("lifeDonutLabel").textContent === "8.5h"`);
+  await planner.server.waitFor(async function () {
+    const stored = await planner.server.readPlannerData();
+    const tasks = JSON.parse(stored[`hivePlanner.dailyTasks.${TEST_DATE}`] || "[]");
+    return tasks.some((task) => task.id === "visual-study" && task.hours === 4);
+  });
+
   const editState = await planner.browser.evaluate(`(() => {
     const frame = document.querySelector("iframe");
     const input = frame.contentDocument.querySelector(".weekly-goal-input");
@@ -241,7 +278,7 @@ test("React migration boundary preserves weekly goals and Life Pie design", { ti
     document.documentElement.style.scrollBehavior = "auto";
     document.querySelector(".life-card").scrollIntoView({ block: "start" });
   })()`);
-  await planner.browser.waitForExpression('document.querySelector(".life-card").getBoundingClientRect().top > -1');
+  await planner.browser.waitForExpression('Math.abs(document.querySelector(".life-card").getBoundingClientRect().top) < 1');
   const legacyLifeMobile = await planner.browser.evaluate(lifePieVisualContract("document"));
   const legacyLifeMobileScreenshot = await planner.browser.captureScreenshot(LEGACY_LIFE_PANEL_CLIP);
 
@@ -260,7 +297,7 @@ test("React migration boundary preserves weekly goals and Life Pie design", { ti
     frameDocument.documentElement.style.scrollBehavior = "auto";
     frameDocument.querySelector(".life-card").scrollIntoView({ block: "start" });
   })()`);
-  await planner.browser.waitForExpression(`document.querySelector("iframe").contentDocument.querySelector(".life-card").getBoundingClientRect().top > -1`);
+  await planner.browser.waitForExpression(`Math.abs(document.querySelector("iframe").contentDocument.querySelector(".life-card").getBoundingClientRect().top) < 1`);
   const reactLifeMobile = await planner.browser.evaluate(
     lifePieVisualContract('document.querySelector("iframe").contentDocument')
   );

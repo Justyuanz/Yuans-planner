@@ -1,11 +1,41 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  applyPlannerStorageChange,
   decodePlannerStoreResponse,
   fetchPlannerStore,
   putPlannerStoreValue,
   type PlannerFetch
 } from "./planner-store";
+
+describe("applyPlannerStorageChange", () => {
+  it("merges and removes planner keys written by the legacy frame", () => {
+    const initial = {
+      "hivePlanner.weeklyGoals": "{}",
+      "hivePlanner.dailyTasks.2026-09-13": "[]"
+    };
+
+    const updated = applyPlannerStorageChange(
+      initial,
+      "hivePlanner.dailyTasks.2026-09-13",
+      '[{"hours":2}]'
+    );
+    expect(updated).toEqual({
+      ...initial,
+      "hivePlanner.dailyTasks.2026-09-13": '[{"hours":2}]'
+    });
+    expect(applyPlannerStorageChange(updated, "hivePlanner.weeklyGoals", null)).toEqual({
+      "hivePlanner.dailyTasks.2026-09-13": '[{"hours":2}]'
+    });
+  });
+
+  it("ignores unrelated browser-storage changes", () => {
+    const store = { "hivePlanner.weeklyGoals": "{}" };
+
+    expect(applyPlannerStorageChange(store, "other.key", "changed")).toBe(store);
+    expect(applyPlannerStorageChange(store, null, null)).toBe(store);
+  });
+});
 
 describe("decodePlannerStoreResponse", () => {
   it("preserves every string value, including unknown compatibility keys", () => {

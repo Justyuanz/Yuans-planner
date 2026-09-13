@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { putPlannerStoreValue, type PlannerStore } from "../api/planner-store";
+import { putPlannerStoreValue } from "../api/planner-store";
+import { LifePieCard } from "../features/life-pie/LifePieCard";
+import { plannerDateFromSearch } from "../features/life-pie/life-pie";
 import { WeeklyGoalsCard } from "../features/weekly-goals/WeeklyGoalsCard";
 import {
   decodeWeeklyGoals,
@@ -11,33 +13,50 @@ import {
 } from "../features/weekly-goals/weekly-goals";
 import { usePlannerStore } from "./use-planner-store";
 
+interface LifePieBoundary {
+  initialNowMs: number;
+  mount: HTMLElement;
+}
+
 export function App() {
   const plannerStore = usePlannerStore();
   const [weeklyGoalsMount, setWeeklyGoalsMount] = useState<HTMLElement | null>(null);
-  const [editedStore, setEditedStore] = useState<PlannerStore | null>(null);
+  const [lifePieBoundary, setLifePieBoundary] = useState<LifePieBoundary | null>(null);
+  const [weeklyGoalsOverride, setWeeklyGoalsOverride] = useState<string | null>(null);
+  const today = useMemo(() => plannerDateFromSearch(window.location.search, new Date()), []);
 
-  function claimWeeklyGoalsMount(frame: HTMLIFrameElement): void {
-    const mount = frame.contentDocument?.getElementById("weeklyGoals");
-    if (mount === null || mount === undefined) {
-      return;
+  function claimReactMounts(frame: HTMLIFrameElement): void {
+    const document = frame.contentDocument;
+    const weeklyMount = document?.getElementById("weeklyGoals");
+    if (weeklyMount !== null && weeklyMount !== undefined) {
+      // The legacy renderer respects this marker so React remains the sole owner of the boundary.
+      weeklyMount.dataset.reactOwned = "true";
+      setWeeklyGoalsMount(weeklyMount);
     }
 
-    // The legacy renderer respects this marker so React remains the sole owner of the boundary.
-    mount.dataset.reactOwned = "true";
-    setWeeklyGoalsMount(mount);
+    const lifeCard = document?.querySelector<HTMLElement>(".life-card");
+    const lifeMount = lifeCard?.querySelector<HTMLElement>(".panel-inner");
+    if (lifeCard !== null && lifeCard !== undefined && lifeMount !== null && lifeMount !== undefined) {
+      lifeCard.dataset.reactOwned = "true";
+      // Remove the static children before the portal becomes this panel's only renderer.
+      lifeMount.replaceChildren();
+      setLifePieBoundary({ initialNowMs: Date.now(), mount: lifeMount });
+    }
   }
 
   const legacyUrl = `/legacy/${window.location.search}`;
-  const activeStore = editedStore ?? (plannerStore.status === "ready" ? plannerStore.store : null);
+  const loadedStore = plannerStore.status === "ready" ? plannerStore.store : null;
+  const weeklyStore = loadedStore === null || weeklyGoalsOverride === null
+    ? loadedStore
+    : { ...loadedStore, [WEEKLY_GOALS_STORAGE_KEY]: weeklyGoalsOverride };
 
   function saveWeeklyGoal(goalId: WeeklyGoalId, text: string): void {
-    if (activeStore === null) {
+    if (weeklyStore === null) {
       return;
     }
 
-    const value = encodeWeeklyGoalUpdate(activeStore, goalId, text);
-    const updatedStore = { ...activeStore, [WEEKLY_GOALS_STORAGE_KEY]: value };
-    setEditedStore(updatedStore);
+    const value = encodeWeeklyGoalUpdate(weeklyStore, goalId, text);
+    setWeeklyGoalsOverride(value);
     try {
       window.localStorage.setItem(WEEKLY_GOALS_STORAGE_KEY, value);
     } catch {
@@ -50,14 +69,24 @@ export function App() {
     <>
       <iframe
         className="planner-frame"
-        onLoad={(event) => claimWeeklyGoalsMount(event.currentTarget)}
+        onLoad={(event) => claimReactMounts(event.currentTarget)}
         src={legacyUrl}
         title="Yuan's Planner"
       />
-      {activeStore !== null && weeklyGoalsMount !== null && (
+      {weeklyStore !== null && weeklyGoalsMount !== null && (
         createPortal(
-          <WeeklyGoalsCard goals={decodeWeeklyGoals(activeStore)} onGoalChange={saveWeeklyGoal} />,
+          <WeeklyGoalsCard goals={decodeWeeklyGoals(weeklyStore)} onGoalChange={saveWeeklyGoal} />,
           weeklyGoalsMount
+        )
+      )}
+      {loadedStore !== null && lifePieBoundary !== null && (
+        createPortal(
+          <LifePieCard
+            initialNowMs={lifePieBoundary.initialNowMs}
+            store={loadedStore}
+            today={today}
+          />,
+          lifePieBoundary.mount
         )
       )}
     </>

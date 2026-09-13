@@ -9,6 +9,22 @@ export type PlannerFetch = (
 
 const INVALID_RESPONSE_MESSAGE = "Invalid planner data response";
 
+export function applyPlannerStorageChange(
+  store: PlannerStore,
+  key: string | null,
+  newValue: string | null
+): PlannerStore {
+  if (!key?.startsWith("hivePlanner.")) {
+    return store;
+  }
+  if (newValue === null) {
+    const updatedStore = { ...store };
+    delete updatedStore[key];
+    return updatedStore;
+  }
+  return { ...store, [key]: newValue };
+}
+
 export function decodePlannerStoreResponse(payload: unknown): PlannerStore {
   if (!isRecord(payload) || !isRecord(payload.data)) {
     throw new Error(INVALID_RESPONSE_MESSAGE);

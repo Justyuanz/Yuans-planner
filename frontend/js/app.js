@@ -675,6 +675,7 @@
         startGuitarSession: document.getElementById("startGuitarSession"),
         finishGuitarSession: document.getElementById("finishGuitarSession"),
         statsPeriodTabs: document.getElementById("statsPeriodTabs"),
+        lifeCard: document.querySelector(".life-card"),
         lifeDonut: document.getElementById("lifeDonut"),
         lifeDonutLabel: document.getElementById("lifeDonutLabel"),
         lifeSummary: document.getElementById("lifeSummary"),
@@ -4559,7 +4560,8 @@
       }
 
       function renderLifePie() {
-        if (!elements.lifeDonut || !elements.lifeSummary || !elements.lifeBreakdown) return;
+        if (!elements.lifeDonut || !elements.lifeSummary || !elements.lifeBreakdown ||
+            (elements.lifeCard && elements.lifeCard.dataset.reactOwned === "true")) return;
         var totals = totalsForStatsPeriod(statsPeriod);
         var groups = [
           { label: "Study", color: "#cbdcf3", ids: ["lc", "cpp", "python"] },

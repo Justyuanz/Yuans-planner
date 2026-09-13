@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 
-import { fetchPlannerStore, type PlannerStore } from "../api/planner-store";
+import {
+  applyPlannerStorageChange,
+  fetchPlannerStore,
+  type PlannerStore
+} from "../api/planner-store";
 
 export type PlannerStoreState =
   | { status: "loading" }
@@ -33,6 +37,21 @@ export function usePlannerStore(): PlannerStoreState {
     return () => {
       acceptsUpdates = false;
     };
+  }, []);
+
+  useEffect(() => {
+    // Still-legacy features publish their writes through same-origin browser storage.
+    function updateFromBrowserStorage(event: StorageEvent): void {
+      setState((current) => current.status === "ready"
+        ? {
+            status: "ready",
+            store: applyPlannerStorageChange(current.store, event.key, event.newValue)
+          }
+        : current);
+    }
+
+    window.addEventListener("storage", updateFromBrowserStorage);
+    return () => window.removeEventListener("storage", updateFromBrowserStorage);
   }, []);
 
   return state;

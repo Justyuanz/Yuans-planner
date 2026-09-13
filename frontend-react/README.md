@@ -2,7 +2,7 @@
 
 This folder contains the new React + TypeScript frontend beside the legacy `frontend/` application. The Python server still serves the working application, and the Vite preview loads that UI unchanged as a temporary migration shell.
 
-The first migrated boundary is weekly goals. React fetches the existing `/api/kv` response, validates its string-valued key/value contract, and takes ownership of the legacy weekly-goals mount. The component preserves the legacy edit-on-blur interaction, browser/server persistence, markup, CSS, desktop appearance, and mobile-hidden behavior.
+The migrated boundaries are weekly goals and Life Pie. React fetches the existing `/api/kv` response, validates its string-valued key/value contract, and takes ownership of only those legacy mounts. The components preserve the legacy markup, CSS, wording, interactions, persistence, desktop appearance, and responsive behavior. Same-origin storage events keep Life Pie current while the surrounding task and activity features remain legacy-owned.
 
 ## Run the preview
 
@@ -23,7 +23,7 @@ Open the local address printed by Vite. Development `/api` requests are proxied 
 
 Set `VITE_PLANNER_API_TARGET` before starting Vite when the Python backend uses another local port.
 
-The root test suite also compares the legacy and React weekly-goals panel in Chrome at desktop and mobile viewports. Install this folder's dependencies before running that visual regression test.
+The root test suite compares the legacy and React weekly-goals and Life Pie panels in Chrome at desktop and mobile viewports. Install this folder's dependencies before running that visual regression test.
 
 ## Quality checks
 
