@@ -4,6 +4,11 @@ import { createPortal } from "react-dom";
 import { putPlannerStoreValue } from "../api/planner-store";
 import { LifePieCard } from "../features/life-pie/LifePieCard";
 import { plannerDateFromSearch } from "../features/life-pie/life-pie";
+import {
+  PlannedActualCard,
+  type PlannerStoreWrite
+} from "../features/planned-actual/PlannedActualCard";
+import { plannedStorageKey } from "../features/planned-actual/planned-actual";
 import { WeeklyGoalsCard } from "../features/weekly-goals/WeeklyGoalsCard";
 import {
   decodeWeeklyGoals,
@@ -13,7 +18,7 @@ import {
 } from "../features/weekly-goals/weekly-goals";
 import { usePlannerStore } from "./use-planner-store";
 
-interface LifePieBoundary {
+interface ReactPanelBoundary {
   initialNowMs: number;
   mount: HTMLElement;
 }
@@ -21,7 +26,8 @@ interface LifePieBoundary {
 export function App() {
   const plannerStore = usePlannerStore();
   const [weeklyGoalsMount, setWeeklyGoalsMount] = useState<HTMLElement | null>(null);
-  const [lifePieBoundary, setLifePieBoundary] = useState<LifePieBoundary | null>(null);
+  const [lifePieBoundary, setLifePieBoundary] = useState<ReactPanelBoundary | null>(null);
+  const [plannedBoundary, setPlannedBoundary] = useState<ReactPanelBoundary | null>(null);
   const [weeklyGoalsOverride, setWeeklyGoalsOverride] = useState<string | null>(null);
   const today = useMemo(() => plannerDateFromSearch(window.location.search, new Date()), []);
 
@@ -42,10 +48,20 @@ export function App() {
       lifeMount.replaceChildren();
       setLifePieBoundary({ initialNowMs: Date.now(), mount: lifeMount });
     }
+
+    const plannedCard = document?.querySelector<HTMLElement>(".planned-card");
+    const plannedMount = plannedCard?.querySelector<HTMLElement>(".panel-inner");
+    if (plannedCard !== null && plannedCard !== undefined
+      && plannedMount !== null && plannedMount !== undefined) {
+      plannedCard.dataset.reactOwned = "true";
+      plannedMount.replaceChildren();
+      setPlannedBoundary({ initialNowMs: Date.now(), mount: plannedMount });
+    }
   }
 
   const legacyUrl = `/legacy/${window.location.search}`;
   const loadedStore = plannerStore.status === "ready" ? plannerStore.store : null;
+  const plannedKey = plannedStorageKey(today);
   const weeklyStore = loadedStore === null || weeklyGoalsOverride === null
     ? loadedStore
     : { ...loadedStore, [WEEKLY_GOALS_STORAGE_KEY]: weeklyGoalsOverride };
@@ -63,6 +79,17 @@ export function App() {
       // Server persistence still works when browser storage is unavailable.
     }
     void putPlannerStoreValue(WEEKLY_GOALS_STORAGE_KEY, value).catch(() => undefined);
+  }
+
+  function persistPlannerWrites(writes: readonly PlannerStoreWrite[]): void {
+    writes.forEach(({ key, value }) => {
+      try {
+        window.localStorage.setItem(key, value);
+      } catch {
+        // Server persistence still works when browser storage is unavailable.
+      }
+      void putPlannerStoreValue(key, value).catch(() => undefined);
+    });
   }
 
   return (
@@ -87,6 +114,18 @@ export function App() {
             today={today}
           />,
           lifePieBoundary.mount
+        )
+      )}
+      {loadedStore !== null && plannedBoundary !== null && (
+        createPortal(
+          <PlannedActualCard
+            initialNowMs={plannedBoundary.initialNowMs}
+            key={`${plannedKey}:${loadedStore[plannedKey] ?? ""}`}
+            onPersist={persistPlannerWrites}
+            store={loadedStore}
+            today={today}
+          />,
+          plannedBoundary.mount
         )
       )}
     </>

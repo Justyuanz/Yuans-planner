@@ -676,6 +676,7 @@
         finishGuitarSession: document.getElementById("finishGuitarSession"),
         statsPeriodTabs: document.getElementById("statsPeriodTabs"),
         lifeCard: document.querySelector(".life-card"),
+        plannedCard: document.querySelector(".planned-card"),
         lifeDonut: document.getElementById("lifeDonut"),
         lifeDonutLabel: document.getElementById("lifeDonutLabel"),
         lifeSummary: document.getElementById("lifeSummary"),
@@ -894,6 +895,18 @@
           return;
         }
         persistServerValue(key, value);
+      }
+
+      function syncExternalPlannerStorage(event) {
+        if (!event.key || !isPlannerKey(event.key)) {
+          return;
+        }
+        if (event.newValue === null) {
+          delete memoryStore[event.key];
+          return;
+        }
+        // React-owned mounts write from the parent document; keep legacy actions from overwriting them.
+        memoryStore[event.key] = event.newValue;
       }
 
       function readText(key, fallback) {
@@ -4645,7 +4658,8 @@
       }
 
       function renderPlannedActual() {
-        if (!elements.plannedWeekLabel || !elements.plannedMount) {
+        if (!elements.plannedWeekLabel || !elements.plannedMount
+          || (elements.plannedCard && elements.plannedCard.dataset.reactOwned === "true")) {
           return;
         }
         var week = weekRange(today);
@@ -8287,6 +8301,7 @@
 
       async function init() {
         await hydrateStore();
+        window.addEventListener("storage", syncExternalPlannerStorage);
         bindNavigation();
         runUiSafely("activity choices", renderActivities);
         runUiSafely("workout options", renderWorkoutOptions);

@@ -181,13 +181,13 @@ For each feature:
 - [ ] remove legacy implementation only after tests pass
 
 ## Current Task
-Characterize and migrate only the dashboard's Planned vs actual card as the next React boundary. Its legacy behavior, persistence, activity logging, and desktop/mobile appearance are now protected by a focused real-browser test; production ownership has not changed yet.
+The Planned vs actual migration boundary is complete and verified. The Vite preview preserves the full legacy shell and exact styles while React owns weekly goals, Life Pie, and Planned vs actual. Stop at this working boundary before selecting another feature.
 
 ## Last Completed Task
-Added the Planned vs actual characterization and visual-regression boundary before changing production code. It covers the empty and populated weekly states, ISO-week storage key, six included activities, task/physical/session totals, input attributes, input/change behavior, unknown-field preservation, activity-log compatibility, reload persistence, exact DOM/style/geometry, and tolerant screenshot parity at 1280×720 and 390×844.
+Migrated Planned vs actual into focused typed React modules without redesigning it. The component preserves legacy ISO-week totals, six activity rows, formatting, progress behavior, input/change timing, unknown planned fields, server/browser persistence, activity-log shape, and exact desktop/mobile markup and appearance. A two-way storage bridge prevents later legacy writes from overwriting React-owned values or audit entries.
 
 ## Next Task
-Implement Planned vs actual as the next and only new React-owned boundary. Add focused TypeScript tests first, reuse the Life Pie weekly aggregation where compatible, preserve the exact legacy markup/CSS and edit/logging contract, then make the characterization test require React ownership and verify legacy/React parity before committing.
+Await explicit direction before selecting another migration boundary. For the next feature, first characterize its legacy behavior and add equivalent desktop/mobile visual coverage, then migrate only that boundary and preserve the three completed React-owned cards.
 
 ## Important Decisions
 - The rewrite must preserve visual parity with the legacy Planner; this is an architecture rewrite, not a UI redesign.
@@ -197,6 +197,7 @@ Implement Planned vs actual as the next and only new React-owned boundary. Add f
 - The React preview marks `.life-card` `data-react-owned="true"`, clears only its existing `.panel-inner`, and portals the legacy-equivalent Life Pie markup into that mount; the normal legacy application remains unaffected.
 - React's planner-store hook listens only for same-origin `hivePlanner.*` storage events. This is the compatibility bridge that keeps the React-owned Life Pie current while task, physical, session, meditation, and journal writes remain in the legacy frame.
 - Planned vs actual stores one object at `hivePlanner.planned.<ISO-WEEK>` and must preserve unknown fields when editing. Each edit also appends the legacy-compatible `planned_hours_updated` record to `hivePlanner.activityLog` with the same group/activity metadata.
+- The legacy iframe listens for external `hivePlanner.*` storage writes from React-owned parent mounts and updates only its in-memory store. This prevents a later legacy write from overwriting newer React values without causing a second persistence loop.
 - Visual regression coverage must compare the legacy and React versions at identical desktop and mobile viewports, including computed styles/geometry and a rendered screenshot where stable.
 - Screenshot comparisons decode Chrome PNG pixels and allow at most 1% of pixels to differ by more than eight channel values; exact DOM content and computed style/geometry comparisons remain mandatory so minor cross-frame antialiasing does not create false failures.
 - New code must be split into small, clear, single-responsibility modules with short focused functions and short explanatory comments for non-obvious logic; do not create new monolithic files.
@@ -239,7 +240,7 @@ Implement Planned vs actual as the next and only new React-owned boundary. Add f
 - Browser inspection reports 29 generated form controls without an `id` or `name`.
 - The default `node` on the inspected machine is Node 14 and cannot run `node --test`; use the installed modern Node runtime or fix the local PATH before relying on `scripts/test.sh` without `NODE_BIN`.
 - Most remaining cross-feature flows in `app.js` still lack DOM or end-to-end tests; three browser tests now cover task and activity-session lifecycles plus all six primary view renders.
-- Life Pie is now React-owned and verified. Planned vs actual has a complete browser characterization but remains legacy-owned until the next focused implementation step; all other adjacent dashboard cards remain legacy-owned inside the temporary iframe shell.
+- Weekly goals, Life Pie, and Planned vs actual are React-owned and verified; all other dashboard cards and feature views remain legacy-owned inside the temporary iframe shell.
 - Browser smoke tests skip when Chrome/Chromium or Node WebSocket support is unavailable; they run with the documented Node 24 runtime on the inspected machine.
 - The React preview is not yet served directly by the Python backend. Its temporary legacy shell depends on Vite development proxies and is not the final production integration architecture.
 - The React visual regression test skips when Chrome or `frontend-react` dependencies are unavailable, matching the existing browser-test prerequisite policy.
@@ -357,7 +358,11 @@ Implement Planned vs actual as the next and only new React-owned boundary. Add f
 - Added a focused real-browser characterization before production changes. It verifies the empty and populated ISO-week states, exact Study/Leisure rows and totals, Other exclusion, input attributes, progress rounding/capping, live input versus change rerender behavior, SQLite persistence, unknown-field retention, and the exact legacy activity-log record.
 - Added desktop and mobile legacy-versus-React baseline capture at 1280×720 and 390×844, including exact DOM/style/geometry checks and tolerant PNG comparison. The test initially exposed an incorrect assumed mobile label width; measuring the legacy layout established the real `135px 68px 52px` grid contract.
 - Chrome DevTools rendered the populated legacy card with the expected totals, but its screenshot call stalled. The dependency-free Chrome test successfully captured and compared both applications, so the automated real-browser gate remains complete; repeat manual DevTools interaction after the React implementation.
-- No production source changed in this characterization checkpoint. Verification: the focused Planned vs actual browser test passes, and the full safety net passes with 18 Python tests and 107 root JavaScript tests.
+- Added focused Planned vs actual definitions, model, activity-log compatibility, and React component modules. React claims only `.planned-card .panel-inner`, reuses the exact legacy HTML/CSS contract, and shares Life Pie's already-tested weekly actual-time aggregation.
+- TDD evidence: the new TypeScript suite first failed because the Planned vs actual module did not exist; the browser ownership assertion then failed until React claimed the card. A later cross-feature test proved a legacy task write erased the React audit entry, then passed after adding the inbound iframe storage bridge.
+- The final browser gate edits through both legacy and React, checks SQLite persistence and reload behavior, preserves unknown planned fields and both legacy/React activity-log entries, and compares exact DOM/style/geometry plus screenshots at 1280×720 and 390×844.
+- Manual in-app browser inspection confirmed React ownership, six accessible controls, correct week/totals, zero horizontal overflow, and clean browser logs. Its cross-document typing command timed out after issuing the writes, so the independent Chrome regression remains the authoritative interaction result.
+- Final verification: 35 React tests, React lint, strict type-checking, and the Vite production build pass. The full safety net passes with 18 Python tests and 107 root JavaScript tests, including all browser flows.
 
 ---
 

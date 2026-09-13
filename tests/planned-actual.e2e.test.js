@@ -220,7 +220,55 @@ async function editCodingPlan(planner) {
   await planner.browser.waitForExpression('document.getElementById("planned-cpp").value === "5.25"');
 }
 
-test("legacy Planned vs actual preserves totals, editing, logging, and visual parity", { timeout: 60_000 }, async function (context) {
+async function editReactCodingPlan(planner) {
+  const titleBeforeChange = await planner.browser.evaluate(`(() => {
+    const documentRoot = document.querySelector("iframe").contentDocument;
+    const input = documentRoot.getElementById("planned-cpp");
+    input.value = "4.5";
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    return documentRoot.querySelector("#plannedMount .planned-title").textContent.trim();
+  })()`);
+  assert.equal(titleBeforeChange, "StudyPlanned 8.25h · Actual 3h");
+  await planner.server.waitFor(async function () {
+    const stored = await planner.server.readPlannerData();
+    const planned = JSON.parse(stored[PLANNED_KEY] || "{}");
+    const entries = JSON.parse(stored["hivePlanner.activityLog"] || "[]");
+    const latest = entries.at(-1);
+    return planned.cpp === 4.5
+      && planned.futureActivity.preserve === true
+      && latest?.action === "planned_hours_updated"
+      && latest.before === 5.25
+      && latest.after === 4.5
+      && latest.meta?.group === "study";
+  });
+  await planner.browser.evaluate(`(() => {
+    const input = document.querySelector("iframe").contentDocument.getElementById("planned-cpp");
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  })()`);
+  await planner.browser.waitForExpression(`document.querySelector("iframe").contentDocument.querySelector("#plannedMount .planned-title").textContent.includes("7.5h")`);
+}
+
+async function assertReactLogSurvivesLegacyWrite(planner) {
+  await planner.browser.evaluate(`(() => {
+    const documentRoot = document.querySelector("iframe").contentDocument;
+    documentRoot.getElementById("taskTitle").value = "Storage bridge check";
+    documentRoot.getElementById("taskTime").value = "0";
+    documentRoot.getElementById("taskActivity").value = "other";
+    documentRoot.getElementById("taskForm").dispatchEvent(
+      new Event("submit", { bubbles: true, cancelable: true })
+    );
+  })()`);
+  await planner.server.waitFor(async function () {
+    const stored = await planner.server.readPlannerData();
+    const entries = JSON.parse(stored["hivePlanner.activityLog"] || "[]");
+    const tasks = JSON.parse(stored["hivePlanner.dailyTasks.2026-09-13"] || "[]");
+    return tasks.some((task) => task.label === "Storage bridge check")
+      && entries.some((entry) => entry.action === "planned_hours_updated" && entry.after === 4.5)
+      && entries.some((entry) => entry.action === "task_created" && entry.after?.label === "Storage bridge check");
+  });
+}
+
+test("Planned vs actual preserves totals, editing, logging, and visual parity", { timeout: 60_000 }, async function (context) {
   const planner = await startBrowserPlanner(context);
   if (!planner) {
     return;
@@ -253,6 +301,7 @@ test("legacy Planned vs actual preserves totals, editing, logging, and visual pa
 
   await planner.browser.open(`${preview.url}/?date=${TEST_DATE}`);
   await planner.browser.waitForExpression(`document.querySelector("iframe")?.contentDocument?.querySelectorAll("#plannedMount .planned-row").length === 6`);
+  assert.equal(await planner.browser.evaluate(`document.querySelector("iframe").contentDocument.querySelector(".planned-card").dataset.reactOwned`), "true");
   await scrollToPlannedCard(planner.browser, 'document.querySelector("iframe").contentDocument');
   const reactDesktop = await planner.browser.evaluate(
     plannedActualVisualContract('document.querySelector("iframe").contentDocument')
@@ -260,16 +309,18 @@ test("legacy Planned vs actual preserves totals, editing, logging, and visual pa
   const reactDesktopScreenshot = await planner.browser.captureScreenshot(REACT_CLIP);
   assert.deepEqual(reactDesktop, legacyDesktop);
   assertSameScreenshot(reactDesktopScreenshot, legacyDesktopScreenshot, "desktop Planned vs actual screenshot");
+  await editReactCodingPlan(planner);
+  await assertReactLogSurvivesLegacyWrite(planner);
 
   await planner.browser.setViewport(390, 844, true);
   await planner.browser.open(`${planner.server.url}/?date=${TEST_DATE}`);
-  await planner.browser.waitForExpression('document.getElementById("planned-cpp")?.value === "5.25"');
+  await planner.browser.waitForExpression('document.getElementById("planned-cpp")?.value === "4.5"');
   await scrollToPlannedCard(planner.browser, "document");
   const legacyMobile = await planner.browser.evaluate(plannedActualVisualContract("document"));
   const legacyMobileScreenshot = await planner.browser.captureScreenshot(LEGACY_CLIP);
 
   await planner.browser.open(`${preview.url}/?date=${TEST_DATE}`);
-  await planner.browser.waitForExpression(`document.querySelector("iframe")?.contentDocument?.getElementById("planned-cpp")?.value === "5.25"`);
+  await planner.browser.waitForExpression(`document.querySelector("iframe")?.contentDocument?.getElementById("planned-cpp")?.value === "4.5"`);
   await scrollToPlannedCard(planner.browser, 'document.querySelector("iframe").contentDocument');
   const reactMobile = await planner.browser.evaluate(
     plannedActualVisualContract('document.querySelector("iframe").contentDocument')
