@@ -1,10 +1,11 @@
-import type { WeeklyGoal } from "./weekly-goals";
+import type { WeeklyGoal, WeeklyGoalId } from "./weekly-goals";
 
 interface WeeklyGoalsCardProps {
   goals: readonly WeeklyGoal[];
+  onGoalChange: (goalId: WeeklyGoalId, text: string) => void;
 }
 
-export function WeeklyGoalsCard({ goals }: WeeklyGoalsCardProps) {
+export function WeeklyGoalsCard({ goals, onGoalChange }: WeeklyGoalsCardProps) {
   return (
     <>
       {goals.map((goal) => (
@@ -16,11 +17,11 @@ export function WeeklyGoalsCard({ goals }: WeeklyGoalsCardProps) {
           <input
             aria-label={`${goal.label} weekly goal`}
             className="weekly-goal-input"
+            defaultValue={goal.text}
             maxLength={120}
+            onBlur={(event) => onGoalChange(goal.id, event.currentTarget.value)}
             placeholder={goal.placeholder}
-            readOnly
             type="text"
-            value={goal.text}
           />
         </div>
       ))}

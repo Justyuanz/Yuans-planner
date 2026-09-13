@@ -2,7 +2,7 @@
 
 This folder contains the new React + TypeScript frontend beside the legacy `frontend/` application. The Python server still serves the working application, and the Vite preview loads that UI unchanged as a temporary migration shell.
 
-The first migrated boundary is intentionally read-only. React fetches the existing `/api/kv` response, validates its string-valued key/value contract, and takes ownership of the legacy weekly-goals mount. The component uses the legacy markup and CSS so the desktop panel and mobile-hidden behavior remain visually identical.
+The first migrated boundary is weekly goals. React fetches the existing `/api/kv` response, validates its string-valued key/value contract, and takes ownership of the legacy weekly-goals mount. The component preserves the legacy edit-on-blur interaction, browser/server persistence, markup, CSS, desktop appearance, and mobile-hidden behavior.
 
 ## Run the preview
 

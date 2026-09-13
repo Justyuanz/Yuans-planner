@@ -1,7 +1,7 @@
 import type { PlannerStore } from "../../api/planner-store";
 import { isRecord } from "../../shared/is-record";
 
-const WEEKLY_GOALS_STORAGE_KEY = "hivePlanner.weeklyGoals";
+export const WEEKLY_GOALS_STORAGE_KEY = "hivePlanner.weeklyGoals";
 
 const WEEKLY_GOAL_DEFINITIONS = [
   {
@@ -53,5 +53,17 @@ export function decodeWeeklyGoals(store: PlannerStore): WeeklyGoal[] {
       ...definition,
       text: typeof text === "string" ? text : ""
     };
+  });
+}
+
+export function encodeWeeklyGoalUpdate(
+  store: PlannerStore,
+  goalId: WeeklyGoalId,
+  text: string
+): string {
+  const values = parseWeeklyGoalValues(store[WEEKLY_GOALS_STORAGE_KEY]);
+  return JSON.stringify({
+    ...values,
+    [goalId]: text.trim()
   });
 }

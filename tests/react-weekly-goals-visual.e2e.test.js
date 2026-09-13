@@ -8,7 +8,8 @@ const TEST_DATE = "2026-09-13";
 const WEEKLY_GOALS = {
   study: "Finish the React boundary",
   body: "Take a recovery walk",
-  mind: "Practice one song"
+  mind: "Practice one song",
+  futureTrack: { preserve: true }
 };
 
 const LEGACY_GOALS_READY = `document.querySelectorAll("#weeklyGoals .weekly-goal-input").length === 3`;
@@ -116,6 +117,26 @@ test("React weekly goals preserve the legacy desktop and mobile design", { timeo
 
   assert.deepEqual(reactDesktop, legacyDesktop);
   assert.equal(reactScreenshot, legacyScreenshot);
+
+  const editState = await planner.browser.evaluate(`(() => {
+    const frame = document.querySelector("iframe");
+    const input = frame.contentDocument.querySelector(".weekly-goal-input");
+    const valueSetter = Object.getOwnPropertyDescriptor(frame.contentWindow.HTMLInputElement.prototype, "value").set;
+    valueSetter.call(input, "  Ship the parity test  ");
+    input.dispatchEvent(new frame.contentWindow.Event("input", { bubbles: true }));
+    input.dispatchEvent(new frame.contentWindow.FocusEvent("focusout", { bubbles: true }));
+    return { maxLength: input.maxLength, readOnly: input.readOnly };
+  })()`);
+  assert.deepEqual(editState, { maxLength: 120, readOnly: false });
+  await planner.server.waitFor(async function () {
+    const stored = await planner.server.readPlannerData();
+    const goals = JSON.parse(stored["hivePlanner.weeklyGoals"] || "{}");
+    return goals.study === "Ship the parity test" && goals.futureTrack.preserve === true;
+  });
+  await planner.browser.reload();
+  await planner.browser.waitForExpression(REACT_GOALS_READY);
+  const reloadedValue = await planner.browser.evaluate(`document.querySelector("iframe").contentDocument.querySelector(".weekly-goal-input").value`);
+  assert.equal(reloadedValue, "Ship the parity test");
 
   await planner.browser.setViewport(390, 844, true);
   await planner.browser.open(`${planner.server.url}/?date=${TEST_DATE}`);

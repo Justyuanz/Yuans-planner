@@ -181,13 +181,13 @@ For each feature:
 - [ ] remove legacy implementation only after tests pass
 
 ## Current Task
-Phase 3 has one visually verified migration boundary. The Vite preview keeps the complete legacy Planner as a temporary migration shell while React takes read-only ownership of weekly goals. Further feature migration is paused.
+Phase 3 has one visually and behaviorally verified migration boundary. The Vite preview keeps the complete legacy Planner as a temporary migration shell while React owns weekly-goal rendering, editing, browser/server persistence, and compatibility-safe serialization.
 
 ## Last Completed Task
-Removed the unintended React redesign and restored visual parity with the legacy Planner. The React-owned weekly-goals panel now uses the legacy DOM classes, CSS, wording, geometry, responsive visibility, and focus appearance inside the unchanged legacy dashboard shell. A real-browser regression test compares computed design values and the desktop panel screenshot at 1280×720, then verifies the legacy mobile-hidden behavior at 390×844.
+Completed weekly-goal behavior in React without changing its restored legacy design. Inputs retain the 120-character limit, save trimmed values on blur, update browser and server storage, preserve unknown stored fields, and survive reload. The real-browser regression still enforces exact desktop panel rendering and legacy mobile behavior.
 
 ## Next Task
-Stop before migrating another feature. Resume only with explicit direction, and require the same legacy-versus-React desktop/mobile visual regression gate for every migrated UI boundary.
+Characterize the adjacent Life Pie behavior and interaction states before migrating it. Add focused behavior tests and extend the legacy-versus-React desktop/mobile visual gate before React takes ownership; do not alter the existing design or weekly-goal behavior.
 
 ## Important Decisions
 - The rewrite must preserve visual parity with the legacy Planner; this is an architecture rewrite, not a UI redesign.
@@ -215,6 +215,7 @@ Stop before migrating another feature. Resume only with explicit direction, and 
 - Keep the new frontend in `frontend-react/` while the Python server continues serving the legacy `frontend/` application; use Vite only as the separate migration preview for now.
 - Fetch `/api/kv` without caching, reject malformed non-string API values, and keep weekly-goal decoding pure so compatibility behavior can be tested without a browser.
 - Weekly-goal decoding mirrors legacy behavior for missing, invalid JSON, array, and non-string values by rendering empty tracks while leaving stored data untouched.
+- Weekly-goal edits save on blur to match the legacy `change` interaction, trim the value, retain unknown fields in the stored object, update browser storage optimistically, and persist through the existing `/api/kv` endpoint.
 - Keep the Vite development API target configurable through `VITE_PLANNER_API_TARGET`; the default remains the existing server at `http://127.0.0.1:8765`.
 - Keep new compatibility logic in focused, pure UMD modules that the legacy app and Node tests both execute.
 - Calendar-linked task reconciliation must preserve user-edited task state, remove stale source links, and add each missing current event without duplication.
@@ -237,6 +238,7 @@ Stop before migrating another feature. Resume only with explicit direction, and 
 - Browser smoke tests skip when Chrome/Chromium or Node WebSocket support is unavailable; they run with the documented Node 24 runtime on the inspected machine.
 - The React preview is not yet served directly by the Python backend. Its temporary legacy shell depends on Vite development proxies and is not the final production integration architecture.
 - The React visual regression test skips when Chrome or `frontend-react` dependencies are unavailable, matching the existing browser-test prerequisite policy.
+- Browser-capable root Node test files run serially to avoid Chrome/Vite startup timeouts under parallel process saturation.
 
 ## Session Log
 
@@ -309,6 +311,16 @@ Stop before migrating another feature. Resume only with explicit direction, and 
 - Replaced the standalone preview design with a temporary same-origin legacy shell. React now owns only `#weeklyGoals`, renders the exact legacy class structure as read-only inputs, and reuses the existing Planner CSS without copying or restyling it.
 - Manual browser verification confirmed the complete desktop and mobile pages match the legacy layouts, React inputs remain read-only when focused and typed into, all requests succeed, and no horizontal overflow appears.
 - Verification: 12 React tests, React lint, strict type-checking, and the Vite production build pass. The full safety net passes with 18 Python tests and 105 JavaScript tests, including four legacy/browser flows and the React visual comparison.
+
+### Session 8
+
+- Resumed with the existing weekly-goals feature rather than starting another UI migration.
+- Characterized the legacy edit contract: 120-character inputs save trimmed values on `change`/blur and persist through browser storage plus `/api/kv`.
+- Added failing tests first for the missing API write boundary, compatibility-safe encoding, editable React input, server persistence, unknown-field retention, and reload survival.
+- Added `putPlannerStoreValue`, an encoder that preserves unknown stored fields, and blur-based React editing with optimistic browser storage and server persistence.
+- Kept the existing screenshot/computed-style comparison intact; the same browser test now verifies behavior and persistence before checking the 390×844 mobile-hidden contract.
+- Serialized the root Node test files after the added Chrome/Vite flow caused unrelated legacy browser tests to exceed their timeouts under parallel process saturation.
+- Verification: 16 React tests, React lint, strict type-checking, and the production build pass. The full safety net passes with 18 Python tests and 105 root JavaScript tests, including all browser flows.
 
 ---
 

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   decodePlannerStoreResponse,
   fetchPlannerStore,
+  putPlannerStoreValue,
   type PlannerFetch
 } from "./planner-store";
 
@@ -57,5 +58,31 @@ describe("fetchPlannerStore", () => {
     await expect(fetchPlannerStore(plannerFetch)).rejects.toThrow(
       "Planner data request failed with status 503"
     );
+  });
+});
+
+describe("putPlannerStoreValue", () => {
+  it("writes one string value through the existing endpoint", async () => {
+    const requests: { body: BodyInit | null | undefined; method: string | undefined }[] = [];
+    const plannerFetch: PlannerFetch = (_input, init) => {
+      requests.push({ body: init?.body, method: init?.method });
+      return Promise.resolve(new Response('{"ok":true}', { status: 200 }));
+    };
+
+    await putPlannerStoreValue("hivePlanner.weeklyGoals", '{"study":"Updated"}', plannerFetch);
+
+    expect(requests).toEqual([{
+      body: '{"key":"hivePlanner.weeklyGoals","value":"{\\"study\\":\\"Updated\\"}"}',
+      method: "PUT"
+    }]);
+  });
+
+  it("reports an unsuccessful write", async () => {
+    const plannerFetch: PlannerFetch = () =>
+      Promise.resolve(new Response(null, { status: 503 }));
+
+    await expect(
+      putPlannerStoreValue("hivePlanner.weeklyGoals", "{}", plannerFetch)
+    ).rejects.toThrow("Planner data write failed with status 503");
   });
 });

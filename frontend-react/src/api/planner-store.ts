@@ -35,3 +35,18 @@ export async function fetchPlannerStore(
   const payload: unknown = await response.json();
   return decodePlannerStoreResponse(payload);
 }
+
+export async function putPlannerStoreValue(
+  key: string,
+  value: string,
+  plannerFetch: PlannerFetch = fetch
+): Promise<void> {
+  const response = await plannerFetch("/api/kv", {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ key, value })
+  });
+  if (!response.ok) {
+    throw new Error(`Planner data write failed with status ${response.status}`);
+  }
+}
