@@ -7,7 +7,14 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      "/api": apiTarget
+      "/api": apiTarget,
+      "/css": apiTarget,
+      "/favicon.ico": apiTarget,
+      "/js": apiTarget,
+      "/legacy": {
+        target: apiTarget,
+        rewrite: (path) => path.replace(/^\/legacy\/?/, "/")
+      }
     }
   }
 });

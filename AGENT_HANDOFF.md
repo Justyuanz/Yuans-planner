@@ -181,15 +181,20 @@ For each feature:
 - [ ] remove legacy implementation only after tests pass
 
 ## Current Task
-Phase 3 has its first verified migration boundary. A separate strict React + TypeScript preview reads the existing SQLite-backed `/api/kv` endpoint and renders weekly goals without replacing the legacy entry point or writing planner data.
+Phase 3 has one visually verified migration boundary. The Vite preview keeps the complete legacy Planner as a temporary migration shell while React takes read-only ownership of weekly goals. Further feature migration is paused.
 
 ## Last Completed Task
-Created `frontend-react/` as a focused Vite/React application, added strict compatibility decoding for the existing key/value API, and rendered the three weekly-goal tracks through a pure tested decoder. Real-browser verification against an isolated SQLite database passed at 1440×900 and 390×844 with clean console/network results, no horizontal overflow, and 100 Lighthouse accessibility and best-practices scores.
+Removed the unintended React redesign and restored visual parity with the legacy Planner. The React-owned weekly-goals panel now uses the legacy DOM classes, CSS, wording, geometry, responsive visibility, and focus appearance inside the unchanged legacy dashboard shell. A real-browser regression test compares computed design values and the desktop panel screenshot at 1280×720, then verifies the legacy mobile-hidden behavior at 390×844.
 
 ## Next Task
-Add an automated browser test for the React preview using an isolated SQLite database and the existing dependency-free Chrome/server helpers, then choose the next small weekly-goals migration step. Keep the legacy entry point active until the replacement path has equivalent persistence and interaction coverage.
+Stop before migrating another feature. Resume only with explicit direction, and require the same legacy-versus-React desktop/mobile visual regression gate for every migrated UI boundary.
 
 ## Important Decisions
+- The rewrite must preserve visual parity with the legacy Planner; this is an architecture rewrite, not a UI redesign.
+- Do not add migration-preview branding, explanatory badges, new layouts, or invented visual treatments to the React UI.
+- During incremental migration, the Vite preview may use the complete legacy app as a temporary same-origin shell so unmigrated features and interactions remain unchanged while React owns one tested mount.
+- The legacy weekly-goal renderer skips `#weeklyGoals` only when the preview marks it `data-react-owned="true"`; the normal legacy application remains unaffected.
+- Visual regression coverage must compare the legacy and React versions at identical desktop and mobile viewports, including computed styles/geometry and a rendered screenshot where stable.
 - New code must be split into small, clear, single-responsibility modules with short focused functions and short explanatory comments for non-obvious logic; do not create new monolithic files.
 - Smoke tests alone are insufficient; migration tests must cover behavior, edge cases, persistence/compatibility, and critical cross-feature flows.
 - Use the same Git repository.
@@ -230,7 +235,8 @@ Add an automated browser test for the React preview using an isolated SQLite dat
 - The default `node` on the inspected machine is Node 14 and cannot run `node --test`; use the installed modern Node runtime or fix the local PATH before relying on `scripts/test.sh` without `NODE_BIN`.
 - Most remaining cross-feature flows in `app.js` still lack DOM or end-to-end tests; three browser tests now cover task and activity-session lifecycles plus all six primary view renders.
 - Browser smoke tests skip when Chrome/Chromium or Node WebSocket support is unavailable; they run with the documented Node 24 runtime on the inspected machine.
-- The React preview is not yet served by the Python backend and has no automated browser test; its hook and components are covered by manual browser verification while the pure API and weekly-goal decoders have 12 automated tests.
+- The React preview is not yet served directly by the Python backend. Its temporary legacy shell depends on Vite development proxies and is not the final production integration architecture.
+- The React visual regression test skips when Chrome or `frontend-react` dependencies are unavailable, matching the existing browser-test prerequisite policy.
 
 ## Session Log
 
@@ -293,6 +299,16 @@ Add an automated browser test for the React preview using an isolated SQLite dat
 - Lighthouse snapshot audits report 100 accessibility and 100 best-practices scores on desktop and mobile. The preview-only `robots.txt` and `llms.txt` recommendations were intentionally left out of scope.
 - Verification: 12 React tests, React lint, strict type-checking, and the Vite production build pass. The legacy safety net also passes with 18 Python tests and 104 JavaScript tests, including all browser flows.
 - The system `node` is still Node 14. Frontend npm scripts must run with the Node 24 binary first on the child-process `PATH`; invoking npm itself through Node 24 is not sufficient because npm scripts otherwise resolve the old system binary.
+
+### Session 7
+
+- Stopped feature migration and treated the legacy Planner as the visual source of truth after the first React preview was identified as an unintended redesign.
+- Captured legacy and React baselines with the same isolated SQLite data at 1280×720 and 390×844. Confirmed the legacy weekly-goals panel is three stacked input cards on desktop and intentionally hidden below 980px while Money leads the mobile dashboard.
+- Added reusable viewport and screenshot support to the dependency-free Chrome helper plus a focused Vite preview server fixture.
+- Added a real-browser parity test before the UI correction. It failed against the redesigned React page because no legacy-compatible React mount existed, then passed after the correction.
+- Replaced the standalone preview design with a temporary same-origin legacy shell. React now owns only `#weeklyGoals`, renders the exact legacy class structure as read-only inputs, and reuses the existing Planner CSS without copying or restyling it.
+- Manual browser verification confirmed the complete desktop and mobile pages match the legacy layouts, React inputs remain read-only when focused and typed into, all requests succeed, and no horizontal overflow appears.
+- Verification: 12 React tests, React lint, strict type-checking, and the Vite production build pass. The full safety net passes with 18 Python tests and 105 JavaScript tests, including four legacy/browser flows and the React visual comparison.
 
 ---
 

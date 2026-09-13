@@ -141,6 +141,24 @@ async function startChromeSession(executable) {
     return {
       errors: protocol.errors,
       evaluate,
+      async setViewport(width, height, mobile = false) {
+        await protocol.send("Emulation.setDeviceMetricsOverride", {
+          deviceScaleFactor: 1,
+          height,
+          mobile,
+          width
+        }, sessionId);
+      },
+      async captureScreenshot(clipExpression) {
+        const clip = clipExpression ? await evaluate(clipExpression) : undefined;
+        const response = await protocol.send("Page.captureScreenshot", {
+          captureBeyondViewport: false,
+          format: "png",
+          fromSurface: true,
+          ...(clip ? { clip: { ...clip, scale: 1 } } : {})
+        }, sessionId);
+        return response.data;
+      },
       async open(url) {
         await waitForPageLoad("Page.navigate", { url });
       },

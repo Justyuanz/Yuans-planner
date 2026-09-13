@@ -129,5 +129,7 @@ async function startPlannerServer() {
 }
 
 module.exports = {
+  reservePort,
+  waitFor,
   startPlannerServer
 };

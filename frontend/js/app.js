@@ -4525,7 +4525,7 @@
       }
 
       function renderWeeklyGoals() {
-        if (!elements.weeklyGoals) {
+        if (!elements.weeklyGoals || elements.weeklyGoals.dataset.reactOwned === "true") {
           return;
         }
         elements.weeklyGoals.innerHTML = "";
