@@ -91,7 +91,7 @@ python3 -m unittest discover -s tests -p '*_test.py'
 node --test tests/*.test.js
 ```
 
-Tests cover frontend feature logic, backend reminders and mascot helpers, SQLite persistence, HTTP storage/backup endpoints, static asset delivery, and the main task and activity-session lifecycles in a real browser. Browser smoke tests run when Chrome or Chromium and a Node.js runtime with WebSocket support are available; otherwise they are skipped. All persistence tests use temporary databases, so they do not modify your planner data or call external services.
+Tests cover frontend feature logic, backend reminders and mascot helpers, SQLite persistence, HTTP storage/backup endpoints, static asset delivery, the main task and activity-session lifecycles, and all six primary views in a real browser. Browser smoke tests run when Chrome or Chromium and a Node.js runtime with WebSocket support are available; otherwise they are skipped. All persistence tests use temporary databases, so they do not modify your planner data or call external services.
 
 ## Docker
 

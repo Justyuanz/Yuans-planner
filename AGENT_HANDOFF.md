@@ -156,10 +156,10 @@ For a migrated feature:
 
 ### Phase 2 — Safety Net
 - [x] Add tests for critical backend behavior
-- [ ] Add tests for critical user flows
+- [x] Add tests for critical user flows
   - [x] Protect startup and task create/edit/delete persistence across refreshes
   - [x] Protect Guitar/Skate session-to-task synchronization and no-double-count totals
-  - [ ] Smoke-test all six primary views in the browser
+  - [x] Smoke-test all six primary views in the browser
 - [x] Record current expected behavior
 
 ### Phase 3 — New Structure
@@ -180,13 +180,13 @@ For each feature:
 - [ ] remove legacy implementation only after tests pass
 
 ## Current Task
-Phase 2 safety-net work is in progress. Storage compatibility, calendar-event-to-task synchronization, legacy startup, task persistence, and Guitar/Skate session-to-task totals are protected. Browser coverage for all six primary views remains. No React rewrite code has been started.
+Phase 2 is complete. Storage compatibility, calendar-event-to-task synchronization, legacy startup, task persistence, Guitar/Skate session-to-task totals, and dynamic rendering for all six primary views are protected. No React rewrite code has been started.
 
 ## Last Completed Task
-Added a real-browser test that finishes Guitar and Skate sessions through their actual dialogs, verifies the persisted sessions and completed tasks, confirms `trackedInTask`, reloads the app, and proves each duration contributes to totals exactly once.
+Added a real-browser smoke test that navigates all six primary views against an isolated database, verifies exactly one view is active, checks each accessible heading, waits for view-specific dynamic content, and reports browser errors.
 
 ## Next Task
-Extend the browser smoke suite to render and navigate all six primary views using an isolated database. After that coverage passes, review the Phase 2 checklist before introducing React.
+Begin Phase 3 by creating the React + TypeScript frontend beside the legacy frontend without replacing the current entry point. Keep the initial boundary read-only, use strict typed compatibility decoding against the existing `/api/kv` response, and add lint, type-check, and test coverage for the new structure.
 
 ## Important Decisions
 - New code must be split into small, clear, single-responsibility modules with short focused functions and short explanatory comments for non-obvious logic; do not create new monolithic files.
@@ -222,7 +222,7 @@ Extend the browser smoke suite to render and navigate all six primary views usin
 - Several declared storage keys and an older Study/Body weekly-overview path are inactive, while the real database still contains legacy-only keys that backups must preserve.
 - Browser inspection reports 29 generated form controls without an `id` or `name`.
 - The default `node` on the inspected machine is Node 14 and cannot run `node --test`; use the installed modern Node runtime or fix the local PATH before relying on `scripts/test.sh` without `NODE_BIN`.
-- Most remaining views in `app.js` still lack DOM or end-to-end tests; two browser tests now cover task and activity-session lifecycles.
+- Most remaining cross-feature flows in `app.js` still lack DOM or end-to-end tests; three browser tests now cover task and activity-session lifecycles plus all six primary view renders.
 - Browser smoke tests skip when Chrome/Chromium or Node WebSocket support is unavailable; they run with the documented Node 24 runtime on the inspected machine.
 
 ## Session Log
@@ -266,6 +266,16 @@ Extend the browser smoke suite to render and navigate all six primary views usin
 - Added a focused shared browser-planner fixture and refactored the existing task-flow test to reuse it without changing production code.
 - TDD evidence: the session flow first failed because the shared browser-planner boundary did not exist; the fixture was then added and both browser flows passed.
 - Verification: syntax checks pass; 18 Python tests and 103 JavaScript tests pass with no skips using `/Users/yuan/.nvm/versions/node/v24.14.1/bin/node` and the installed Chrome browser.
+
+### Session 5
+
+- Re-read the updated readability and structure rules in `AGENTS.md`; preserved the user's uncommitted instruction change without staging it.
+- Added a focused real-browser smoke test that navigates Dashboard, Journal, Money, Calendar, Skate, and Guitar against an isolated SQLite database.
+- Verified that each selected view is the only active view, exposes its expected accessible heading, finishes rendering representative dynamic content, and produces no browser errors.
+- Test-first note: the characterization test was added before any production rewrite and passed against the legacy behavior, so no production implementation change was required.
+- Browser verification at 1280×720 and 390×844 confirmed responsive Calendar, Dashboard, and Guitar rendering, working navigation, no horizontal overflow, no console errors, and successful asset/API requests.
+- Marked the defined Phase 2 safety-net milestone complete. No production files or React code were changed.
+- Verification: 18 Python tests and 104 JavaScript tests pass with no skips using `/Users/yuan/.nvm/versions/node/v24.14.1/bin/node` and the installed Chrome browser.
 
 ---
 

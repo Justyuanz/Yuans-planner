@@ -134,10 +134,10 @@ All modules use a small UMD wrapper: CommonJS for Node tests and `globalThis.Yua
 | Persistence and HTTP | SQLite CRUD/import rollback; KV/export/import/delete API; static files, HEAD, traversal rejection |
 | Integrations | Telegram parsing/due/deduplication/timezone; app reminder write-back; limited mascot reply normalization |
 | Pure frontend logic | 101 Node tests across calendar, load planning, money, journal, activity history, insights, agent actions, mascot RAG, Skate, sessions, meditation, storage hydration, and calendar-task synchronization |
-| Browser integration | 2 dependency-free headless Chrome tests cover blank-database startup, task create/edit/delete persistence, and Guitar/Skate session-to-task synchronization without double-counting |
-| Missing integration layer | No visual regression; no browser storage failure/recovery test; no automated browser coverage for all six primary views or the remaining cross-feature flows |
+| Browser integration | 3 dependency-free headless Chrome tests cover blank-database startup, task create/edit/delete persistence, Guitar/Skate session-to-task synchronization without double-counting, and dynamic rendering for all six primary views |
+| Missing integration layer | No visual regression; no browser storage failure/recovery test; no automated browser coverage for the remaining cross-feature flows |
 
-Baseline after the third Phase 2 safety-net step: 18 Python tests and 103 JavaScript tests pass when the suite uses a modern Node runtime. Browser tests run when Chrome or Chromium and Node WebSocket support are available.
+Baseline after completing Phase 2: 18 Python tests and 104 JavaScript tests pass when the suite uses a modern Node runtime. Browser tests run when Chrome or Chromium and Node WebSocket support are available.
 
 ## HTTP API Map
 
@@ -431,14 +431,14 @@ These flows should become the first integration/e2e safety net before components
 
 ## Recommended Migration Seams
 
-No production rewrite has begun. The safest next work is Phase 2, adding tests around the boundaries that currently live only in `app.js`.
+Phase 2's planned safety net is complete, and no production rewrite has begun. The next work is the first Phase 3 structure beside the still-active legacy frontend.
 
 Recommended order:
 
-1. Capture representative, anonymized version-2 backup fixtures containing current and legacy shapes.
-2. Extract or expose storage hydration/persistence as a testable adapter without changing behavior.
-3. Add integration tests for event-to-task synchronization and session-to-task/no-double-count behavior.
-4. Extend the browser smoke suite from its startup and task-lifecycle baseline to cover all six primary views.
-5. Only then create the React + TypeScript application beside the legacy frontend.
+1. [x] Capture representative, anonymized version-2 backup fixtures containing current and legacy shapes.
+2. [x] Extract or expose storage hydration/persistence as a testable adapter without changing behavior.
+3. [x] Add integration tests for event-to-task synchronization and session-to-task/no-double-count behavior.
+4. [x] Extend the browser smoke suite from its startup and task-lifecycle baseline to cover all six primary views.
+5. [ ] Create the React + TypeScript application beside the legacy frontend.
 
 The first React boundary should be read-only: load the same `/api/kv` payload and render one small feature using typed compatibility decoders. Writes and legacy removal should wait until the corresponding behavioral tests exist.
