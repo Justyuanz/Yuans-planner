@@ -144,6 +144,7 @@ For a migrated feature:
 5. Compare old and new behavior.
 6. Remove legacy code only after verification.
 
+
 ## Migration Order
 
 ### Phase 1 — Reverse Engineering
@@ -163,10 +164,10 @@ For a migrated feature:
 - [x] Record current expected behavior
 
 ### Phase 3 — New Structure
-- [ ] Create React + TypeScript frontend beside the old frontend
+- [x] Create React + TypeScript frontend beside the old frontend
 - [ ] Create clean Python API structure
-- [ ] Connect frontend to backend
-- [ ] Confirm SQLite data still works
+- [x] Connect frontend to backend
+- [x] Confirm SQLite data still works
 
 ### Phase 4 — Feature Migration
 Migrate one feature at a time.
@@ -180,16 +181,17 @@ For each feature:
 - [ ] remove legacy implementation only after tests pass
 
 ## Current Task
-Phase 2 is complete. Storage compatibility, calendar-event-to-task synchronization, legacy startup, task persistence, Guitar/Skate session-to-task totals, and dynamic rendering for all six primary views are protected. No React rewrite code has been started.
+Phase 3 has its first verified migration boundary. A separate strict React + TypeScript preview reads the existing SQLite-backed `/api/kv` endpoint and renders weekly goals without replacing the legacy entry point or writing planner data.
 
 ## Last Completed Task
-Added a real-browser smoke test that navigates all six primary views against an isolated database, verifies exactly one view is active, checks each accessible heading, waits for view-specific dynamic content, and reports browser errors.
+Created `frontend-react/` as a focused Vite/React application, added strict compatibility decoding for the existing key/value API, and rendered the three weekly-goal tracks through a pure tested decoder. Real-browser verification against an isolated SQLite database passed at 1440×900 and 390×844 with clean console/network results, no horizontal overflow, and 100 Lighthouse accessibility and best-practices scores.
 
 ## Next Task
-Begin Phase 3 by creating the React + TypeScript frontend beside the legacy frontend without replacing the current entry point. Keep the initial boundary read-only, use strict typed compatibility decoding against the existing `/api/kv` response, and add lint, type-check, and test coverage for the new structure.
+Add an automated browser test for the React preview using an isolated SQLite database and the existing dependency-free Chrome/server helpers, then choose the next small weekly-goals migration step. Keep the legacy entry point active until the replacement path has equivalent persistence and interaction coverage.
 
 ## Important Decisions
 - New code must be split into small, clear, single-responsibility modules with short focused functions and short explanatory comments for non-obvious logic; do not create new monolithic files.
+- Smoke tests alone are insufficient; migration tests must cover behavior, edge cases, persistence/compatibility, and critical cross-feature flows.
 - Use the same Git repository.
 - Keep `main` as the original working application.
 - Perform migration on `rewrite/react-typescript`.
@@ -205,6 +207,10 @@ Begin Phase 3 by creating the React + TypeScript frontend beside the legacy fron
 - Preserve server-first hydration with local-storage backfill unless a separately documented migration changes it.
 - Keep task timers persistent, but keep current Skate and Guitar session start times transient across refresh.
 - The first React boundary should be read-only and use typed compatibility decoders against the existing `/api/kv` response.
+- Keep the new frontend in `frontend-react/` while the Python server continues serving the legacy `frontend/` application; use Vite only as the separate migration preview for now.
+- Fetch `/api/kv` without caching, reject malformed non-string API values, and keep weekly-goal decoding pure so compatibility behavior can be tested without a browser.
+- Weekly-goal decoding mirrors legacy behavior for missing, invalid JSON, array, and non-string values by rendering empty tracks while leaving stored data untouched.
+- Keep the Vite development API target configurable through `VITE_PLANNER_API_TARGET`; the default remains the existing server at `http://127.0.0.1:8765`.
 - Keep new compatibility logic in focused, pure UMD modules that the legacy app and Node tests both execute.
 - Calendar-linked task reconciliation must preserve user-edited task state, remove stale source links, and add each missing current event without duplication.
 - Keep browser-flow assertions separate from reusable Chrome protocol, Chrome lifecycle, and temporary planner-server helpers so each test file has one clear responsibility.
@@ -224,6 +230,7 @@ Begin Phase 3 by creating the React + TypeScript frontend beside the legacy fron
 - The default `node` on the inspected machine is Node 14 and cannot run `node --test`; use the installed modern Node runtime or fix the local PATH before relying on `scripts/test.sh` without `NODE_BIN`.
 - Most remaining cross-feature flows in `app.js` still lack DOM or end-to-end tests; three browser tests now cover task and activity-session lifecycles plus all six primary view renders.
 - Browser smoke tests skip when Chrome/Chromium or Node WebSocket support is unavailable; they run with the documented Node 24 runtime on the inspected machine.
+- The React preview is not yet served by the Python backend and has no automated browser test; its hook and components are covered by manual browser verification while the pure API and weekly-goal decoders have 12 automated tests.
 
 ## Session Log
 
@@ -276,6 +283,16 @@ Begin Phase 3 by creating the React + TypeScript frontend beside the legacy fron
 - Browser verification at 1280×720 and 390×844 confirmed responsive Calendar, Dashboard, and Guitar rendering, working navigation, no horizontal overflow, no console errors, and successful asset/API requests.
 - Marked the defined Phase 2 safety-net milestone complete. No production files or React code were changed.
 - Verification: 18 Python tests and 104 JavaScript tests pass with no skips using `/Users/yuan/.nvm/versions/node/v24.14.1/bin/node` and the installed Chrome browser.
+
+### Session 6
+
+- Recovered and preserved the failed session's uncommitted `frontend-react/` work after reading the repository instructions, handoff, branch history, status, and current diff.
+- Reviewed the new boundary against the legacy weekly-goal storage key, track definitions, placeholders, and malformed-data behavior; no compatibility or correctness defect was found.
+- Verified real SQLite-backed weekly goals in Chrome at 1440×900 and 390×844. Both layouts rendered three accessible goal cards without clipping or horizontal overflow.
+- Found and fixed one genuine browser issue: the Vite preview requested a missing favicon and logged a 404. Added a small preview favicon; the final console is clean and all page, API, and asset requests succeed.
+- Lighthouse snapshot audits report 100 accessibility and 100 best-practices scores on desktop and mobile. The preview-only `robots.txt` and `llms.txt` recommendations were intentionally left out of scope.
+- Verification: 12 React tests, React lint, strict type-checking, and the Vite production build pass. The legacy safety net also passes with 18 Python tests and 104 JavaScript tests, including all browser flows.
+- The system `node` is still Node 14. Frontend npm scripts must run with the Node 24 binary first on the child-process `PATH`; invoking npm itself through Node 24 is not sufficient because npm scripts otherwise resolve the old system binary.
 
 ---
 
