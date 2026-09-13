@@ -181,13 +181,13 @@ For each feature:
 - [ ] remove legacy implementation only after tests pass
 
 ## Current Task
-The Planned vs actual migration boundary is complete and verified. The Vite preview preserves the full legacy shell and exact styles while React owns weekly goals, Life Pie, and Planned vs actual. Stop at this working boundary before selecting another feature.
+The Energy trail migration boundary is complete and verified. The Vite preview preserves the full legacy shell and exact styles while React owns weekly goals, Life Pie, Planned vs actual, and Energy trail. Stop at this working boundary before selecting another feature.
 
 ## Last Completed Task
-Migrated Planned vs actual into focused typed React modules without redesigning it. The component preserves legacy ISO-week totals, six activity rows, formatting, progress behavior, input/change timing, unknown planned fields, server/browser persistence, activity-log shape, and exact desktop/mobile markup and appearance. A two-way storage bridge prevents later legacy writes from overwriting React-owned values or audit entries.
+Migrated Energy trail into focused typed React modules without redesigning it. The component preserves the seven-entry newest-first tracker history, malformed/empty compatibility behavior, abbreviated dates, tracker labels, context fallback, 14-day low-energy comparison, exact desktop/mobile markup and appearance, and row navigation to the selected Journal date. Same-origin storage events keep the React card current when the legacy Journal editor saves.
 
 ## Next Task
-Await explicit direction before selecting another migration boundary. For the next feature, first characterize its legacy behavior and add equivalent desktop/mobile visual coverage, then migrate only that boundary and preserve the three completed React-owned cards.
+Await explicit direction before selecting another migration boundary. For the next feature, first characterize its legacy behavior and add equivalent desktop/mobile visual coverage, then migrate only that boundary and preserve the four completed React-owned cards.
 
 ## Important Decisions
 - The rewrite must preserve visual parity with the legacy Planner; this is an architecture rewrite, not a UI redesign.
@@ -197,6 +197,8 @@ Await explicit direction before selecting another migration boundary. For the ne
 - The React preview marks `.life-card` `data-react-owned="true"`, clears only its existing `.panel-inner`, and portals the legacy-equivalent Life Pie markup into that mount; the normal legacy application remains unaffected.
 - React's planner-store hook listens only for same-origin `hivePlanner.*` storage events. This is the compatibility bridge that keeps the React-owned Life Pie current while task, physical, session, meditation, and journal writes remain in the legacy frame.
 - Planned vs actual stores one object at `hivePlanner.planned.<ISO-WEEK>` and must preserve unknown fields when editing. Each edit also appends the legacy-compatible `planned_hours_updated` record to `hivePlanner.activityLog` with the same group/activity metadata.
+- Energy trail remains derived from `hivePlanner.journal.entries` and dated task keys. React filters invalid tracker values before selecting the newest seven rows, and preserves the legacy rule that the comparison appears only after at least two low/empty energy days have previous-day task summaries in the 14-day insight window.
+- Clicking a React-owned Energy trail row delegates navigation through the existing legacy tab and journal-date controls so the unmigrated Journal view retains its established rendering and save behavior.
 - The legacy iframe listens for external `hivePlanner.*` storage writes from React-owned parent mounts and updates only its in-memory store. This prevents a later legacy write from overwriting newer React values without causing a second persistence loop.
 - Visual regression coverage must compare the legacy and React versions at identical desktop and mobile viewports, including computed styles/geometry and a rendered screenshot where stable.
 - Screenshot comparisons decode Chrome PNG pixels and allow at most 1% of pixels to differ by more than eight channel values; exact DOM content and computed style/geometry comparisons remain mandatory so minor cross-frame antialiasing does not create false failures.
@@ -239,8 +241,8 @@ Await explicit direction before selecting another migration boundary. For the ne
 - Several declared storage keys and an older Study/Body weekly-overview path are inactive, while the real database still contains legacy-only keys that backups must preserve.
 - Browser inspection reports 29 generated form controls without an `id` or `name`.
 - The default `node` on the inspected machine is Node 14 and cannot run `node --test`; use the installed modern Node runtime or fix the local PATH before relying on `scripts/test.sh` without `NODE_BIN`.
-- Most remaining cross-feature flows in `app.js` still lack DOM or end-to-end tests; three browser tests now cover task and activity-session lifecycles plus all six primary view renders.
-- Weekly goals, Life Pie, and Planned vs actual are React-owned and verified; all other dashboard cards and feature views remain legacy-owned inside the temporary iframe shell.
+- Most remaining cross-feature flows in `app.js` still lack DOM or end-to-end tests; browser coverage now protects task and activity-session lifecycles, all six primary views, and four React migration boundaries.
+- Weekly goals, Life Pie, Planned vs actual, and Energy trail are React-owned and verified; all other dashboard cards and feature views remain legacy-owned inside the temporary iframe shell.
 - Browser smoke tests skip when Chrome/Chromium or Node WebSocket support is unavailable; they run with the documented Node 24 runtime on the inspected machine.
 - The React preview is not yet served directly by the Python backend. Its temporary legacy shell depends on Vite development proxies and is not the final production integration architecture.
 - The React visual regression test skips when Chrome or `frontend-react` dependencies are unavailable, matching the existing browser-test prerequisite policy.
@@ -363,6 +365,16 @@ Await explicit direction before selecting another migration boundary. For the ne
 - The final browser gate edits through both legacy and React, checks SQLite persistence and reload behavior, preserves unknown planned fields and both legacy/React activity-log entries, and compares exact DOM/style/geometry plus screenshots at 1280×720 and 390×844.
 - Manual in-app browser inspection confirmed React ownership, six accessible controls, correct week/totals, zero horizontal overflow, and clean browser logs. Its cross-document typing command timed out after issuing the writes, so the independent Chrome regression remains the authoritative interaction result.
 - Final verification: 35 React tests, React lint, strict type-checking, and the Vite production build pass. The full safety net passes with 18 Python tests and 107 root JavaScript tests, including all browser flows.
+
+### Session 12
+
+- Re-read `AGENTS.md`, this handoff, branch history, status, and the clean diff, then selected Energy trail as the smallest remaining dashboard migration after the user explicitly asked to continue.
+- Characterized the legacy empty state, malformed tracker filtering, newest-first seven-row limit, abbreviated dates, tracker/context wording, 14-day low-energy comparison, and row navigation to the selected Journal date before changing production code.
+- Added desktop and mobile legacy-versus-preview coverage at 1280×720 and 390×844, including exact DOM/style/geometry comparisons and tolerant PNG screenshot comparison. The characterization initially corrected two assumptions: the journal storage key is `hivePlanner.journal.entries`, and weekday labels are abbreviated.
+- Added focused typed compatibility decoding, previous-evening task aggregation, presentation-model, and React component modules. React claims only `.state-history-card .panel-inner` and reuses the existing HTML/CSS contract.
+- Added a narrow legacy ownership guard plus a real-browser flow proving the React row opens the correct legacy Journal date and a subsequent Journal context edit updates React immediately through the existing same-origin storage bridge and persists to SQLite.
+- TDD evidence: the new React suite first failed because the Energy trail module did not exist. After implementation, all 38 React tests, lint, strict type-checking, and the Vite production build pass.
+- Final verification: 18 Python tests and 108 root JavaScript tests pass with no skips using `/Users/yuan/.nvm/versions/node/v24.14.1/bin/node`, including all Chrome browser flows. The dedicated Chrome DevTools MCP was unavailable for an additional manual pass; the dependency-free real-Chrome regression completed screenshot, geometry, interaction, persistence, responsive, and console verification.
 
 ---
 
