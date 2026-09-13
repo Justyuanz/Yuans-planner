@@ -177,13 +177,13 @@ For each feature:
 - [ ] remove legacy implementation only after tests pass
 
 ## Current Task
-Phase 2 safety-net work is in progress. Storage compatibility and calendar-event-to-task synchronization are now protected; broader user-flow coverage is still needed. No React rewrite code has been started.
+Phase 2 safety-net work is in progress. Storage compatibility, calendar-event-to-task synchronization, legacy startup, and the task create/edit/delete/refresh flow are protected. Remaining cross-feature and primary-view coverage is still needed. No React rewrite code has been started.
 
 ## Last Completed Task
-Added an anonymized version-2 compatibility fixture, exact backend import/export round-trip coverage, a tested server-first hydration/backup module, and a tested calendar-linked task synchronization module used by the legacy application.
+Added a dependency-free headless Chrome test that starts the real legacy app with a temporary SQLite database and verifies task creation, persistence after reload, multi-field editing, another reload, deletion, and the final empty state without browser errors.
 
 ## Next Task
-Continue Phase 2 with automated coverage for legacy app startup and the create/edit/delete/refresh task flow. Then protect the remaining session-to-task and no-double-count cross-feature behavior before introducing React.
+Continue Phase 2 by protecting the remaining session-to-task and no-double-count cross-feature behavior. Then extend browser smoke coverage to the other primary views before introducing React.
 
 ## Important Decisions
 - New code must be split into small, clear, single-responsibility modules with short focused functions and short explanatory comments for non-obvious logic; do not create new monolithic files.
@@ -204,6 +204,8 @@ Continue Phase 2 with automated coverage for legacy app startup and the create/e
 - The first React boundary should be read-only and use typed compatibility decoders against the existing `/api/kv` response.
 - Keep new compatibility logic in focused, pure UMD modules that the legacy app and Node tests both execute.
 - Calendar-linked task reconciliation must preserve user-edited task state, remove stale source links, and add each missing current event without duplication.
+- Keep browser-flow assertions separate from reusable Chrome protocol, Chrome lifecycle, and temporary planner-server helpers so each test file has one clear responsibility.
+- Browser tests may use the existing Chrome DevTools Protocol directly to avoid adding a production or test package dependency.
 
 ## Known Problems
 - Existing project is over 20,000 lines.
@@ -216,7 +218,8 @@ Continue Phase 2 with automated coverage for legacy app startup and the create/e
 - Several declared storage keys and an older Study/Body weekly-overview path are inactive, while the real database still contains legacy-only keys that backups must preserve.
 - Browser inspection reports 29 generated form controls without an `id` or `name`.
 - The default `node` on the inspected machine is Node 14 and cannot run `node --test`; use the installed modern Node runtime or fix the local PATH before relying on `scripts/test.sh` without `NODE_BIN`.
-- Most remaining cross-feature behavior in `app.js` has no DOM or end-to-end tests yet; storage merging and calendar-event-to-task reconciliation are now covered through extracted production modules.
+- Most remaining cross-feature behavior in `app.js` has no DOM or end-to-end tests yet; one browser test now covers startup and the task lifecycle.
+- The browser smoke test skips when Chrome/Chromium or Node WebSocket support is unavailable; it runs with the documented Node 24 runtime on the inspected machine.
 
 ## Session Log
 
@@ -241,6 +244,15 @@ Continue Phase 2 with automated coverage for legacy app startup and the create/e
 - TDD evidence: the new Node tests first failed because the modules did not exist; the compatibility HTTP test first failed because the fixture did not exist; the script-order test first failed before the calendar-task module was loaded.
 - Browser verification with a temporary database confirmed that a browser-only planner key backfills to SQLite and a calendar event creates one linked Coding task with its reminder after reload. Desktop and 500px layouts have no horizontal overflow; the existing 29-field accessibility warning remains.
 - Verification: JavaScript syntax checks pass; 18 Python tests and 101 JavaScript tests pass using `/Users/yuan/.nvm/versions/node/v24.14.1/bin/node`.
+
+### Session 3
+
+- Re-read the expanded readability and structure rules in `AGENTS.md`; preserved the user's uncommitted instruction change without staging it.
+- Added a real-browser test for blank-database startup and the task create/edit/delete lifecycle, including SQLite persistence across three reloads and browser-error checks.
+- Kept the test infrastructure dependency-free and split it by responsibility: user-flow assertions, temporary server lifecycle, Chrome lifecycle, and Chrome protocol transport.
+- TDD evidence: the new flow test first failed because its browser/server harness did not exist. A pipe-transport harness failure was then isolated and replaced with Chrome's local debugging endpoint before the planner flow was evaluated.
+- Documented browser-test prerequisites in `README.md` and updated the reverse-engineering test inventory and remaining gaps.
+- Verification: syntax checks pass; 18 Python tests and 102 JavaScript tests pass with no skips using `/Users/yuan/.nvm/versions/node/v24.14.1/bin/node` and the installed Chrome browser.
 
 ---
 

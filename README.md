@@ -91,7 +91,7 @@ python3 -m unittest discover -s tests -p '*_test.py'
 node --test tests/*.test.js
 ```
 
-Tests cover frontend feature logic, backend reminders and mascot helpers, SQLite persistence, HTTP storage/backup endpoints, and static asset delivery. Backend persistence tests use temporary databases; they do not modify your planner data or call external services.
+Tests cover frontend feature logic, backend reminders and mascot helpers, SQLite persistence, HTTP storage/backup endpoints, static asset delivery, and the main task lifecycle in a real browser. The browser smoke test runs when Chrome or Chromium and a Node.js runtime with WebSocket support are available; otherwise it is skipped. All persistence tests use temporary databases, so they do not modify your planner data or call external services.
 
 ## Docker
 

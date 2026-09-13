@@ -133,10 +133,11 @@ All modules use a small UMD wrapper: CommonJS for Node tests and `globalThis.Yua
 | --- | --- |
 | Persistence and HTTP | SQLite CRUD/import rollback; KV/export/import/delete API; static files, HEAD, traversal rejection |
 | Integrations | Telegram parsing/due/deduplication/timezone; app reminder write-back; limited mascot reply normalization |
-| Pure frontend logic | 94 Node tests across calendar, load planning, money, journal, activity history, insights, agent actions, mascot RAG, Skate, sessions, and meditation |
-| Missing integration layer | No automated DOM/end-to-end tests for `app.js`; no visual regression; no browser storage failure/recovery test; no test exercising an entire create/edit/delete/refresh user flow |
+| Pure frontend logic | 101 Node tests across calendar, load planning, money, journal, activity history, insights, agent actions, mascot RAG, Skate, sessions, meditation, storage hydration, and calendar-task synchronization |
+| Browser integration | 1 dependency-free headless Chrome test covers blank-database startup and task create/edit/delete persistence across reloads |
+| Missing integration layer | No visual regression; no browser storage failure/recovery test; no automated browser coverage for all six primary views or the remaining cross-feature flows |
 
-Baseline after the first Phase 2 safety-net step: 18 Python tests and 101 JavaScript tests pass when the suite uses a modern Node runtime.
+Baseline after the second Phase 2 safety-net step: 18 Python tests and 102 JavaScript tests pass when the suite uses a modern Node runtime. The browser test runs when Chrome or Chromium and Node WebSocket support are available.
 
 ## HTTP API Map
 
@@ -404,7 +405,7 @@ These relationships are especially important for migration sequencing:
 
 ### Current quality gaps
 
-- `app.js` is not directly exercised by automated tests, so most cross-feature contracts above are unprotected.
+- `app.js` now has one browser-level task lifecycle test, but most other cross-feature contracts above remain unprotected.
 - Browser inspection found 29 generated form controls without `id` or `name`; Chrome reports this as an accessibility/form issue.
 - There is no domain schema version or explicit data migration mechanism.
 - There is no documented multi-tab or concurrent-write behavior.
@@ -437,7 +438,7 @@ Recommended order:
 1. Capture representative, anonymized version-2 backup fixtures containing current and legacy shapes.
 2. Extract or expose storage hydration/persistence as a testable adapter without changing behavior.
 3. Add integration tests for event-to-task synchronization and session-to-task/no-double-count behavior.
-4. Add one browser smoke suite covering app start, all six views, and a create-refresh-delete task flow.
+4. Extend the browser smoke suite from its startup and task-lifecycle baseline to cover all six primary views.
 5. Only then create the React + TypeScript application beside the legacy frontend.
 
 The first React boundary should be read-only: load the same `/api/kv` payload and render one small feature using typed compatibility decoders. Writes and legacy removal should wait until the corresponding behavioral tests exist.
