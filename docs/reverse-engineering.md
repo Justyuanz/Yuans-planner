@@ -187,7 +187,7 @@ Important API properties:
   - At the mobile breakpoint the donut and summary reflow from two columns to one without changing wording, order, or component styling.
 - Planned-versus-actual weekly hours by activity.
 - One top deterministic insight, actions, undo, and a grouped pattern-history dialog.
-- Energy trail derived from journal tracker entries.
+- Energy trail shows the seven newest journal entries with valid energy, focus, or context, using newest-first ordering. Each row opens that journal date. Its comparison note uses the existing 14-day insight window and appears after at least two low/empty energy days have previous-day task summaries.
 
 ### Journal
 
