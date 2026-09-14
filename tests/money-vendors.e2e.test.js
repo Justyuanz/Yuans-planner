@@ -197,12 +197,21 @@ test("Money vendors preserves aggregation, month comparison, limits, and visual 
 
   const previewDocument = 'document.querySelector("iframe").contentDocument';
   await openMoney(planner.browser, `${preview.url}/?date=${TEST_DATE}`, previewDocument);
+  assert.equal(await planner.browser.evaluate(
+    'document.querySelector("iframe").contentDocument.querySelector(".money-vendors-card").dataset.reactOwned'
+  ), "true");
   assertPopulatedState(await planner.browser.evaluate(vendorsState(previewDocument)));
   await scrollToVendors(planner.browser, previewDocument);
   const previewDesktop = await planner.browser.evaluate(vendorsVisualContract(previewDocument));
   const previewDesktopScreenshot = await planner.browser.captureScreenshot(PREVIEW_CLIP);
   assert.deepEqual(previewDesktop, legacyDesktop);
   assertSameScreenshot(previewDesktopScreenshot, legacyDesktopScreenshot, "desktop Money vendors screenshot");
+
+  await planner.browser.evaluate(`window.dispatchEvent(new StorageEvent("storage", {
+    key: ${JSON.stringify(TRANSACTIONS_KEY)},
+    newValue: "[]"
+  }))`);
+  await planner.browser.waitForExpression(`(${previewDocument}).querySelector("#moneyVendorList .money-vendor-row strong").textContent === "No vendors yet"`);
 
   await planner.browser.setViewport(390, 844, true);
   await openMoney(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);

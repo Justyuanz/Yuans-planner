@@ -11,6 +11,7 @@ import { MeditationCard } from "../features/meditation/MeditationCard";
 import { MoneyActivityCard } from "../features/money-activity/MoneyActivityCard";
 import { MoneyOverviewCard } from "../features/money-overview/MoneyOverviewCard";
 import { MoneyQuickCard } from "../features/money-quick/MoneyQuickCard";
+import { MoneyVendorsCard } from "../features/money-vendors/MoneyVendorsCard";
 import { PlannedActualCard } from "../features/planned-actual/PlannedActualCard";
 import { plannedStorageKey } from "../features/planned-actual/planned-actual";
 import { WeeklyGoalsCard } from "../features/weekly-goals/WeeklyGoalsCard";
@@ -53,6 +54,7 @@ export function App() {
   const [moneyActivityMount, setMoneyActivityMount] = useState<HTMLElement | null>(null);
   const [moneyOverviewMount, setMoneyOverviewMount] = useState<HTMLElement | null>(null);
   const [moneyQuickMount, setMoneyQuickMount] = useState<HTMLElement | null>(null);
+  const [moneyVendorsMount, setMoneyVendorsMount] = useState<HTMLElement | null>(null);
   const [weeklyGoalsOverride, setWeeklyGoalsOverride] = useState<string | null>(null);
   const [selectedJournalDateKey, setSelectedJournalDateKey] = useState(formatPlannerDate(today));
 
@@ -129,6 +131,15 @@ export function App() {
       moneyActivityCard.dataset.reactOwned = "true";
       moneyActivityPanel.replaceChildren();
       setMoneyActivityMount(moneyActivityPanel);
+    }
+
+    const moneyVendorsCard = document?.querySelector<HTMLElement>(".money-vendors-card");
+    const moneyVendorsPanel = moneyVendorsCard?.querySelector<HTMLElement>(".panel-inner");
+    if (moneyVendorsCard !== null && moneyVendorsCard !== undefined
+      && moneyVendorsPanel !== null && moneyVendorsPanel !== undefined) {
+      moneyVendorsCard.dataset.reactOwned = "true";
+      moneyVendorsPanel.replaceChildren();
+      setMoneyVendorsMount(moneyVendorsPanel);
     }
 
     const meditationCard = document?.querySelector<HTMLElement>(".meditation-card");
@@ -286,6 +297,12 @@ export function App() {
         createPortal(
           <MoneyActivityCard store={loadedStore} today={today} />,
           moneyActivityMount
+        )
+      )}
+      {loadedStore !== null && moneyVendorsMount !== null && (
+        createPortal(
+          <MoneyVendorsCard store={loadedStore} today={today} />,
+          moneyVendorsMount
         )
       )}
       {loadedStore !== null && meditationBoundary !== null && (

@@ -38,6 +38,16 @@ export interface MoneyStoreState {
     remainingCents: number;
   };
   transactions: readonly MoneyTransaction[];
+  vendors: readonly MoneyVendorState[];
+}
+
+export interface MoneyVendorState {
+  averageCents: number;
+  count: number;
+  previousMonthSpentCents: number;
+  spentCents: number;
+  topCategoryId: string;
+  vendor: string;
 }
 
 function parseStoredJson(rawValue: string | undefined): unknown {
@@ -193,6 +203,53 @@ function summarizeCategories(
   });
 }
 
+interface VendorSummary {
+  averageCents: number;
+  count: number;
+  spentCents: number;
+  topCategoryId: string;
+  vendor: string;
+}
+
+function summarizeVendors(
+  transactions: readonly MoneyTransaction[],
+  monthKey: string
+): VendorSummary[] {
+  const summaries = new Map<string, {
+    categoryCounts: Map<string, number>;
+    count: number;
+    spentCents: number;
+  }>();
+
+  transactions.filter((entry) => entry.date.slice(0, 7) === monthKey).forEach((entry) => {
+    if (!entry.vendor) {
+      return;
+    }
+    const summary = summaries.get(entry.vendor) ?? {
+      categoryCounts: new Map<string, number>(),
+      count: 0,
+      spentCents: 0
+    };
+    summary.spentCents += entry.amountCents;
+    summary.count += 1;
+    summary.categoryCounts.set(
+      entry.categoryId,
+      (summary.categoryCounts.get(entry.categoryId) ?? 0) + 1
+    );
+    summaries.set(entry.vendor, summary);
+  });
+
+  return [...summaries.entries()].map(([vendor, summary]) => ({
+    averageCents: Math.floor(summary.spentCents / Math.max(1, summary.count)),
+    count: summary.count,
+    spentCents: summary.spentCents,
+    topCategoryId: [...summary.categoryCounts.entries()]
+      .sort((left, right) => right[1] - left[1])[0]?.[0] ?? "",
+    vendor
+  })).sort((left, right) => right.spentCents - left.spentCents
+    || left.vendor.localeCompare(right.vendor));
+}
+
 export function decodeMoneyStore(store: PlannerStore, referenceDate: Date): MoneyStoreState {
   const settings = normalizeSettings(parseStoredJson(store[MONEY_SETTINGS_KEY]));
   const transactions = normalizeTransactions(parseStoredJson(store[MONEY_TRANSACTIONS_KEY]));
@@ -216,6 +273,12 @@ export function decodeMoneyStore(store: PlannerStore, referenceDate: Date): Mone
   const totalSpentCents = currentMonthTransactions.reduce((sum, entry) => sum + entry.amountCents, 0);
   const totalBudgetCents = fixedBudgetCents + flexibleBudgetCents;
   const dailyAvailableCents = Math.floor(flexibleRemainingCents / Math.max(1, remainingMonthDays));
+  const currentMonthKey = formatPlannerDate(referenceDate).slice(0, 7);
+  const previousMonthDate = new Date(referenceDate.getFullYear(), referenceDate.getMonth() - 1, 1);
+  const previousMonthKey = formatPlannerDate(previousMonthDate).slice(0, 7);
+  const previousVendorSpending = new Map(
+    summarizeVendors(transactions, previousMonthKey).map((vendor) => [vendor.vendor, vendor.spentCents])
+  );
 
   return {
     categories,
@@ -234,7 +297,11 @@ export function decodeMoneyStore(store: PlannerStore, referenceDate: Date): Mone
         - Math.round(totalBudgetCents * (elapsedDays / daysBetweenInclusive(monthStart, monthEnd))),
       remainingCents: totalBudgetCents - totalSpentCents
     },
-    transactions
+    transactions,
+    vendors: summarizeVendors(transactions, currentMonthKey).map((vendor) => ({
+      ...vendor,
+      previousMonthSpentCents: previousVendorSpending.get(vendor.vendor) ?? 0
+    }))
   };
 }
 
