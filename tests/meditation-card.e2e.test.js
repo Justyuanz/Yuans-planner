@@ -20,8 +20,14 @@ async function putMeditationState(serverUrl, state) {
 async function openJournal(browser, pageUrl, documentExpression = "document") {
   await browser.open(pageUrl);
   await browser.waitForExpression(`(${documentExpression}).querySelector('[data-view-target="journalView"]')`);
-  await browser.evaluate(`(${documentExpression}).querySelector('[data-view-target="journalView"]').click()`);
-  await browser.waitForExpression(`(${documentExpression}).getElementById("journalView").classList.contains("active")`);
+  await browser.waitForExpression(`(() => {
+    const documentRoot = ${documentExpression};
+    const journalView = documentRoot.getElementById("journalView");
+    if (!journalView.classList.contains("active")) {
+      documentRoot.querySelector('[data-view-target="journalView"]').click();
+    }
+    return journalView.classList.contains("active");
+  })()`);
 }
 
 function meditationState(documentExpression) {

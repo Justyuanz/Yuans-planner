@@ -1,5 +1,6 @@
 import type { PlannerStore } from "../../api/planner-store";
 import { isRecord } from "../../shared/is-record";
+import { journalEntries } from "../journal/journal-entry-store";
 import { formatPlannerDate } from "../life-pie/life-pie-store";
 
 export interface EnergyTrailEntry {
@@ -18,10 +19,7 @@ export interface EnergyTrailPattern {
   otherPreviousEveningHours: number;
 }
 
-const JOURNAL_ENTRIES_KEY = "hivePlanner.journal.entries";
 const DAILY_TASKS_PREFIX = "hivePlanner.dailyTasks.";
-const ENERGY_STATES = ["", "empty", "low", "okay", "good", "strong"] as const;
-const FOCUS_STATES = ["", "foggy", "wavy", "steady", "clear"] as const;
 const LOW_ENERGY_STATES = new Set(["empty", "low"]);
 const MAX_TASK_HOURS = 24;
 const MAX_TASK_TIMER_SECONDS = 8 * 60 * 60;
@@ -40,71 +38,25 @@ function parseStoredJson(rawValue: string | undefined): unknown {
   }
 }
 
-function normalizedChoice(value: unknown, allowed: readonly string[]): string {
-  const normalized = typeof value === "string" ? value.trim().toLowerCase() : "";
-  return allowed.includes(normalized) ? normalized : "";
-}
-
 function finiteClamped(value: unknown, maximum: number): number {
   const number = Number(value);
   return Number.isFinite(number) ? Math.min(maximum, Math.max(0, number)) : 0;
 }
 
-function normalizedEntry(candidate: unknown): EnergyTrailEntry | null {
-  if (!isRecord(candidate)) {
-    return null;
-  }
-  const date = typeof candidate.date === "string" ? candidate.date.trim() : "";
-  if (!date) {
-    return null;
-  }
-  const tracker = isRecord(candidate.tracker) ? candidate.tracker : {};
-  const energy = normalizedChoice(tracker.energy, ENERGY_STATES);
-  const focus = normalizedChoice(tracker.focus, FOCUS_STATES);
-  const context = typeof tracker.context === "string" ? tracker.context.trim() : "";
-  const title = typeof candidate.title === "string" ? candidate.title.trim() : "";
-  const content = typeof candidate.content === "string" ? candidate.content : "";
-  const durationMinutes = finiteClamped(candidate.durationMinutes, 1440);
-  if (!(durationMinutes || title || content.trim() || energy || focus || context)) {
-    return null;
-  }
-  const createdAt = typeof candidate.createdAt === "string" && candidate.createdAt
-    ? candidate.createdAt
-    : "";
-  return {
-    context,
-    createdAt,
-    date,
-    energy,
-    focus,
-    id: typeof candidate.id === "string" && candidate.id ? candidate.id : `journal-${date}`,
-    updatedAt: typeof candidate.updatedAt === "string" && candidate.updatedAt
-      ? candidate.updatedAt
-      : createdAt
-  };
-}
-
-function compareEntriesNewestFirst(left: EnergyTrailEntry, right: EnergyTrailEntry): number {
-  return right.date.localeCompare(left.date)
-    || right.updatedAt.localeCompare(left.updatedAt)
-    || right.createdAt.localeCompare(left.createdAt)
-    || right.id.localeCompare(left.id);
-}
-
-function journalEntries(store: PlannerStore): EnergyTrailEntry[] {
-  const parsed = parseStoredJson(store[JOURNAL_ENTRIES_KEY]);
-  if (!Array.isArray(parsed)) {
-    return [];
-  }
-  return parsed
-    .map(normalizedEntry)
-    .filter((entry): entry is EnergyTrailEntry => entry !== null)
-    .sort(compareEntriesNewestFirst);
-}
-
 export function energyTrailEntries(store: PlannerStore): EnergyTrailEntry[] {
   return journalEntries(store)
-    .filter((entry) => Boolean(entry.energy || entry.focus || entry.context))
+    .filter((entry) => Boolean(
+      entry.tracker.energy || entry.tracker.focus || entry.tracker.context
+    ))
+    .map((entry) => ({
+      context: entry.tracker.context,
+      createdAt: entry.createdAt,
+      date: entry.date,
+      energy: entry.tracker.energy,
+      focus: entry.tracker.focus,
+      id: entry.id,
+      updatedAt: entry.updatedAt
+    }))
     .slice(0, 7);
 }
 
@@ -189,11 +141,11 @@ export function energyTrailPattern(store: PlannerStore, today: Date): EnergyTrai
   journalEntries(store).forEach((entry) => {
     const previousDate = previousDateKey(entry.date);
     const taskKey = `${DAILY_TASKS_PREFIX}${previousDate}`;
-    if (!entry.energy || !windowDates.has(entry.date) || !summaryDates.has(previousDate)
+    if (!entry.tracker.energy || !windowDates.has(entry.date) || !summaryDates.has(previousDate)
       || store[taskKey] === undefined) {
       return;
     }
-    const target = LOW_ENERGY_STATES.has(entry.energy) ? lowEveningHours : otherEveningHours;
+    const target = LOW_ENERGY_STATES.has(entry.tracker.energy) ? lowEveningHours : otherEveningHours;
     target.push(eveningHours(store[taskKey]));
   });
 

@@ -231,7 +231,8 @@ async function searchArchive(browser, documentExpression, query) {
     const documentRoot = ${documentExpression};
     const view = documentRoot.defaultView;
     const input = documentRoot.getElementById("journalSearch");
-    input.value = ${JSON.stringify(query)};
+    const valueSetter = Object.getOwnPropertyDescriptor(view.HTMLInputElement.prototype, "value").set;
+    valueSetter.call(input, ${JSON.stringify(query)});
     input.dispatchEvent(new view.Event("input", { bubbles: true }));
   })()`);
 }
@@ -303,6 +304,9 @@ test("Journal archive preserves filtering, navigation, and visual behavior", { t
     archiveVisualContract('document.querySelector("iframe").contentDocument')
   );
   const previewDesktopScreenshot = await planner.browser.captureScreenshot(PREVIEW_CLIP);
+  assert.equal(await planner.browser.evaluate(
+    'document.querySelector("iframe").contentDocument.querySelector(".journal-archive-card").dataset.reactOwned'
+  ), "true");
   assert.deepEqual(previewDesktop, legacyDesktop);
   assertSameScreenshot(previewDesktopScreenshot, legacyDesktopScreenshot, "desktop Journal archive screenshot");
 
@@ -320,5 +324,32 @@ test("Journal archive preserves filtering, navigation, and visual behavior", { t
   );
   assert.deepEqual(previewMobile, legacyMobile);
   assert.equal(previewMobile.panel.width, 1020.609375);
+
+  const previewDocument = 'document.querySelector("iframe").contentDocument';
+  await searchArchive(planner.browser, previewDocument, "late night");
+  await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.querySelectorAll("#journalArchiveList .journal-entry-card").length === 1');
+  assert.equal((await planner.browser.evaluate(archiveState(previewDocument))).cards[0].title, "Sat Sep 12");
+  await searchArchive(planner.browser, previewDocument, "");
+  await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.querySelectorAll("#journalArchiveList .journal-entry-card").length === 5');
+
+  await planner.browser.evaluate('document.querySelector("iframe").contentDocument.querySelectorAll("#journalArchiveList .journal-entry-card")[1].click()');
+  await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.getElementById("journalDate").value === "2026-09-13"');
+  await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.querySelectorAll("#journalArchiveList .journal-entry-card")[1].classList.contains("active")');
+  await planner.browser.evaluate('document.querySelector("iframe").contentDocument.getElementById("journalTodayButton").click()');
+  await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.getElementById("journalDate").value === "2026-09-14"');
+
+  await planner.browser.evaluate(`(() => {
+    const frame = document.querySelector("iframe");
+    const input = frame.contentDocument.getElementById("journalTitle");
+    input.value = "Updated from the legacy editor";
+    input.dispatchEvent(new frame.contentWindow.Event("input", { bubbles: true }));
+  })()`);
+  await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.querySelector("#journalArchiveList .journal-entry-card strong").textContent === "Updated from the legacy editor"');
+
+  await openJournal(planner.browser, `${preview.url}/?date=${TEST_DATE}`, previewDocument);
+  await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.querySelectorAll("#journalArchiveList .journal-entry-card").length === 5');
+  const reloadedState = await planner.browser.evaluate(archiveState(previewDocument));
+  assert.equal(reloadedState.search.value, "");
+  assert.equal(reloadedState.cards[0].title, "Updated from the legacy editor");
   assert.deepEqual(planner.browser.errors(), []);
 });

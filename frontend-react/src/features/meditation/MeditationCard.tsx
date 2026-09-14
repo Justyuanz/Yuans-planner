@@ -11,10 +11,9 @@ import {
 } from "./meditation";
 
 interface MeditationCardProps {
-  frame: HTMLIFrameElement;
   initialNowMs: number;
-  initialSelectedDate: string;
   onPersist: (writes: readonly PlannerStoreWrite[]) => void;
+  selectedDate: string;
   store: PlannerStore;
 }
 
@@ -38,15 +37,13 @@ function randomId(): string {
 }
 
 export function MeditationCard({
-  frame,
   initialNowMs,
-  initialSelectedDate,
   onPersist,
+  selectedDate,
   store
 }: MeditationCardProps) {
   const [duration, setDuration] = useState("10");
   const [nowMs, setNowMs] = useState(initialNowMs);
-  const [selectedDate, setSelectedDate] = useState(initialSelectedDate);
   const [completionNotice, setCompletionNotice] = useState(false);
   const [optimistic, setOptimistic] = useState<OptimisticMeditation | null>(null);
   const effectiveStore = useMemo(() => localStore(store, optimistic), [optimistic, store]);
@@ -62,22 +59,6 @@ export function MeditationCard({
     }));
     onPersist([update.write]);
   }
-
-  useEffect(() => {
-    function syncSelectedDate(): void {
-      const input = frame.contentDocument?.querySelector<HTMLInputElement>("#journalDate");
-      if (input?.value) {
-        setSelectedDate(input.value);
-      }
-    }
-    const frameWindow = frame.contentWindow;
-    frameWindow?.addEventListener("change", syncSelectedDate);
-    frameWindow?.addEventListener("click", syncSelectedDate);
-    return () => {
-      frameWindow?.removeEventListener("change", syncSelectedDate);
-      frameWindow?.removeEventListener("click", syncSelectedDate);
-    };
-  }, [frame]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
