@@ -202,6 +202,8 @@ Important API properties:
 
 ### Money
 
+- Pace and projection renders total and flexible current-month spending against adjusted category budgets. Percentage labels may exceed 100%, while progress and estimate bars clamp to 100% and keep a 4% minimum for zero values. Projection combines the larger of fixed budget/spend with flexible spend extrapolated across the month. The flexible-category chart is alphabetical, shows non-negative adjusted remaining amounts, and sizes bars from unadjusted category-budget usage. Monthly history aggregates all valid transactions by stored date prefix, displays newest first, caps at 12 rows, and resets its disclosure to closed on reload.
+
 - Vendors aggregate trimmed, case-sensitive names from the current calendar month, order by total spend then vendor name, and show only the first eight. Each row shows visit count, floored average spend, the most frequent configured category (or `Other`), and the exact-name vendor total from the previous calendar month; vendors that appear only in prior months and blank vendor names are omitted.
 
 - Recent activity is a closed-by-default disclosure that shows the newest eight valid transactions across month boundaries. Rows use the configured category name or `Other`, display `No vendor` when blank, and reset the disclosure to closed after reload.
