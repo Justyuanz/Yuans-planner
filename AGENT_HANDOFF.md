@@ -181,13 +181,13 @@ For each feature:
 - [ ] remove legacy implementation only after tests pass
 
 ## Current Task
-The Energy trail migration boundary is complete and verified. The Vite preview preserves the full legacy shell and exact styles while React owns weekly goals, Life Pie, Planned vs actual, and Energy trail. Stop at this working boundary before selecting another feature.
+The Money quick log migration boundary is complete and verified. The Vite preview preserves the full legacy shell and exact styles while React owns weekly goals, Life Pie, Planned vs actual, Energy trail, and Money quick log. Stop at this working boundary before selecting another feature.
 
 ## Last Completed Task
-Migrated Energy trail into focused typed React modules without redesigning it. The component preserves the seven-entry newest-first tracker history, malformed/empty compatibility behavior, abbreviated dates, tracker labels, context fallback, 14-day low-energy comparison, exact desktop/mobile markup and appearance, and row navigation to the selected Journal date. Same-origin storage events keep the React card current when the legacy Journal editor saves.
+Migrated Money quick log into focused typed React modules without redesigning it. The component preserves the legacy category order, shortcuts, amount parsing and validation, vendor suggestions, weekly/monthly summaries, pace badge, immediate impact wording, transaction/vendor-rule/activity-log persistence, reload behavior, and exact desktop/mobile appearance. The compatibility bridge keeps the React summary synchronized with edits made in the still-legacy full Money view.
 
 ## Next Task
-Await explicit direction before selecting another migration boundary. For the next feature, first characterize its legacy behavior and add equivalent desktop/mobile visual coverage, then migrate only that boundary and preserve the four completed React-owned cards.
+Await explicit direction before selecting another migration boundary. For the next feature, first characterize its legacy behavior and add equivalent desktop/mobile visual coverage, then migrate only that boundary and preserve the five completed React-owned cards.
 
 ## Important Decisions
 - The rewrite must preserve visual parity with the legacy Planner; this is an architecture rewrite, not a UI redesign.
@@ -199,6 +199,9 @@ Await explicit direction before selecting another migration boundary. For the ne
 - Planned vs actual stores one object at `hivePlanner.planned.<ISO-WEEK>` and must preserve unknown fields when editing. Each edit also appends the legacy-compatible `planned_hours_updated` record to `hivePlanner.activityLog` with the same group/activity metadata.
 - Energy trail remains derived from `hivePlanner.journal.entries` and dated task keys. React filters invalid tracker values before selecting the newest seven rows, and preserves the legacy rule that the comparison appears only after at least two low/empty energy days have previous-day task summaries in the 14-day insight window.
 - Clicking a React-owned Energy trail row delegates navigation through the existing legacy tab and journal-date controls so the unmigrated Journal view retains its established rendering and save behavior.
+- Money quick derives its category budgets, transfers, transactions, vendor rules, pace, and remaining-money summaries from the existing `hivePlanner.money.*` compatibility records. Saving writes a transaction, a normalized activity-log entry, and a remembered vendor rule when a vendor is present.
+- Money quick retains optimistic values per storage key until the corresponding external value supersedes them. This prevents an unrelated legacy activity-log write from hiding a newly saved React transaction while still allowing full Money settings changes to update the React summary immediately.
+- The legacy Money renderer continues synchronizing category inputs used by the full Money view, but skips only the React-owned quick-log select and summary mount. The normal legacy application remains unaffected.
 - The legacy iframe listens for external `hivePlanner.*` storage writes from React-owned parent mounts and updates only its in-memory store. This prevents a later legacy write from overwriting newer React values without causing a second persistence loop.
 - Visual regression coverage must compare the legacy and React versions at identical desktop and mobile viewports, including computed styles/geometry and a rendered screenshot where stable.
 - Screenshot comparisons decode Chrome PNG pixels and allow at most 1% of pixels to differ by more than eight channel values; exact DOM content and computed style/geometry comparisons remain mandatory so minor cross-frame antialiasing does not create false failures.
@@ -241,8 +244,8 @@ Await explicit direction before selecting another migration boundary. For the ne
 - Several declared storage keys and an older Study/Body weekly-overview path are inactive, while the real database still contains legacy-only keys that backups must preserve.
 - Browser inspection reports 29 generated form controls without an `id` or `name`.
 - The default `node` on the inspected machine is Node 14 and cannot run `node --test`; use the installed modern Node runtime or fix the local PATH before relying on `scripts/test.sh` without `NODE_BIN`.
-- Most remaining cross-feature flows in `app.js` still lack DOM or end-to-end tests; browser coverage now protects task and activity-session lifecycles, all six primary views, and four React migration boundaries.
-- Weekly goals, Life Pie, Planned vs actual, and Energy trail are React-owned and verified; all other dashboard cards and feature views remain legacy-owned inside the temporary iframe shell.
+- Most remaining cross-feature flows in `app.js` still lack DOM or end-to-end tests; browser coverage now protects task and activity-session lifecycles, all six primary views, and five React migration boundaries.
+- Weekly goals, Life Pie, Planned vs actual, Energy trail, and Money quick log are React-owned and verified; all other dashboard cards and feature views remain legacy-owned inside the temporary iframe shell.
 - Browser smoke tests skip when Chrome/Chromium or Node WebSocket support is unavailable; they run with the documented Node 24 runtime on the inspected machine.
 - The React preview is not yet served directly by the Python backend. Its temporary legacy shell depends on Vite development proxies and is not the final production integration architecture.
 - The React visual regression test skips when Chrome or `frontend-react` dependencies are unavailable, matching the existing browser-test prerequisite policy.
@@ -375,6 +378,17 @@ Await explicit direction before selecting another migration boundary. For the ne
 - Added a narrow legacy ownership guard plus a real-browser flow proving the React row opens the correct legacy Journal date and a subsequent Journal context edit updates React immediately through the existing same-origin storage bridge and persists to SQLite.
 - TDD evidence: the new React suite first failed because the Energy trail module did not exist. After implementation, all 38 React tests, lint, strict type-checking, and the Vite production build pass.
 - Final verification: 18 Python tests and 108 root JavaScript tests pass with no skips using `/Users/yuan/.nvm/versions/node/v24.14.1/bin/node`, including all Chrome browser flows. The dedicated Chrome DevTools MCP was unavailable for an additional manual pass; the dependency-free real-Chrome regression completed screenshot, geometry, interaction, persistence, responsive, and console verification.
+
+### Session 13
+
+- Re-read `AGENTS.md`, this handoff, branch history, status, and the clean diff, then selected Money quick log as the next focused boundary after the user explicitly asked to continue.
+- Characterized the legacy default and persisted summaries, pace badge, category order, shortcuts, euro-style amount parsing, invalid-submit focus, vendor suggestion, exact impact wording, transaction/vendor-rule/activity-log writes, reload reset, and full Money transaction visibility before changing production code.
+- Added desktop and mobile legacy-versus-preview coverage at 1280×720 and 390×844, including exact DOM/style/geometry comparisons and tolerant PNG screenshot comparison. The mobile characterization measured and locked the legacy `84px 112.75px 121.25px` form grid.
+- Added focused typed category definitions, storage normalization/calculation, persistence, presentation-model, and React component modules. React claims only `.money-quick-card .panel-inner` and reuses the existing HTML/CSS contract.
+- Added compatibility-safe optimistic writes for transactions, vendor rules, and activity history. A cross-feature browser flow proves the React-created transaction appears in the legacy full Money page, then a legacy Groceries-budget edit updates the React quick summary and SQLite without dropping the new transaction.
+- TDD evidence: the new TypeScript suite first failed because the Money quick module did not exist. Characterization also corrected the legacy rule that `12.345` is parsed as a thousands-style amount rather than rejected.
+- Commits: `3582f41` locks the legacy Money quick behavior and visual contract; `7e7abb4` migrates the verified React boundary.
+- Final verification: 43 React tests, React lint, strict type-checking, and the Vite production build pass. The full safety net passes with 18 Python tests and 109 root JavaScript tests, including all real-Chrome browser flows.
 
 ---
 
