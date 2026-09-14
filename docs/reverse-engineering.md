@@ -175,7 +175,7 @@ Important API properties:
 ### Dashboard
 
 - Three editable weekly goals: Study, Body, Mind.
-- Quick money transaction form with remaining week/month totals, category shortcuts, and vendor-based category suggestion.
+- Quick money transaction form with remaining week/month totals, category shortcuts, and vendor-based category suggestion. Invalid amounts keep focus in the amount field, vendor matching runs on blur, successful entries prepend a dated transaction and activity record, non-empty vendors update remembered rules, and reload restores calculated totals while resetting the transient impact message.
 - Today task list with create, edit, delete, completion, timer, activity category, scheduled time, and optional Telegram reminder.
 - Calendar activities for today are copied into daily tasks and linked by `sourceEventId`.
 - Five day-state choices (`good`, `okay`, `low`, `empty`, `scattered`) influence agent suggestions and insight context.
