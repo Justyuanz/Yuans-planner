@@ -181,13 +181,13 @@ For each feature:
 - [ ] remove legacy implementation only after tests pass
 
 ## Current Task
-The Journal meditation-card migration boundary is complete and verified. The Vite preview preserves the full legacy shell and exact styles while React owns weekly goals, Life Pie, Planned vs actual, Energy trail, Money quick log, and meditation. Stop at this working boundary before selecting another feature.
+The Journal archive migration boundary is complete and verified. The Vite preview preserves the full legacy shell and exact styles while React owns weekly goals, Life Pie, Planned vs actual, Energy trail, Money quick log, Journal meditation, and Journal archive. Stop at this working boundary before selecting another feature.
 
 ## Last Completed Task
-Migrated the Journal meditation card into focused typed React modules without redesigning it. The component preserves the 1–180 whole-minute input contract, live countdown, start/cancel behavior, persistence across reload, exactly-once completion after expiry or suspension, selected-Journal-date totals, transient completion wording, Mind-session compatibility, and exact desktop/mobile appearance. Completed meditation updates the React Life Pie immediately.
+Migrated the Journal archive into focused typed React modules without redesigning it. The component preserves legacy entry normalization, newest-first ordering, title/date/tracker wording, 132-character previews, live search across every supported field, transient search state, selected-date highlighting, legacy-editor navigation, editor-to-archive synchronization, persistence across reload, and exact desktop/mobile appearance.
 
 ## Next Task
-Await explicit direction before selecting another migration boundary. For the next feature, first characterize its legacy behavior and add equivalent desktop/mobile visual coverage, then migrate only that boundary and preserve the six completed React-owned boundaries.
+Await explicit direction before selecting another migration boundary. For the next feature, first characterize its legacy behavior and add equivalent desktop/mobile visual coverage, then migrate only that boundary and preserve the seven completed React-owned boundaries. The dashboard Pattern noticed card is a possible next boundary, but it depends on the much larger insight engine and should only be selected after mapping that dependency carefully.
 
 ## Important Decisions
 - The rewrite must preserve visual parity with the legacy Planner; this is an architecture rewrite, not a UI redesign.
@@ -198,12 +198,14 @@ Await explicit direction before selecting another migration boundary. For the ne
 - React's planner-store hook listens only for same-origin `hivePlanner.*` storage events. This is the compatibility bridge that keeps the React-owned Life Pie current while task, physical, session, meditation, and journal writes remain in the legacy frame.
 - Planned vs actual stores one object at `hivePlanner.planned.<ISO-WEEK>` and must preserve unknown fields when editing. Each edit also appends the legacy-compatible `planned_hours_updated` record to `hivePlanner.activityLog` with the same group/activity metadata.
 - Energy trail remains derived from `hivePlanner.journal.entries` and dated task keys. React filters invalid tracker values before selecting the newest seven rows, and preserves the legacy rule that the comparison appears only after at least two low/empty energy days have previous-day task summaries in the 14-day insight window.
+- Journal-entry storage normalization now lives in one typed compatibility module shared by Energy trail and Journal archive. Both boundaries therefore agree on valid dates, tracker states, duration clamping, blank-entry removal, fallback IDs/timestamps, and newest-first ordering.
 - Clicking a React-owned Energy trail row delegates navigation through the existing legacy tab and journal-date controls so the unmigrated Journal view retains its established rendering and save behavior.
 - Money quick derives its category budgets, transfers, transactions, vendor rules, pace, and remaining-money summaries from the existing `hivePlanner.money.*` compatibility records. Saving writes a transaction, a normalized activity-log entry, and a remembered vendor rule when a vendor is present.
 - Money quick retains optimistic values per storage key until the corresponding external value supersedes them. This prevents an unrelated legacy activity-log write from hiding a newly saved React transaction while still allowing full Money settings changes to update the React summary immediately.
 - The legacy Money renderer continues synchronizing category inputs used by the full Money view, but skips only the React-owned quick-log select and summary mount. The normal legacy application remains unaffected.
 - Meditation uses the existing `hivePlanner.meditation` `{active, sessions}` document. Start and cancel preserve compatible unknown root/session fields; expiry mirrors the legacy compact completion shape and appends one standalone session using the timer's persisted end timestamp.
-- The React meditation card observes the legacy frame's Journal-date change and click events so archive, Today, date-input, and Energy-trail navigation continue updating its date-specific status while the rest of the Journal remains legacy-owned.
+- The React app observes the legacy frame's Journal-date change and click events once and shares the selected date with both meditation and archive. Archive, Today, date-input, and Energy-trail navigation therefore update both React boundaries without duplicate iframe listeners.
+- The React Journal archive keeps its search text as local transient state, derives cards from `hivePlanner.journal.entries`, and delegates card selection through the existing legacy tab/date controls. The legacy archive renderer skips only `.journal-archive-card[data-react-owned="true"]`, so the normal legacy application remains unaffected while legacy editor saves still flow back through the storage bridge.
 - React persistence explicitly publishes a same-window storage event after local writes because browsers do not deliver native storage events to the document that performed the write. This keeps sibling React boundaries, including Life Pie after meditation completion, synchronized immediately.
 - The legacy iframe listens for external `hivePlanner.*` storage writes from React-owned parent mounts and updates only its in-memory store. This prevents a later legacy write from overwriting newer React values without causing a second persistence loop.
 - Visual regression coverage must compare the legacy and React versions at identical desktop and mobile viewports, including computed styles/geometry and a rendered screenshot where stable.
@@ -247,8 +249,8 @@ Await explicit direction before selecting another migration boundary. For the ne
 - Several declared storage keys and an older Study/Body weekly-overview path are inactive, while the real database still contains legacy-only keys that backups must preserve.
 - Browser inspection reports 29 generated form controls without an `id` or `name`.
 - The default `node` on the inspected machine is Node 14 and cannot run `node --test`; use the installed modern Node runtime or fix the local PATH before relying on `scripts/test.sh` without `NODE_BIN`.
-- Most remaining cross-feature flows in `app.js` still lack DOM or end-to-end tests; browser coverage now protects task and activity-session lifecycles, all six primary views, and six React migration boundaries.
-- Weekly goals, Life Pie, Planned vs actual, Energy trail, Money quick log, and the Journal meditation card are React-owned and verified; all other dashboard cards and feature views remain legacy-owned inside the temporary iframe shell.
+- Most remaining cross-feature flows in `app.js` still lack DOM or end-to-end tests; browser coverage now protects task and activity-session lifecycles, all six primary views, and seven React migration boundaries.
+- Weekly goals, Life Pie, Planned vs actual, Energy trail, Money quick log, the Journal meditation card, and the Journal archive are React-owned and verified; all other dashboard cards and feature views remain legacy-owned inside the temporary iframe shell.
 - Browser smoke tests skip when Chrome/Chromium or Node WebSocket support is unavailable; they run with the documented Node 24 runtime on the inspected machine.
 - The React preview is not yet served directly by the Python backend. Its temporary legacy shell depends on Vite development proxies and is not the final production integration architecture.
 - The React visual regression test skips when Chrome or `frontend-react` dependencies are unavailable, matching the existing browser-test prerequisite policy.
@@ -404,6 +406,18 @@ Await explicit direction before selecting another migration boundary. For the ne
 - Manual Chrome DevTools verification confirmed exact desktop/mobile rendering, accessible active controls, the 338px mobile card, zero horizontal overflow, successful network requests, and no console warnings or errors.
 - Commits: `ef5d6ea` locks the legacy meditation behavior and visual contract; `72b9696` migrates the verified React boundary.
 - Final verification: 49 React tests, React lint, strict type-checking, and the Vite production build pass. The full safety net passes with 18 Python tests and 110 root JavaScript tests, including all real-Chrome browser flows.
+
+### Session 15
+
+- Re-read `AGENTS.md`, this handoff, branch history, status, and the clean diff, then selected Journal archive as a smaller complete boundary than the dashboard insight engine after the user explicitly asked to continue.
+- Characterized malformed/blank entry removal, duration/tracker normalization, deterministic newest-first ordering, date/title/meta/preview fallbacks, 132-character truncation, live search across date/title/content/tracker fields, transient search state, selected-date highlighting, and archive-to-editor navigation before changing production code.
+- Added legacy-versus-preview coverage at 1280×720 and 390×844, including exact DOM/style/geometry comparison, stable desktop screenshot comparison, React ownership, controlled search, archive navigation, legacy-editor synchronization, reload persistence, and clean browser-error assertions. Also made the existing Journal-tab helper retry across an iframe navigation race instead of clicking a departing document once.
+- Added a shared typed Journal-entry decoder, a focused archive presentation model, and a React component that reuses the exact legacy markup and CSS contract. Energy trail now consumes the same decoder, eliminating duplicate entry normalization while retaining its existing behavior.
+- Moved Journal-date observation to the app boundary so meditation and archive share one selected-date source. React claims only `.journal-archive-card .panel-inner`; the editor remains legacy-owned, and its saves update the archive through the existing same-origin storage bridge.
+- TDD evidence: the new TypeScript suite first failed because `journal-archive.ts` did not exist. The browser characterization corrected the initial scroll-alignment assumption, and focused Energy trail/Meditation regressions protected the shared decoder and selected-date refactor.
+- Manual Chrome DevTools verification confirmed React ownership, live filtering, archive-to-editor navigation, the correct 370px archive card at a real 390×844 mobile viewport, zero horizontal overflow, successful network requests, and no new console warnings or errors. The existing 29 generated form-control issue remains unchanged.
+- Commits: `87fafd4` locks the legacy Journal archive behavior and visual contract; `927cf15` migrates the verified React boundary.
+- Final verification: 52 React tests, React lint, strict type-checking, and the Vite production build pass. The full safety net passes with 18 Python tests and 111 root JavaScript tests, including all real-Chrome browser flows.
 
 ---
 
