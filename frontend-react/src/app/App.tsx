@@ -8,6 +8,7 @@ import { LifePieCard } from "../features/life-pie/LifePieCard";
 import { plannerDateFromSearch } from "../features/life-pie/life-pie";
 import { formatPlannerDate } from "../features/life-pie/life-pie-store";
 import { MeditationCard } from "../features/meditation/MeditationCard";
+import { MoneyOverviewCard } from "../features/money-overview/MoneyOverviewCard";
 import { MoneyQuickCard } from "../features/money-quick/MoneyQuickCard";
 import { PlannedActualCard } from "../features/planned-actual/PlannedActualCard";
 import { plannedStorageKey } from "../features/planned-actual/planned-actual";
@@ -48,6 +49,7 @@ export function App() {
   const [journalArchiveBoundary, setJournalArchiveBoundary] = useState<EnergyTrailBoundary | null>(null);
   const [legacyFrame, setLegacyFrame] = useState<HTMLIFrameElement | null>(null);
   const [meditationBoundary, setMeditationBoundary] = useState<ReactPanelBoundary | null>(null);
+  const [moneyOverviewMount, setMoneyOverviewMount] = useState<HTMLElement | null>(null);
   const [moneyQuickMount, setMoneyQuickMount] = useState<HTMLElement | null>(null);
   const [weeklyGoalsOverride, setWeeklyGoalsOverride] = useState<string | null>(null);
   const [selectedJournalDateKey, setSelectedJournalDateKey] = useState(formatPlannerDate(today));
@@ -107,6 +109,15 @@ export function App() {
       moneyQuickCard.dataset.reactOwned = "true";
       moneyQuickPanel.replaceChildren();
       setMoneyQuickMount(moneyQuickPanel);
+    }
+
+    const moneyOverviewCard = document?.querySelector<HTMLElement>(".money-overview-card");
+    const moneyOverviewPanel = moneyOverviewCard?.querySelector<HTMLElement>(".panel-inner");
+    if (moneyOverviewCard !== null && moneyOverviewCard !== undefined
+      && moneyOverviewPanel !== null && moneyOverviewPanel !== undefined) {
+      moneyOverviewCard.dataset.reactOwned = "true";
+      moneyOverviewPanel.replaceChildren();
+      setMoneyOverviewMount(moneyOverviewPanel);
     }
 
     const meditationCard = document?.querySelector<HTMLElement>(".meditation-card");
@@ -252,6 +263,12 @@ export function App() {
         createPortal(
           <MoneyQuickCard onPersist={persistPlannerWrites} store={loadedStore} today={today} />,
           moneyQuickMount
+        )
+      )}
+      {loadedStore !== null && moneyOverviewMount !== null && (
+        createPortal(
+          <MoneyOverviewCard store={loadedStore} today={today} />,
+          moneyOverviewMount
         )
       )}
       {loadedStore !== null && meditationBoundary !== null && (

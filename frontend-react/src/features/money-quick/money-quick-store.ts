@@ -26,6 +26,10 @@ interface MoneySettings {
 
 export interface MoneyStoreState {
   categories: readonly MoneyCategoryState[];
+  currentWeek: {
+    end: string;
+    start: string;
+  };
   inputCategories: readonly MoneyCategory[];
   month: {
     availableWeekCents: number;
@@ -195,6 +199,7 @@ export function decodeMoneyStore(store: PlannerStore, referenceDate: Date): Mone
   const categories = summarizeCategories(settings, transactions, referenceDate);
   const monthStart = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), 1);
   const monthEnd = new Date(referenceDate.getFullYear(), referenceDate.getMonth() + 1, 0);
+  const weekStart = new Date(Math.max(startOfWeek(referenceDate).getTime(), monthStart.getTime()));
   const weekEnd = new Date(Math.min(endOfWeek(referenceDate).getTime(), monthEnd.getTime()));
   const elapsedDays = daysBetweenInclusive(monthStart, referenceDate);
   const remainingMonthDays = daysBetweenInclusive(referenceDate, monthEnd);
@@ -214,6 +219,10 @@ export function decodeMoneyStore(store: PlannerStore, referenceDate: Date): Mone
 
   return {
     categories,
+    currentWeek: {
+      end: formatPlannerDate(weekEnd),
+      start: formatPlannerDate(weekStart)
+    },
     inputCategories: settings.categories,
     month: {
       availableWeekCents: Math.min(

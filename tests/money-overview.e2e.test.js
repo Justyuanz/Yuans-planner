@@ -199,6 +199,9 @@ test("Money overview preserves totals, dates, synchronization, and visual behavi
 
   await openMoney(planner.browser, `${preview.url}/?date=${TEST_DATE}`, 'document.querySelector("iframe").contentDocument');
   const previewDocument = 'document.querySelector("iframe").contentDocument';
+  assert.equal(await planner.browser.evaluate(
+    'document.querySelector("iframe").contentDocument.querySelector(".money-overview-card").dataset.reactOwned'
+  ), "true");
   assertNegativeState(await planner.browser.evaluate(moneyOverviewState(previewDocument)));
   await scrollToMoneyOverview(planner.browser, previewDocument);
   const previewDesktop = await planner.browser.evaluate(moneyOverviewVisualContract(previewDocument));
@@ -207,7 +210,11 @@ test("Money overview preserves totals, dates, synchronization, and visual behavi
   assertSameScreenshot(previewDesktopScreenshot, legacyDesktopScreenshot, "desktop Money overview screenshot");
 
   await putTransactions(planner.server.url, []);
-  await openMoney(planner.browser, `${preview.url}/?date=${TEST_DATE}`, previewDocument);
+  await planner.browser.evaluate(`window.dispatchEvent(new StorageEvent("storage", {
+    key: ${JSON.stringify(TRANSACTIONS_KEY)},
+    newValue: "[]"
+  }))`);
+  await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.querySelector("#moneyOverviewGrid .money-mini-stat strong").textContent === "€107.45"');
   assertDefaultState(await planner.browser.evaluate(moneyOverviewState(previewDocument)));
 
   await planner.browser.setViewport(390, 844, true);
