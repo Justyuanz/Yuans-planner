@@ -202,6 +202,8 @@ Important API properties:
 
 ### Money
 
+- The Money overview always shows the current calendar month, the Monday-to-Sunday week clipped to the month, remaining flexible money for that week, and flexible money left for the month. Negative values retain the same cards with the `is-negative` treatment, and both summaries update when money settings or transactions change.
+
 - Euro-aware quick transaction entry with category and optional vendor.
 - Monthly target; fixed and flexible category budgets; protected fixed categories.
 - Budget transfers between categories.
