@@ -196,6 +196,7 @@ Important API properties:
 - An entry is deleted when all fields are cleared.
 - Archive is newest-first and searchable across date, title, content, and tracker fields.
 - Meditation timer persists an end timestamp and completes after reload/suspension when the deadline has passed.
+- The Journal meditation card accepts 1–180 whole minutes, disables Start and the duration while active, exposes Cancel, and shows saved minutes for the currently selected Journal date. Completion appends exactly one standalone Mind session; cancellation retains prior sessions without adding one.
 - Completed meditation and journal minutes contribute to the Mind total.
 
 ### Money
