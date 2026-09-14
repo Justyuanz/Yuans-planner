@@ -10,6 +10,7 @@ import { formatPlannerDate } from "../features/life-pie/life-pie-store";
 import { MeditationCard } from "../features/meditation/MeditationCard";
 import { MoneyActivityCard } from "../features/money-activity/MoneyActivityCard";
 import { MoneyOverviewCard } from "../features/money-overview/MoneyOverviewCard";
+import { MoneyPacingCard } from "../features/money-pacing/MoneyPacingCard";
 import { MoneyQuickCard } from "../features/money-quick/MoneyQuickCard";
 import { MoneyVendorsCard } from "../features/money-vendors/MoneyVendorsCard";
 import { PlannedActualCard } from "../features/planned-actual/PlannedActualCard";
@@ -53,6 +54,7 @@ export function App() {
   const [meditationBoundary, setMeditationBoundary] = useState<ReactPanelBoundary | null>(null);
   const [moneyActivityMount, setMoneyActivityMount] = useState<HTMLElement | null>(null);
   const [moneyOverviewMount, setMoneyOverviewMount] = useState<HTMLElement | null>(null);
+  const [moneyPacingMount, setMoneyPacingMount] = useState<HTMLElement | null>(null);
   const [moneyQuickMount, setMoneyQuickMount] = useState<HTMLElement | null>(null);
   const [moneyVendorsMount, setMoneyVendorsMount] = useState<HTMLElement | null>(null);
   const [weeklyGoalsOverride, setWeeklyGoalsOverride] = useState<string | null>(null);
@@ -122,6 +124,15 @@ export function App() {
       moneyOverviewCard.dataset.reactOwned = "true";
       moneyOverviewPanel.replaceChildren();
       setMoneyOverviewMount(moneyOverviewPanel);
+    }
+
+    const moneyPacingCard = document?.querySelector<HTMLElement>(".money-pacing-card");
+    const moneyPacingPanel = moneyPacingCard?.querySelector<HTMLElement>(".panel-inner");
+    if (moneyPacingCard !== null && moneyPacingCard !== undefined
+      && moneyPacingPanel !== null && moneyPacingPanel !== undefined) {
+      moneyPacingCard.dataset.reactOwned = "true";
+      moneyPacingPanel.replaceChildren();
+      setMoneyPacingMount(moneyPacingPanel);
     }
 
     const moneyActivityCard = document?.querySelector<HTMLElement>(".money-activity-card");
@@ -291,6 +302,12 @@ export function App() {
         createPortal(
           <MoneyOverviewCard store={loadedStore} today={today} />,
           moneyOverviewMount
+        )
+      )}
+      {loadedStore !== null && moneyPacingMount !== null && (
+        createPortal(
+          <MoneyPacingCard store={loadedStore} today={today} />,
+          moneyPacingMount
         )
       )}
       {loadedStore !== null && moneyActivityMount !== null && (

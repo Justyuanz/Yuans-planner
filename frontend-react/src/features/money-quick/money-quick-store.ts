@@ -33,9 +33,15 @@ export interface MoneyStoreState {
   inputCategories: readonly MoneyCategory[];
   month: {
     availableWeekCents: number;
+    flexibleBudgetCents: number;
     flexibleRemainingCents: number;
+    flexibleSpentCents: number;
+    monthlyTotalsRows: readonly MoneyMonthlyTotal[];
     paceDeltaCents: number;
+    projectedTotalCents: number;
     remainingCents: number;
+    spentCents: number;
+    targetCents: number;
   };
   transactions: readonly MoneyTransaction[];
   vendors: readonly MoneyVendorState[];
@@ -48,6 +54,12 @@ export interface MoneyVendorState {
   spentCents: number;
   topCategoryId: string;
   vendor: string;
+}
+
+export interface MoneyMonthlyTotal {
+  key: string;
+  label: string;
+  spentCents: number;
 }
 
 function parseStoredJson(rawValue: string | undefined): unknown {
@@ -203,6 +215,21 @@ function summarizeCategories(
   });
 }
 
+function summarizeMonthlyTotals(transactions: readonly MoneyTransaction[]): MoneyMonthlyTotal[] {
+  const totals = new Map<string, number>();
+  transactions.forEach((entry) => {
+    const key = entry.date.slice(0, 7);
+    totals.set(key, (totals.get(key) ?? 0) + entry.amountCents);
+  });
+  return [...totals.entries()].sort(([left], [right]) => left.localeCompare(right)).map(
+    ([key, spentCents]) => ({
+      key,
+      label: key.slice(2).replace("-", "/"),
+      spentCents
+    })
+  );
+}
+
 interface VendorSummary {
   averageCents: number;
   count: number;
@@ -268,6 +295,7 @@ export function decodeMoneyStore(store: PlannerStore, referenceDate: Date): Mone
   const flexCategories = categories.filter((category) => category.kind === "flex");
   const fixedBudgetCents = fixedCategories.reduce((sum, category) => sum + category.adjustedBudgetCents, 0);
   const flexibleBudgetCents = flexCategories.reduce((sum, category) => sum + category.adjustedBudgetCents, 0);
+  const fixedSpentCents = fixedCategories.reduce((sum, category) => sum + category.spentCents, 0);
   const flexibleSpentCents = flexCategories.reduce((sum, category) => sum + category.spentCents, 0);
   const flexibleRemainingCents = flexibleBudgetCents - flexibleSpentCents;
   const totalSpentCents = currentMonthTransactions.reduce((sum, entry) => sum + entry.amountCents, 0);
@@ -278,6 +306,9 @@ export function decodeMoneyStore(store: PlannerStore, referenceDate: Date): Mone
   const previousMonthKey = formatPlannerDate(previousMonthDate).slice(0, 7);
   const previousVendorSpending = new Map(
     summarizeVendors(transactions, previousMonthKey).map((vendor) => [vendor.vendor, vendor.spentCents])
+  );
+  const projectedFlexibleCents = Math.round(
+    (flexibleSpentCents / Math.max(1, elapsedDays)) * daysBetweenInclusive(monthStart, monthEnd)
   );
 
   return {
@@ -292,10 +323,16 @@ export function decodeMoneyStore(store: PlannerStore, referenceDate: Date): Mone
         flexibleRemainingCents,
         dailyAvailableCents * Math.max(1, remainingWeekDays)
       ),
+      flexibleBudgetCents,
       flexibleRemainingCents,
+      flexibleSpentCents,
+      monthlyTotalsRows: summarizeMonthlyTotals(transactions),
       paceDeltaCents: totalSpentCents
         - Math.round(totalBudgetCents * (elapsedDays / daysBetweenInclusive(monthStart, monthEnd))),
-      remainingCents: totalBudgetCents - totalSpentCents
+      projectedTotalCents: Math.max(fixedBudgetCents, fixedSpentCents) + projectedFlexibleCents,
+      remainingCents: totalBudgetCents - totalSpentCents,
+      spentCents: totalSpentCents,
+      targetCents: totalBudgetCents
     },
     transactions,
     vendors: summarizeVendors(transactions, currentMonthKey).map((vendor) => ({

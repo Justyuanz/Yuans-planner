@@ -188,12 +188,12 @@ function expectedCategoryRows(overBudget) {
   ];
 }
 
-function assertDefaultState(state) {
+function assertDefaultState(state, historyOpen = false) {
   assert.deepEqual(state, {
     categories: { rows: expectedCategoryRows(false), title: "Remaining by category" },
     heading: "Pace and projection",
     history: {
-      open: false,
+      open: historyOpen,
       rows: [],
       summary: ["Monthly spending over time", "Show up to 12 months"]
     },
@@ -284,6 +284,9 @@ test("Money pacing preserves projections, charts, history, and visual behavior",
 
   const previewDocument = 'document.querySelector("iframe").contentDocument';
   await openMoney(planner.browser, `${preview.url}/?date=${TEST_DATE}`, previewDocument);
+  assert.equal(await planner.browser.evaluate(
+    'document.querySelector("iframe").contentDocument.querySelector(".money-pacing-card").dataset.reactOwned'
+  ), "true");
   assert.equal((await planner.browser.evaluate(pacingState(previewDocument))).history.open, false);
   await expandHistory(planner.browser, previewDocument);
   assertPopulatedState(await planner.browser.evaluate(pacingState(previewDocument)));
@@ -292,6 +295,17 @@ test("Money pacing preserves projections, charts, history, and visual behavior",
   const previewDesktopScreenshot = await planner.browser.captureScreenshot(PREVIEW_CLIP);
   assert.deepEqual(previewDesktop, legacyDesktop);
   assertSameScreenshot(previewDesktopScreenshot, legacyDesktopScreenshot, "desktop Money pacing screenshot");
+
+  await planner.browser.evaluate(`window.dispatchEvent(new StorageEvent("storage", {
+    key: ${JSON.stringify(TRANSACTIONS_KEY)},
+    newValue: "[]"
+  }));
+  window.dispatchEvent(new StorageEvent("storage", {
+    key: ${JSON.stringify(SETTINGS_KEY)},
+    newValue: "{}"
+  }))`);
+  await planner.browser.waitForExpression(`(${previewDocument}).querySelector("#moneyProgressList .money-progress-copy span").textContent === "€0.00 spent of €1,300.00"`);
+  assertDefaultState(await planner.browser.evaluate(pacingState(previewDocument)), true);
 
   await openMoney(planner.browser, `${preview.url}/?date=${TEST_DATE}`, previewDocument);
   assert.equal((await planner.browser.evaluate(pacingState(previewDocument))).history.open, false);
