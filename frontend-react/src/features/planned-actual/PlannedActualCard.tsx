@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import type { PlannerStore } from "../../api/planner-store";
+import type { PlannerStore, PlannerStoreWrite } from "../../api/planner-store";
 import type { PlannedActualRow } from "./planned-actual";
 import {
   ACTIVITY_LOG_KEY,
@@ -13,11 +13,6 @@ import {
   type PlannedGroupId,
   type PlannedValues
 } from "./planned-actual";
-
-export interface PlannerStoreWrite {
-  key: string;
-  value: string;
-}
 
 interface PlannedActualCardProps {
   initialNowMs: number;

@@ -1,14 +1,12 @@
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { putPlannerStoreValue } from "../api/planner-store";
+import { putPlannerStoreValue, type PlannerStoreWrite } from "../api/planner-store";
 import { EnergyTrailCard } from "../features/energy-trail/EnergyTrailCard";
 import { LifePieCard } from "../features/life-pie/LifePieCard";
 import { plannerDateFromSearch } from "../features/life-pie/life-pie";
-import {
-  PlannedActualCard,
-  type PlannerStoreWrite
-} from "../features/planned-actual/PlannedActualCard";
+import { MoneyQuickCard } from "../features/money-quick/MoneyQuickCard";
+import { PlannedActualCard } from "../features/planned-actual/PlannedActualCard";
 import { plannedStorageKey } from "../features/planned-actual/planned-actual";
 import { WeeklyGoalsCard } from "../features/weekly-goals/WeeklyGoalsCard";
 import {
@@ -35,6 +33,7 @@ export function App() {
   const [lifePieBoundary, setLifePieBoundary] = useState<ReactPanelBoundary | null>(null);
   const [plannedBoundary, setPlannedBoundary] = useState<ReactPanelBoundary | null>(null);
   const [energyTrailBoundary, setEnergyTrailBoundary] = useState<EnergyTrailBoundary | null>(null);
+  const [moneyQuickMount, setMoneyQuickMount] = useState<HTMLElement | null>(null);
   const [weeklyGoalsOverride, setWeeklyGoalsOverride] = useState<string | null>(null);
   const today = useMemo(() => plannerDateFromSearch(window.location.search, new Date()), []);
 
@@ -72,6 +71,15 @@ export function App() {
       energyTrailCard.dataset.reactOwned = "true";
       energyTrailMount.replaceChildren();
       setEnergyTrailBoundary({ frame, mount: energyTrailMount });
+    }
+
+    const moneyQuickCard = document?.querySelector<HTMLElement>(".money-quick-card");
+    const moneyQuickPanel = moneyQuickCard?.querySelector<HTMLElement>(".panel-inner");
+    if (moneyQuickCard !== null && moneyQuickCard !== undefined
+      && moneyQuickPanel !== null && moneyQuickPanel !== undefined) {
+      moneyQuickCard.dataset.reactOwned = "true";
+      moneyQuickPanel.replaceChildren();
+      setMoneyQuickMount(moneyQuickPanel);
     }
   }
 
@@ -169,6 +177,12 @@ export function App() {
             today={today}
           />,
           energyTrailBoundary.mount
+        )
+      )}
+      {loadedStore !== null && moneyQuickMount !== null && (
+        createPortal(
+          <MoneyQuickCard onPersist={persistPlannerWrites} store={loadedStore} today={today} />,
+          moneyQuickMount
         )
       )}
     </>

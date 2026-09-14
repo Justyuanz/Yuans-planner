@@ -2,7 +2,7 @@
 
 This folder contains the new React + TypeScript frontend beside the legacy `frontend/` application. The Python server still serves the working application, and the Vite preview loads that UI unchanged as a temporary migration shell.
 
-The migrated boundaries are weekly goals, Life Pie, Planned vs actual, and Energy trail. React fetches the existing `/api/kv` response, validates its string-valued key/value contract, and takes ownership of only those legacy mounts. The components preserve the legacy markup, CSS, wording, interactions, persistence, desktop appearance, and responsive behavior. Same-origin storage events keep the React-owned summaries current while the surrounding task, journal editor, and activity features remain legacy-owned.
+The migrated boundaries are weekly goals, Life Pie, Planned vs actual, Energy trail, and Money quick log. React fetches the existing `/api/kv` response, validates its string-valued key/value contract, and takes ownership of only those legacy mounts. The components preserve the legacy markup, CSS, wording, interactions, persistence, desktop appearance, and responsive behavior. Same-origin storage events keep the React-owned summaries current while the surrounding task, journal editor, activity, and full Money features remain legacy-owned. Money quick writes compatible transaction, vendor-rule, and activity-log records, while legacy Money changes flow back into the React summary through the same bridge.
 
 ## Run the preview
 
@@ -23,7 +23,7 @@ Open the local address printed by Vite. Development `/api` requests are proxied 
 
 Set `VITE_PLANNER_API_TARGET` before starting Vite when the Python backend uses another local port.
 
-The root test suite compares all four migrated boundaries with the legacy UI in Chrome at desktop and mobile viewports. Install this folder's dependencies before running those visual regression tests.
+The root test suite compares all five migrated boundaries with the legacy UI in Chrome at desktop and mobile viewports. Install this folder's dependencies before running those visual regression tests.
 
 ## Quality checks
 

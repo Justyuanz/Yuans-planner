@@ -3325,7 +3325,11 @@
           return category.kind === "flex";
         });
 
-        if (elements.moneyQuickCategory) {
+        var moneyQuickCard = elements.moneyQuickCategory
+          ? elements.moneyQuickCategory.closest(".money-quick-card")
+          : null;
+        var moneyQuickOwned = moneyQuickCard && moneyQuickCard.dataset.reactOwned === "true";
+        if (elements.moneyQuickCategory && !moneyQuickOwned) {
           elements.moneyQuickCategory.innerHTML = "";
           orderedQuickCategories.forEach(function (category) {
             var option = document.createElement("option");
@@ -3902,6 +3906,12 @@
           return;
         }
         syncMoneyCategoryInputs();
+        var moneyQuickCard = elements.moneyQuickForm
+          ? elements.moneyQuickForm.closest(".money-quick-card")
+          : null;
+        if (moneyQuickCard && moneyQuickCard.dataset.reactOwned === "true") {
+          return;
+        }
         renderMoneyQuickSummary(state);
         renderMoneyQuickShortcuts(state);
       }

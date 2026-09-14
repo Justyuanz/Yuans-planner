@@ -2,6 +2,11 @@ import { isRecord } from "../shared/is-record";
 
 export type PlannerStore = Readonly<Record<string, string>>;
 
+export interface PlannerStoreWrite {
+  key: string;
+  value: string;
+}
+
 export type PlannerFetch = (
   input: RequestInfo | URL,
   init?: RequestInit
