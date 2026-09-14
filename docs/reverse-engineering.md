@@ -202,6 +202,8 @@ Important API properties:
 
 ### Money
 
+- Vendors aggregate trimmed, case-sensitive names from the current calendar month, order by total spend then vendor name, and show only the first eight. Each row shows visit count, floored average spend, the most frequent configured category (or `Other`), and the exact-name vendor total from the previous calendar month; vendors that appear only in prior months and blank vendor names are omitted.
+
 - Recent activity is a closed-by-default disclosure that shows the newest eight valid transactions across month boundaries. Rows use the configured category name or `Other`, display `No vendor` when blank, and reset the disclosure to closed after reload.
 
 - The Money overview always shows the current calendar month, the Monday-to-Sunday week clipped to the month, remaining flexible money for that week, and flexible money left for the month. Negative values retain the same cards with the `is-negative` treatment, and both summaries update when money settings or transactions change.
