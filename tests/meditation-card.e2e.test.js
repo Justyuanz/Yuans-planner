@@ -227,6 +227,81 @@ async function assertExpiredMeditationFinishesOnce(planner, pageUrl, documentExp
   });
 }
 
+async function exerciseReactTimer(planner, previewUrl) {
+  await planner.browser.setViewport(1280, 720);
+  await openJournal(planner.browser, `${previewUrl}/?date=${TEST_DATE}`, 'document.querySelector("iframe").contentDocument');
+  await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.querySelector(".meditation-card").dataset.reactOwned === "true"');
+  await planner.browser.evaluate(`(() => {
+    const frame = document.querySelector("iframe");
+    const input = frame.contentDocument.getElementById("meditationMinutes");
+    const setter = Object.getOwnPropertyDescriptor(frame.contentWindow.HTMLInputElement.prototype, "value").set;
+    setter.call(input, "1");
+    input.dispatchEvent(new frame.contentWindow.Event("input", { bubbles: true }));
+    frame.contentDocument.getElementById("meditationForm").dispatchEvent(
+      new frame.contentWindow.Event("submit", { bubbles: true, cancelable: true })
+    );
+  })()`);
+  await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.getElementById("cancelMeditation").hidden === false');
+  await planner.server.waitFor(async function () {
+    const stored = await planner.server.readPlannerData();
+    const state = JSON.parse(stored[MEDITATION_KEY] || "{}");
+    return state.active?.minutes === 1;
+  });
+
+  await openJournal(planner.browser, `${previewUrl}/?date=${TEST_DATE}`, 'document.querySelector("iframe").contentDocument');
+  await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.getElementById("cancelMeditation").hidden === false');
+  await planner.browser.evaluate('document.querySelector("iframe").contentDocument.getElementById("cancelMeditation").click()');
+  await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.getElementById("meditationCountdown").textContent === "Ready"');
+  await planner.server.waitFor(async function () {
+    const stored = await planner.server.readPlannerData();
+    const state = JSON.parse(stored[MEDITATION_KEY] || "{}");
+    return state.active === null && state.sessions?.filter((entry) => entry.id === "expired-session").length === 1;
+  });
+
+  await planner.browser.evaluate(`(() => {
+    const frame = document.querySelector("iframe");
+    const input = frame.contentDocument.getElementById("journalDate");
+    input.value = "2026-09-13";
+    input.dispatchEvent(new frame.contentWindow.Event("change", { bubbles: true }));
+  })()`);
+  await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.getElementById("meditationStatus").textContent === "30 min saved for Sun Sep 13."');
+  await planner.browser.evaluate('document.querySelector("iframe").contentDocument.getElementById("journalTodayButton").click()');
+  await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.getElementById("meditationStatus").textContent === "30 min saved for Mon Sep 14."');
+
+  const stored = await planner.server.readPlannerData();
+  const state = JSON.parse(stored[MEDITATION_KEY] || "{}");
+  const now = Date.now();
+  state.active = {
+    id: "react-expired",
+    dateKey: TEST_DATE,
+    endsAt: now - 1_000,
+    minutes: 15,
+    startedAt: now - 901_000
+  };
+  const externalValue = JSON.stringify(state);
+  await planner.browser.evaluate(`(() => {
+    const frame = document.querySelector("iframe");
+    frame.contentWindow.localStorage.setItem(${JSON.stringify(MEDITATION_KEY)}, ${JSON.stringify(externalValue)});
+  })()`);
+  await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.getElementById("meditationStatus").textContent === "Meditation complete. Saved to Mind."');
+  await planner.server.waitFor(async function () {
+    const latest = await planner.server.readPlannerData();
+    const nextState = JSON.parse(latest[MEDITATION_KEY] || "{}");
+    return nextState.active === null
+      && nextState.sessions?.filter((entry) => entry.id === "react-expired").length === 1;
+  });
+  await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.getElementById("meditationStatus").textContent === "45 min saved for Mon Sep 14."');
+
+  await openJournal(planner.browser, `${previewUrl}/?date=${TEST_DATE}`, 'document.querySelector("iframe").contentDocument');
+  await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.getElementById("meditationStatus").textContent === "45 min saved for Mon Sep 14."');
+  const persisted = await planner.server.readPlannerData();
+  const persistedState = JSON.parse(persisted[MEDITATION_KEY] || "{}");
+  assert.equal(persistedState.sessions.filter((entry) => entry.id === "react-expired").length, 1);
+
+  await planner.browser.evaluate('document.querySelector("iframe").contentDocument.querySelector(\'[data-view-target="todayView"]\').click()');
+  await planner.browser.waitForExpression('[...document.querySelector("iframe").contentDocument.querySelectorAll("#lifeBreakdown .breakdown-row")].some((row) => row.textContent.includes("Meditation100% · 0.75h"))');
+}
+
 test("Meditation preserves timer, persistence, Mind totals, and visual behavior", { timeout: 60_000 }, async function (context) {
   const planner = await startBrowserPlanner(context);
   if (!planner) {
@@ -268,12 +343,18 @@ test("Meditation preserves timer, persistence, Mind totals, and visual behavior"
   const legacyDesktopScreenshot = await planner.browser.captureScreenshot(LEGACY_CLIP);
 
   await openJournal(planner.browser, `${preview.url}/?date=${TEST_DATE}`, 'document.querySelector("iframe").contentDocument');
-  await planner.browser.waitForExpression('document.querySelector("iframe")?.contentDocument?.getElementById("meditationStatus")?.textContent === "30 min saved for Mon Sep 14."');
+  await planner.browser.waitForExpression('document.querySelector("iframe")?.contentDocument?.getElementById("meditationStatus")?.textContent');
+  assert.equal(await planner.browser.evaluate(
+    'document.querySelector("iframe").contentDocument.getElementById("meditationStatus").textContent'
+  ), "30 min saved for Mon Sep 14.");
   await scrollToMeditation(planner.browser, 'document.querySelector("iframe").contentDocument');
   const previewDesktop = await planner.browser.evaluate(
     meditationVisualContract('document.querySelector("iframe").contentDocument')
   );
   const previewDesktopScreenshot = await planner.browser.captureScreenshot(PREVIEW_CLIP);
+  assert.equal(await planner.browser.evaluate(
+    'document.querySelector("iframe").contentDocument.querySelector(".meditation-card").dataset.reactOwned'
+  ), "true");
   assert.deepEqual(previewDesktop, legacyDesktop);
   assertSameScreenshot(previewDesktopScreenshot, legacyDesktopScreenshot, "desktop Meditation screenshot");
 
@@ -294,5 +375,6 @@ test("Meditation preserves timer, persistence, Mind totals, and visual behavior"
   assert.deepEqual(previewMobile, legacyMobile);
   assert.equal(previewMobile.card.width, 338);
   assertSameScreenshot(previewMobileScreenshot, legacyMobileScreenshot, "mobile Meditation screenshot");
+  await exerciseReactTimer(planner, preview.url);
   assert.deepEqual(planner.browser.errors(), []);
 });

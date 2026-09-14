@@ -5,6 +5,8 @@ import { putPlannerStoreValue, type PlannerStoreWrite } from "../api/planner-sto
 import { EnergyTrailCard } from "../features/energy-trail/EnergyTrailCard";
 import { LifePieCard } from "../features/life-pie/LifePieCard";
 import { plannerDateFromSearch } from "../features/life-pie/life-pie";
+import { formatPlannerDate } from "../features/life-pie/life-pie-store";
+import { MeditationCard } from "../features/meditation/MeditationCard";
 import { MoneyQuickCard } from "../features/money-quick/MoneyQuickCard";
 import { PlannedActualCard } from "../features/planned-actual/PlannedActualCard";
 import { plannedStorageKey } from "../features/planned-actual/planned-actual";
@@ -27,12 +29,26 @@ interface EnergyTrailBoundary {
   mount: HTMLElement;
 }
 
+interface MeditationBoundary extends EnergyTrailBoundary {
+  initialNowMs: number;
+  initialSelectedDate: string;
+}
+
+function selectedJournalDate(input: HTMLInputElement | null | undefined, fallback: string): string {
+  const value = input?.value.trim();
+  if (!value) {
+    return fallback;
+  }
+  return value;
+}
+
 export function App() {
   const plannerStore = usePlannerStore();
   const [weeklyGoalsMount, setWeeklyGoalsMount] = useState<HTMLElement | null>(null);
   const [lifePieBoundary, setLifePieBoundary] = useState<ReactPanelBoundary | null>(null);
   const [plannedBoundary, setPlannedBoundary] = useState<ReactPanelBoundary | null>(null);
   const [energyTrailBoundary, setEnergyTrailBoundary] = useState<EnergyTrailBoundary | null>(null);
+  const [meditationBoundary, setMeditationBoundary] = useState<MeditationBoundary | null>(null);
   const [moneyQuickMount, setMoneyQuickMount] = useState<HTMLElement | null>(null);
   const [weeklyGoalsOverride, setWeeklyGoalsOverride] = useState<string | null>(null);
   const today = useMemo(() => plannerDateFromSearch(window.location.search, new Date()), []);
@@ -81,6 +97,19 @@ export function App() {
       moneyQuickPanel.replaceChildren();
       setMoneyQuickMount(moneyQuickPanel);
     }
+
+    const meditationCard = document?.querySelector<HTMLElement>(".meditation-card");
+    const journalDate = document?.querySelector<HTMLInputElement>("#journalDate");
+    if (meditationCard !== null && meditationCard !== undefined) {
+      meditationCard.dataset.reactOwned = "true";
+      meditationCard.replaceChildren();
+      setMeditationBoundary({
+        frame,
+        initialNowMs: Date.now(),
+        initialSelectedDate: selectedJournalDate(journalDate, formatPlannerDate(today)),
+        mount: meditationCard
+      });
+    }
   }
 
   const legacyUrl = `/legacy/${window.location.search}`;
@@ -112,6 +141,8 @@ export function App() {
       } catch {
         // Server persistence still works when browser storage is unavailable.
       }
+      // Native storage events skip the writing window, so notify sibling React boundaries explicitly.
+      window.dispatchEvent(new StorageEvent("storage", { key, newValue: value }));
       void putPlannerStoreValue(key, value).catch(() => undefined);
     });
   }
@@ -183,6 +214,18 @@ export function App() {
         createPortal(
           <MoneyQuickCard onPersist={persistPlannerWrites} store={loadedStore} today={today} />,
           moneyQuickMount
+        )
+      )}
+      {loadedStore !== null && meditationBoundary !== null && (
+        createPortal(
+          <MeditationCard
+            frame={meditationBoundary.frame}
+            initialNowMs={meditationBoundary.initialNowMs}
+            initialSelectedDate={meditationBoundary.initialSelectedDate}
+            onPersist={persistPlannerWrites}
+            store={loadedStore}
+          />,
+          meditationBoundary.mount
         )
       )}
     </>
