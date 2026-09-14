@@ -3874,6 +3874,10 @@
         if (!elements.moneyRecentActivity || !state) {
           return;
         }
+        var activityCard = elements.moneyRecentActivity.closest(".money-activity-card");
+        if (activityCard && activityCard.dataset.reactOwned === "true") {
+          return;
+        }
         elements.moneyRecentActivity.innerHTML = "";
         var recentTransactions = state.transactions.slice(0, 8);
         if (!recentTransactions.length) {

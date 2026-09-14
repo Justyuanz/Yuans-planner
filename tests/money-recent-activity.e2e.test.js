@@ -53,7 +53,7 @@ async function openMoney(browser, pageUrl, documentExpression = "document") {
     }
     return moneyView.classList.contains("active");
   })()`);
-  await browser.waitForExpression(`(${documentExpression}).querySelector(".money-activity-card details")`);
+  await browser.waitForExpression(`(${documentExpression}).querySelector(".money-activity-card details") !== null`);
 }
 
 async function expandActivity(browser, documentExpression) {
@@ -217,6 +217,9 @@ test("Money recent activity preserves ordering, disclosure state, and visual beh
 
   const previewDocument = 'document.querySelector("iframe").contentDocument';
   await openMoney(planner.browser, `${preview.url}/?date=${TEST_DATE}`, previewDocument);
+  assert.equal(await planner.browser.evaluate(
+    'document.querySelector("iframe").contentDocument.querySelector(".money-activity-card").dataset.reactOwned'
+  ), "true");
   assert.equal((await planner.browser.evaluate(activityState(previewDocument))).open, false);
   await expandActivity(planner.browser, previewDocument);
   assertPopulatedState(await planner.browser.evaluate(activityState(previewDocument)));
@@ -225,6 +228,13 @@ test("Money recent activity preserves ordering, disclosure state, and visual beh
   const previewDesktopScreenshot = await planner.browser.captureScreenshot(PREVIEW_CLIP);
   assert.deepEqual(previewDesktop, legacyDesktop);
   assertSameScreenshot(previewDesktopScreenshot, legacyDesktopScreenshot, "desktop Money activity screenshot");
+
+  await planner.browser.evaluate(`window.dispatchEvent(new StorageEvent("storage", {
+    key: ${JSON.stringify(TRANSACTIONS_KEY)},
+    newValue: "[]"
+  }))`);
+  await planner.browser.waitForExpression(`(${previewDocument}).querySelector("#moneyRecentActivity .money-vendor-row strong").textContent === "No activity yet"`);
+  assert.equal((await planner.browser.evaluate(activityState(previewDocument))).open, true);
 
   await openMoney(planner.browser, `${preview.url}/?date=${TEST_DATE}`, previewDocument);
   assert.equal((await planner.browser.evaluate(activityState(previewDocument))).open, false);
