@@ -197,6 +197,7 @@ Important API properties:
 - Archive is newest-first and searchable across date, title, content, and tracker fields.
 - Meditation timer persists an end timestamp and completes after reload/suspension when the deadline has passed.
 - The Journal meditation card accepts 1–180 whole minutes, disables Start and the duration while active, exposes Cancel, and shows saved minutes for the currently selected Journal date. Completion appends exactly one standalone Mind session; cancellation retains prior sessions without adding one.
+- The Journal archive normalizes and sorts non-empty entries newest-first, marks the selected date, builds a 132-character whitespace-collapsed preview, includes tracker context, and filters live across date, title, content, energy, focus, and context. Selecting a result opens that date in the editor; search text is transient across reloads.
 - Completed meditation and journal minutes contribute to the Mind total.
 
 ### Money
