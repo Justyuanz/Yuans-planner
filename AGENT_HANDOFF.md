@@ -181,13 +181,13 @@ For each feature:
 - [ ] remove legacy implementation only after tests pass
 
 ## Current Task
-The Money recent-activity migration boundary is complete and verified. The Vite preview preserves the full legacy shell and exact styles while React owns weekly goals, Life Pie, Planned vs actual, Energy trail, Money quick log, Money overview, Money recent activity, Journal meditation, and Journal archive. Stop at this working boundary before selecting another feature.
+The Money Vendors migration boundary is complete and verified. The Vite preview preserves the full legacy shell and exact styles while React owns weekly goals, Life Pie, Planned vs actual, Energy trail, Money quick log, Money overview, Money Vendors, Money recent activity, Journal meditation, and Journal archive. Stop at this working boundary before selecting another feature.
 
 ## Last Completed Task
-Migrated the Money recent-activity disclosure into focused typed React modules without redesigning it. The component preserves the closed-on-load interaction, newest-first eight-row limit across months, configured and fallback category names, blank-vendor wording, live Money quick synchronization without collapsing an open disclosure, and exact desktop/mobile appearance.
+Migrated the read-only Money Vendors card into focused typed React modules without redesigning it. The component preserves trimmed case-sensitive aggregation for the current month, spend/name ordering, the eight-row limit, floored averages, most-frequent configured category names with `Other` fallback, exact-name previous-month comparisons, blank-vendor omission, live Money transaction synchronization, and exact desktop/mobile appearance.
 
 ## Next Task
-Await explicit direction before selecting another migration boundary. For the next feature, first characterize its legacy behavior and add equivalent desktop/mobile visual coverage, then migrate only that boundary and preserve the nine completed React-owned boundaries. The dashboard Pattern noticed card is a possible next boundary, but it depends on the much larger insight engine and should only be selected after mapping that dependency carefully. The read-only Money Vendors card may be a smaller next boundary because it can build on the shared Money decoder, but its current/previous-month aggregation must be characterized first.
+Await explicit direction before selecting another migration boundary. For the next feature, first characterize its legacy behavior and add equivalent desktop/mobile visual coverage, then migrate only that boundary and preserve the ten completed React-owned boundaries. The read-only Money Pace and projection card may be the next bounded candidate because it can extend the shared Money decoder, but its progress rows and chart disclosures need careful characterization. The dashboard Pattern noticed card remains a possible boundary, but it depends on the much larger insight engine and should only be selected after mapping that dependency carefully.
 
 ## Important Decisions
 - The rewrite must preserve visual parity with the legacy Planner; this is an architecture rewrite, not a UI redesign.
@@ -204,6 +204,7 @@ Await explicit direction before selecting another migration boundary. For the ne
 - Money quick retains optimistic values per storage key until the corresponding external value supersedes them. This prevents an unrelated legacy activity-log write from hiding a newly saved React transaction while still allowing full Money settings changes to update the React summary immediately.
 - The legacy Money renderer continues synchronizing category inputs used by the full Money view, but skips only the React-owned quick-log select and summary mount. The normal legacy application remains unaffected.
 - Money overview and Money quick share the typed Money compatibility decoder, including the current week clipped to the month. The overview claims only `.money-overview-card .panel-inner`; the legacy renderer skips that card only when React marks it owned, so the normal legacy application remains unaffected.
+- Money Vendors uses that shared decoder for trimmed, case-sensitive current-month summaries and exact-name previous-month comparison. React claims only `.money-vendors-card .panel-inner`; the legacy renderer skips that card only when marked React-owned, so standalone legacy behavior remains unaffected.
 - Money recent activity uses the same typed Money decoder and claims only `.money-activity-card .panel-inner`. Its native disclosure state remains transient and open across live list updates, while reload creates a closed disclosure like the legacy app.
 - Meditation uses the existing `hivePlanner.meditation` `{active, sessions}` document. Start and cancel preserve compatible unknown root/session fields; expiry mirrors the legacy compact completion shape and appends one standalone session using the timer's persisted end timestamp.
 - The React app observes the legacy frame's Journal-date change and click events once and shares the selected date with both meditation and archive. Archive, Today, date-input, and Energy-trail navigation therefore update both React boundaries without duplicate iframe listeners.
@@ -245,14 +246,14 @@ Await explicit direction before selecting another migration boundary. For the ne
 - Some files contain thousands of lines.
 - Duplicate/redundant functions likely exist.
 - Current architecture is difficult to understand.
-- `frontend/js/app.js` is 8,360 lines and still owns most storage, normalization, rendering, event handling, and cross-feature orchestration; only the newly extracted boundaries have direct coverage.
+- `frontend/js/app.js` is 8,364 lines and still owns most storage, normalization, rendering, event handling, and cross-feature orchestration; only the newly extracted boundaries have direct coverage.
 - `frontend/css/styles.css` is 5,631 lines with several accumulated responsive sections.
 - Time/date parsing and normalization are duplicated across frontend modules and backend integrations.
 - Several declared storage keys and an older Study/Body weekly-overview path are inactive, while the real database still contains legacy-only keys that backups must preserve.
 - Browser inspection reports dozens of generated form controls without an `id` or `name`; the current Chrome run reported 81 at desktop load and 55 after the mobile reload.
 - The default `node` on the inspected machine is Node 14 and cannot run `node --test`; use the installed modern Node runtime or fix the local PATH before relying on `scripts/test.sh` without `NODE_BIN`.
-- Most remaining cross-feature flows in `app.js` still lack DOM or end-to-end tests; browser coverage now protects task and activity-session lifecycles, all six primary views, and nine React migration boundaries.
-- Weekly goals, Life Pie, Planned vs actual, Energy trail, Money quick log, Money overview, Money recent activity, the Journal meditation card, and the Journal archive are React-owned and verified; all other dashboard cards and feature views remain legacy-owned inside the temporary iframe shell.
+- Most remaining cross-feature flows in `app.js` still lack DOM or end-to-end tests; browser coverage now protects task and activity-session lifecycles, all six primary views, and ten React migration boundaries.
+- Weekly goals, Life Pie, Planned vs actual, Energy trail, Money quick log, Money overview, Money Vendors, Money recent activity, the Journal meditation card, and the Journal archive are React-owned and verified; all other dashboard cards and feature views remain legacy-owned inside the temporary iframe shell.
 - Browser smoke tests skip when Chrome/Chromium or Node WebSocket support is unavailable; they run with the documented Node 24 runtime on the inspected machine.
 - The React preview is not yet served directly by the Python backend. Its temporary legacy shell depends on Vite development proxies and is not the final production integration architecture.
 - The React visual regression test skips when Chrome or `frontend-react` dependencies are unavailable, matching the existing browser-test prerequisite policy.
@@ -442,6 +443,17 @@ Await explicit direction before selecting another migration boundary. For the ne
 - Manual Chrome DevTools verification confirmed an empty and populated disclosure, a real €12.50 Money quick write appearing immediately while the disclosure stayed open, 1100px desktop and 370px mobile cards, the 282px mobile row, zero horizontal overflow, and 137 successful or cached network requests. No console errors appeared; the existing generated-form-field accessibility issue remains.
 - Commits: `fd91e79` locks the legacy Money recent-activity behavior and visual contract; `7c822a0` migrates the verified React boundary.
 - Final verification: 59 React tests, React lint, strict type-checking, and the Vite production build pass. The full safety net passes with 18 Python tests and 113 root JavaScript tests, including all real-Chrome browser flows.
+
+### Session 18
+
+- Re-read `AGENTS.md`, this handoff, branch history, status, and the clean diff, then selected the read-only Money Vendors card as the next documented small boundary after the user asked to continue.
+- Characterized current-month-only aggregation, trimmed case-sensitive vendor names, spend/name ordering, the eight-row limit, blank and malformed transaction removal, floored average cents, most-frequent category selection, configured and fallback category names, exact-name previous-month comparison, and prior-month-only vendor omission before changing production code.
+- Added legacy-versus-preview coverage at 1280×720 and 390×844 with exact DOM/style/geometry comparison, stable desktop and visible mobile screenshot comparison, React ownership, same-window transaction synchronization, and clean browser-error assertions. Characterization measured the real mobile row column as 279px; the screenshot is capped at the visible card region when necessary.
+- Extended the shared typed Money decoder with vendor summaries, then added a focused Vendors presentation model and React component that reuse the exact legacy markup and CSS contract. React claims only `.money-vendors-card .panel-inner`, while the legacy renderer skips that card only when marked React-owned.
+- TDD evidence: the new TypeScript suite first failed because `money-vendors.ts` did not exist. The pre-migration browser contract first corrected an assumed 304px mobile row to the measured 279px before the React implementation was added.
+- Manual Chrome DevTools verification confirmed React ownership, a populated 1100px desktop card, a populated 370px mobile card with 279px single-column rows, zero horizontal overflow or clipped text, and 68 successful or cached network requests. No console errors or warnings appeared; the existing generated-form-field accessibility issue reported 55 controls after mobile reload.
+- Commits: `a26f9aa` locks the legacy Money Vendors behavior and visual contract; `4f74445` migrates the verified React boundary.
+- Final verification: 62 React tests, React lint, strict type-checking, and the Vite production build pass. The full safety net passes with 18 Python tests and 114 root JavaScript tests, including all real-Chrome browser flows.
 
 ---
 
