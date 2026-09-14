@@ -181,13 +181,13 @@ For each feature:
 - [ ] remove legacy implementation only after tests pass
 
 ## Current Task
-The Money quick log migration boundary is complete and verified. The Vite preview preserves the full legacy shell and exact styles while React owns weekly goals, Life Pie, Planned vs actual, Energy trail, and Money quick log. Stop at this working boundary before selecting another feature.
+The Journal meditation-card migration boundary is complete and verified. The Vite preview preserves the full legacy shell and exact styles while React owns weekly goals, Life Pie, Planned vs actual, Energy trail, Money quick log, and meditation. Stop at this working boundary before selecting another feature.
 
 ## Last Completed Task
-Migrated Money quick log into focused typed React modules without redesigning it. The component preserves the legacy category order, shortcuts, amount parsing and validation, vendor suggestions, weekly/monthly summaries, pace badge, immediate impact wording, transaction/vendor-rule/activity-log persistence, reload behavior, and exact desktop/mobile appearance. The compatibility bridge keeps the React summary synchronized with edits made in the still-legacy full Money view.
+Migrated the Journal meditation card into focused typed React modules without redesigning it. The component preserves the 1–180 whole-minute input contract, live countdown, start/cancel behavior, persistence across reload, exactly-once completion after expiry or suspension, selected-Journal-date totals, transient completion wording, Mind-session compatibility, and exact desktop/mobile appearance. Completed meditation updates the React Life Pie immediately.
 
 ## Next Task
-Await explicit direction before selecting another migration boundary. For the next feature, first characterize its legacy behavior and add equivalent desktop/mobile visual coverage, then migrate only that boundary and preserve the five completed React-owned cards.
+Await explicit direction before selecting another migration boundary. For the next feature, first characterize its legacy behavior and add equivalent desktop/mobile visual coverage, then migrate only that boundary and preserve the six completed React-owned boundaries.
 
 ## Important Decisions
 - The rewrite must preserve visual parity with the legacy Planner; this is an architecture rewrite, not a UI redesign.
@@ -202,6 +202,9 @@ Await explicit direction before selecting another migration boundary. For the ne
 - Money quick derives its category budgets, transfers, transactions, vendor rules, pace, and remaining-money summaries from the existing `hivePlanner.money.*` compatibility records. Saving writes a transaction, a normalized activity-log entry, and a remembered vendor rule when a vendor is present.
 - Money quick retains optimistic values per storage key until the corresponding external value supersedes them. This prevents an unrelated legacy activity-log write from hiding a newly saved React transaction while still allowing full Money settings changes to update the React summary immediately.
 - The legacy Money renderer continues synchronizing category inputs used by the full Money view, but skips only the React-owned quick-log select and summary mount. The normal legacy application remains unaffected.
+- Meditation uses the existing `hivePlanner.meditation` `{active, sessions}` document. Start and cancel preserve compatible unknown root/session fields; expiry mirrors the legacy compact completion shape and appends one standalone session using the timer's persisted end timestamp.
+- The React meditation card observes the legacy frame's Journal-date change and click events so archive, Today, date-input, and Energy-trail navigation continue updating its date-specific status while the rest of the Journal remains legacy-owned.
+- React persistence explicitly publishes a same-window storage event after local writes because browsers do not deliver native storage events to the document that performed the write. This keeps sibling React boundaries, including Life Pie after meditation completion, synchronized immediately.
 - The legacy iframe listens for external `hivePlanner.*` storage writes from React-owned parent mounts and updates only its in-memory store. This prevents a later legacy write from overwriting newer React values without causing a second persistence loop.
 - Visual regression coverage must compare the legacy and React versions at identical desktop and mobile viewports, including computed styles/geometry and a rendered screenshot where stable.
 - Screenshot comparisons decode Chrome PNG pixels and allow at most 1% of pixels to differ by more than eight channel values; exact DOM content and computed style/geometry comparisons remain mandatory so minor cross-frame antialiasing does not create false failures.
@@ -244,8 +247,8 @@ Await explicit direction before selecting another migration boundary. For the ne
 - Several declared storage keys and an older Study/Body weekly-overview path are inactive, while the real database still contains legacy-only keys that backups must preserve.
 - Browser inspection reports 29 generated form controls without an `id` or `name`.
 - The default `node` on the inspected machine is Node 14 and cannot run `node --test`; use the installed modern Node runtime or fix the local PATH before relying on `scripts/test.sh` without `NODE_BIN`.
-- Most remaining cross-feature flows in `app.js` still lack DOM or end-to-end tests; browser coverage now protects task and activity-session lifecycles, all six primary views, and five React migration boundaries.
-- Weekly goals, Life Pie, Planned vs actual, Energy trail, and Money quick log are React-owned and verified; all other dashboard cards and feature views remain legacy-owned inside the temporary iframe shell.
+- Most remaining cross-feature flows in `app.js` still lack DOM or end-to-end tests; browser coverage now protects task and activity-session lifecycles, all six primary views, and six React migration boundaries.
+- Weekly goals, Life Pie, Planned vs actual, Energy trail, Money quick log, and the Journal meditation card are React-owned and verified; all other dashboard cards and feature views remain legacy-owned inside the temporary iframe shell.
 - Browser smoke tests skip when Chrome/Chromium or Node WebSocket support is unavailable; they run with the documented Node 24 runtime on the inspected machine.
 - The React preview is not yet served directly by the Python backend. Its temporary legacy shell depends on Vite development proxies and is not the final production integration architecture.
 - The React visual regression test skips when Chrome or `frontend-react` dependencies are unavailable, matching the existing browser-test prerequisite policy.
@@ -389,6 +392,18 @@ Await explicit direction before selecting another migration boundary. For the ne
 - TDD evidence: the new TypeScript suite first failed because the Money quick module did not exist. Characterization also corrected the legacy rule that `12.345` is parsed as a thousands-style amount rather than rejected.
 - Commits: `3582f41` locks the legacy Money quick behavior and visual contract; `7e7abb4` migrates the verified React boundary.
 - Final verification: 43 React tests, React lint, strict type-checking, and the Vite production build pass. The full safety net passes with 18 Python tests and 109 root JavaScript tests, including all real-Chrome browser flows.
+
+### Session 14
+
+- Re-read `AGENTS.md`, this handoff, branch history, status, and the clean diff, then chose the Journal meditation card as a smaller complete boundary than the dashboard insight engine after the user explicitly asked to continue.
+- Characterized the legacy ready state, 1–180 whole-minute validation, live countdown, disabled active controls, reload persistence, cancellation, exactly-once expired completion, date-specific totals, unknown-field compatibility, and completed-minute flow into Life Pie before changing production code.
+- Added desktop and mobile legacy-versus-preview coverage at 1280×720 and 390×844, including exact DOM/style/geometry comparisons and tolerant PNG screenshot comparison. Characterization measured the real mobile card width as 338px.
+- Added focused typed meditation definitions, compatibility decoding, pure state transitions/presentation logic, and a React component. React claims only `.meditation-card`; the remaining Journal editor and archive stay legacy-owned.
+- Added per-key optimistic state and explicit same-window storage publication so start/cancel/expiry persist through SQLite and completed sessions update the React Life Pie immediately. The browser flow covers React start, reload, cancel, Journal date switching, injected expiry, transient completion text, reload deduplication, and the resulting 0.75h Mind total.
+- TDD evidence: the TypeScript suite first failed because the meditation module did not exist. The first React browser run exposed an empty iframe date during early load, and the expanded interaction flow exposed a cross-realm `HTMLInputElement` check; both were corrected without weakening assertions.
+- Manual Chrome DevTools verification confirmed exact desktop/mobile rendering, accessible active controls, the 338px mobile card, zero horizontal overflow, successful network requests, and no console warnings or errors.
+- Commits: `ef5d6ea` locks the legacy meditation behavior and visual contract; `72b9696` migrates the verified React boundary.
+- Final verification: 49 React tests, React lint, strict type-checking, and the Vite production build pass. The full safety net passes with 18 Python tests and 110 root JavaScript tests, including all real-Chrome browser flows.
 
 ---
 
