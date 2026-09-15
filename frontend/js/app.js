@@ -8429,6 +8429,8 @@
         runUiSafely("initial page", function () {
           setActiveView(initialViewFromUrl());
         });
+        // Browser consumers must not treat partially hydrated legacy markup as ready.
+        document.documentElement.dataset.plannerReady = "true";
         window.setInterval(updateLiveTimers, 1000);
       }
 

@@ -121,6 +121,9 @@ const PREVIEW_CLIP = `(() => {
 })()`;
 
 async function scrollToEnergyTrail(browser, documentExpression) {
+  await browser.waitForExpression(
+    `(${documentExpression}).documentElement.dataset.plannerReady === "true"`
+  );
   await browser.evaluate(`(() => {
     const documentRoot = ${documentExpression};
     const card = documentRoot.querySelector(".state-history-card");

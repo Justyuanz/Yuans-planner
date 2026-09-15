@@ -198,6 +198,7 @@ test("React migration boundary preserves weekly goals and Life Pie design", { ti
   await planner.browser.setViewport(1280, 720);
   await planner.browser.open(`${planner.server.url}/?date=${TEST_DATE}`);
   await planner.browser.waitForExpression(LEGACY_GOALS_READY);
+  await planner.browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
   const legacyDesktop = await planner.browser.evaluate(visualContract("document"));
   const legacyScreenshot = await planner.browser.captureScreenshot(LEGACY_PANEL_CLIP);
   const legacyLifeDesktop = await planner.browser.evaluate(lifePieVisualContract("document"));
@@ -205,6 +206,9 @@ test("React migration boundary preserves weekly goals and Life Pie design", { ti
 
   await planner.browser.open(`${preview.url}/?date=${TEST_DATE}`);
   await planner.browser.waitForExpression(REACT_GOALS_READY);
+  await planner.browser.waitForExpression(
+    'document.querySelector("iframe").contentDocument.documentElement.dataset.plannerReady === "true"'
+  );
   const reactDesktop = await planner.browser.evaluate(
     visualContract('document.querySelector("iframe").contentDocument')
   );
@@ -270,6 +274,7 @@ test("React migration boundary preserves weekly goals and Life Pie design", { ti
   await planner.browser.setViewport(390, 844, true);
   await planner.browser.open(`${planner.server.url}/?date=${TEST_DATE}`);
   await planner.browser.waitForExpression(LEGACY_GOALS_READY);
+  await planner.browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
   const legacyMobile = await planner.browser.evaluate(`(() => ({
     display: getComputedStyle(document.querySelector(".goals-card")).display,
     overflow: document.documentElement.scrollWidth > innerWidth
@@ -284,6 +289,9 @@ test("React migration boundary preserves weekly goals and Life Pie design", { ti
 
   await planner.browser.open(`${preview.url}/?date=${TEST_DATE}`);
   await planner.browser.waitForExpression(REACT_GOALS_READY);
+  await planner.browser.waitForExpression(
+    'document.querySelector("iframe").contentDocument.documentElement.dataset.plannerReady === "true"'
+  );
   const reactMobile = await planner.browser.evaluate(`(() => {
     const frame = document.querySelector("iframe");
     const frameDocument = frame.contentDocument;

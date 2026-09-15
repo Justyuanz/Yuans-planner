@@ -41,7 +41,10 @@ async function openDashboard(browser, pageUrl, documentExpression = "document") 
   await browser.waitForExpression(`(() => {
     const documentRoot = ${documentExpression};
     const card = documentRoot.getElementById("dashboardInsightCard");
-    return card && !card.hidden && documentRoot.getElementById("dashboardInsightTitle").textContent.trim();
+    return documentRoot.documentElement.dataset.plannerReady === "true"
+      && card
+      && !card.hidden
+      && documentRoot.getElementById("dashboardInsightTitle")?.textContent.trim();
   })()`);
 }
 
@@ -130,7 +133,11 @@ function cardClip(documentExpression = "document", frameExpression = "null") {
 async function scrollToInsight(browser, documentExpression = "document") {
   await browser.evaluate(`(() => {
     const documentRoot = ${documentExpression};
+    const mascot = documentRoot.querySelector(".mascot-card");
     documentRoot.documentElement.style.scrollBehavior = "auto";
+    if (mascot) {
+      mascot.style.visibility = "hidden";
+    }
     documentRoot.getElementById("dashboardInsightCard").scrollIntoView({ block: "start" });
   })()`);
   await browser.waitForExpression(`(() => {
@@ -138,6 +145,10 @@ async function scrollToInsight(browser, documentExpression = "document") {
     const rect = documentRoot.getElementById("dashboardInsightCard").getBoundingClientRect();
     return rect.top < documentRoot.defaultView.innerHeight && rect.bottom > 0;
   })()`);
+  await browser.evaluate(`new Promise((resolve) => {
+    const view = (${documentExpression}).defaultView;
+    view.requestAnimationFrame(() => view.requestAnimationFrame(resolve));
+  })`);
 }
 
 function assertSameScreenshot(actual, expected, label) {

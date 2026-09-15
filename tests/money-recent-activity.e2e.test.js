@@ -154,6 +154,9 @@ const PREVIEW_MOBILE_CLIP = `(() => {
 })()`;
 
 async function scrollToActivity(browser, documentExpression) {
+  await browser.waitForExpression(
+    `(${documentExpression}).documentElement.dataset.plannerReady === "true"`
+  );
   await browser.evaluate(`(() => {
     const documentRoot = ${documentExpression};
     documentRoot.documentElement.style.scrollBehavior = "auto";
