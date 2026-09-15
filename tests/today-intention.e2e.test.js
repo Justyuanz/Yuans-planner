@@ -190,6 +190,9 @@ test("today intention records the legacy desktop and mobile visual contract", { 
   });
 
   await openPlanner(planner.browser, `${preview.url}/?date=${TEST_DATE}`, previewDocument);
+  assert.equal(await planner.browser.evaluate(
+    'document.querySelector("iframe").contentDocument.querySelector(".intention-block").dataset.reactOwned'
+  ), "true");
   const previewDesktopState = await planner.browser.evaluate(intentionState(previewDocument));
   const previewDesktop = await planner.browser.evaluate(intentionVisualContract(previewDocument));
   await scrollToIntention(planner.browser, previewDocument);
@@ -230,5 +233,27 @@ test("today intention records the legacy desktop and mobile visual contract", { 
   assert.deepEqual(previewMobileState, legacyMobileState);
   assert.deepEqual(previewMobile, legacyMobile);
   assertSameScreenshot(previewMobileScreenshot, legacyMobileScreenshot, "mobile intention screenshot");
+
+  const recoveryRoutine = JSON.stringify(routineWithThursday("rest"));
+  await putStoredValue(planner.server.url, ROUTINE_KEY, routineWithThursday("rest"));
+  await planner.browser.evaluate(`window.dispatchEvent(new StorageEvent("storage", {
+    key: ${JSON.stringify(ROUTINE_KEY)},
+    newValue: ${JSON.stringify(recoveryRoutine)}
+  }))`);
+  await planner.browser.waitForExpression(`(() => {
+    const documentRoot = ${previewDocument};
+    const badge = documentRoot.getElementById("todayThemeBadge");
+    return badge?.textContent === "Recovery Day" && badge.classList.contains("recovery-day");
+  })()`);
+
+  await planner.browser.reload();
+  await planner.browser.waitForExpression(`(() => {
+    const documentRoot = ${previewDocument};
+    const block = documentRoot.querySelector(".intention-block");
+    const badge = documentRoot.getElementById("todayThemeBadge");
+    return block?.dataset.reactOwned === "true"
+      && badge?.textContent === "Recovery Day"
+      && badge.classList.contains("recovery-day");
+  })()`);
   assert.deepEqual(planner.browser.errors(), []);
 });

@@ -35,6 +35,8 @@ import { PatternHistoryDialog } from "../features/pattern-history/PatternHistory
 import { emptyPatternHistoryModel } from "../features/pattern-history/pattern-history";
 import { TaskProgressBanner } from "../features/task-progress/TaskProgressBanner";
 import { buildTaskProgressModel } from "../features/task-progress/task-progress";
+import { TodayIntention } from "../features/today-intention/TodayIntention";
+import { buildTodayIntentionModel } from "../features/today-intention/today-intention";
 import { WeeklyGoalsCard } from "../features/weekly-goals/WeeklyGoalsCard";
 import {
   decodeWeeklyGoals,
@@ -69,6 +71,7 @@ export function App() {
   const [weeklyGoalsMount, setWeeklyGoalsMount] = useState<HTMLElement | null>(null);
   const [dayStateBoundary, setDayStateBoundary] = useState<FramePortalBoundary | null>(null);
   const [taskProgressMount, setTaskProgressMount] = useState<HTMLElement | null>(null);
+  const [todayIntentionMount, setTodayIntentionMount] = useState<HTMLElement | null>(null);
   const [dashboardInsightBoundary, setDashboardInsightBoundary] = useState<FramePortalBoundary | null>(null);
   const [dashboardInsightModel, setDashboardInsightModel] = useState<DashboardInsightModel>(
     buildDashboardInsightModel(null)
@@ -123,6 +126,13 @@ export function App() {
       taskProgressMount.dataset.reactOwned = "true";
       taskProgressMount.replaceChildren();
       setTaskProgressMount(taskProgressMount);
+    }
+
+    const todayIntentionMount = document?.querySelector<HTMLElement>(".intention-block");
+    if (todayIntentionMount !== null && todayIntentionMount !== undefined) {
+      todayIntentionMount.dataset.reactOwned = "true";
+      todayIntentionMount.replaceChildren();
+      setTodayIntentionMount(todayIntentionMount);
     }
 
     const dashboardInsightCard = document?.getElementById("dashboardInsightCard");
@@ -356,6 +366,12 @@ export function App() {
         createPortal(
           <TaskProgressBanner model={buildTaskProgressModel(loadedStore, todayKey)} />,
           taskProgressMount
+        )
+      )}
+      {loadedStore !== null && todayIntentionMount !== null && (
+        createPortal(
+          <TodayIntention model={buildTodayIntentionModel(loadedStore, today)} />,
+          todayIntentionMount
         )
       )}
       {loadedStore !== null && lifePieBoundary !== null && (

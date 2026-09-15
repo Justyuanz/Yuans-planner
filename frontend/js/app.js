@@ -629,6 +629,7 @@
         taskTime: document.getElementById("taskTime"),
         taskReminder: document.getElementById("taskReminder"),
         taskActivity: document.getElementById("taskActivity"),
+        todayIntention: document.querySelector(".intention-block"),
         todayThemeBadge: document.getElementById("todayThemeBadge"),
         dayStateOptions: document.getElementById("dayStateOptions"),
         weeklyPlannerLabel: document.getElementById("weeklyPlannerLabel"),
@@ -5368,9 +5369,6 @@
       }
 
       function renderTodayIntention() {
-        if (!elements.todayThemeBadge) {
-          return;
-        }
         var dashboardDate = document.getElementById("dashboardDate");
         var todayKey = formatDate(today);
         var type = dayTypeById(weeklyPlannerDayForDate(today).day.type);
@@ -5380,8 +5378,10 @@
         if (dashboardDate) {
           dashboardDate.textContent = humanDate(todayKey);
         }
-        elements.todayThemeBadge.textContent = type.label;
-        elements.todayThemeBadge.className = "progress-pill day-type-pill " + type.className;
+        if (!elements.todayIntention || elements.todayIntention.dataset.reactOwned !== "true") {
+          elements.todayThemeBadge.textContent = type.label;
+          elements.todayThemeBadge.className = "progress-pill day-type-pill " + type.className;
+        }
       }
 
       function renderWeeklyPlanner() {
