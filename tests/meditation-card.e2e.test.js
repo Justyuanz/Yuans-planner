@@ -8,6 +8,14 @@ const { startReactPreviewServer } = require("./helpers/react-preview-server");
 const TEST_DATE = "2026-09-14";
 const MEDITATION_KEY = "hivePlanner.meditation";
 
+function localDateKey(value) {
+  return [
+    value.getFullYear(),
+    String(value.getMonth() + 1).padStart(2, "0"),
+    String(value.getDate()).padStart(2, "0")
+  ].join("-");
+}
+
 async function putMeditationState(serverUrl, state) {
   const response = await fetch(`${serverUrl}/api/kv`, {
     method: "PUT",
@@ -146,6 +154,7 @@ function assertReadyState(state, savedMinutes, dateLabel) {
 }
 
 async function exerciseLegacyTimer(planner) {
+  const startDateKey = localDateKey(new Date());
   await planner.browser.evaluate(`(() => {
     const input = document.getElementById("meditationMinutes");
     input.value = "0";
@@ -171,7 +180,7 @@ async function exerciseLegacyTimer(planner) {
   await planner.server.waitFor(async function () {
     const stored = await planner.server.readPlannerData();
     const state = JSON.parse(stored[MEDITATION_KEY] || "{}");
-    return state.active?.minutes === 1 && state.active?.dateKey === TEST_DATE;
+    return state.active?.minutes === 1 && state.active?.dateKey === startDateKey;
   });
 
   await planner.browser.reload();
