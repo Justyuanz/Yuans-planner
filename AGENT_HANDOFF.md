@@ -181,13 +181,13 @@ For each feature:
 - [ ] remove legacy implementation only after tests pass
 
 ## Current Task
-The dashboard day-state selector migration boundary is complete and verified. The Vite preview preserves the full legacy shell and exact styles while React owns weekly goals, day state, Life Pie, Planned vs actual, Energy trail, Pattern noticed, Pattern history, Money quick log, Money overview, Money Pace and projection, Money Vendors, Money recent activity, Money Budgets and categories, Journal meditation, and Journal archive. Stop at this working boundary before selecting another feature.
+The dashboard task-progress banner migration boundary is complete and verified. The Vite preview preserves the full legacy shell and exact styles while React owns weekly goals, day state, task progress, Life Pie, Planned vs actual, Energy trail, Pattern noticed, Pattern history, Money quick log, Money overview, Money Pace and projection, Money Vendors, Money recent activity, Money Budgets and categories, Journal meditation, and Journal archive. Stop at this working boundary before selecting another feature.
 
 ## Last Completed Task
-Migrated `#dayStateOptions` into focused typed React modules without redesigning it. The component preserves the five legacy states, labels, ordering, active styling, malformed-data fallback, exact desktop/mobile wrapping, persistence, reload behavior, unknown stored fields, and `day_state_updated` audit records. A narrow hydrated bridge delegates selection to the existing legacy orchestration so Sprouty prompts and Pattern recalculation still update through the established path while the standalone legacy application remains unchanged.
+Migrated `.day-banner` into focused typed React modules without redesigning it. The component preserves the exact message, valid-task filtering, legacy truthy completion semantics, empty state, live completion count, reload behavior, and desktop/mobile wrapping. React derives the banner from `hivePlanner.dailyTasks.<date>` while the task list/editor remains legacy-owned, and same-origin storage events keep the count synchronized after legacy task changes.
 
 ## Next Task
-Await explicit direction before selecting another migration boundary. For the next feature, first characterize its legacy behavior and add equivalent desktop/mobile visual coverage, then migrate only that boundary and preserve the fifteen completed React-owned boundaries. The dashboard task editor/list is a possible follow-on but remains substantially coupled to timers, calendar links, reminders, activity totals, day-state reactions, and Pattern synchronization, so treat it as a separate behavioral boundary. The clean Python API structure also remains incomplete in Phase 3 and is an alternative non-visual architecture task.
+Await explicit direction before selecting another migration boundary. For the next feature, first characterize its legacy behavior and add equivalent desktop/mobile visual coverage, then migrate only that boundary and preserve the sixteen completed React-owned boundaries. The remaining dashboard task list/editor is still substantially coupled to timers, calendar links, reminders, activity totals, day-state reactions, and Pattern synchronization, so migrate it only as a separately protected behavioral boundary. The clean Python API structure also remains incomplete in Phase 3 and is an alternative non-visual architecture task.
 
 ## Important Decisions
 - The rewrite must preserve visual parity with the legacy Planner; this is an architecture rewrite, not a UI redesign.
@@ -217,6 +217,8 @@ Await explicit direction before selecting another migration boundary. For the ne
 - Pattern history is a fixed 14-day snapshot in the shipped legacy UI; it has no range selector or dialog-level undo control. React refreshes the snapshot while the dialog is closed and remounts it on every open so native evidence disclosures reset exactly like the legacy rebuild.
 - React owns only the contents of `#dayStateOptions` and decodes `hivePlanner.dayState` with the legacy `okay` fallback. A narrow `YuanPlannerDayStateBridge` delegates writes to the existing save/audit/Sprouty/insight path so compatibility fields and cross-feature effects remain intact.
 - Both the legacy day-state renderer and its click binder honor `data-react-owned="true"`. The binder guard is required because iframe hydration may finish after React claims the mount; without it, the React buttons receive a second legacy handler and append duplicate audit records.
+- React owns only `.day-banner`; the task list, form, checkboxes, editors, timers, reminders, and task persistence stay legacy-owned. The typed progress model filters entries using the legacy non-empty-label rule and deliberately uses `Boolean(done)` so old truthy stored values retain their displayed meaning.
+- The legacy task renderer routes both empty and populated progress through one ownership-aware helper. This keeps the standalone app unchanged while preventing detached legacy span references from overwriting the React portal.
 - The dashboard insight bridge stays unavailable until legacy server-first hydration completes. This prevents an early React read from interpreting an empty in-memory store as real current-day data and persisting an empty task list.
 - Insight action navigation resolves the current `#plannedMount` at click time because React ownership replaces its original child node; retaining the pre-migration element reference would scroll a detached node.
 - React persistence explicitly publishes a same-window storage event after local writes because browsers do not deliver native storage events to the document that performed the write. This keeps sibling React boundaries, including Life Pie after meditation completion, synchronized immediately.
@@ -257,14 +259,14 @@ Await explicit direction before selecting another migration boundary. For the ne
 - Some files contain thousands of lines.
 - Duplicate/redundant functions likely exist.
 - Current architecture is difficult to understand.
-- `frontend/js/app.js` is 8,480 lines and still owns most storage, normalization, rendering, event handling, and cross-feature orchestration; only the newly extracted boundaries have direct coverage.
+- `frontend/js/app.js` is 8,488 lines and still owns most storage, normalization, rendering, event handling, and cross-feature orchestration; only the newly extracted boundaries have direct coverage.
 - `frontend/css/styles.css` is 5,631 lines with several accumulated responsive sections.
 - Time/date parsing and normalization are duplicated across frontend modules and backend integrations.
 - Several declared storage keys and an older Study/Body weekly-overview path are inactive, while the real database still contains legacy-only keys that backups must preserve.
 - Browser inspection reports generated form controls without an `id` or `name`; the current Chrome run reported 29 controls.
 - The default `node` on the inspected machine is Node 14 and cannot run `node --test`; use the installed modern Node runtime or fix the local PATH before relying on `scripts/test.sh` without `NODE_BIN`.
-- Most remaining cross-feature flows in `app.js` still lack DOM or end-to-end tests; browser coverage now protects task and activity-session lifecycles, all six primary views, and fifteen React migration boundaries.
-- Weekly goals, dashboard day state, Life Pie, Planned vs actual, Energy trail, Pattern noticed, Pattern history, Money quick log, Money overview, Money Pace and projection, Money Vendors, Money recent activity, Money Budgets and categories, the Journal meditation card, and the Journal archive are React-owned and verified; all other dashboard cards and feature views remain legacy-owned inside the temporary iframe shell.
+- Most remaining cross-feature flows in `app.js` still lack DOM or end-to-end tests; browser coverage now protects task and activity-session lifecycles, all six primary views, and sixteen React migration boundaries.
+- Weekly goals, dashboard day state, dashboard task progress, Life Pie, Planned vs actual, Energy trail, Pattern noticed, Pattern history, Money quick log, Money overview, Money Pace and projection, Money Vendors, Money recent activity, Money Budgets and categories, the Journal meditation card, and the Journal archive are React-owned and verified; all other dashboard cards and feature views remain legacy-owned inside the temporary iframe shell.
 - Browser smoke tests skip when Chrome/Chromium or Node WebSocket support is unavailable; they run with the documented Node 24 runtime on the inspected machine.
 - The React preview is not yet served directly by the Python backend. Its temporary legacy shell depends on Vite development proxies and is not the final production integration architecture.
 - The React visual regression test skips when Chrome or `frontend-react` dependencies are unavailable, matching the existing browser-test prerequisite policy.
@@ -523,6 +525,17 @@ Await explicit direction before selecting another migration boundary. For the ne
 - Manual Chrome DevTools verification confirmed the seeded and clicked active states, correct Sprouty prompt, one persisted audit record, 338×121px mobile strip with 308×68px wrapped options, zero horizontal overflow, and successful network writes. The only reported browser issue is the existing 29 generated controls without IDs/names.
 - Commits: `e56a068` locks the day-state behavior and visual contract; `952c233` migrates the verified React boundary.
 - Final verification: 83 React tests, React lint, strict type-checking, and the Vite production build pass. The full safety net passes with 18 Python tests and 125 root JavaScript tests, including every real-Chrome browser flow.
+
+### Session 24
+
+- Re-read `AGENTS.md`, this handoff, branch history, status, and the clean diff, then selected the read-only task-progress banner as a smaller sub-boundary than the coupled task list/editor after the user asked to continue.
+- Characterized the exact message, empty state, non-empty-label filtering, truthy legacy completion semantics, checkbox updates, persistence, reload behavior, and exact 1280×720 and 390×844 rendering before changing production code.
+- Added a focused typed task-progress model and React banner component. React claims only `.day-banner`; an ownership-aware legacy helper keeps the standalone renderer unchanged while task editing remains entirely legacy-owned.
+- TDD evidence: the TypeScript suite first failed because `task-progress.ts` did not exist. The completed model covers missing, malformed, non-array, invalid-task, and legacy truthy-done inputs.
+- Automated browser coverage measures the 892×57px desktop and 338×90px mobile banners, compares exact DOM/computed geometry and tolerant screenshots, proves React ownership, and verifies a legacy checkbox updates the React count immediately and survives persistence/reload.
+- Manual Chrome DevTools verification confirmed React ownership, exact text, a live 1/3 to 2/3 update after clicking the legacy checkbox, persisted task state, desktop/mobile screenshots, 338×90px mobile geometry, zero horizontal overflow, and successful requests. The only reported browser issue is the existing 29 generated controls without IDs/names.
+- Commits: `665eb17` locks the task-progress behavior and visual contract; `6cdaeb2` migrates the verified React boundary.
+- Final verification: 88 React tests, React lint, strict type-checking, and the Vite production build pass. The full safety net passes with 18 Python tests and 127 root JavaScript tests, including every real-Chrome browser flow.
 
 ---
 
