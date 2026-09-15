@@ -105,10 +105,23 @@ const PREVIEW_CLIP = `(() => {
 async function scrollToMoneyQuick(browser, documentExpression) {
   await browser.evaluate(`(() => {
     const documentRoot = ${documentExpression};
+    const card = documentRoot.querySelector(".money-quick-card");
+    const mascot = documentRoot.querySelector(".mascot-card");
     documentRoot.documentElement.style.scrollBehavior = "auto";
-    documentRoot.querySelector(".money-quick-card").scrollIntoView({ block: "start" });
+    if (mascot) {
+      mascot.style.visibility = "hidden";
+    }
+    card.scrollIntoView({ block: "start" });
   })()`);
-  await browser.waitForExpression(`(${documentExpression}).querySelector(".money-quick-card").getBoundingClientRect().bottom > 0`);
+  await browser.waitForExpression(`(() => {
+    const documentRoot = ${documentExpression};
+    const rect = documentRoot.querySelector(".money-quick-card").getBoundingClientRect();
+    return rect.top < documentRoot.defaultView.innerHeight && rect.bottom > 0;
+  })()`);
+  await browser.evaluate(`new Promise((resolve) => {
+    const view = (${documentExpression}).defaultView;
+    view.requestAnimationFrame(() => view.requestAnimationFrame(resolve));
+  })`);
 }
 
 function assertSameScreenshot(actual, expected, label) {

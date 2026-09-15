@@ -123,10 +123,23 @@ const PREVIEW_CLIP = `(() => {
 async function scrollToEnergyTrail(browser, documentExpression) {
   await browser.evaluate(`(() => {
     const documentRoot = ${documentExpression};
+    const card = documentRoot.querySelector(".state-history-card");
+    const mascot = documentRoot.querySelector(".mascot-card");
     documentRoot.documentElement.style.scrollBehavior = "auto";
-    documentRoot.querySelector(".state-history-card").scrollIntoView({ block: "start" });
+    if (mascot) {
+      mascot.style.visibility = "hidden";
+    }
+    card.scrollIntoView({ block: "start" });
   })()`);
-  await browser.waitForExpression(`(${documentExpression}).querySelector(".state-history-card").getBoundingClientRect().top >= 0`);
+  await browser.waitForExpression(`(() => {
+    const documentRoot = ${documentExpression};
+    const rect = documentRoot.querySelector(".state-history-card").getBoundingClientRect();
+    return rect.top < documentRoot.defaultView.innerHeight && rect.bottom > 0;
+  })()`);
+  await browser.evaluate(`new Promise((resolve) => {
+    const view = (${documentExpression}).defaultView;
+    view.requestAnimationFrame(() => view.requestAnimationFrame(resolve));
+  })`);
 }
 
 function assertSameScreenshot(actual, expected, label) {
