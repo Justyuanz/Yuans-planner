@@ -92,6 +92,7 @@
       const calendarTaskSync = globalThis.YuanCalendarTaskSync;
       var currentInsightBundleState = null;
       let dashboardInsightBridgeReady = false;
+      let dayStateBridgeReady = false;
       var expandedHiddenTaskDates = {};
       var weeklyPlannerUiState = {
         weekSetupOpen: false,
@@ -2686,12 +2687,30 @@
       }
 
       function renderDayStateOptions() {
-        if (!elements.dayStateOptions) {
+        if (!elements.dayStateOptions || elements.dayStateOptions.dataset.reactOwned === "true") {
           return;
         }
         var activeState = getDayState(formatDate(today));
         Array.prototype.forEach.call(elements.dayStateOptions.querySelectorAll("[data-day-state]"), function (button) {
           button.classList.toggle("is-active", button.dataset.dayState === activeState);
+        });
+      }
+
+      function selectDayState(value) {
+        saveDayState(formatDate(today), value);
+        renderDayStateOptions();
+        renderMascotQuickAsks();
+        renderDashboardInsight();
+        syncMascotBubble();
+      }
+
+      function exposeDayStateBridge() {
+        globalThis.YuanPlannerDayStateBridge = Object.freeze({
+          select: function (state) {
+            if (dayStateBridgeReady) {
+              selectDayState(state);
+            }
+          }
         });
       }
 
@@ -8217,14 +8236,10 @@
         if (elements.taskForm) {
           elements.taskForm.addEventListener("submit", addTask);
         }
-        if (elements.dayStateOptions) {
+        if (elements.dayStateOptions && elements.dayStateOptions.dataset.reactOwned !== "true") {
           Array.prototype.forEach.call(elements.dayStateOptions.querySelectorAll("[data-day-state]"), function (button) {
             button.addEventListener("click", function () {
-              saveDayState(formatDate(today), button.dataset.dayState);
-              renderDayStateOptions();
-              renderMascotQuickAsks();
-              renderDashboardInsight();
-              syncMascotBubble();
+              selectDayState(button.dataset.dayState);
             });
           });
         }
@@ -8431,6 +8446,7 @@
       async function init() {
         await hydrateStore();
         dashboardInsightBridgeReady = true;
+        dayStateBridgeReady = true;
         window.addEventListener("storage", syncExternalPlannerStorage);
         bindNavigation();
         runUiSafely("activity choices", renderActivities);
@@ -8459,5 +8475,6 @@
       }
 
       exposeDashboardInsightBridge();
+      exposeDayStateBridge();
       init();
     }());

@@ -2,6 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { putPlannerStoreValue, type PlannerStoreWrite } from "../api/planner-store";
+import { DayStateOptions } from "../features/day-state/DayStateOptions";
+import { selectDayState } from "../features/day-state/day-state-bridge";
+import { decodeDayState } from "../features/day-state/day-state";
 import { DashboardInsightCard } from "../features/dashboard-insight/DashboardInsightCard";
 import {
   applyDashboardInsightAction,
@@ -62,6 +65,7 @@ export function App() {
   const today = useMemo(() => plannerDateFromSearch(window.location.search, new Date()), []);
   const todayKey = formatPlannerDate(today);
   const [weeklyGoalsMount, setWeeklyGoalsMount] = useState<HTMLElement | null>(null);
+  const [dayStateBoundary, setDayStateBoundary] = useState<FramePortalBoundary | null>(null);
   const [dashboardInsightBoundary, setDashboardInsightBoundary] = useState<FramePortalBoundary | null>(null);
   const [dashboardInsightModel, setDashboardInsightModel] = useState<DashboardInsightModel>(
     buildDashboardInsightModel(null)
@@ -102,6 +106,13 @@ export function App() {
       // The legacy renderer respects this marker so React remains the sole owner of the boundary.
       weeklyMount.dataset.reactOwned = "true";
       setWeeklyGoalsMount(weeklyMount);
+    }
+
+    const dayStateMount = document?.getElementById("dayStateOptions");
+    if (dayStateMount !== null && dayStateMount !== undefined) {
+      dayStateMount.dataset.reactOwned = "true";
+      dayStateMount.replaceChildren();
+      setDayStateBoundary({ frame, mount: dayStateMount });
     }
 
     const dashboardInsightCard = document?.getElementById("dashboardInsightCard");
@@ -320,6 +331,15 @@ export function App() {
         createPortal(
           <WeeklyGoalsCard goals={decodeWeeklyGoals(weeklyStore)} onGoalChange={saveWeeklyGoal} />,
           weeklyGoalsMount
+        )
+      )}
+      {loadedStore !== null && dayStateBoundary !== null && (
+        createPortal(
+          <DayStateOptions
+            activeState={decodeDayState(loadedStore, todayKey)}
+            onSelect={(state) => selectDayState(dayStateBoundary.frame, state)}
+          />,
+          dayStateBoundary.mount
         )
       )}
       {loadedStore !== null && lifePieBoundary !== null && (

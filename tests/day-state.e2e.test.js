@@ -22,7 +22,7 @@ async function openPlanner(browser, pageUrl, documentExpression = "document") {
   await browser.open(pageUrl);
   await browser.waitForExpression(`(() => {
     const documentRoot = ${documentExpression};
-    return Boolean(documentRoot.documentElement.dataset.plannerReady === "true"
+    return Boolean(documentRoot?.documentElement?.dataset.plannerReady === "true"
       && documentRoot.getElementById("dayStateOptions")?.querySelector(".is-active"));
   })()`);
 }
@@ -250,6 +250,10 @@ test("day state records the legacy desktop and mobile visual contract", { timeou
   });
 
   await openPlanner(planner.browser, `${preview.url}/?date=${TEST_DATE}`, previewDocument);
+  assert.equal(
+    await planner.browser.evaluate(`${previewDocument}.getElementById("dayStateOptions").dataset.reactOwned`),
+    "true"
+  );
   const previewDesktopState = await planner.browser.evaluate(dayState(previewDocument));
   const previewDesktop = await planner.browser.evaluate(dayStateVisualContract(previewDocument));
   await scrollToDayState(planner.browser, previewDocument);
@@ -290,5 +294,46 @@ test("day state records the legacy desktop and mobile visual contract", { timeou
   assert.deepEqual(previewMobileState, legacyMobileState);
   assert.deepEqual(previewMobile, legacyMobile);
   assertSameScreenshot(previewMobileScreenshot, legacyMobileScreenshot, "mobile day-state screenshot");
+
+  await planner.browser.evaluate(
+    `${previewDocument}.querySelector("#dayStateOptions [data-day-state=tired]").click()`
+  );
+  const stored = await planner.server.waitFor(async function () {
+    const data = await planner.server.readPlannerData();
+    const states = JSON.parse(data[DAY_STATE_KEY] || "{}");
+    const entries = JSON.parse(data[ACTIVITY_LOG_KEY] || "[]");
+    return states[TEST_DATE] === "tired" ? { entries, states } : null;
+  });
+  assert.deepEqual(stored.states, { [TEST_DATE]: "tired" });
+  const dayStateEntries = stored.entries.filter((entry) => entry.action === "day_state_updated");
+  assert.equal(dayStateEntries.length, 1, JSON.stringify(stored.entries));
+  assert.deepEqual({
+    action: dayStateEntries[0].action,
+    entityType: dayStateEntries[0].entityType,
+    entityId: dayStateEntries[0].entityId,
+    dateKey: dayStateEntries[0].dateKey,
+    before: dayStateEntries[0].before,
+    after: dayStateEntries[0].after
+  }, {
+    action: "day_state_updated",
+    entityType: "day_state",
+    entityId: TEST_DATE,
+    dateKey: TEST_DATE,
+    before: "good",
+    after: "tired"
+  });
+  await planner.browser.waitForExpression(`(() => {
+    const documentRoot = ${previewDocument};
+    return documentRoot.querySelector("#dayStateOptions [data-day-state=tired]").classList.contains("is-active")
+      && documentRoot.querySelector("#mascotQuickAsks .mascot-quick-ask").textContent.trim()
+        === "I'm tired. Can you cut today down?";
+  })()`);
+
+  await planner.browser.reload();
+  await planner.browser.waitForExpression(`(() => {
+    const documentRoot = ${previewDocument};
+    return documentRoot.getElementById("dayStateOptions")?.dataset.reactOwned === "true"
+      && documentRoot.querySelector("#dayStateOptions [data-day-state=tired]")?.classList.contains("is-active");
+  })()`);
   assert.deepEqual(planner.browser.errors(), []);
 });
