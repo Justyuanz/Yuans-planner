@@ -91,6 +91,7 @@
       const storageCore = globalThis.YuanStorageCore;
       const calendarTaskSync = globalThis.YuanCalendarTaskSync;
       var currentInsightBundleState = null;
+      let dashboardInsightBridgeReady = false;
       var expandedHiddenTaskDates = {};
       var weeklyPlannerUiState = {
         weekSetupOpen: false,
@@ -2434,14 +2435,21 @@
       function exposeDashboardInsightBridge() {
         globalThis.YuanPlannerDashboardInsightBridge = Object.freeze({
           applyAction: function (actionId) {
-            applyInsightAction(actionId);
+            if (dashboardInsightBridgeReady) {
+              applyInsightAction(actionId);
+            }
           },
           currentInsight: function () {
+            if (!dashboardInsightBridgeReady) {
+              return null;
+            }
             const bundle = currentInsightBundle();
             return bundle ? bundle.topInsight : null;
           },
           openHistory: function () {
-            openPatternHistoryDialog();
+            if (dashboardInsightBridgeReady) {
+              openPatternHistoryDialog();
+            }
           }
         });
       }
@@ -8398,6 +8406,7 @@
 
       async function init() {
         await hydrateStore();
+        dashboardInsightBridgeReady = true;
         window.addEventListener("storage", syncExternalPlannerStorage);
         bindNavigation();
         runUiSafely("activity choices", renderActivities);
