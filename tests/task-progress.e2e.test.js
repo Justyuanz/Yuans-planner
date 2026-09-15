@@ -193,6 +193,10 @@ test("task progress records the legacy desktop and mobile visual contract", { ti
   });
 
   await openPlanner(planner.browser, `${preview.url}/?date=${TEST_DATE}`, previewDocument);
+  assert.equal(
+    await planner.browser.evaluate(`${previewDocument}.querySelector(".day-banner").dataset.reactOwned`),
+    "true"
+  );
   const previewDesktopState = await planner.browser.evaluate(progressState(previewDocument));
   const previewDesktop = await planner.browser.evaluate(progressVisualContract(previewDocument));
   await scrollToProgress(planner.browser, previewDocument);
@@ -233,5 +237,28 @@ test("task progress records the legacy desktop and mobile visual contract", { ti
   assert.deepEqual(previewMobileState, legacyMobileState);
   assert.deepEqual(previewMobile, legacyMobile);
   assertSameScreenshot(previewMobileScreenshot, legacyMobileScreenshot, "mobile task-progress screenshot");
+
+  await planner.browser.evaluate(`(() => {
+    const documentRoot = ${previewDocument};
+    const task = [...documentRoot.querySelectorAll(".task")]
+      .find((item) => item.textContent.includes("Second task"));
+    task.querySelector(".task-check").click();
+  })()`);
+  await planner.browser.waitForExpression(`(() => {
+    const documentRoot = ${previewDocument};
+    return documentRoot.getElementById("progressText")?.textContent === "3 / 3 tasks done today";
+  })()`);
+  await planner.server.waitFor(async function () {
+    const data = await planner.server.readPlannerData();
+    const tasks = JSON.parse(data[TASKS_KEY] || "[]");
+    return tasks.find((task) => task.id === "second")?.done === true;
+  });
+
+  await planner.browser.reload();
+  await planner.browser.waitForExpression(`(() => {
+    const documentRoot = ${previewDocument};
+    return documentRoot.querySelector(".day-banner")?.dataset.reactOwned === "true"
+      && documentRoot.getElementById("progressText")?.textContent === "3 / 3 tasks done today";
+  })()`);
   assert.deepEqual(planner.browser.errors(), []);
 });

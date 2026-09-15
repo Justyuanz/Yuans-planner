@@ -600,6 +600,7 @@
         views: document.querySelectorAll(".view"),
         todaySubtitle: document.getElementById("todaySubtitle"),
         weekKeyLabel: document.getElementById("weekKeyLabel"),
+        dayBanner: document.querySelector(".day-banner"),
         dayMessage: document.getElementById("dayMessage"),
         progressText: document.getElementById("progressText"),
         weeklyGoals: document.getElementById("weeklyGoals"),
@@ -4065,6 +4066,15 @@
         elements.taskActivity.value = "other";
       }
 
+      function renderTaskProgress(doneCount, taskCount) {
+        if (!elements.dayMessage || !elements.progressText
+          || (elements.dayBanner && elements.dayBanner.dataset.reactOwned === "true")) {
+          return;
+        }
+        elements.dayMessage.textContent = "Tasks from your calendar and planner.";
+        elements.progressText.textContent = doneCount + " / " + taskCount + " tasks done today";
+      }
+
       // Today's tasks are editable and saved by exact date.
       function renderTasks() {
         if (!elements.todaySubtitle || !elements.weekKeyLabel || !elements.dayMessage || !elements.tasksMount || !elements.progressText) {
@@ -4089,7 +4099,7 @@
           dashboardDate.textContent = humanDate(todayKey);
         }
         elements.weekKeyLabel.textContent = "Live plan for " + todayKey;
-        elements.dayMessage.textContent = "Tasks from your calendar and planner.";
+        renderTaskProgress(doneCount, tasks.length);
         elements.tasksMount.innerHTML = "";
 
         if (tasks.length === 0) {
@@ -4098,7 +4108,6 @@
             "Clear day. Add only what actually matters today.",
             "</p>"
           ].join("");
-          elements.progressText.textContent = "0 / 0 tasks done today";
           renderDashboardInsight();
           return;
         }
@@ -4359,7 +4368,6 @@
         });
 
         elements.tasksMount.appendChild(list);
-        elements.progressText.textContent = doneCount + " / " + tasks.length + " tasks done today";
         renderDashboardInsight();
       }
 

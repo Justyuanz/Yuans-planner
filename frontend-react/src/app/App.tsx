@@ -33,6 +33,8 @@ import { PlannedActualCard } from "../features/planned-actual/PlannedActualCard"
 import { plannedStorageKey } from "../features/planned-actual/planned-actual";
 import { PatternHistoryDialog } from "../features/pattern-history/PatternHistoryDialog";
 import { emptyPatternHistoryModel } from "../features/pattern-history/pattern-history";
+import { TaskProgressBanner } from "../features/task-progress/TaskProgressBanner";
+import { buildTaskProgressModel } from "../features/task-progress/task-progress";
 import { WeeklyGoalsCard } from "../features/weekly-goals/WeeklyGoalsCard";
 import {
   decodeWeeklyGoals,
@@ -66,6 +68,7 @@ export function App() {
   const todayKey = formatPlannerDate(today);
   const [weeklyGoalsMount, setWeeklyGoalsMount] = useState<HTMLElement | null>(null);
   const [dayStateBoundary, setDayStateBoundary] = useState<FramePortalBoundary | null>(null);
+  const [taskProgressMount, setTaskProgressMount] = useState<HTMLElement | null>(null);
   const [dashboardInsightBoundary, setDashboardInsightBoundary] = useState<FramePortalBoundary | null>(null);
   const [dashboardInsightModel, setDashboardInsightModel] = useState<DashboardInsightModel>(
     buildDashboardInsightModel(null)
@@ -113,6 +116,13 @@ export function App() {
       dayStateMount.dataset.reactOwned = "true";
       dayStateMount.replaceChildren();
       setDayStateBoundary({ frame, mount: dayStateMount });
+    }
+
+    const taskProgressMount = document?.querySelector<HTMLElement>(".day-banner");
+    if (taskProgressMount !== null && taskProgressMount !== undefined) {
+      taskProgressMount.dataset.reactOwned = "true";
+      taskProgressMount.replaceChildren();
+      setTaskProgressMount(taskProgressMount);
     }
 
     const dashboardInsightCard = document?.getElementById("dashboardInsightCard");
@@ -340,6 +350,12 @@ export function App() {
             onSelect={(state) => selectDayState(dayStateBoundary.frame, state)}
           />,
           dayStateBoundary.mount
+        )
+      )}
+      {loadedStore !== null && taskProgressMount !== null && (
+        createPortal(
+          <TaskProgressBanner model={buildTaskProgressModel(loadedStore, todayKey)} />,
+          taskProgressMount
         )
       )}
       {loadedStore !== null && lifePieBoundary !== null && (
