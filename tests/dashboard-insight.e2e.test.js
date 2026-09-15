@@ -45,6 +45,11 @@ async function openDashboard(browser, pageUrl, documentExpression = "document") 
   })()`);
 }
 
+async function waitForTaskOverpacking(browser, documentExpression = "document") {
+  await browser.waitForExpression(`(${documentExpression}).getElementById("dashboardInsightTitle").textContent.trim()
+    === "Today may be holding more tasks than you usually finish."`);
+}
+
 function insightState(documentExpression = "document") {
   return `(() => {
     const documentRoot = ${documentExpression};
@@ -263,6 +268,10 @@ test("Pattern noticed records the legacy desktop and mobile visual contract", { 
 
   const previewDocument = 'document.querySelector("iframe").contentDocument';
   await openDashboard(planner.browser, `${preview.url}/?date=${TEST_DATE}`, previewDocument);
+  await waitForTaskOverpacking(planner.browser, previewDocument);
+  assert.equal(await planner.browser.evaluate(
+    'document.querySelector("iframe").contentDocument.getElementById("dashboardInsightCard").dataset.reactOwned'
+  ), "true");
   const previewDesktopState = await planner.browser.evaluate(insightState(previewDocument));
   const previewDesktop = await planner.browser.evaluate(insightVisualContract(previewDocument));
   await scrollToInsight(planner.browser, previewDocument);
@@ -292,6 +301,7 @@ test("Pattern noticed records the legacy desktop and mobile visual contract", { 
   assert.ok(legacyMobileScreenshot.length > 1_000);
 
   await openDashboard(planner.browser, `${preview.url}/?date=${TEST_DATE}`, previewDocument);
+  await waitForTaskOverpacking(planner.browser, previewDocument);
   const previewMobileState = await planner.browser.evaluate(insightState(previewDocument));
   const previewMobile = await planner.browser.evaluate(insightVisualContract(previewDocument));
   await scrollToInsight(planner.browser, previewDocument);
@@ -302,5 +312,84 @@ test("Pattern noticed records the legacy desktop and mobile visual contract", { 
   assert.deepEqual(previewMobileState, legacyMobileState);
   assert.deepEqual(previewMobile, legacyMobile);
   assertSameScreenshot(previewMobileScreenshot, legacyMobileScreenshot, "mobile Pattern noticed screenshot");
+  assert.deepEqual(planner.browser.errors(), []);
+});
+
+test("React Pattern noticed delegates actions and follows legacy task changes", { timeout: 60_000 }, async function (context) {
+  const planner = await startBrowserPlanner(context);
+  if (!planner) {
+    return;
+  }
+  await seedTaskOverpacking(planner.server.url);
+  const preview = await startReactPreviewServer(planner.server.url);
+  if (!preview) {
+    context.skip("Install frontend-react dependencies to run React interaction tests.");
+    return;
+  }
+  context.after(async function () {
+    await preview.close();
+  });
+
+  const previewDocument = 'document.querySelector("iframe").contentDocument';
+  await planner.browser.setViewport(1280, 720);
+  await openDashboard(planner.browser, `${preview.url}/?date=${TEST_DATE}`, previewDocument);
+  await waitForTaskOverpacking(planner.browser, previewDocument);
+  assert.equal(await planner.browser.evaluate(
+    'document.querySelector("iframe").contentDocument.getElementById("dashboardInsightCard").dataset.reactOwned'
+  ), "true");
+
+  await planner.browser.evaluate(`(() => {
+    const documentRoot = ${previewDocument};
+    documentRoot.querySelector("#dashboardInsightActions .insight-action").click();
+  })()`);
+  assert.equal(await planner.browser.evaluate(
+    `(${previewDocument}).activeElement === (${previewDocument}).getElementById("taskTitle")`
+  ), true);
+
+  await planner.browser.evaluate(`(() => {
+    const documentRoot = ${previewDocument};
+    const planned = documentRoot.getElementById("plannedMount");
+    documentRoot.defaultView.Element.prototype.scrollIntoView = function (options) {
+      if (this === planned) {
+        planned.dataset.testScroll = JSON.stringify(options);
+      }
+    };
+    documentRoot.querySelectorAll("#dashboardInsightActions .insight-action")[1].click();
+  })()`);
+  assert.equal(
+    await planner.browser.evaluate(`(${previewDocument}).getElementById("plannedMount").dataset.testScroll`),
+    JSON.stringify({ behavior: "smooth", block: "center" })
+  );
+
+  await planner.browser.evaluate(`(${previewDocument}).getElementById("openPatternHistory").click()`);
+  await planner.browser.waitForExpression(`(${previewDocument}).getElementById("patternHistoryDialog").open`);
+  assert.equal(
+    await planner.browser.evaluate(`(${previewDocument}).getElementById("patternHistoryRange").textContent.trim()`),
+    "Last 14 days through 2026-09-14"
+  );
+  await planner.browser.evaluate(`(${previewDocument}).getElementById("patternHistoryDialog").close()`);
+
+  for (let remaining = 3; remaining >= 0; remaining -= 1) {
+    await planner.browser.evaluate(`(${previewDocument}).querySelector(".task-delete").click()`);
+    await planner.browser.waitForExpression(`(${previewDocument}).querySelectorAll(".task-delete").length === ${remaining}`);
+  }
+  const updatedBridgeTitle = await planner.browser.evaluate(`document.querySelector("iframe").contentWindow
+    .YuanPlannerDashboardInsightBridge.currentInsight()?.title || null`);
+  assert.equal(updatedBridgeTitle, "A few open tasks still look too vague to start cleanly.");
+  await planner.browser.waitForExpression(`(${previewDocument}).getElementById("dashboardInsightTitle").textContent.trim()
+    === "A few open tasks still look too vague to start cleanly."`);
+  assert.deepEqual(await planner.browser.evaluate(insightState(previewDocument)), {
+    hidden: false,
+    heading: "Pattern noticed",
+    mode: "focus · 5 days",
+    title: "A few open tasks still look too vague to start cleanly.",
+    why: "0 open tasks use broad labels, and vague tasks have been completed less often than timed or specific ones lately.",
+    actions: ["Make one task concrete", "Focus today's tasks"],
+    history: { hidden: false, text: "View pattern history" }
+  });
+  await planner.server.waitFor(async function () {
+    const stored = await planner.server.readPlannerData();
+    return JSON.parse(stored[`${DAILY_TASKS_PREFIX}${TEST_DATE}`] || "[]").length === 0;
+  });
   assert.deepEqual(planner.browser.errors(), []);
 });

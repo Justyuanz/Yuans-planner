@@ -903,10 +903,16 @@
         }
         if (event.newValue === null) {
           delete memoryStore[event.key];
+          if (dashboardInsightIsReactOwned()) {
+            renderDashboardInsight();
+          }
           return;
         }
         // React-owned mounts write from the parent document; keep legacy actions from overwriting them.
         memoryStore[event.key] = event.newValue;
+        if (dashboardInsightIsReactOwned()) {
+          renderDashboardInsight();
+        }
       }
 
       function readText(key, fallback) {
@@ -2393,8 +2399,9 @@
       }
 
       function scrollToPlannedHours() {
-        if (elements.plannedMount && elements.plannedMount.scrollIntoView) {
-          elements.plannedMount.scrollIntoView({ behavior: "smooth", block: "center" });
+        const plannedMount = document.getElementById("plannedMount") || elements.plannedMount;
+        if (plannedMount && plannedMount.scrollIntoView) {
+          plannedMount.scrollIntoView({ behavior: "smooth", block: "center" });
         }
       }
 
@@ -2413,6 +2420,30 @@
         if (actionHandlers[actionId]) {
           actionHandlers[actionId]();
         }
+      }
+
+      function dashboardInsightIsReactOwned() {
+        return Boolean(elements.dashboardInsightCard
+          && elements.dashboardInsightCard.dataset.reactOwned === "true");
+      }
+
+      function notifyDashboardInsightUpdated() {
+        window.dispatchEvent(new CustomEvent("hive-planner-dashboard-insight-updated"));
+      }
+
+      function exposeDashboardInsightBridge() {
+        globalThis.YuanPlannerDashboardInsightBridge = Object.freeze({
+          applyAction: function (actionId) {
+            applyInsightAction(actionId);
+          },
+          currentInsight: function () {
+            const bundle = currentInsightBundle();
+            return bundle ? bundle.topInsight : null;
+          },
+          openHistory: function () {
+            openPatternHistoryDialog();
+          }
+        });
       }
 
       function defaultMascotBubbleText() {
@@ -2974,6 +3005,18 @@
         }
         var bundle = currentInsightBundle();
         var topInsight = bundle ? bundle.topInsight : null;
+
+        if (dashboardInsightIsReactOwned()) {
+          if (!topInsight) {
+            syncMascotBubble();
+          } else if (!mascotState.chatOpen) {
+            mascotState.bubbleOverride = "";
+            syncMascotBubble();
+          }
+          notifyDashboardInsightUpdated();
+          renderEnergyTrail();
+          return;
+        }
 
         if (!topInsight) {
           clearDashboardInsightCard();
@@ -8380,5 +8423,6 @@
         window.setInterval(updateLiveTimers, 1000);
       }
 
+      exposeDashboardInsightBridge();
       init();
     }());

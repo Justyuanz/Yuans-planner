@@ -2,6 +2,17 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { putPlannerStoreValue, type PlannerStoreWrite } from "../api/planner-store";
+import { DashboardInsightCard } from "../features/dashboard-insight/DashboardInsightCard";
+import {
+  applyDashboardInsightAction,
+  DASHBOARD_INSIGHT_UPDATED_EVENT,
+  openDashboardInsightHistory,
+  readDashboardInsight
+} from "../features/dashboard-insight/dashboard-insight-bridge";
+import {
+  buildDashboardInsightModel,
+  type DashboardInsightModel
+} from "../features/dashboard-insight/dashboard-insight";
 import { EnergyTrailCard } from "../features/energy-trail/EnergyTrailCard";
 import { JournalArchiveCard } from "../features/journal-archive/JournalArchiveCard";
 import { LifePieCard } from "../features/life-pie/LifePieCard";
@@ -30,7 +41,7 @@ interface ReactPanelBoundary {
   mount: HTMLElement;
 }
 
-interface EnergyTrailBoundary {
+interface FramePortalBoundary {
   frame: HTMLIFrameElement;
   mount: HTMLElement;
 }
@@ -47,10 +58,14 @@ export function App() {
   const plannerStore = usePlannerStore();
   const today = useMemo(() => plannerDateFromSearch(window.location.search, new Date()), []);
   const [weeklyGoalsMount, setWeeklyGoalsMount] = useState<HTMLElement | null>(null);
+  const [dashboardInsightBoundary, setDashboardInsightBoundary] = useState<FramePortalBoundary | null>(null);
+  const [dashboardInsightModel, setDashboardInsightModel] = useState<DashboardInsightModel>(
+    buildDashboardInsightModel(null)
+  );
   const [lifePieBoundary, setLifePieBoundary] = useState<ReactPanelBoundary | null>(null);
   const [plannedBoundary, setPlannedBoundary] = useState<ReactPanelBoundary | null>(null);
-  const [energyTrailBoundary, setEnergyTrailBoundary] = useState<EnergyTrailBoundary | null>(null);
-  const [journalArchiveBoundary, setJournalArchiveBoundary] = useState<EnergyTrailBoundary | null>(null);
+  const [energyTrailBoundary, setEnergyTrailBoundary] = useState<FramePortalBoundary | null>(null);
+  const [journalArchiveBoundary, setJournalArchiveBoundary] = useState<FramePortalBoundary | null>(null);
   const [legacyFrame, setLegacyFrame] = useState<HTMLIFrameElement | null>(null);
   const [meditationBoundary, setMeditationBoundary] = useState<ReactPanelBoundary | null>(null);
   const [moneyActivityMount, setMoneyActivityMount] = useState<HTMLElement | null>(null);
@@ -61,6 +76,12 @@ export function App() {
   const [moneyVendorsMount, setMoneyVendorsMount] = useState<HTMLElement | null>(null);
   const [weeklyGoalsOverride, setWeeklyGoalsOverride] = useState<string | null>(null);
   const [selectedJournalDateKey, setSelectedJournalDateKey] = useState(formatPlannerDate(today));
+  const legacyUrl = `/legacy/${window.location.search}`;
+  const loadedStore = plannerStore.status === "ready" ? plannerStore.store : null;
+  const plannedKey = plannedStorageKey(today);
+  const weeklyStore = loadedStore === null || weeklyGoalsOverride === null
+    ? loadedStore
+    : { ...loadedStore, [WEEKLY_GOALS_STORAGE_KEY]: weeklyGoalsOverride };
 
   function claimReactMounts(frame: HTMLIFrameElement): void {
     const document = frame.contentDocument;
@@ -72,6 +93,16 @@ export function App() {
       // The legacy renderer respects this marker so React remains the sole owner of the boundary.
       weeklyMount.dataset.reactOwned = "true";
       setWeeklyGoalsMount(weeklyMount);
+    }
+
+    const dashboardInsightCard = document?.getElementById("dashboardInsightCard");
+    const dashboardInsightMount = dashboardInsightCard?.querySelector<HTMLElement>(".panel-inner");
+    if (dashboardInsightCard !== null && dashboardInsightCard !== undefined
+      && dashboardInsightMount !== null && dashboardInsightMount !== undefined) {
+      dashboardInsightCard.hidden = false;
+      dashboardInsightCard.dataset.reactOwned = "true";
+      dashboardInsightMount.replaceChildren();
+      setDashboardInsightBoundary({ frame, mount: dashboardInsightMount });
     }
 
     const lifeCard = document?.querySelector<HTMLElement>(".life-card");
@@ -176,6 +207,22 @@ export function App() {
   }
 
   useEffect(() => {
+    if (dashboardInsightBoundary === null) {
+      return;
+    }
+    const frame = dashboardInsightBoundary.frame;
+    const frameWindow = frame.contentWindow;
+    function syncDashboardInsight(): void {
+      setDashboardInsightModel(readDashboardInsight(frame));
+    }
+    frameWindow?.addEventListener(DASHBOARD_INSIGHT_UPDATED_EVENT, syncDashboardInsight);
+    syncDashboardInsight();
+    return () => {
+      frameWindow?.removeEventListener(DASHBOARD_INSIGHT_UPDATED_EVENT, syncDashboardInsight);
+    };
+  }, [dashboardInsightBoundary, loadedStore]);
+
+  useEffect(() => {
     if (legacyFrame === null) {
       return;
     }
@@ -194,13 +241,6 @@ export function App() {
       frameWindow?.removeEventListener("click", syncSelectedDate);
     };
   }, [legacyFrame]);
-
-  const legacyUrl = `/legacy/${window.location.search}`;
-  const loadedStore = plannerStore.status === "ready" ? plannerStore.store : null;
-  const plannedKey = plannedStorageKey(today);
-  const weeklyStore = loadedStore === null || weeklyGoalsOverride === null
-    ? loadedStore
-    : { ...loadedStore, [WEEKLY_GOALS_STORAGE_KEY]: weeklyGoalsOverride };
 
   function saveWeeklyGoal(goalId: WeeklyGoalId, text: string): void {
     if (weeklyStore === null) {
@@ -230,7 +270,7 @@ export function App() {
     });
   }
 
-  function openJournalDate(boundary: EnergyTrailBoundary, date: string): void {
+  function openJournalDate(boundary: FramePortalBoundary, date: string): void {
     const frameDocument = boundary.frame.contentDocument;
     if (frameDocument === null) {
       return;
@@ -269,6 +309,20 @@ export function App() {
             today={today}
           />,
           lifePieBoundary.mount
+        )
+      )}
+      {loadedStore !== null && dashboardInsightBoundary !== null && (
+        createPortal(
+          <DashboardInsightCard
+            model={dashboardInsightModel}
+            onAction={(actionId) => {
+              applyDashboardInsightAction(dashboardInsightBoundary.frame, actionId);
+            }}
+            onOpenHistory={() => {
+              openDashboardInsightHistory(dashboardInsightBoundary.frame);
+            }}
+          />,
+          dashboardInsightBoundary.mount
         )
       )}
       {loadedStore !== null && plannedBoundary !== null && (
