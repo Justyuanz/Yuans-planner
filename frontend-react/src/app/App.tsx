@@ -7,7 +7,8 @@ import {
   applyDashboardInsightAction,
   DASHBOARD_INSIGHT_UPDATED_EVENT,
   openDashboardInsightHistory,
-  readDashboardInsight
+  readDashboardInsight,
+  readDashboardInsightHistory
 } from "../features/dashboard-insight/dashboard-insight-bridge";
 import {
   buildDashboardInsightModel,
@@ -27,6 +28,8 @@ import { MoneyQuickCard } from "../features/money-quick/MoneyQuickCard";
 import { MoneyVendorsCard } from "../features/money-vendors/MoneyVendorsCard";
 import { PlannedActualCard } from "../features/planned-actual/PlannedActualCard";
 import { plannedStorageKey } from "../features/planned-actual/planned-actual";
+import { PatternHistoryDialog } from "../features/pattern-history/PatternHistoryDialog";
+import { emptyPatternHistoryModel } from "../features/pattern-history/pattern-history";
 import { WeeklyGoalsCard } from "../features/weekly-goals/WeeklyGoalsCard";
 import {
   decodeWeeklyGoals,
@@ -57,11 +60,17 @@ function selectedJournalDate(input: HTMLInputElement | null | undefined, fallbac
 export function App() {
   const plannerStore = usePlannerStore();
   const today = useMemo(() => plannerDateFromSearch(window.location.search, new Date()), []);
+  const todayKey = formatPlannerDate(today);
   const [weeklyGoalsMount, setWeeklyGoalsMount] = useState<HTMLElement | null>(null);
   const [dashboardInsightBoundary, setDashboardInsightBoundary] = useState<FramePortalBoundary | null>(null);
   const [dashboardInsightModel, setDashboardInsightModel] = useState<DashboardInsightModel>(
     buildDashboardInsightModel(null)
   );
+  const [patternHistoryBoundary, setPatternHistoryBoundary] = useState<FramePortalBoundary | null>(null);
+  const [patternHistoryModel, setPatternHistoryModel] = useState(
+    emptyPatternHistoryModel(todayKey)
+  );
+  const [patternHistoryRevision, setPatternHistoryRevision] = useState(0);
   const [lifePieBoundary, setLifePieBoundary] = useState<ReactPanelBoundary | null>(null);
   const [plannedBoundary, setPlannedBoundary] = useState<ReactPanelBoundary | null>(null);
   const [energyTrailBoundary, setEnergyTrailBoundary] = useState<FramePortalBoundary | null>(null);
@@ -103,6 +112,13 @@ export function App() {
       dashboardInsightCard.dataset.reactOwned = "true";
       dashboardInsightMount.replaceChildren();
       setDashboardInsightBoundary({ frame, mount: dashboardInsightMount });
+    }
+
+    const patternHistoryDialog = document?.querySelector<HTMLDialogElement>("#patternHistoryDialog");
+    if (patternHistoryDialog !== null && patternHistoryDialog !== undefined) {
+      patternHistoryDialog.dataset.reactOwned = "true";
+      patternHistoryDialog.replaceChildren();
+      setPatternHistoryBoundary({ frame, mount: patternHistoryDialog });
     }
 
     const lifeCard = document?.querySelector<HTMLElement>(".life-card");
@@ -214,13 +230,18 @@ export function App() {
     const frameWindow = frame.contentWindow;
     function syncDashboardInsight(): void {
       setDashboardInsightModel(readDashboardInsight(frame));
+      const historyDialog = frame.contentDocument?.querySelector<HTMLDialogElement>("#patternHistoryDialog");
+      // Legacy history is a snapshot taken when opened, not a live-changing dialog.
+      if (!historyDialog?.open) {
+        setPatternHistoryModel(readDashboardInsightHistory(frame, todayKey));
+      }
     }
     frameWindow?.addEventListener(DASHBOARD_INSIGHT_UPDATED_EVENT, syncDashboardInsight);
     syncDashboardInsight();
     return () => {
       frameWindow?.removeEventListener(DASHBOARD_INSIGHT_UPDATED_EVENT, syncDashboardInsight);
     };
-  }, [dashboardInsightBoundary, loadedStore]);
+  }, [dashboardInsightBoundary, loadedStore, todayKey]);
 
   useEffect(() => {
     if (legacyFrame === null) {
@@ -319,10 +340,27 @@ export function App() {
               applyDashboardInsightAction(dashboardInsightBoundary.frame, actionId);
             }}
             onOpenHistory={() => {
+              setPatternHistoryModel(readDashboardInsightHistory(
+                dashboardInsightBoundary.frame,
+                todayKey
+              ));
+              setPatternHistoryRevision((revision) => revision + 1);
               openDashboardInsightHistory(dashboardInsightBoundary.frame);
             }}
           />,
           dashboardInsightBoundary.mount
+        )
+      )}
+      {loadedStore !== null && patternHistoryBoundary !== null && (
+        createPortal(
+          <PatternHistoryDialog
+            key={patternHistoryRevision}
+            model={patternHistoryModel}
+            onAction={(actionId) => {
+              applyDashboardInsightAction(patternHistoryBoundary.frame, actionId);
+            }}
+          />,
+          patternHistoryBoundary.mount
         )
       )}
       {loadedStore !== null && plannedBoundary !== null && (

@@ -1,11 +1,13 @@
 import { isRecord } from "../../shared/is-record";
 import { buildDashboardInsightModel, type DashboardInsightModel } from "./dashboard-insight";
+import { buildPatternHistoryModel, type PatternHistoryModel } from "../pattern-history/pattern-history";
 
 export const DASHBOARD_INSIGHT_UPDATED_EVENT = "hive-planner-dashboard-insight-updated";
 
 interface DashboardInsightBridge {
   applyAction: (actionId: string) => void;
   currentInsight: () => unknown;
+  currentHistory?: () => unknown;
   openHistory: () => void;
 }
 
@@ -29,6 +31,14 @@ export function applyDashboardInsightAction(frame: HTMLIFrameElement, actionId: 
   bridgeForFrame(frame)?.applyAction(actionId);
 }
 
+export function readDashboardInsightHistory(
+  frame: HTMLIFrameElement,
+  currentDateKey: string
+): PatternHistoryModel {
+  const bridge = bridgeForFrame(frame);
+  return buildPatternHistoryModel(bridge?.currentHistory?.(), currentDateKey);
+}
+
 export function openDashboardInsightHistory(frame: HTMLIFrameElement): void {
   bridgeForFrame(frame)?.openHistory();
 }
@@ -38,4 +48,3 @@ declare global {
     YuanPlannerDashboardInsightBridge?: unknown;
   }
 }
-

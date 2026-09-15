@@ -292,6 +292,9 @@ test("Pattern history records the legacy desktop and mobile visual contract", { 
 
   await openPlanner(planner.browser, `${preview.url}/?date=${TEST_DATE}`, previewDocument);
   await openHistory(planner.browser, previewDocument);
+  assert.equal(await planner.browser.evaluate(
+    `(${previewDocument}).getElementById("patternHistoryDialog").dataset.reactOwned`
+  ), "true");
   await planner.browser.evaluate(`(${previewDocument}).querySelector('.pattern-history-evidence summary').click()`);
   const previewDesktopState = await planner.browser.evaluate(historyState(previewDocument));
   const previewDesktop = await planner.browser.evaluate(historyVisualContract(previewDocument));
@@ -332,5 +335,50 @@ test("Pattern history records the legacy desktop and mobile visual contract", { 
   assert.deepEqual(previewMobileState, legacyMobileState);
   assert.deepEqual(previewMobile, legacyMobile);
   assertSameScreenshot(previewMobileScreenshot, legacyMobileScreenshot, "mobile Pattern history screenshot");
+
+  await planner.browser.evaluate(`(() => {
+    const documentRoot = ${previewDocument};
+    const planned = documentRoot.getElementById("plannedMount");
+    documentRoot.defaultView.Element.prototype.scrollIntoView = function (options) {
+      if (this === planned) {
+        planned.dataset.testScroll = JSON.stringify(options);
+      }
+    };
+    documentRoot.querySelectorAll(".pattern-history-item")[1].querySelector(".insight-action").click();
+  })()`);
+  assert.equal(
+    await planner.browser.evaluate(`(${previewDocument}).getElementById("plannedMount").dataset.testScroll`),
+    JSON.stringify({ behavior: "smooth", block: "center" })
+  );
+  assert.equal(
+    await planner.browser.evaluate(`(${previewDocument}).getElementById("patternHistoryDialog").open`),
+    true
+  );
+
+  await planner.browser.evaluate(`(${previewDocument}).getElementById("closePatternHistory").click()`);
+  await planner.browser.waitForExpression(`!(${previewDocument}).getElementById("patternHistoryDialog").open`);
+  await openHistory(planner.browser, previewDocument);
+  assert.equal(
+    (await planner.browser.evaluate(historyState(previewDocument))).groups[0].items[0].evidence.open,
+    false
+  );
+  await planner.browser.evaluate(`(${previewDocument}).getElementById("closePatternHistory").click()`);
+
+  for (let remaining = 3; remaining >= 0; remaining -= 1) {
+    await planner.browser.evaluate(`(${previewDocument}).querySelector(".task-delete").click()`);
+    await planner.browser.waitForExpression(
+      `(${previewDocument}).querySelectorAll(".task-delete").length === ${remaining}`
+    );
+  }
+  await openHistory(planner.browser, previewDocument);
+  await planner.browser.waitForExpression(
+    `(${previewDocument}).querySelectorAll(".pattern-history-group").length === 1`
+  );
+  const refreshedHistory = await planner.browser.evaluate(historyState(previewDocument));
+  assert.equal(refreshedHistory.groups[0].title, "Focus friction");
+  assert.equal(
+    refreshedHistory.groups[0].items[0].summary,
+    "0 open tasks use broad labels, and vague tasks have been completed less often than timed or specific ones lately."
+  );
   assert.deepEqual(planner.browser.errors(), []);
 });

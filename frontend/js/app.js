@@ -2428,6 +2428,11 @@
           && elements.dashboardInsightCard.dataset.reactOwned === "true");
       }
 
+      function patternHistoryIsReactOwned() {
+        return Boolean(elements.patternHistoryDialog
+          && elements.patternHistoryDialog.dataset.reactOwned === "true");
+      }
+
       function notifyDashboardInsightUpdated() {
         window.dispatchEvent(new CustomEvent("hive-planner-dashboard-insight-updated"));
       }
@@ -2445,6 +2450,12 @@
             }
             const bundle = currentInsightBundle();
             return bundle ? bundle.topInsight : null;
+          },
+          currentHistory: function () {
+            if (!dashboardInsightBridgeReady) {
+              return null;
+            }
+            return currentPatternHistoryModel();
           },
           openHistory: function () {
             if (dashboardInsightBridgeReady) {
@@ -3112,17 +3123,30 @@
         }
       }
 
-      function renderPatternHistoryDialog() {
-        if (!patternHistory || !elements.patternHistoryBody || !elements.patternHistoryRange) {
-          return;
+      function currentPatternHistoryModel() {
+        if (!patternHistory) {
+          return null;
         }
         var bundle = currentInsightBundleState || currentInsightBundle();
-        var model = patternHistory.buildPatternHistoryModel({
+        return patternHistory.buildPatternHistoryModel({
           insights: bundle && bundle.insights,
           metrics: bundle && bundle.metrics,
           currentDateKey: formatDate(today),
           lookbackDays: INSIGHT_LOOKBACK_DAYS
         });
+      }
+
+      function renderPatternHistoryDialog() {
+        if (patternHistoryIsReactOwned()) {
+          return;
+        }
+        if (!patternHistory || !elements.patternHistoryBody || !elements.patternHistoryRange) {
+          return;
+        }
+        var model = currentPatternHistoryModel();
+        if (!model) {
+          return;
+        }
 
         elements.patternHistoryRange.textContent = model.rangeLabel;
         elements.patternHistoryBody.innerHTML = "";
