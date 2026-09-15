@@ -2,6 +2,8 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const { startBrowserPlanner } = require("./helpers/browser-planner");
+const { compareScreenshots } = require("./helpers/png-compare");
+const { startReactPreviewServer } = require("./helpers/react-preview-server");
 
 const TEST_DATE = "2026-09-14";
 const SETTINGS_KEY = "hivePlanner.money.settings";
@@ -62,22 +64,24 @@ async function seedBudgets(serverUrl) {
   await putValue(serverUrl, TRANSACTIONS_KEY, TRANSACTIONS);
 }
 
-async function openMoney(browser, pageUrl) {
+async function openMoney(browser, pageUrl, documentExpression = "document") {
   await browser.open(pageUrl);
-  await browser.waitForExpression('document.querySelector(".money-budget-card") !== null');
+  await browser.waitForExpression(`(${documentExpression}).querySelector(".money-budget-card") !== null`);
   await browser.waitForExpression(`(() => {
-    const moneyView = document.getElementById("moneyView");
+    const documentRoot = ${documentExpression};
+    const moneyView = documentRoot.getElementById("moneyView");
     if (!moneyView.classList.contains("active")) {
-      document.querySelector('[data-view-target="moneyView"]').click();
+      documentRoot.querySelector('[data-view-target="moneyView"]').click();
     }
     return moneyView.classList.contains("active")
-      && document.querySelectorAll("#moneyCategoryBudgetList .money-budget-section").length === 2;
+      && documentRoot.querySelectorAll("#moneyCategoryBudgetList .money-budget-section").length === 2;
   })()`);
 }
 
-function budgetState() {
+function budgetState(documentExpression = "document") {
   return `(() => {
-    const card = document.querySelector(".money-budget-card");
+    const documentRoot = ${documentExpression};
+    const card = documentRoot.querySelector(".money-budget-card");
     const settings = card.querySelector(".money-settings-panel");
     const transferPanel = card.querySelector(".money-transfer-panel");
     return {
@@ -88,8 +92,8 @@ function budgetState() {
         summary: [...settings.querySelector("summary").children].map((child) => child.textContent.trim())
       },
       target: {
-        readOnly: document.getElementById("moneyMonthlyTarget").readOnly,
-        value: document.getElementById("moneyMonthlyTarget").value
+        readOnly: documentRoot.getElementById("moneyMonthlyTarget").readOnly,
+        value: documentRoot.getElementById("moneyMonthlyTarget").value
       },
       sections: [...card.querySelectorAll(".money-budget-section")].map((section) => ({
         open: section.open,
@@ -110,16 +114,16 @@ function budgetState() {
       transfer: {
         open: transferPanel.open,
         summary: [...transferPanel.querySelector("summary").children].map((child) => child.textContent.trim()),
-        from: [...document.getElementById("moneyTransferFrom").options]
+        from: [...documentRoot.getElementById("moneyTransferFrom").options]
           .map((option) => [option.value, option.textContent.trim()]),
-        to: [...document.getElementById("moneyTransferTo").options]
+        to: [...documentRoot.getElementById("moneyTransferTo").options]
           .map((option) => [option.value, option.textContent.trim()]),
         amount: {
-          inputMode: document.getElementById("moneyTransferAmount").inputMode,
-          placeholder: document.getElementById("moneyTransferAmount").placeholder,
-          value: document.getElementById("moneyTransferAmount").value
+          inputMode: documentRoot.getElementById("moneyTransferAmount").inputMode,
+          placeholder: documentRoot.getElementById("moneyTransferAmount").placeholder,
+          value: documentRoot.getElementById("moneyTransferAmount").value
         },
-        rows: [...document.querySelectorAll("#moneyTransferList .money-transfer-row")].map((row) => ({
+        rows: [...documentRoot.querySelectorAll("#moneyTransferList .money-transfer-row")].map((row) => ({
           button: row.querySelector("button").textContent.trim(),
           text: row.textContent.trim()
         }))
@@ -128,10 +132,11 @@ function budgetState() {
   })()`;
 }
 
-function budgetVisualContract() {
+function budgetVisualContract(documentExpression = "document") {
   return `(() => {
-    const card = document.querySelector(".money-budget-card");
-    const view = document.defaultView;
+    const documentRoot = ${documentExpression};
+    const card = documentRoot.querySelector(".money-budget-card");
+    const view = documentRoot.defaultView;
     const pick = (element) => {
       const style = view.getComputedStyle(element);
       const rect = element.getBoundingClientRect();
@@ -162,7 +167,7 @@ function budgetVisualContract() {
       panelInner: pick(card.querySelector(".panel-inner")),
       settings: pick(card.querySelector(".money-settings-panel")),
       settingsSummary: pick(card.querySelector(".money-settings-panel > summary")),
-      target: pick(document.getElementById("moneyMonthlyTarget")),
+      target: pick(documentRoot.getElementById("moneyMonthlyTarget")),
       section: pick(card.querySelector(".money-budget-section")),
       sectionSummary: pick(card.querySelector(".money-budget-section > summary")),
       row: pick(card.querySelector(".money-budget-row")),
@@ -173,30 +178,35 @@ function budgetVisualContract() {
   })()`;
 }
 
-async function expandBudgetCard(browser) {
-  await browser.evaluate('document.querySelector(".money-settings-panel > summary").click()');
-  await browser.waitForExpression('document.querySelector(".money-settings-panel").open');
-  await browser.evaluate('document.querySelectorAll(".money-budget-section > summary")[0].click()');
-  await browser.waitForExpression('document.querySelectorAll(".money-budget-section")[0].open');
-  await browser.evaluate('document.querySelectorAll(".money-budget-section > summary")[1].click()');
-  await browser.waitForExpression('document.querySelectorAll(".money-budget-section")[1].open');
-  await browser.evaluate('document.querySelector(".money-transfer-panel > summary").click()');
-  await browser.waitForExpression('document.querySelector(".money-transfer-panel").open');
+async function expandBudgetCard(browser, documentExpression = "document") {
+  await browser.evaluate(`(${documentExpression}).querySelector(".money-settings-panel > summary").click()`);
+  await browser.waitForExpression(`(${documentExpression}).querySelector(".money-settings-panel").open`);
+  await browser.evaluate(`(${documentExpression}).querySelectorAll(".money-budget-section > summary")[0].click()`);
+  await browser.waitForExpression(`(${documentExpression}).querySelectorAll(".money-budget-section")[0].open`);
+  await browser.evaluate(`(${documentExpression}).querySelectorAll(".money-budget-section > summary")[1].click()`);
+  await browser.waitForExpression(`(${documentExpression}).querySelectorAll(".money-budget-section")[1].open`);
+  await browser.evaluate(`(${documentExpression}).querySelector(".money-transfer-panel > summary").click()`);
+  await browser.waitForExpression(`(${documentExpression}).querySelector(".money-transfer-panel").open`);
 }
 
-async function expandBudgetVisual(browser) {
-  await browser.evaluate('document.querySelector(".money-settings-panel > summary").click()');
-  await browser.waitForExpression('document.querySelector(".money-settings-panel").open');
-  await browser.evaluate('document.querySelectorAll(".money-budget-section > summary")[0].click()');
-  await browser.waitForExpression('document.querySelectorAll(".money-budget-section")[0].open');
+async function expandBudgetVisual(browser, documentExpression = "document") {
+  await browser.evaluate(`(${documentExpression}).querySelector(".money-settings-panel > summary").click()`);
+  await browser.waitForExpression(`(${documentExpression}).querySelector(".money-settings-panel").open`);
+  await browser.evaluate(`(${documentExpression}).querySelectorAll(".money-budget-section > summary")[0].click()`);
+  await browser.waitForExpression(`(${documentExpression}).querySelectorAll(".money-budget-section")[0].open`);
 }
 
-async function scrollToBudgets(browser) {
+async function scrollToBudgets(browser, documentExpression = "document") {
   await browser.evaluate(`(() => {
-    document.documentElement.style.scrollBehavior = "auto";
-    window.scrollTo(0, document.documentElement.scrollHeight);
+    const documentRoot = ${documentExpression};
+    documentRoot.documentElement.style.scrollBehavior = "auto";
+    documentRoot.defaultView.scrollTo(0, documentRoot.documentElement.scrollHeight);
   })()`);
-  await browser.waitForExpression('document.querySelector(".money-budget-card").getBoundingClientRect().top < window.innerHeight');
+  await browser.waitForExpression(`(() => {
+    const documentRoot = ${documentExpression};
+    return documentRoot.querySelector(".money-budget-card").getBoundingClientRect().top
+      < documentRoot.defaultView.innerHeight;
+  })()`);
 }
 
 function assertSeededState(state) {
@@ -261,6 +271,11 @@ function assertSeededState(state) {
   assert.deepEqual(state.transfer.rows, [
     { button: "Delete", text: "Food€10.00 moved from FunDelete" }
   ]);
+}
+
+function assertSameScreenshot(actual, expected, label) {
+  const comparison = compareScreenshots(actual, expected);
+  assert.equal(comparison.matches, true, `${label}: ${JSON.stringify(comparison)}`);
 }
 
 async function changeInput(browser, selector, value) {
@@ -384,6 +399,7 @@ test("Money budgets records the legacy desktop and mobile visual contract", { ti
   await openMoney(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
   await expandBudgetVisual(planner.browser);
   await scrollToBudgets(planner.browser);
+  const legacyDesktopState = await planner.browser.evaluate(budgetState());
   const desktop = await planner.browser.evaluate(budgetVisualContract());
   const desktopScreenshot = await planner.browser.captureScreenshot(`(() => {
     const rect = document.querySelector(".money-budget-card").getBoundingClientRect();
@@ -400,10 +416,39 @@ test("Money budgets records the legacy desktop and mobile visual contract", { ti
   });
   assert.ok(desktopScreenshot.length > 1_000);
 
+  const preview = await startReactPreviewServer(planner.server.url);
+  if (!preview) {
+    context.skip("Install frontend-react dependencies to run React visual regression tests.");
+    return;
+  }
+  context.after(async function () {
+    await preview.close();
+  });
+  const previewDocument = 'document.querySelector("iframe").contentDocument';
+  await openMoney(planner.browser, `${preview.url}/?date=${TEST_DATE}`, previewDocument);
+  await planner.browser.waitForExpression(`(${previewDocument}).querySelector('[data-react-budget-settings="true"]') !== null`);
+  assert.equal(await planner.browser.evaluate(
+    'document.querySelector("iframe").contentDocument.querySelector(".money-budget-card").dataset.reactOwned'
+  ), "true");
+  await expandBudgetVisual(planner.browser, previewDocument);
+  await scrollToBudgets(planner.browser, previewDocument);
+  const previewDesktopState = await planner.browser.evaluate(budgetState(previewDocument));
+  const previewDesktop = await planner.browser.evaluate(budgetVisualContract(previewDocument));
+  const previewDesktopScreenshot = await planner.browser.captureScreenshot(`(() => {
+    const frame = document.querySelector("iframe");
+    const rect = frame.contentDocument.querySelector(".money-budget-card").getBoundingClientRect();
+    const frameRect = frame.getBoundingClientRect();
+    return { x: frameRect.x + rect.x, y: frameRect.y + rect.y, width: rect.width, height: Math.min(rect.height, 680) };
+  })()`);
+  assert.deepEqual(previewDesktopState, legacyDesktopState);
+  assert.deepEqual(previewDesktop, desktop);
+  assertSameScreenshot(previewDesktopScreenshot, desktopScreenshot, "desktop Money budgets screenshot");
+
   await planner.browser.setViewport(390, 844, true);
   await openMoney(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
   await expandBudgetVisual(planner.browser);
   await scrollToBudgets(planner.browser);
+  const legacyMobileState = await planner.browser.evaluate(budgetState());
   const mobile = await planner.browser.evaluate(budgetVisualContract());
   const mobileScreenshot = await planner.browser.captureScreenshot(`(() => {
     const rect = document.querySelector(".money-budget-card").getBoundingClientRect();
@@ -419,5 +464,134 @@ test("Money budgets records the legacy desktop and mobile visual contract", { ti
     rowInputColumns: "252px"
   });
   assert.ok(mobileScreenshot.length > 1_000);
+
+  await openMoney(planner.browser, `${preview.url}/?date=${TEST_DATE}`, previewDocument);
+  await planner.browser.waitForExpression(`(${previewDocument}).querySelector('[data-react-budget-settings="true"]') !== null`);
+  await expandBudgetVisual(planner.browser, previewDocument);
+  await scrollToBudgets(planner.browser, previewDocument);
+  const previewMobileState = await planner.browser.evaluate(budgetState(previewDocument));
+  const previewMobile = await planner.browser.evaluate(budgetVisualContract(previewDocument));
+  const previewMobileScreenshot = await planner.browser.captureScreenshot(`(() => {
+    const frame = document.querySelector("iframe");
+    const rect = frame.contentDocument.querySelector(".money-budget-card").getBoundingClientRect();
+    const frameRect = frame.getBoundingClientRect();
+    return { x: frameRect.x + rect.x, y: frameRect.y + rect.y, width: rect.width, height: Math.min(rect.height, 780) };
+  })()`);
+  assert.deepEqual(previewMobileState, legacyMobileState);
+  assert.deepEqual(previewMobile, mobile);
+  assertSameScreenshot(previewMobileScreenshot, mobileScreenshot, "mobile Money budgets screenshot");
+  assert.deepEqual(planner.browser.errors(), []);
+});
+
+test("React Money budgets preserves compatibility and updates sibling Money cards", { timeout: 60_000 }, async function (context) {
+  const planner = await startBrowserPlanner(context);
+  if (!planner) {
+    return;
+  }
+  await seedBudgets(planner.server.url);
+  const preview = await startReactPreviewServer(planner.server.url);
+  if (!preview) {
+    context.skip("Install frontend-react dependencies to run React interaction tests.");
+    return;
+  }
+  context.after(async function () {
+    await preview.close();
+  });
+
+  const previewDocument = 'document.querySelector("iframe").contentDocument';
+  await planner.browser.setViewport(1280, 720);
+  await openMoney(planner.browser, `${preview.url}/?date=${TEST_DATE}`, previewDocument);
+  await planner.browser.waitForExpression(`(${previewDocument}).querySelector('[data-react-budget-settings="true"]') !== null`);
+  await planner.browser.waitForExpression(`[...(${previewDocument}).querySelectorAll(".money-budget-row input")].every((input) => typeof input.onchange === "function")`);
+  await expandBudgetCard(planner.browser, previewDocument);
+
+  async function changeReactInput(selector, value) {
+    await planner.browser.evaluate(`(() => {
+      const frame = document.querySelector("iframe");
+      const input = frame.contentDocument.querySelector(${JSON.stringify(selector)});
+      const setValue = Object.getOwnPropertyDescriptor(
+        frame.contentWindow.HTMLInputElement.prototype,
+        "value"
+      ).set;
+      setValue.call(input, ${JSON.stringify(value)});
+      input.dispatchEvent(new frame.contentWindow.Event("change", { bubbles: true }));
+    })()`);
+  }
+
+  await changeReactInput('.money-budget-row-flex input[aria-label="Food month"]', "bad");
+  let state = await planner.browser.evaluate(budgetState(previewDocument));
+  assert.deepEqual({ open: state.settings.open, value: state.sections[1].rows[1].inputs[0].value }, {
+    open: false,
+    value: "120"
+  });
+  assert.equal(state.sections[1].rows[1].inputs[0].value, "120");
+  assert.equal(state.settings.open, false);
+  assert.deepEqual(state.sections.map((section) => section.open), [true, true]);
+  assert.equal(state.transfer.open, true);
+
+  await planner.browser.evaluate(`(${previewDocument}).querySelector(".money-settings-panel > summary").click()`);
+  await changeReactInput('.money-budget-row-flex input[aria-label="Food month"]', "130");
+  await planner.browser.waitForExpression(`(${previewDocument}).querySelector(\'.money-budget-row-flex input[aria-label="Food week"]\').value === "26"`);
+  await planner.browser.waitForExpression(`(${previewDocument}).querySelector("#moneyProgressList .money-progress-copy span").textContent === "€1,050.00 spent of €1,360.00"`);
+
+  await planner.browser.evaluate(`(${previewDocument}).querySelector(".money-settings-panel > summary").click()`);
+  await changeReactInput('.money-budget-row-flex input[aria-label="Food week"]', "9,25");
+  await planner.browser.waitForExpression(`(${previewDocument}).querySelector(\'.money-budget-row-flex input[aria-label="Food week"]\').value === "9.25"`);
+
+  await planner.browser.evaluate(`(() => {
+    const frame = document.querySelector("iframe");
+    const documentRoot = frame.contentDocument;
+    documentRoot.querySelector(".money-settings-panel > summary").click();
+    const from = documentRoot.getElementById("moneyTransferFrom");
+    const to = documentRoot.getElementById("moneyTransferTo");
+    const amount = documentRoot.getElementById("moneyTransferAmount");
+    const setSelect = Object.getOwnPropertyDescriptor(
+      frame.contentWindow.HTMLSelectElement.prototype,
+      "value"
+    ).set;
+    const setInput = Object.getOwnPropertyDescriptor(
+      frame.contentWindow.HTMLInputElement.prototype,
+      "value"
+    ).set;
+    setSelect.call(from, "fun");
+    from.dispatchEvent(new frame.contentWindow.Event("change", { bubbles: true }));
+    setSelect.call(to, "future");
+    to.dispatchEvent(new frame.contentWindow.Event("change", { bubbles: true }));
+    setInput.call(amount, "10");
+    amount.dispatchEvent(new frame.contentWindow.Event("input", { bubbles: true }));
+    documentRoot.getElementById("moneyTransferForm").dispatchEvent(
+      new frame.contentWindow.Event("submit", { bubbles: true, cancelable: true })
+    );
+  })()`);
+  await planner.browser.waitForExpression(`(${previewDocument}).querySelectorAll("#moneyTransferList .money-transfer-row").length === 2`);
+  state = await planner.browser.evaluate(budgetState(previewDocument));
+  assert.equal(state.settings.open, false);
+  assert.deepEqual(state.transfer.rows, [
+    { button: "Delete", text: "Future fund€10.00 moved from FunDelete" },
+    { button: "Delete", text: "Food€10.00 moved from FunDelete" }
+  ]);
+
+  await planner.server.waitFor(async function () {
+    const stored = await planner.server.readPlannerData();
+    const settings = JSON.parse(stored[SETTINGS_KEY] || "{}");
+    return settings.categories?.find((category) => category.id === "groceries")?.budgetCents === 13_000
+      && settings.categories?.find((category) => category.id === "groceries")?.weeklyBudgetCents === 925
+      && settings.transfers?.length === 2;
+  });
+  const persisted = JSON.parse((await planner.server.readPlannerData())[SETTINGS_KEY]);
+  assert.equal(persisted.legacyRootField, "discarded-by-legacy-normalizer");
+  assert.equal(persisted.categories.find((category) => category.id === "groceries").legacyCategoryField, "keep-category");
+  assert.equal(persisted.transfers.find((transfer) => transfer.id === "existing-cover").legacyTransferField, "discarded-by-legacy-normalizer");
+  assert.equal(persisted.notes.legacyNoteField, "keep-note");
+
+  await planner.browser.evaluate(`(${previewDocument}).querySelector("#moneyTransferList .money-transfer-row button").click()`);
+  await planner.browser.waitForExpression(`(${previewDocument}).querySelectorAll("#moneyTransferList .money-transfer-row").length === 1`);
+
+  await openMoney(planner.browser, `${preview.url}/?date=${TEST_DATE}`, previewDocument);
+  state = await planner.browser.evaluate(budgetState(previewDocument));
+  assert.equal(state.settings.open, false);
+  assert.deepEqual(state.sections.map((section) => section.open), [false, false]);
+  assert.equal(state.transfer.open, false);
+  assert.equal(state.target.value, "1360");
   assert.deepEqual(planner.browser.errors(), []);
 });

@@ -25,6 +25,15 @@ export interface MoneyTransaction {
   vendor: string;
 }
 
+export interface MoneyTransfer {
+  amountCents: number;
+  createdAt: string;
+  fromCategoryId: string;
+  id: string;
+  note: string;
+  toCategoryId: string;
+}
+
 export interface MoneyVendorRule {
   categoryId: string;
   id: string;

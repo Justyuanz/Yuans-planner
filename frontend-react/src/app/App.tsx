@@ -9,6 +9,7 @@ import { plannerDateFromSearch } from "../features/life-pie/life-pie";
 import { formatPlannerDate } from "../features/life-pie/life-pie-store";
 import { MeditationCard } from "../features/meditation/MeditationCard";
 import { MoneyActivityCard } from "../features/money-activity/MoneyActivityCard";
+import { MoneyBudgetsCard } from "../features/money-budgets/MoneyBudgetsCard";
 import { MoneyOverviewCard } from "../features/money-overview/MoneyOverviewCard";
 import { MoneyPacingCard } from "../features/money-pacing/MoneyPacingCard";
 import { MoneyQuickCard } from "../features/money-quick/MoneyQuickCard";
@@ -53,6 +54,7 @@ export function App() {
   const [legacyFrame, setLegacyFrame] = useState<HTMLIFrameElement | null>(null);
   const [meditationBoundary, setMeditationBoundary] = useState<ReactPanelBoundary | null>(null);
   const [moneyActivityMount, setMoneyActivityMount] = useState<HTMLElement | null>(null);
+  const [moneyBudgetsMount, setMoneyBudgetsMount] = useState<HTMLElement | null>(null);
   const [moneyOverviewMount, setMoneyOverviewMount] = useState<HTMLElement | null>(null);
   const [moneyPacingMount, setMoneyPacingMount] = useState<HTMLElement | null>(null);
   const [moneyQuickMount, setMoneyQuickMount] = useState<HTMLElement | null>(null);
@@ -151,6 +153,15 @@ export function App() {
       moneyVendorsCard.dataset.reactOwned = "true";
       moneyVendorsPanel.replaceChildren();
       setMoneyVendorsMount(moneyVendorsPanel);
+    }
+
+    const moneyBudgetsCard = document?.querySelector<HTMLElement>(".money-budget-card");
+    const moneyBudgetsPanel = moneyBudgetsCard?.querySelector<HTMLElement>(".panel-inner");
+    if (moneyBudgetsCard !== null && moneyBudgetsCard !== undefined
+      && moneyBudgetsPanel !== null && moneyBudgetsPanel !== undefined) {
+      moneyBudgetsCard.dataset.reactOwned = "true";
+      moneyBudgetsPanel.replaceChildren();
+      setMoneyBudgetsMount(moneyBudgetsPanel);
     }
 
     const meditationCard = document?.querySelector<HTMLElement>(".meditation-card");
@@ -320,6 +331,12 @@ export function App() {
         createPortal(
           <MoneyVendorsCard store={loadedStore} today={today} />,
           moneyVendorsMount
+        )
+      )}
+      {loadedStore !== null && moneyBudgetsMount !== null && (
+        createPortal(
+          <MoneyBudgetsCard onPersist={persistPlannerWrites} store={loadedStore} today={today} />,
+          moneyBudgetsMount
         )
       )}
       {loadedStore !== null && meditationBoundary !== null && (

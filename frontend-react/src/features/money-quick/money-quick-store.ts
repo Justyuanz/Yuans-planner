@@ -10,14 +10,9 @@ import {
   type MoneyCategory,
   type MoneyCategoryState,
   type MoneyTransaction,
+  type MoneyTransfer,
   type MoneyVendorRule
 } from "./money-quick-definitions";
-
-interface MoneyTransfer {
-  amountCents: number;
-  fromCategoryId: string;
-  toCategoryId: string;
-}
 
 interface MoneySettings {
   categories: readonly MoneyCategory[];
@@ -44,6 +39,7 @@ export interface MoneyStoreState {
     targetCents: number;
   };
   transactions: readonly MoneyTransaction[];
+  transfers: readonly MoneyTransfer[];
   vendors: readonly MoneyVendorState[];
 }
 
@@ -88,13 +84,16 @@ function normalizeTransfers(value: unknown): MoneyTransfer[] {
   if (!Array.isArray(value)) {
     return [];
   }
-  return value.flatMap((candidate) => {
+  return value.flatMap((candidate, index) => {
     if (!isRecord(candidate)) {
       return [];
     }
     const transfer = {
       amountCents: Math.max(0, cents(candidate.amountCents)),
+      createdAt: primitiveText(candidate.createdAt),
       fromCategoryId: primitiveText(candidate.fromCategoryId),
+      id: primitiveText(candidate.id) || `transfer-normalized-${index}`,
+      note: primitiveText(candidate.note),
       toCategoryId: primitiveText(candidate.toCategoryId)
     };
     return transfer.amountCents > 0 && transfer.fromCategoryId && transfer.toCategoryId
@@ -335,6 +334,7 @@ export function decodeMoneyStore(store: PlannerStore, referenceDate: Date): Mone
       targetCents: totalBudgetCents
     },
     transactions,
+    transfers: settings.transfers,
     vendors: summarizeVendors(transactions, currentMonthKey).map((vendor) => ({
       ...vendor,
       previousMonthSpentCents: previousVendorSpending.get(vendor.vendor) ?? 0
