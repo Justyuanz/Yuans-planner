@@ -181,13 +181,13 @@ For each feature:
 - [ ] remove legacy implementation only after tests pass
 
 ## Current Task
-The dashboard Today's intention migration boundary is complete and verified. The Vite preview preserves the full legacy shell and exact styles while React owns weekly goals, day state, task progress, Today's intention, Life Pie, Planned vs actual, Energy trail, Pattern noticed, Pattern history, Money quick log, Money overview, Money Pace and projection, Money Vendors, Money recent activity, Money Budgets and categories, Journal meditation, and Journal archive. Stop at this working boundary before selecting another feature.
+The Money route is the first complete page rendered directly by React without an iframe. `?view=moneyView` uses the React shell and all five migrated Money-page cards; the other five routes continue using the verified legacy migration shell. Stop at this working boundary before selecting the next page-level milestone.
 
 ## Last Completed Task
-Migrated `.intention-block` into focused typed React modules without redesigning it. The component preserves the Monday-first weekly-plan lookup, ISO week-year storage key, normal/recovery/high labels and classes, legacy study/skate/rest/personal aliases, malformed-data fallback, immediate storage synchronization, reload behavior, and exact desktop/mobile rendering. React owns only the intention block; the task list/editor and dashboard date/week headings remain legacy-owned.
+Composed the complete Money page as a direct React route without redesigning it. The page reuses the five verified Money components, preserves the legacy shell/card order and exact desktop/mobile geometry, persists budget edits across reloads, provides typed compatibility-safe backup controls, and navigates back to the iframe-backed routes without breaking them.
 
 ## Next Task
-Await explicit direction before selecting another migration boundary. For the next feature, first characterize its legacy behavior and add equivalent desktop/mobile visual coverage, then migrate only that boundary and preserve the seventeen completed React-owned boundaries. The remaining dashboard task list/editor is still substantially coupled to timers, calendar links, reminders, activity totals, day-state reactions, and Pattern synchronization, so migrate it only as a separately protected behavioral boundary. The clean Python API structure also remains incomplete in Phase 3 and is an alternative non-visual architecture task.
+Await explicit direction before selecting the next page-level milestone. The Dashboard is the closest next page, but its remaining task list/editor is substantially coupled to timers, calendar links, reminders, activity totals, day-state reactions, and Pattern synchronization. Characterize that boundary fully before migrating it, then compose the already-migrated dashboard cards into the direct React shell. The clean Python API structure also remains incomplete in Phase 3.
 
 ## Important Decisions
 - The rewrite must preserve visual parity with the legacy Planner; this is an architecture rewrite, not a UI redesign.
@@ -221,6 +221,10 @@ Await explicit direction before selecting another migration boundary. For the ne
 - The legacy task renderer routes both empty and populated progress through one ownership-aware helper. This keeps the standalone app unchanged while preventing detached legacy span references from overwriting the React portal.
 - React owns only `.intention-block` and derives its badge from `hivePlanner.routine.week.<ISO-WEEK>`. The typed model preserves the legacy Monday-first indexing, day-type aliases, and normal-day fallback without mutating stored compatibility data.
 - The legacy intention renderer continues updating the dashboard subtitle, date, and week-status heading, but skips only the detached badge when `.intention-block` is React-owned. The standalone legacy application therefore retains its original renderer.
+- `?view=moneyView` bypasses the iframe and composes the five Money-page cards directly inside a focused React shell. Other routes still instantiate `LegacyPlannerApp`, so this first direct page does not force an unsafe whole-app cutover.
+- The direct route loads the legacy stylesheet only while mounted. Loading it globally changes the parent body's padding and narrows every iframe preview, which the complete Money regression suite caught.
+- Direct-shell navigation writes the requested `view` and deterministic planner `date` into the URL. Navigating away from Money therefore reloads into the established legacy-shell route until that destination page is migrated.
+- React backup import/export preserves unknown `hivePlanner.*` values and excludes the transient Guitar session just like legacy. Import publishes same-window storage events so the direct Money cards update immediately.
 - The dashboard insight bridge stays unavailable until legacy server-first hydration completes. This prevents an early React read from interpreting an empty in-memory store as real current-day data and persisting an empty task list.
 - Insight action navigation resolves the current `#plannedMount` at click time because React ownership replaces its original child node; retaining the pre-migration element reference would scroll a detached node.
 - React persistence explicitly publishes a same-window storage event after local writes because browsers do not deliver native storage events to the document that performed the write. This keeps sibling React boundaries, including Life Pie after meditation completion, synchronized immediately.
@@ -271,6 +275,7 @@ Await explicit direction before selecting another migration boundary. For the ne
 - Weekly goals, dashboard day state, dashboard task progress, dashboard Today's intention, Life Pie, Planned vs actual, Energy trail, Pattern noticed, Pattern history, Money quick log, Money overview, Money Pace and projection, Money Vendors, Money recent activity, Money Budgets and categories, the Journal meditation card, and the Journal archive are React-owned and verified; all other dashboard cards and feature views remain legacy-owned inside the temporary iframe shell.
 - Browser smoke tests skip when Chrome/Chromium or Node WebSocket support is unavailable; they run with the documented Node 24 runtime on the inspected machine.
 - The React preview is not yet served directly by the Python backend. Its temporary legacy shell depends on Vite development proxies and is not the final production integration architecture.
+- The direct Money shell's Sprouty surface can call the backend and provides a safe fallback, but it does not yet reproduce the legacy local grounded-response context, quick prompts, or draggable position behavior. Finish shared-shell parity before replacing the legacy shell on every route.
 - The React visual regression test skips when Chrome or `frontend-react` dependencies are unavailable, matching the existing browser-test prerequisite policy.
 - Browser-capable root Node test files run serially to avoid Chrome/Vite startup timeouts under parallel process saturation.
 
@@ -549,6 +554,17 @@ Await explicit direction before selecting another migration boundary. For the ne
 - Manual Chrome DevTools verification confirmed exact desktop/mobile rendering, live High-Intensity-to-Recovery synchronization, reload persistence, zero horizontal overflow, and successful network requests. The only reported browser issue is the existing 29 generated controls without IDs/names.
 - Commits: `002a3fa` locks the Today's intention behavior and visual contract; `ade9193` migrates the verified React boundary.
 - Final verification: 100 React tests, React lint, strict type-checking, and the Vite production build pass. The full safety net passes with 18 Python tests and 129 root JavaScript tests, including every real-Chrome browser flow.
+
+### Session 26
+
+- Re-read `AGENTS.md`, this handoff, branch history, status, diff, and the implementation/browser-verification skills, then switched from small card boundaries to the requested page-level milestone.
+- Added a direct `?view=moneyView` route that contains no iframe and composes all five verified Money-page components inside a focused React shell. The other five routes keep the current legacy shell and existing migration portals.
+- Added React navigation, the exact legacy header/sidebar/mascot surface, compatibility-safe backup import/export, route-scoped legacy CSS loading, and direct Money persistence through the existing storage/API bridge.
+- Added a real-Chrome route test covering zero iframe usage, exact five-card order and shell state, exact full-page geometry, strict representative desktop/mobile screenshots, no horizontal overflow, budget editing, SQLite persistence, reload survival, and navigation back to the Dashboard fallback.
+- The first full Money regression run exposed that globally loading legacy CSS narrowed every iframe route by 68px. Scoping the stylesheet to the direct route restored all six existing Money visual contracts; all nine serialized Money browser tests pass together.
+- Manual Chrome DevTools inspection confirmed the direct accessible tree, zero iframes, active Money navigation, five cards, 940px desktop card geometry, and no horizontal overflow. The DevTools screenshot/emulation commands later stalled, while the independent real-Chrome gate completed both strict desktop/mobile captures and console checks.
+- Commit: `509c57a` renders the direct React Money page and its tested shared-shell compatibility pieces.
+- Final verification: 103 React tests, React lint, strict type-checking, and the Vite production build pass. The full safety net passes with 18 Python tests and 130 root JavaScript tests, including every real-Chrome browser flow.
 
 ---
 
