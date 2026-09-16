@@ -29,6 +29,7 @@ import { MoneyOverviewCard } from "../features/money-overview/MoneyOverviewCard"
 import { MoneyPacingCard } from "../features/money-pacing/MoneyPacingCard";
 import { MoneyQuickCard } from "../features/money-quick/MoneyQuickCard";
 import { MoneyVendorsCard } from "../features/money-vendors/MoneyVendorsCard";
+import { MoneyPage } from "../features/money-page/MoneyPage";
 import { PlannedActualCard } from "../features/planned-actual/PlannedActualCard";
 import { plannedStorageKey } from "../features/planned-actual/planned-actual";
 import { PatternHistoryDialog } from "../features/pattern-history/PatternHistoryDialog";
@@ -64,7 +65,7 @@ function selectedJournalDate(input: HTMLInputElement | null | undefined, fallbac
   return value;
 }
 
-export function App() {
+function LegacyPlannerApp() {
   const plannerStore = usePlannerStore();
   const today = useMemo(() => plannerDateFromSearch(window.location.search, new Date()), []);
   const todayKey = formatPlannerDate(today);
@@ -496,4 +497,10 @@ export function App() {
       )}
     </>
   );
+}
+
+export function App() {
+  const today = useMemo(() => plannerDateFromSearch(window.location.search, new Date()), []);
+  const requestedView = new URLSearchParams(window.location.search).get("view");
+  return requestedView === "moneyView" ? <MoneyPage today={today} /> : <LegacyPlannerApp />;
 }

@@ -10,6 +10,15 @@ body {
   overflow: hidden;
 }
 
+body.direct-planner-page {
+  overflow: auto;
+}
+
+body.direct-planner-page #root {
+  height: auto;
+  min-height: 100%;
+}
+
 .planner-frame {
   display: block;
   width: 100%;
