@@ -43,7 +43,7 @@ describe("buildLifePie", () => {
     expect(model.groups.map((group) => group.summary)).toEqual(summaries);
   });
 
-  it("aggregates physical, standalone session, meditation, and journal time once", () => {
+  it("aggregates physical and standalone Skate/Guitar sessions once", () => {
     const store: PlannerStore = {
       "hivePlanner.dailyTasks.2026-09-13": JSON.stringify([
         { label: "Skate task", activity: "skate", hours: 1 },
@@ -73,11 +73,11 @@ describe("buildLifePie", () => {
 
     const model = buildLifePie(store, "day", TODAY, NOW_MS);
 
-    expect(model.formattedTotal).toBe("5h");
+    expect(model.formattedTotal).toBe("4.25h");
     expect(model.groups.map(({ label, hours }) => ({ label, hours }))).toEqual([
-      { label: "Study", hours: 0 },
+      { label: "Work", hours: 0 },
       { label: "Body", hours: 3 },
-      { label: "Mind", hours: 2 }
+      { label: "Guitar", hours: 1.25 }
     ]);
   });
 
@@ -104,14 +104,12 @@ describe("buildLifePie", () => {
     }, "week", TODAY, NOW_MS);
 
     expect(model.activities.map(({ id, hours }) => ({ id, hours }))).toEqual([
-      { id: "lc", hours: 1 },
-      { id: "cpp", hours: 1.5 },
-      { id: "python", hours: 24 },
+      { id: "transcendence", hours: 1.5 },
+      { id: "mobileDevelopment", hours: 24 },
+      { id: "portfolioJobPrep", hours: 0 },
       { id: "skate", hours: 0 },
-      { id: "p90x3", hours: 0 },
-      { id: "guitar", hours: 0.25 },
-      { id: "meditation", hours: 0 },
-      { id: "journal", hours: 0 }
+      { id: "gym", hours: 0 },
+      { id: "guitar", hours: 0.25 }
     ]);
   });
 
@@ -122,14 +120,14 @@ describe("buildLifePie", () => {
     }, "week", TODAY, NOW_MS);
 
     expect(model.formattedTotal).toBe("0h");
-    expect(model.ariaLabel).toBe("Study 0h, Body 0h, Mind 0h");
+    expect(model.ariaLabel).toBe("Work 0h, Body 0h, Guitar 0h");
     expect(model.background).toBe("#efedf2");
     expect(model.groups.map((group) => group.summary)).toEqual([
       "0% · 0h",
       "0% · 0h",
       "0% · 0h"
     ]);
-    expect(model.activities).toHaveLength(8);
+    expect(model.activities).toHaveLength(6);
   });
 });
 

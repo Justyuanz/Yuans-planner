@@ -21,6 +21,8 @@ function populatedStore(): PlannerStore {
       skate: 2,
       p90x3: 1.25,
       guitar: 0.75,
+      transcendence: 0.5,
+      mobileDevelopment: 0.25,
       futureActivity: { preserve: true }
     }),
     "hivePlanner.dailyTasks.2026-09-12": JSON.stringify([
@@ -55,17 +57,17 @@ describe("Planned vs actual model", () => {
       target: group.progressTarget,
       width: group.progressWidth
     }))).toEqual([
-      { label: "Study", planned: "6.5h", actual: "3h", done: 3, target: 6.5, width: 46 },
+      { label: "Study", planned: "7.25h", actual: "3h", done: 3, target: 7.25, width: 41 },
       { label: "Leisure", planned: "4h", actual: "3.5h", done: 3.5, target: 4, width: 88 }
     ]);
     expect(model.groups.flatMap((group) => group.rows.map((row) => [
       row.id, row.shortLabel, row.className, row.inputValue, row.formattedActual
     ]))).toEqual([
-      ["lc", "lc", "lc", "1", "0h"],
-      ["cpp", "Coding", "cpp", "3.5", "2h"],
-      ["python", "Python", "python", "2", "1h"],
+      ["transcendence", "Transcendence", "transcendence", "4", "2h"],
+      ["mobileDevelopment", "Mobile Dev", "mobile-development", "2.25", "1h"],
+      ["portfolioJobPrep", "Portfolio", "portfolio-job-prep", "1", "0h"],
       ["skate", "Skate", "skate", "2", "1h"],
-      ["p90x3", "Gym / Judo", "gym", "1.25", "2h"],
+      ["gym", "Gym", "gym", "1.25", "2h"],
       ["guitar", "Guitar", "guitar", "0.75", "0.5h"]
     ]);
   });
@@ -98,11 +100,11 @@ describe("Planned vs actual persistence", () => {
   it("clamps edits while preserving unknown planned fields", () => {
     const current = JSON.parse(populatedStore()[plannedStorageKey(TODAY)] ?? "{}") as Record<string, unknown>;
 
-    const first = applyPlannedInput(current, "cpp", "5.25");
-    const second = applyPlannedInput(first.values, "cpp", "not-a-number");
-    const third = applyPlannedInput(second.values, "cpp", "-4");
+    const first = applyPlannedInput(current, "transcendence", "5.25");
+    const second = applyPlannedInput(first.values, "transcendence", "not-a-number");
+    const third = applyPlannedInput(second.values, "transcendence", "-4");
 
-    expect(first.before).toBe(3.5);
+    expect(first.before).toBe(0.5);
     expect(first.after).toBe(5.25);
     expect(first.values.futureActivity).toEqual({ preserve: true });
     expect(second).toMatchObject({ before: 5.25, after: 0 });
@@ -128,7 +130,7 @@ describe("Planned vs actual persistence", () => {
     ]);
 
     const encoded = appendPlannedActivityLog(existing, {
-      activityId: "cpp",
+      activityId: "transcendence",
       after: 5.25,
       before: 3.5,
       groupId: "study",
@@ -155,12 +157,12 @@ describe("Planned vs actual persistence", () => {
         timestamp: "2026-09-13T09:00:00.000Z",
         action: "planned_hours_updated",
         entityType: "planned_hours",
-        entityId: "cpp",
+        entityId: "transcendence",
         dateKey: "2026-W37",
-        field: "cpp",
+        field: "transcendence",
         before: 3.5,
         after: 5.25,
-        meta: { group: "study", activity: "cpp" }
+        meta: { group: "study", activity: "transcendence" }
       }
     ]);
   });

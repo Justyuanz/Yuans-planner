@@ -183,10 +183,10 @@ function assertPopulatedState(state) {
   ]);
   assert.deepEqual(state.groups.map((group) => group.progressWidth), ["46%", "88%"]);
   assert.deepEqual(state.groups.flatMap((group) => group.rows.map((row) => row.id)), [
-    "planned-lc", "planned-cpp", "planned-python", "planned-skate", "planned-p90x3", "planned-guitar"
+    "planned-transcendence", "planned-mobileDevelopment", "planned-portfolioJobPrep", "planned-skate", "planned-gym", "planned-guitar"
   ]);
   assert.deepEqual(state.groups.flatMap((group) => group.rows.map((row) => row.actual)), [
-    "0h", "2h", "1h", "1h", "2h", "0.5h"
+    "2h", "1h", "0h", "1h", "2h", "0.5h"
   ]);
   state.groups.flatMap((group) => group.rows).forEach((row) => {
     assert.deepEqual({ inputMode: row.inputMode, max: row.max, min: row.min, step: row.step }, {
@@ -195,9 +195,9 @@ function assertPopulatedState(state) {
   });
 }
 
-async function editCodingPlan(planner) {
+async function editTranscendencePlan(planner) {
   const titleBeforeChange = await planner.browser.evaluate(`(() => {
-    const input = document.getElementById("planned-cpp");
+    const input = document.getElementById("planned-transcendence");
     input.value = "5.25";
     input.dispatchEvent(new Event("input", { bubbles: true }));
     return document.querySelector("#plannedMount .planned-title").textContent.trim();
@@ -208,7 +208,7 @@ async function editCodingPlan(planner) {
     const planned = JSON.parse(stored[PLANNED_KEY] || "{}");
     const entries = JSON.parse(stored["hivePlanner.activityLog"] || "[]");
     const latest = entries.at(-1);
-    return planned.cpp === 5.25
+    return planned.transcendence === 5.25
       && planned.futureActivity.preserve === true
       && latest?.action === "planned_hours_updated"
       && latest.before === 3.5
@@ -216,17 +216,17 @@ async function editCodingPlan(planner) {
       && latest.meta?.group === "study";
   });
   await planner.browser.evaluate(`(() => {
-    document.getElementById("planned-cpp").dispatchEvent(new Event("change", { bubbles: true }));
+    document.getElementById("planned-transcendence").dispatchEvent(new Event("change", { bubbles: true }));
   })()`);
   await planner.browser.waitForExpression('document.querySelector("#plannedMount .planned-title").textContent.includes("8.25h")');
   await planner.browser.reload();
-  await planner.browser.waitForExpression('document.getElementById("planned-cpp").value === "5.25"');
+  await planner.browser.waitForExpression('document.getElementById("planned-transcendence").value === "5.25"');
 }
 
-async function editReactCodingPlan(planner) {
+async function editReactTranscendencePlan(planner) {
   const titleBeforeChange = await planner.browser.evaluate(`(() => {
     const documentRoot = document.querySelector("iframe").contentDocument;
-    const input = documentRoot.getElementById("planned-cpp");
+    const input = documentRoot.getElementById("planned-transcendence");
     input.value = "4.5";
     input.dispatchEvent(new Event("input", { bubbles: true }));
     return documentRoot.querySelector("#plannedMount .planned-title").textContent.trim();
@@ -237,7 +237,7 @@ async function editReactCodingPlan(planner) {
     const planned = JSON.parse(stored[PLANNED_KEY] || "{}");
     const entries = JSON.parse(stored["hivePlanner.activityLog"] || "[]");
     const latest = entries.at(-1);
-    return planned.cpp === 4.5
+    return planned.transcendence === 4.5
       && planned.futureActivity.preserve === true
       && latest?.action === "planned_hours_updated"
       && latest.before === 5.25
@@ -245,7 +245,7 @@ async function editReactCodingPlan(planner) {
       && latest.meta?.group === "study";
   });
   await planner.browser.evaluate(`(() => {
-    const input = document.querySelector("iframe").contentDocument.getElementById("planned-cpp");
+    const input = document.querySelector("iframe").contentDocument.getElementById("planned-transcendence");
     input.dispatchEvent(new Event("change", { bubbles: true }));
   })()`);
   await planner.browser.waitForExpression(`document.querySelector("iframe").contentDocument.querySelector("#plannedMount .planned-title").textContent.includes("7.5h")`);
@@ -296,7 +296,7 @@ test("Planned vs actual preserves totals, editing, logging, and visual parity", 
   await planner.browser.waitForExpression('document.querySelector("#plannedMount .planned-title").textContent.includes("6.5h")');
 
   assertPopulatedState(await planner.browser.evaluate(plannedActualState("document")));
-  await editCodingPlan(planner);
+  await editTranscendencePlan(planner);
 
   await scrollToPlannedCard(planner.browser, "document");
   const legacyDesktop = await planner.browser.evaluate(plannedActualVisualContract("document"));
@@ -312,18 +312,18 @@ test("Planned vs actual preserves totals, editing, logging, and visual parity", 
   const reactDesktopScreenshot = await planner.browser.captureScreenshot(REACT_CLIP);
   assert.deepEqual(reactDesktop, legacyDesktop);
   assertSameScreenshot(reactDesktopScreenshot, legacyDesktopScreenshot, "desktop Planned vs actual screenshot");
-  await editReactCodingPlan(planner);
+  await editReactTranscendencePlan(planner);
   await assertReactLogSurvivesLegacyWrite(planner);
 
   await planner.browser.setViewport(390, 844, true);
   await planner.browser.open(`${planner.server.url}/?date=${TEST_DATE}`);
-  await planner.browser.waitForExpression('document.getElementById("planned-cpp")?.value === "4.5"');
+  await planner.browser.waitForExpression('document.getElementById("planned-transcendence")?.value === "4.5"');
   await scrollToPlannedCard(planner.browser, "document");
   const legacyMobile = await planner.browser.evaluate(plannedActualVisualContract("document"));
   const legacyMobileScreenshot = await planner.browser.captureScreenshot(LEGACY_CLIP);
 
   await planner.browser.open(`${preview.url}/?date=${TEST_DATE}`);
-  await planner.browser.waitForExpression(`document.querySelector("iframe")?.contentDocument?.getElementById("planned-cpp")?.value === "4.5"`);
+  await planner.browser.waitForExpression(`document.querySelector("iframe")?.contentDocument?.getElementById("planned-transcendence")?.value === "4.5"`);
   await scrollToPlannedCard(planner.browser, 'document.querySelector("iframe").contentDocument');
   const reactMobile = await planner.browser.evaluate(
     plannedActualVisualContract('document.querySelector("iframe").contentDocument')

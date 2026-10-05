@@ -1,14 +1,8 @@
 export type LifePiePeriod = "day" | "week" | "month" | "all";
 
-export type LifePieActivityId =
-  | "lc"
-  | "cpp"
-  | "python"
-  | "skate"
-  | "p90x3"
-  | "guitar"
-  | "meditation"
-  | "journal";
+import type { TrackedActivityId } from "../activity-categories/activity-categories";
+
+export type LifePieActivityId = TrackedActivityId;
 
 export interface LifePieActivityDefinition {
   id: LifePieActivityId;
@@ -30,12 +24,12 @@ export const LIFE_PIE_PERIODS = [
 
 export const LIFE_PIE_GROUPS = [
   {
-    label: "Study",
+    label: "Work",
     color: "#cbdcf3",
     activities: [
-      { id: "lc", label: "Leetcode" },
-      { id: "cpp", label: "Coding" },
-      { id: "python", label: "Python" }
+      { id: "transcendence", label: "Transcendence" },
+      { id: "mobileDevelopment", label: "Mobile Development" },
+      { id: "portfolioJobPrep", label: "Portfolio / Job Prep" }
     ]
   },
   {
@@ -43,16 +37,12 @@ export const LIFE_PIE_GROUPS = [
     color: "#dbe8c7",
     activities: [
       { id: "skate", label: "Skate" },
-      { id: "p90x3", label: "Gym / Judo" }
+      { id: "gym", label: "Gym" }
     ]
   },
   {
-    label: "Mind",
+    label: "Guitar",
     color: "#e4d9f3",
-    activities: [
-      { id: "guitar", label: "Guitar" },
-      { id: "meditation", label: "Meditation" },
-      { id: "journal", label: "Journal" }
-    ]
+    activities: [{ id: "guitar", label: "Guitar" }]
   }
 ] as const satisfies readonly LifePieGroupDefinition[];

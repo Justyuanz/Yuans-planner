@@ -1,4 +1,6 @@
-export type PlannedActivityId = "lc" | "cpp" | "python" | "skate" | "p90x3" | "guitar";
+import type { TrackedActivityId } from "../activity-categories/activity-categories";
+
+export type PlannedActivityId = TrackedActivityId;
 export type PlannedGroupId = "study" | "leisure";
 
 export interface PlannedActivityDefinition {
@@ -18,9 +20,9 @@ export const PLANNED_GROUPS = [
     id: "study",
     label: "Study",
     activities: [
-      { id: "lc", shortLabel: "lc", className: "lc" },
-      { id: "cpp", shortLabel: "Coding", className: "cpp" },
-      { id: "python", shortLabel: "Python", className: "python" }
+      { id: "transcendence", shortLabel: "Transcendence", className: "transcendence" },
+      { id: "mobileDevelopment", shortLabel: "Mobile Dev", className: "mobile-development" },
+      { id: "portfolioJobPrep", shortLabel: "Portfolio", className: "portfolio-job-prep" }
     ]
   },
   {
@@ -28,7 +30,7 @@ export const PLANNED_GROUPS = [
     label: "Leisure",
     activities: [
       { id: "skate", shortLabel: "Skate", className: "skate" },
-      { id: "p90x3", shortLabel: "Gym / Judo", className: "gym" },
+      { id: "gym", shortLabel: "Gym", className: "gym" },
       { id: "guitar", shortLabel: "Guitar", className: "guitar" }
     ]
   }

@@ -1,5 +1,6 @@
 import type { PlannerStore } from "../../api/planner-store";
 import { isRecord } from "../../shared/is-record";
+import { normalizeActivityId } from "../activity-categories/activity-categories";
 import type { LifePieActivityId, LifePiePeriod } from "./life-pie-definitions";
 
 export type LifePieActivityTotals = Record<LifePieActivityId, number>;
@@ -13,22 +14,17 @@ const DAILY_TASKS_PREFIX = "hivePlanner.dailyTasks.";
 const PHYSICAL_LOGS_KEY = "hivePlanner.physical.logs";
 const SKATE_SESSIONS_KEY = "hivePlanner.skate.sessions";
 const GUITAR_SESSIONS_KEY = "hivePlanner.guitar.sessions";
-const MEDITATION_KEY = "hivePlanner.meditation";
-const JOURNAL_ENTRIES_KEY = "hivePlanner.journal.entries";
 const MAX_TASK_HOURS = 24;
 const MAX_TASK_TIMER_SECONDS = 8 * 60 * 60;
-const TASK_ACTIVITY_IDS = ["lc", "cpp", "python", "skate", "p90x3", "guitar", "other"] as const;
 
 function emptyTotals(): LifePieActivityTotals {
   return {
-    lc: 0,
-    cpp: 0,
-    python: 0,
+    transcendence: 0,
+    mobileDevelopment: 0,
+    portfolioJobPrep: 0,
     skate: 0,
-    p90x3: 0,
-    guitar: 0,
-    meditation: 0,
-    journal: 0
+    gym: 0,
+    guitar: 0
   };
 }
 
@@ -106,9 +102,7 @@ function isInRange(dateKey: string, range: DateRange | null): boolean {
 
 function taskActivity(task: Readonly<Record<string, unknown>>): LifePieActivityId | "other" {
   const requested = [task.activity, task.track].find(Boolean);
-  return TASK_ACTIVITY_IDS.includes(requested as (typeof TASK_ACTIVITY_IDS)[number])
-    ? requested as LifePieActivityId | "other"
-    : "lc";
+  return normalizeActivityId(requested);
 }
 
 function timerStartedAt(value: unknown): number | null {
@@ -172,12 +166,12 @@ function addTaskTotals(
   });
 }
 
-function physicalActivity(name: string): "skate" | "p90x3" | null {
+function physicalActivity(name: string): "skate" | "gym" | null {
   const normalized = name.toLowerCase();
   if (normalized.includes("skate")) {
     return "skate";
   }
-  return normalized.includes("rest") ? null : "p90x3";
+  return normalized.includes("rest") ? null : "gym";
 }
 
 function addPhysicalLogs(
@@ -236,26 +230,6 @@ function addSessions(
 ): void {
   totals.skate += sessionHours(storedArray(store, SKATE_SESSIONS_KEY), range);
   totals.guitar += sessionHours(storedArray(store, GUITAR_SESSIONS_KEY), range);
-
-  const meditation = parseStoredJson(store[MEDITATION_KEY]);
-  const meditationSessions = isRecord(meditation) && Array.isArray(meditation.sessions)
-    ? meditation.sessions
-    : [];
-  totals.meditation = sessionHours(meditationSessions, range);
-}
-
-function addJournalTime(
-  totals: LifePieActivityTotals,
-  store: PlannerStore,
-  range: DateRange | null
-): void {
-  totals.journal = storedArray(store, JOURNAL_ENTRIES_KEY).reduce<number>((sum, candidate) => {
-    if (!isRecord(candidate) || typeof candidate.date !== "string" || !candidate.date.trim()) {
-      return sum;
-    }
-    const minutes = clamp(candidate.durationMinutes, 1440);
-    return isInRange(candidate.date.trim(), range) ? sum + minutes / 60 : sum;
-  }, 0);
 }
 
 export function lifePieTotalsForPeriod(
@@ -269,6 +243,5 @@ export function lifePieTotalsForPeriod(
   addTaskTotals(totals, store, range, formatPlannerDate(today), nowMs);
   addPhysicalLogs(totals, store, range);
   addSessions(totals, store, range);
-  addJournalTime(totals, store, range);
   return totals;
 }

@@ -2,6 +2,7 @@ import type { PlannerStore } from "../../api/planner-store";
 import { isRecord } from "../../shared/is-record";
 import { formatLifePieHours } from "../life-pie/life-pie";
 import { lifePieTotalsForPeriod } from "../life-pie/life-pie-store";
+import { migratePlannedActivityValues } from "../activity-categories/activity-categories";
 import {
   PLANNED_GROUPS,
   type PlannedActivityId,
@@ -62,7 +63,7 @@ export function plannedStorageKey(date: Date): string {
 function parsePlannedValues(rawValue: string | undefined): PlannedValues {
   try {
     const parsed: unknown = rawValue ? JSON.parse(rawValue) : {};
-    return isRecord(parsed) ? { ...parsed } : {};
+    return isRecord(parsed) ? migratePlannedActivityValues(parsed) : {};
   } catch {
     return {};
   }
