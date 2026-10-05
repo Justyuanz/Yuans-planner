@@ -145,10 +145,10 @@
   function taskLooksStudy(task) {
     var label = normalizeTaskLabel(task && task.label);
     var activity = String(task && task.activity || "").toLowerCase();
-    if (["lc", "cpp", "python"].indexOf(activity) !== -1) {
+    if (["transcendence", "mobiledevelopment", "portfoliojobprep"].indexOf(activity) !== -1) {
       return true;
     }
-    return /\b(study|leetcode|c\+\+|python|exam|revision|read notes|review)\b/.test(label);
+    return /\b(study|transcendence|mobile development|portfolio|job prep|exam|revision|read notes|review)\b/.test(label);
   }
 
   function buildDailySummaries(taskMap) {
@@ -407,9 +407,9 @@
       "study",
       "work",
       "admin",
-      "python",
-      "coding",
-      "leetcode",
+      "transcendence",
+      "mobile development",
+      "portfolio",
       "guitar",
       "skate",
       "project",

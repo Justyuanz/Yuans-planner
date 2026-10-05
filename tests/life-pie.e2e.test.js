@@ -24,27 +24,27 @@ const TASKS_BY_DATE = {
 
 const EXPECTED_PERIODS = {
   Day: {
-    ariaLabel: "Study 3h, Body 1h, Mind 0.5h",
-    breakdown: ["Leetcode22% · 1h", "Coding44% · 2h", "Python0% · 0h", "Skate22% · 1h", "Gym / Judo0% · 0h", "Guitar11% · 0.5h", "Meditation0% · 0h", "Journal0% · 0h"],
-    summary: ["Study67% · 3h", "Body22% · 1h", "Mind11% · 0.5h"],
+    ariaLabel: "Work 3h, Body 1h, Guitar 0.5h",
+    breakdown: ["Transcendence44% · 2h", "Mobile Development0% · 0h", "Portfolio / Job Prep22% · 1h", "Skate22% · 1h", "Gym0% · 0h", "Guitar11% · 0.5h"],
+    summary: ["Work67% · 3h", "Body22% · 1h", "Guitar11% · 0.5h"],
     total: "4.5h"
   },
   Week: {
-    ariaLabel: "Study 4h, Body 3h, Mind 0.5h",
-    breakdown: ["Leetcode13% · 1h", "Coding27% · 2h", "Python13% · 1h", "Skate13% · 1h", "Gym / Judo27% · 2h", "Guitar7% · 0.5h", "Meditation0% · 0h", "Journal0% · 0h"],
-    summary: ["Study53% · 4h", "Body40% · 3h", "Mind7% · 0.5h"],
+    ariaLabel: "Work 4h, Body 3h, Guitar 0.5h",
+    breakdown: ["Transcendence27% · 2h", "Mobile Development13% · 1h", "Portfolio / Job Prep13% · 1h", "Skate13% · 1h", "Gym27% · 2h", "Guitar7% · 0.5h"],
+    summary: ["Work53% · 4h", "Body40% · 3h", "Guitar7% · 0.5h"],
     total: "7.5h"
   },
   Month: {
-    ariaLabel: "Study 4h, Body 3h, Mind 0.5h",
-    breakdown: ["Leetcode13% · 1h", "Coding27% · 2h", "Python13% · 1h", "Skate13% · 1h", "Gym / Judo27% · 2h", "Guitar7% · 0.5h", "Meditation0% · 0h", "Journal0% · 0h"],
-    summary: ["Study53% · 4h", "Body40% · 3h", "Mind7% · 0.5h"],
+    ariaLabel: "Work 4h, Body 3h, Guitar 0.5h",
+    breakdown: ["Transcendence27% · 2h", "Mobile Development13% · 1h", "Portfolio / Job Prep13% · 1h", "Skate13% · 1h", "Gym27% · 2h", "Guitar7% · 0.5h"],
+    summary: ["Work53% · 4h", "Body40% · 3h", "Guitar7% · 0.5h"],
     total: "7.5h"
   },
   All: {
-    ariaLabel: "Study 7h, Body 3h, Mind 0.5h",
-    breakdown: ["Leetcode38% · 4h", "Coding19% · 2h", "Python10% · 1h", "Skate10% · 1h", "Gym / Judo19% · 2h", "Guitar5% · 0.5h", "Meditation0% · 0h", "Journal0% · 0h"],
-    summary: ["Study67% · 7h", "Body29% · 3h", "Mind5% · 0.5h"],
+    ariaLabel: "Work 7h, Body 3h, Guitar 0.5h",
+    breakdown: ["Transcendence19% · 2h", "Mobile Development10% · 1h", "Portfolio / Job Prep38% · 4h", "Skate10% · 1h", "Gym19% · 2h", "Guitar5% · 0.5h"],
+    summary: ["Work67% · 7h", "Body29% · 3h", "Guitar5% · 0.5h"],
     total: "10.5h"
   }
 };
@@ -97,14 +97,14 @@ test("legacy Life Pie preserves empty, period, grouping, and reload behavior", {
 
   await planner.browser.setViewport(1280, 720);
   await planner.browser.open(`${planner.server.url}/?date=${TEST_DATE}`);
-  await planner.browser.waitForExpression('document.querySelectorAll("#lifeBreakdown .breakdown-row").length === 8');
+  await planner.browser.waitForExpression('document.querySelectorAll("#lifeBreakdown .breakdown-row").length === 6');
 
   const empty = await readLifePie(planner.browser);
   assert.deepEqual(empty.periodLabels, ["Day", "Week", "Month", "All"]);
   assert.equal(empty.activePeriod, "Week");
   assert.equal(empty.total, "0h");
-  assert.equal(empty.ariaLabel, "Study 0h, Body 0h, Mind 0h");
-  assert.deepEqual(empty.summary, ["Study0% · 0h", "Body0% · 0h", "Mind0% · 0h"]);
+  assert.equal(empty.ariaLabel, "Work 0h, Body 0h, Guitar 0h");
+  assert.deepEqual(empty.summary, ["Work0% · 0h", "Body0% · 0h", "Guitar0% · 0h"]);
   assert.equal(empty.backgroundColor, "rgb(239, 237, 242)");
   assert.equal(empty.backgroundImage, "none");
 

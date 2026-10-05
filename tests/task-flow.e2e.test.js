@@ -19,7 +19,7 @@ async function createTaskThroughForm(browser) {
     document.getElementById("taskTitle").value = "Browser task";
     document.getElementById("taskTime").value = "09:30";
     document.getElementById("taskReminder").value = "10";
-    document.getElementById("taskActivity").value = "cpp";
+    document.getElementById("taskActivity").value = "transcendence";
     document.getElementById("taskForm").dispatchEvent(new Event("submit", {
       bubbles: true,
       cancelable: true
@@ -33,7 +33,7 @@ async function editOnlyTask(browser) {
   await browser.evaluate(`(() => {
     const titleInput = document.querySelector(".task-title-input");
     titleInput.value = "Focused browser task";
-    document.querySelector(".task-editor-activity").value = "python";
+    document.querySelector(".task-editor-activity").value = "mobileDevelopment";
     document.querySelector(".task-editor-time").value = "10:15";
     document.querySelector(".task-editor-reminder").value = "15";
     titleInput.dispatchEvent(new KeyboardEvent("keydown", {
@@ -65,7 +65,7 @@ test("legacy app starts and preserves task create, edit, delete, and refresh beh
   });
   assert.equal(createdTasks[0].scheduledTime, "09:30");
   assert.equal(createdTasks[0].reminderMinutes, 10);
-  assert.equal(createdTasks[0].activity, "cpp");
+  assert.equal(createdTasks[0].activity, "transcendence");
 
   await browser.reload();
   await browser.waitForExpression('document.querySelector(".task-title")?.textContent.includes("Browser task")');
@@ -76,7 +76,7 @@ test("legacy app starts and preserves task create, edit, delete, and refresh beh
   });
   assert.equal(editedTasks[0].scheduledTime, "10:15");
   assert.equal(editedTasks[0].reminderMinutes, 15);
-  assert.equal(editedTasks[0].activity, "python");
+  assert.equal(editedTasks[0].activity, "mobileDevelopment");
 
   await browser.reload();
   await browser.waitForExpression('document.querySelector(".task-title")?.textContent.includes("Focused browser task")');

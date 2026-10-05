@@ -3,10 +3,13 @@ const assert = require("node:assert/strict");
 
 const calendarTaskSync = require("../frontend/js/calendar-task-sync.js");
 
-test("activityIdForCategory keeps the legacy calendar-to-task mapping", function () {
-  assert.equal(calendarTaskSync.activityIdForCategory("Study/school"), "cpp");
+test("activityIdForCategory uses the production calendar-to-task mapping", function () {
+  assert.equal(calendarTaskSync.activityIdForCategory("Study/school"), "transcendence");
+  assert.equal(calendarTaskSync.activityIdForCategory("Transcendence"), "transcendence");
+  assert.equal(calendarTaskSync.activityIdForCategory("Mobile Development"), "mobileDevelopment");
+  assert.equal(calendarTaskSync.activityIdForCategory("Portfolio / Job Prep"), "portfolioJobPrep");
   assert.equal(calendarTaskSync.activityIdForCategory("Skate"), "skate");
-  assert.equal(calendarTaskSync.activityIdForCategory("Gym"), "p90x3");
+  assert.equal(calendarTaskSync.activityIdForCategory("Gym"), "gym");
   assert.equal(calendarTaskSync.activityIdForCategory("Guitar"), "guitar");
   assert.equal(calendarTaskSync.activityIdForCategory("Finnish"), "other");
   assert.equal(calendarTaskSync.activityIdForCategory("Personal"), "other");
@@ -32,7 +35,7 @@ test("createTaskFromEvent preserves schedule and source-reminder behavior", func
   assert.deepEqual(task, {
     id: "calendar-task-1",
     label: "Study block",
-    activity: "cpp",
+    activity: "transcendence",
     hours: 0,
     timerSeconds: 0,
     timerStartedAt: null,

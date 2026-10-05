@@ -22,7 +22,7 @@ test("effort is user-selectable and changes the same activity's load", function 
   assert.equal(core.loadForActivity("Skate", 90, "easy"), 1.35);
   assert.equal(core.loadForActivity("Skate", 90, "standard"), 1.8);
   assert.equal(core.loadForActivity("Skate", 90, "demanding"), 2.25);
-  assert.equal(core.normalizeActivity(block("Coding", "10:00", "11:00")).effort, "standard");
+  assert.equal(core.normalizeActivity(block("Transcendence", "10:00", "11:00")).effort, "standard");
 });
 
 test("physical categories use demanding as the compatible default effort", function () {

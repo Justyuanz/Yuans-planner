@@ -8,9 +8,12 @@
   "use strict";
 
   const ACTIVITY_BY_CATEGORY = {
-    "Study/school": "cpp",
+    "Study/school": "transcendence",
+    Transcendence: "transcendence",
+    "Mobile Development": "mobileDevelopment",
+    "Portfolio / Job Prep": "portfolioJobPrep",
     Skate: "skate",
-    Gym: "p90x3",
+    Gym: "gym",
     Guitar: "guitar"
   };
 

@@ -332,20 +332,15 @@
           || String((a && a.id) || "").localeCompare(String((b && b.id) || ""));
       }
 
-      var activities = [
-        { id: "lc", label: "Leetcode", short: "lc", className: "lc", group: "study" },
-        { id: "cpp", label: "Coding", short: "Coding", className: "cpp", group: "study" },
-        { id: "python", label: "Python", short: "Python", className: "python", group: "study" },
-        { id: "skate", label: "Skate", short: "Skate", className: "skate", group: "leisure" },
-        { id: "p90x3", label: "Gym / Judo", short: "Gym / Judo", className: "gym", group: "leisure" },
-        { id: "guitar", label: "Guitar", short: "Guitar", className: "guitar", group: "leisure" },
-        { id: "other", label: "Other", short: "Other", className: "other", group: "other", showInStats: false }
-      ];
+      const activityCategories = globalThis.YuanActivityCategories;
+      const activities = activityCategories && Array.isArray(activityCategories.ACTIVITIES)
+        ? activityCategories.ACTIVITIES.slice()
+        : [];
 
       var routineLabelRenames = {
-        "Leetcode morning": "Leetcode",
-        "C++ one task": "Coding",
-        "Python afternoon": "Python project"
+        "Leetcode morning": "Portfolio / Job Prep",
+        "C++ one task": "Transcendence",
+        "Python afternoon": "Mobile Development"
       };
 
       var mascotLines = [
@@ -552,7 +547,7 @@
         { id: "body", label: "Body", placeholder: "Skate, gym, or recovery that would help." },
         { id: "mind", label: "Mind", placeholder: "Guitar, reading, or something steadying." }
       ];
-      var studyOverviewPlaceholders = ["Coding project · one clear next step", "Rest", "Optional review"];
+      const studyOverviewPlaceholders = ["Transcendence · one clear next step", "Rest", "Optional review"];
       var skateBodyOverviewPlaceholders = ["Total Synergistics", "Skate + Ab Ripper", "X3 Yoga"];
       var monthNames = [
         "January", "February", "March", "April", "May", "June",
@@ -849,6 +844,28 @@
         }
       }
 
+      function storedValueChanged(before, after) {
+        return JSON.stringify(before) !== JSON.stringify(after);
+      }
+
+      function migrateActivityCategories() {
+        if (!activityCategories) return;
+        Object.keys(memoryStore).forEach(function (key) {
+          const value = readJson(key, null);
+          let migrated = value;
+          if (key.indexOf(STORAGE.dailyTasksPrefix) === 0) {
+            migrated = activityCategories.migrateTasks(value);
+          } else if (key.indexOf(STORAGE.plannedPrefix) === 0) {
+            migrated = activityCategories.migratePlannedHours(value);
+          } else if (key === STORAGE.events) {
+            migrated = activityCategories.migrateEvents(value);
+          } else if (key === STORAGE.activityLog || key === STORAGE.agentUndo) {
+            migrated = activityCategories.migrateValue(value, "");
+          }
+          if (storedValueChanged(value, migrated)) writeJson(key, migrated);
+        });
+      }
+
       async function hydrateStore() {
         memoryStore = {};
         try {
@@ -886,6 +903,7 @@
           persistServerValue(entry.key, entry.value);
         });
         sanitizeTransientSessionData();
+        migrateActivityCategories();
       }
 
       function persistRaw(key, value) {
@@ -1128,7 +1146,7 @@
       function getActivity(id) {
         return activities.find(function (activity) {
           return activity.id === id;
-        }) || activities[0];
+        }) || activities.find(function (activity) { return activity.id === "other"; }) || activities[0];
       }
 
       function taskActivityTracksTime(activityId) {
@@ -1159,7 +1177,7 @@
         if (normalized.indexOf("rest") !== -1) {
           return "rest";
         }
-        return "p90x3";
+        return "gym";
       }
 
       function countsAsDone(status) {
@@ -1786,6 +1804,9 @@
         var normalized = normalizeEventCategory(category);
         if (normalized === "Study/school") return "study-block";
         if (normalized === "Finnish") return "finnish-block";
+        if (normalized === "Transcendence") return "transcendence-block";
+        if (normalized === "Mobile Development") return "mobile-development-block";
+        if (normalized === "Portfolio / Job Prep") return "portfolio-job-prep-block";
         if (normalized === "Skate") return "skate-block";
         if (normalized === "Gym") return "gym-block";
         if (normalized === "Cooking") return "cooking-block";
@@ -2151,9 +2172,9 @@
             return {
               id: task.id || makeId("task"),
               label: routineLabelRenames[label] || label,
-              activity: activities.some(function (activity) {
-                return activity.id === (task.activity || task.track);
-              }) ? (task.activity || task.track) : "lc",
+              activity: activityCategories
+                ? activityCategories.normalizeActivityId(task.activity || task.track)
+                : (task.activity || task.track || "other"),
               hours: normalizeTaskHours(task.hours),
               timerSeconds: normalizeTaskTimerSeconds(task.timerSeconds),
               timerStartedAt: validTimerStartedAt(task.timerStartedAt),
@@ -4592,17 +4613,12 @@
           if (workoutKind(log.name) === "skate") {
             totals.skate += log.minutes / 60;
           } else if (workoutKind(log.name) !== "rest") {
-            totals.p90x3 += log.minutes / 60;
+            totals.gym += log.minutes / 60;
           }
         });
 
         totals.skate += YuanMindCore.sessionHours(getSkateSessions(), start && formatDate(start), end && formatDate(end));
         totals.guitar += YuanMindCore.sessionHours(getGuitarSessions(), start && formatDate(start), end && formatDate(end));
-        totals.meditation = YuanMindCore.sessionHours(readJson(STORAGE.meditation, {}).sessions, start && formatDate(start), end && formatDate(end));
-        totals.journal = getJournalEntries().reduce(function (sum, entry) {
-          return (!start || entry.date >= formatDate(start)) && (!end || entry.date <= formatDate(end))
-            ? sum + YuanMindCore.minutes(entry.durationMinutes) / 60 : sum;
-        }, 0);
       }
 
       function totalHoursForRange(start, end) {
@@ -4730,9 +4746,9 @@
             (elements.lifeCard && elements.lifeCard.dataset.reactOwned === "true")) return;
         var totals = totalsForStatsPeriod(statsPeriod);
         var groups = [
-          { label: "Study", color: "#cbdcf3", ids: ["lc", "cpp", "python"] },
-          { label: "Body", color: "#dbe8c7", ids: ["skate", "p90x3"] },
-          { label: "Mind", color: "#e4d9f3", ids: ["guitar", "meditation", "journal"] }
+          { label: "Work", color: "#cbdcf3", ids: ["transcendence", "mobileDevelopment", "portfolioJobPrep"] },
+          { label: "Body", color: "#dbe8c7", ids: ["skate", "gym"] },
+          { label: "Guitar", color: "#e4d9f3", ids: ["guitar"] }
         ];
         var total = 0;
         groups.forEach(function (group) {
@@ -4757,7 +4773,7 @@
           elements.lifeSummary.appendChild(item);
           group.ids.forEach(function (id) {
             var activity = activities.find(function (a) { return a.id === id; });
-            var label = activity ? activity.label : id === "meditation" ? "Meditation" : "Journal";
+            const label = activity ? activity.label : id;
             var row = document.createElement("div");
             row.className = "breakdown-row";
             row.innerHTML = '<strong><i class="life-dot" style="background:' + group.color + '"></i>' + label + '</strong><span>' + percent(totals[id] || 0, total) + '% · ' + formatHours(totals[id] || 0) + '</span>';

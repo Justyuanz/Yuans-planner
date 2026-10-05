@@ -102,9 +102,11 @@ class HttpTests(unittest.TestCase):
         parser.feed(body.decode())
         self.assertTrue(parser.urls)
         storage_script = next(url for url in parser.urls if url.startswith("/js/storage-core.js"))
+        activity_categories_script = next(url for url in parser.urls if url.startswith("/js/activity-categories.js"))
         calendar_task_script = next(url for url in parser.urls if url.startswith("/js/calendar-task-sync.js"))
         app_script = next(url for url in parser.urls if url.startswith("/js/app.js"))
         self.assertLess(parser.urls.index(storage_script), parser.urls.index(app_script))
+        self.assertLess(parser.urls.index(activity_categories_script), parser.urls.index(app_script))
         self.assertLess(parser.urls.index(calendar_task_script), parser.urls.index(app_script))
         for url in ["/"] + parser.urls:
             with self.subTest(url=url):
