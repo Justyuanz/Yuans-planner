@@ -181,15 +181,13 @@ For each feature:
 - [ ] remove legacy implementation only after tests pass
 
 ## Current Task
-The Money route is the first complete page rendered directly by React without an iframe. `?view=moneyView` uses the React shell and all five migrated Money-page cards; the other five routes continue using the verified legacy migration shell. Stop at this working boundary before selecting the next page-level milestone.
-
-Before migrating another page, reconcile the rewrite with the activity-category migration now shipped on legacy `main` at commit `01d6c6d`. The React Life Pie and Planned vs actual modules still use the retired `lc`, `cpp`, `python`, and `p90x3` IDs, so they currently do not match the production data contract described below.
+The upstream activity-category compatibility migration is complete and verified. React Life Pie and Planned vs actual now use the production Transcendence, Mobile Development, Portfolio / Job Prep, Skate, Gym, and Guitar contract while decoding retired IDs safely. The Money route remains the first complete page rendered directly by React; the other five routes continue using the verified legacy migration shell. Stop at this working boundary before selecting the next page-level milestone.
 
 ## Last Completed Task
-Composed the complete Money page as a direct React route without redesigning it. The page reuses the five verified Money components, preserves the legacy shell/card order and exact desktop/mobile geometry, persists budget edits across reloads, provides typed compatibility-safe backup controls, and navigates back to the iframe-backed routes without breaking them.
+Ported legacy `main` commit `01d6c6d` into the rewrite and migrated the React activity contract. Old task/planned/log/event IDs migrate to the production IDs, old and new planned hours combine, unknown fields survive, calendar imports use the new categories, Life Pie uses Work/Body/Guitar and excludes Meditation/Journal totals, and Planned vs actual renders and persists the new IDs with exact desktop/mobile parity.
 
 ## Next Task
-Port and test the upstream activity-category migration before selecting the next page-level milestone. Update the typed compatibility definitions, legacy-value decoding/migration, Planned vs actual, Life Pie, calendar/event category mapping, tests, and visual baselines while preserving unknown stored fields. After that compatibility work, await explicit direction before migrating the Dashboard task list/editor or another page. The clean Python API structure also remains incomplete in Phase 3.
+Await explicit direction before selecting the next page-level milestone. Dashboard is the closest candidate, but its remaining task list/editor is coupled to timers, calendar links, reminders, activity totals, day-state reactions, and Pattern synchronization, so characterize and protect that boundary before composing the direct Dashboard page. The clean Python API structure also remains incomplete in Phase 3.
 
 ## Upstream Legacy Change — Activity Categories (2026-10-05)
 
@@ -206,12 +204,16 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 
 ## Important Decisions
 - Production activity/category compatibility is defined by legacy `main` commit `01d6c6d`. The rewrite must accept old stored IDs, expose the new labels/IDs, preserve unknown fields, and avoid hardcoding weekly target values into UI or calculation logic.
+- React centralizes the production activity definitions and legacy ID mapping in the strict-TypeScript `activity-categories.ts` module. Life Pie and Planned vs actual import this contract instead of maintaining separate category lists.
+- Planned-hour decoding combines numeric old and new values that map to the same production activity while retaining unrelated fields unchanged. The UI persists the normalized object on the next edit rather than discarding compatibility data.
+- The temporary legacy shell loads a focused activity-category bridge during hydration because five routes still run inside that shell. All new bridge code follows the same `const`-by-default/no-`var` rule; it is compatibility infrastructure, not a replacement for the React TypeScript model.
+- Meditation and Journal remain standalone features but no longer contribute to activity totals or Life Pie. The Meditation regression explicitly verifies session persistence without a Life Pie side effect.
 - The rewrite must preserve visual parity with the legacy Planner; this is an architecture rewrite, not a UI redesign.
 - Do not add migration-preview branding, explanatory badges, new layouts, or invented visual treatments to the React UI.
 - During incremental migration, the Vite preview may use the complete legacy app as a temporary same-origin shell so unmigrated features and interactions remain unchanged while React owns one tested mount.
 - The legacy weekly-goal renderer skips `#weeklyGoals` only when the preview marks it `data-react-owned="true"`; the normal legacy application remains unaffected.
 - The React preview marks `.life-card` `data-react-owned="true"`, clears only its existing `.panel-inner`, and portals the legacy-equivalent Life Pie markup into that mount; the normal legacy application remains unaffected.
-- React's planner-store hook listens only for same-origin `hivePlanner.*` storage events. This is the compatibility bridge that keeps the React-owned Life Pie current while task, physical, session, meditation, and journal writes remain in the legacy frame.
+- React's planner-store hook listens only for same-origin `hivePlanner.*` storage events. This is the compatibility bridge that keeps React-owned summaries current while task, physical, session, meditation, and journal writes remain in the legacy frame.
 - Planned vs actual stores one object at `hivePlanner.planned.<ISO-WEEK>` and must preserve unknown fields when editing. Each edit also appends the legacy-compatible `planned_hours_updated` record to `hivePlanner.activityLog` with the same group/activity metadata.
 - Energy trail remains derived from `hivePlanner.journal.entries` and dated task keys. React filters invalid tracker values before selecting the newest seven rows, and preserves the legacy rule that the comparison appears only after at least two low/empty energy days have previous-day task summaries in the 14-day insight window.
 - Journal-entry storage normalization now lives in one typed compatibility module shared by Energy trail and Journal archive. Both boundaries therefore agree on valid dates, tracker states, duration clamping, blank-entry removal, fallback IDs/timestamps, and newest-first ordering.
@@ -243,7 +245,7 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - React backup import/export preserves unknown `hivePlanner.*` values and excludes the transient Guitar session just like legacy. Import publishes same-window storage events so the direct Money cards update immediately.
 - The dashboard insight bridge stays unavailable until legacy server-first hydration completes. This prevents an early React read from interpreting an empty in-memory store as real current-day data and persisting an empty task list.
 - Insight action navigation resolves the current `#plannedMount` at click time because React ownership replaces its original child node; retaining the pre-migration element reference would scroll a detached node.
-- React persistence explicitly publishes a same-window storage event after local writes because browsers do not deliver native storage events to the document that performed the write. This keeps sibling React boundaries, including Life Pie after meditation completion, synchronized immediately.
+- React persistence explicitly publishes a same-window storage event after local writes because browsers do not deliver native storage events to the document that performed the write. This keeps sibling React boundaries synchronized immediately.
 - The legacy iframe listens for external `hivePlanner.*` storage writes from React-owned parent mounts and updates only its in-memory store. This prevents a later legacy write from overwriting newer React values without causing a second persistence loop.
 - Visual regression coverage must compare the legacy and React versions at identical desktop and mobile viewports, including computed styles/geometry and a rendered screenshot where stable.
 - Screenshot comparisons decode Chrome PNG pixels and allow at most 1% of pixels to differ by more than eight channel values; exact DOM content and computed style/geometry comparisons remain mandatory so minor cross-frame antialiasing does not create false failures.
@@ -277,7 +279,6 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Reuse one browser-planner fixture for Chrome and temporary-server lifecycle instead of duplicating setup across user-flow tests.
 
 ## Known Problems
-- React Life Pie and Planned vs actual still use the retired `lc`, `cpp`, `python`, and `p90x3` contract and still count Meditation/Journal in Life Pie. They must be updated before the rewrite reads the migrated production store or replaces another dashboard boundary.
 - Existing project is over 20,000 lines.
 - Some files contain thousands of lines.
 - Duplicate/redundant functions likely exist.
@@ -589,6 +590,17 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Recorded the new production activity IDs, legacy mappings, calendar mappings, Life Pie groups, Planned vs actual persistence contract, and live W41 target data.
 - Confirmed the rewrite still uses retired IDs in its React Life Pie and Planned vs actual boundaries; made reconciling those typed compatibility modules the next task before another page-level migration.
 - Documentation only; no application code or tests changed in this session.
+
+### Session 28
+
+- Re-read `AGENTS.md`, this handoff, branch history, status, diff, and the implementation/browser-verification skills, then selected the documented upstream activity-category reconciliation as the focused task.
+- Added failing legacy and React tests first for the production category order, retired-ID normalization, old/new planned-hour merging, unknown-field preservation, event-category migration, and calendar-to-task mapping.
+- Ported the deployed legacy hydration/category bridge needed by the five iframe-backed routes, including new calendar choices/styles, task/event/log/planned migration, updated insight/agent classifications, and the production Life Pie grouping. All newly added or touched declarations follow the `const`-by-default/no-`var` rule.
+- Added the strict-TypeScript React activity model and moved Life Pie and Planned vs actual onto the production IDs. Life Pie now groups Work, Body, and Guitar and excludes Meditation/Journal; Planned vs actual combines retired and current values while preserving unrelated fields and logging edits under the new IDs.
+- Updated behavioral and visual contracts for Life Pie, Planned vs actual, task editing, Meditation independence, and day-state audit persistence. Real Chrome verified exact legacy/React desktop and mobile DOM, computed geometry, screenshots, persistence, reload behavior, and clean browser errors.
+- The first full run exposed the intended removed Meditation-to-Life-Pie side effect and a day-state two-write race in the test. The regressions now prove Meditation persists independently and wait for both the state and audit entry without weakening assertions.
+- Commits: `108aeae` ports the production compatibility bridge; `9286ad3` migrates the React TypeScript activity contract; `6d32791` aligns cross-feature regressions.
+- Final verification: 113 React tests, React lint, strict type-checking, and the Vite production build pass. The full safety net passes with 18 Python tests and 133 root JavaScript tests, including every serialized real-Chrome browser flow.
 
 ---
 
