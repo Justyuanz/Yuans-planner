@@ -183,13 +183,29 @@ For each feature:
 ## Current Task
 The Money route is the first complete page rendered directly by React without an iframe. `?view=moneyView` uses the React shell and all five migrated Money-page cards; the other five routes continue using the verified legacy migration shell. Stop at this working boundary before selecting the next page-level milestone.
 
+Before migrating another page, reconcile the rewrite with the activity-category migration now shipped on legacy `main` at commit `01d6c6d`. The React Life Pie and Planned vs actual modules still use the retired `lc`, `cpp`, `python`, and `p90x3` IDs, so they currently do not match the production data contract described below.
+
 ## Last Completed Task
 Composed the complete Money page as a direct React route without redesigning it. The page reuses the five verified Money components, preserves the legacy shell/card order and exact desktop/mobile geometry, persists budget edits across reloads, provides typed compatibility-safe backup controls, and navigates back to the iframe-backed routes without breaking them.
 
 ## Next Task
-Await explicit direction before selecting the next page-level milestone. The Dashboard is the closest next page, but its remaining task list/editor is substantially coupled to timers, calendar links, reminders, activity totals, day-state reactions, and Pattern synchronization. Characterize that boundary fully before migrating it, then compose the already-migrated dashboard cards into the direct React shell. The clean Python API structure also remains incomplete in Phase 3.
+Port and test the upstream activity-category migration before selecting the next page-level milestone. Update the typed compatibility definitions, legacy-value decoding/migration, Planned vs actual, Life Pie, calendar/event category mapping, tests, and visual baselines while preserving unknown stored fields. After that compatibility work, await explicit direction before migrating the Dashboard task list/editor or another page. The clean Python API structure also remains incomplete in Phase 3.
+
+## Upstream Legacy Change — Activity Categories (2026-10-05)
+
+Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and is already deployed. Treat this as production behavior to preserve in the rewrite.
+
+- Active tracked categories are `transcendence` (Transcendence), `mobileDevelopment` (Mobile Development), `portfolioJobPrep` (Portfolio / Job Prep), `skate` (Skate), `gym` (Gym), and `guitar` (Guitar). `other` remains a non-statistical fallback.
+- Persisted legacy IDs migrate as follows: `cpp` and `fso` → `transcendence`; `python` → `mobileDevelopment`; `lc` → `portfolioJobPrep`; `p90x3` → `gym`.
+- Calendar categories migrate as follows: Coding → Transcendence; Python → Mobile Development; Leetcode/LeetCode → Portfolio / Job Prep. The new calendar categories have their own existing-style color labels and map to the matching task activity IDs.
+- LeetCode, Python, Coding, Meditation, and Journal are no longer activity/time-total categories. Meditation and Journal remain standalone Planner features; only their contribution to activity totals and Life Pie was removed.
+- Life Pie now groups Transcendence, Mobile Development, and Portfolio / Job Prep under Work; Skate and Gym under Body; and Guitar under Guitar.
+- Planned weekly hours remain stored as compatibility-safe objects at `hivePlanner.planned.<ISO-WEEK>`. The live W41 values were saved as data, not source constants: Transcendence 20h, Mobile Development 5h, Portfolio / Job Prep 2h, Skate 2.5h, Gym 1h, and Guitar 1h. Planned vs actual inputs remain editable in 0.25-hour steps.
+- The legacy migration combines hours when old and new IDs coexist and preserves unrelated/unknown data. Mirror that behavior rather than silently dropping old fields.
+- The legacy implementation centralizes category definitions and migration in `frontend/js/activity-categories.js`; its Node suite includes migration coverage. Main passed 97 JavaScript tests and live browser verification after deployment.
 
 ## Important Decisions
+- Production activity/category compatibility is defined by legacy `main` commit `01d6c6d`. The rewrite must accept old stored IDs, expose the new labels/IDs, preserve unknown fields, and avoid hardcoding weekly target values into UI or calculation logic.
 - The rewrite must preserve visual parity with the legacy Planner; this is an architecture rewrite, not a UI redesign.
 - Do not add migration-preview branding, explanatory badges, new layouts, or invented visual treatments to the React UI.
 - During incremental migration, the Vite preview may use the complete legacy app as a temporary same-origin shell so unmigrated features and interactions remain unchanged while React owns one tested mount.
@@ -261,6 +277,7 @@ Await explicit direction before selecting the next page-level milestone. The Das
 - Reuse one browser-planner fixture for Chrome and temporary-server lifecycle instead of duplicating setup across user-flow tests.
 
 ## Known Problems
+- React Life Pie and Planned vs actual still use the retired `lc`, `cpp`, `python`, and `p90x3` contract and still count Meditation/Journal in Life Pie. They must be updated before the rewrite reads the migrated production store or replaces another dashboard boundary.
 - Existing project is over 20,000 lines.
 - Some files contain thousands of lines.
 - Duplicate/redundant functions likely exist.
@@ -565,6 +582,13 @@ Await explicit direction before selecting the next page-level milestone. The Das
 - Manual Chrome DevTools inspection confirmed the direct accessible tree, zero iframes, active Money navigation, five cards, 940px desktop card geometry, and no horizontal overflow. The DevTools screenshot/emulation commands later stalled, while the independent real-Chrome gate completed both strict desktop/mobile captures and console checks.
 - Commit: `509c57a` renders the direct React Money page and its tested shared-shell compatibility pieces.
 - Final verification: 103 React tests, React lint, strict type-checking, and the Vite production build pass. The full safety net passes with 18 Python tests and 130 root JavaScript tests, including every real-Chrome browser flow.
+
+### Session 27 — Upstream compatibility note
+
+- Inspected the clean `rewrite/react-typescript` worktree, recent history, current handoff, and the React activity-category usages after legacy `main` shipped commit `01d6c6d`.
+- Recorded the new production activity IDs, legacy mappings, calendar mappings, Life Pie groups, Planned vs actual persistence contract, and live W41 target data.
+- Confirmed the rewrite still uses retired IDs in its React Life Pie and Planned vs actual boundaries; made reconciling those typed compatibility modules the next task before another page-level migration.
+- Documentation only; no application code or tests changed in this session.
 
 ---
 
