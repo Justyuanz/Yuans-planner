@@ -317,10 +317,15 @@ async function exerciseReactTimer(planner, previewUrl) {
   assert.equal(persistedState.sessions.filter((entry) => entry.id === "react-expired").length, 1);
 
   await planner.browser.evaluate('document.querySelector("iframe").contentDocument.querySelector(\'[data-view-target="todayView"]\').click()');
-  await planner.browser.waitForExpression('[...document.querySelector("iframe").contentDocument.querySelectorAll("#lifeBreakdown .breakdown-row")].some((row) => row.textContent.includes("Meditation100% · 0.75h"))');
+  await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.querySelectorAll("#lifeBreakdown .breakdown-row").length === 6');
+  assert.equal(await planner.browser.evaluate(`(() => {
+    const documentRoot = document.querySelector("iframe").contentDocument;
+    return [...documentRoot.querySelectorAll("#lifeBreakdown .breakdown-row")]
+      .some((row) => /Meditation|Journal/.test(row.textContent));
+  })()`), false);
 }
 
-test("Meditation preserves timer, persistence, Mind totals, and visual behavior", { timeout: 60_000 }, async function (context) {
+test("Meditation preserves timer, persistence, standalone totals, and visual behavior", { timeout: 60_000 }, async function (context) {
   const planner = await startBrowserPlanner(context);
   if (!planner) {
     return;
@@ -353,7 +358,12 @@ test("Meditation preserves timer, persistence, Mind totals, and visual behavior"
   await planner.browser.waitForExpression('document.getElementById("meditationStatus").textContent === "30 min saved for Mon Sep 14."');
 
   await planner.browser.evaluate('document.querySelector(\'[data-view-target="todayView"]\').click()');
-  await planner.browser.waitForExpression('[...document.querySelectorAll("#lifeBreakdown .breakdown-row")].some((row) => row.textContent.includes("Meditation100% · 0.5h"))');
+  await planner.browser.waitForExpression('document.querySelectorAll("#lifeBreakdown .breakdown-row").length === 6');
+  assert.deepEqual(await planner.browser.evaluate(`(() => ({
+    hasRetiredRows: [...document.querySelectorAll("#lifeBreakdown .breakdown-row")]
+      .some((row) => /Meditation|Journal/.test(row.textContent)),
+    total: document.getElementById("lifeDonutLabel").textContent.trim()
+  }))()`), { hasRetiredRows: false, total: "0h" });
 
   await planner.browser.evaluate('document.querySelector(\'[data-view-target="journalView"]\').click()');
   await scrollToMeditation(planner.browser, "document");

@@ -302,7 +302,8 @@ test("day state records the legacy desktop and mobile visual contract", { timeou
     const data = await planner.server.readPlannerData();
     const states = JSON.parse(data[DAY_STATE_KEY] || "{}");
     const entries = JSON.parse(data[ACTIVITY_LOG_KEY] || "[]");
-    return states[TEST_DATE] === "tired" ? { entries, states } : null;
+    const hasAuditEntry = entries.some((entry) => entry.action === "day_state_updated");
+    return states[TEST_DATE] === "tired" && hasAuditEntry ? { entries, states } : null;
   });
   assert.deepEqual(stored.states, { [TEST_DATE]: "tired" });
   const dayStateEntries = stored.entries.filter((entry) => entry.action === "day_state_updated");
