@@ -1,170 +1,353 @@
 # Yuan's Planner Rewrite — Agent Handoff
 
-## Purpose
+## New Code Quality Requirement
 
-Rewrite Yuan's Planner into a readable React + strict TypeScript frontend while preserving the Python backend, SQLite data, existing behavior, and visual design.
+All new React/TypeScript code must follow the code-quality rules in `AGENTS.md`, especially: `const` by default, no `var`, strict TypeScript, avoid `any`, clear focused functions/files, short useful comments, and lint/type-check/test before commits.
 
-This file is intentionally operational, not a full diary. Older session details remain available with `git show 5b7537a^:AGENT_HANDOFF.md`.
+---
 
-## Non-Negotiable Rules
 
-- Read `AGENTS.md` and this file before working.
-- Work only on `rewrite/react-typescript`, never `main`.
-- Preserve the legacy UI exactly unless the user explicitly requests a redesign.
-- Use React + strict TypeScript for new frontend application logic.
-- Use `const` by default, `let` only for reassignment, and never `var` in new code.
-- Keep modules and functions focused and readable; do not create new giant files.
-- Treat every `hivePlanner.*` value as a compatibility contract and retain unknown data unless a tested migration says otherwise.
-- Characterize legacy behavior and add meaningful regression coverage before replacing it.
-- Verify desktop and mobile visual parity for migrated UI.
-- Run relevant tests, lint, type checking, and builds before committing.
-- Make small verified commits and update this handoff before ending.
+## Goal
+Rewrite Yuan's Planner into a clean, understandable architecture without breaking existing behavior.
 
-## Repository and Migration State
+Target:
+- Frontend: React + TypeScript
+- Backend: Python
+- Database: SQLite
+- Preserve existing features and data unless a change is explicitly documented.
 
-- `main`: original production reference, tagged `pre-react-rewrite`.
-- `rewrite/react-typescript`: active migration branch/worktree.
-- Frontend migration lives in `frontend-react/`.
-- The Python server still serves the legacy `frontend/` app; Vite serves the separate migration preview.
-- SQLite and the existing `/api/kv` string-value boundary remain authoritative.
-- Money is the first route rendered directly by React with no iframe.
-- Dashboard, Journal, Calendar, Skate, and Guitar still use the temporary legacy iframe shell while React owns verified sub-boundaries.
+## Repository Setup
+Use the **existing Git repository**, not a separate unrelated repo.
 
-## Current State
+Keep:
+- `main` = original working Yuan's Planner
+- `rewrite/react-typescript` = rewrite/migration branch
 
-The Dashboard task list, editor, add form, completion controls, hours, timers, reminders, deletion, focus-mode visibility, and persistence are now React + strict TypeScript owned and verified.
+Prefer a Git worktree so both versions are available as separate folders:
+- original folder → `main`
+- rewrite folder → `rewrite/react-typescript`
 
-The Dashboard still needs the following legacy orchestration removed before it can become a direct zero-iframe React page:
+Before migration starts:
+1. Commit the current working project.
+2. Create tag `pre-react-rewrite`.
+3. Create branch `rewrite/react-typescript`.
+4. Do all rewrite work on the rewrite branch.
+5. Do not modify `main` during the migration.
 
-- Pattern metric/rule calculation and action persistence
-- day-state side effects and Sprouty synchronization
-- calendar-linked task reconciliation during hydration
-- agent actions and undo persistence
+The old application is the behavioral reference until the replacement is verified.
+
+## Core Rules
+1. Do not rewrite the whole project at once.
+2. Understand existing behavior before replacing it.
+3. Migrate one feature at a time.
+4. Keep old working code until the replacement is tested.
+5. Prefer simple, readable code over clever abstractions.
+6. One file should have one clear responsibility.
+7. Keep functions short and focused when practical.
+8. Avoid duplicated logic.
+9. Do not redesign features unless necessary.
+10. Never remove working code until the replacement passes tests.
+
+## Comments
+Write **short, useful comments** so I can learn from the code.
+
+Comment:
+- why non-obvious code exists
+- important business rules
+- unusual decisions or edge cases
+- sections whose purpose is not immediately clear
+
+Do not:
+- comment obvious code
+- write long essay-style comments
+- use comments instead of clear names and structure
+
+Example:
+
+```ts
+// Keep completed tasks visible until the next daily reset.
+const visibleTasks = ...
+```
+
+not:
+
+```ts
+// This variable stores the visible tasks.
+const visibleTasks = ...
+```
+
+## Git Discipline
+Git history is part of the project documentation.
+
+At the beginning of a session, inspect:
+- `git status`
+- recent Git history
+- current diff
+- `AGENT_HANDOFF.md`
+
+Make **frequent, small commits** after completed working steps.
+
+Good commit boundaries:
+- add tests for one behavior
+- migrate one small feature
+- extract one coherent module
+- fix one verified bug
+- remove one verified legacy implementation
+
+Avoid giant commits containing many unrelated changes.
+
+Before each commit:
+1. Review the diff.
+2. Run relevant tests.
+3. Confirm the application still works for the affected feature.
+4. Use a clear commit message describing what changed.
+
+Do not intentionally commit broken code. If a session must stop mid-task, leave clear notes in this file about the unfinished state.
+
+## Required Workflow
+For every task:
+
+1. Read this file.
+2. Check Git status, recent commits, and current diff.
+3. Inspect the relevant existing code.
+4. Identify and document current behavior.
+5. Add or update tests protecting that behavior.
+6. Run the tests before changing the implementation when useful.
+7. Make one reasonably small migration/refactor.
+8. Run tests again.
+9. Fix failures before continuing.
+10. Review the diff.
+11. Commit the completed working step.
+12. Update this file before ending the session.
+
+## Testing Priority
+Testing is mandatory because the rewrite must preserve behavior.
+
+Protect important user flows first:
+- application starts successfully
+- existing SQLite data loads correctly
+- create/edit/delete operations work
+- refresh/restart does not lose data
+- major pages render correctly
+- important filters, dates, forms, and interactions still behave as before
+
+Use:
+- unit tests for isolated logic where useful
+- backend/API tests for Python behavior
+- end-to-end tests for important UI flows
+
+For a migrated feature:
+1. Understand old behavior.
+2. Create tests for the important behavior.
+3. Implement the replacement.
+4. Run tests.
+5. Compare old and new behavior.
+6. Remove legacy code only after verification.
+
+
+## Migration Order
+
+### Phase 1 — Reverse Engineering
+- [x] Map project files
+- [x] List existing features
+- [x] Document SQLite schema
+- [x] Identify frontend/backend boundaries
+- [x] Identify duplicated/dead code
+- [x] Identify critical user flows
+
+### Phase 2 — Safety Net
+- [x] Add tests for critical backend behavior
+- [x] Add tests for critical user flows
+  - [x] Protect startup and task create/edit/delete persistence across refreshes
+  - [x] Protect Guitar/Skate session-to-task synchronization and no-double-count totals
+  - [x] Smoke-test all six primary views in the browser
+- [x] Record current expected behavior
+
+### Phase 3 — New Structure
+- [x] Create React + TypeScript frontend beside the old frontend
+- [ ] Create clean Python API structure
+- [x] Connect frontend to backend
+- [x] Confirm SQLite data still works
+
+### Phase 4 — Feature Migration
+Migrate one feature at a time.
+
+For each feature:
+- [ ] document old behavior
+- [ ] add tests
+- [ ] implement new version
+- [ ] compare old/new behavior
+- [ ] commit the working migration
+- [ ] remove legacy implementation only after tests pass
+
+## Current Task
+The Dashboard task list, editor, add form, completion controls, hours, timers, reminders, deletion, focus-mode visibility, and task persistence are now React + strict TypeScript owned and verified. The Dashboard route still uses the migration iframe because Pattern calculation/actions, day-state side effects, calendar reconciliation, and agent undo still depend on narrow legacy bridges. Money remains the first complete route rendered directly by React.
+
+## Last Completed Task
+Migrated the coupled Dashboard task boundary to focused React/TypeScript modules. The typed decoder preserves legacy time parsing, retired activity IDs, caps, timer persistence, calendar-source reminder flags, activity logs, and focus-mode hidden tasks. Real Chrome verifies exact desktop/mobile DOM, geometry, screenshots, create/edit/complete/delete, SQLite persistence, reload survival, Life Pie/task-progress synchronization, and Pattern action compatibility.
 
 ## Next Task
+Continue toward the direct React Dashboard page by replacing its remaining legacy-only orchestration: typed Pattern metric/rule/action persistence, day-state side effects, calendar-linked task reconciliation during hydration, and agent undo. Once those bridges are removed, compose the already-migrated Dashboard cards directly in `PlannerShell` and add a zero-iframe page regression. The clean Python API structure also remains incomplete in Phase 3.
 
-Continue toward a direct React Dashboard page:
+## Upstream Legacy Change — Activity Categories (2026-10-05)
 
-1. Characterize and port the remaining Pattern/day-state/agent orchestration into focused TypeScript modules.
-2. Preserve calendar-task reconciliation and existing storage/activity-log contracts.
-3. Compose the already-migrated Dashboard cards directly inside `PlannerShell`.
-4. Add a zero-iframe Dashboard regression with desktop/mobile visual parity and cross-feature persistence checks.
+Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and is already deployed. Treat this as production behavior to preserve in the rewrite.
 
-The clean Python API structure also remains incomplete in Phase 3, but it is not the current frontend milestone.
+- Active tracked categories are `transcendence` (Transcendence), `mobileDevelopment` (Mobile Development), `portfolioJobPrep` (Portfolio / Job Prep), `skate` (Skate), `gym` (Gym), and `guitar` (Guitar). `other` remains a non-statistical fallback.
+- Persisted legacy IDs migrate as follows: `cpp` and `fso` → `transcendence`; `python` → `mobileDevelopment`; `lc` → `portfolioJobPrep`; `p90x3` → `gym`.
+- Calendar categories migrate as follows: Coding → Transcendence; Python → Mobile Development; Leetcode/LeetCode → Portfolio / Job Prep. The new calendar categories have their own existing-style color labels and map to the matching task activity IDs.
+- LeetCode, Python, Coding, Meditation, and Journal are no longer activity/time-total categories. Meditation and Journal remain standalone Planner features; only their contribution to activity totals and Life Pie was removed.
+- Life Pie now groups Transcendence, Mobile Development, and Portfolio / Job Prep under Work; Skate and Gym under Body; and Guitar under Guitar.
+- Planned weekly hours remain stored as compatibility-safe objects at `hivePlanner.planned.<ISO-WEEK>`. The live W41 values were saved as data, not source constants: Transcendence 20h, Mobile Development 5h, Portfolio / Job Prep 2h, Skate 2.5h, Gym 1h, and Guitar 1h. Planned vs actual inputs remain editable in 0.25-hour steps.
+- The legacy migration combines hours when old and new IDs coexist and preserves unrelated/unknown data. Mirror that behavior rather than silently dropping old fields.
+- The legacy implementation centralizes category definitions and migration in `frontend/js/activity-categories.js`; its Node suite includes migration coverage. Main passed 97 JavaScript tests and live browser verification after deployment.
 
-## Completed Migration Boundaries
-
-React-owned and verified:
-
-- Weekly goals
-- Dashboard day state, task progress, Today's intention, and task list/editor/form
-- Life Pie, Planned vs actual, Energy trail, Pattern noticed, and Pattern history
-- Money quick log, overview, Pace, Vendors, recent activity, and Budgets/categories
-- Journal meditation and archive
-- Direct React Money page and shared shell
-
-Safety coverage includes startup, all six primary views, task CRUD/reload, activity sessions, storage hydration/backfill, compatibility import/export, cross-feature synchronization, and serialized real-Chrome visual flows.
-
-## Compatibility Contracts
-
-### Activity categories
-
-Production behavior comes from legacy `main` commit `01d6c6d`:
-
-- Active tracked IDs: `transcendence`, `mobileDevelopment`, `portfolioJobPrep`, `skate`, `gym`, and `guitar`.
-- `other` is excluded from statistics but still supports task hours and timers.
-- Retired mappings: `cpp`/`fso` → `transcendence`, `python` → `mobileDevelopment`, `lc` → `portfolioJobPrep`, `p90x3` → `gym`.
-- Calendar mappings: Coding → Transcendence, Python → Mobile Development, Leetcode/LeetCode → Portfolio / Job Prep.
-- Meditation and Journal remain standalone but no longer contribute to activity totals or Life Pie.
-- Planned values at `hivePlanner.planned.<ISO-WEEK>` combine old/new IDs and preserve unknown fields.
-
-### Storage and persistence
-
-- Preserve server-first hydration with browser-only planner-key backfill.
-- Reject malformed non-string `/api/kv` values.
-- Publish same-window `storage` events after React writes so sibling boundaries update immediately.
-- The legacy iframe accepts React writes into memory without creating a second persistence loop.
-- Backup import/export preserves unknown planner keys and excludes transient Guitar session state.
-- Task timers persist; active Skate and Guitar session starts remain transient across refresh.
-
-### Tasks
-
-- Store tasks at `hivePlanner.dailyTasks.<YYYY-MM-DD>`.
-- Preserve label filtering, truthy completion, retired IDs, chronological ordering, time/reminder normalization, 24-hour manual caps, and eight-hour timer caps.
-- Reset calendar-source reminder flags when the user changes time/reminder fields.
-- Append compatible activity-log records for task writes.
-- Keep focus-mode hidden IDs date-specific in `hivePlanner.agent.uiState`.
-- Calendar reconciliation preserves user state, removes stale links, and avoids duplicates.
-
-### Money, Journal, and insights
-
-- Money boundaries share typed compatibility decoders and preserve unknown settings/transaction fields.
-- Journal normalization is shared by Energy trail and Journal archive.
-- Meditation completes expired timers exactly once.
-- Pattern history remains a fixed 14-day snapshot and resets disclosure state when reopened.
-- Pattern calculation/actions and day-state side effects still use narrow legacy bridges.
-
-## Architecture Decisions
-
-- Migrate incrementally; legacy renderers skip only mounts marked `data-react-owned="true"`.
-- The temporary iframe is a migration mechanism, not the final architecture.
-- `?view=moneyView` bypasses the iframe and scopes the legacy stylesheet to that direct route.
-- Direct-shell navigation preserves deterministic `view` and planner `date` parameters.
-- React reuses legacy markup/class names/CSS rather than redesigning UI.
-- Dashboard actions resolve live `#plannedMount` and `#taskTitle` nodes after React replaces their children.
-- Keep the insight bridge unavailable until legacy hydration completes to prevent empty task persistence.
-- Visual gates require exact DOM/style/geometry plus screenshots with at most 1% materially different pixels.
-- Run browser-capable root tests serially to avoid Chrome/Vite saturation.
-
-## Verification Baseline
-
-Latest verified baseline:
-
-- React: 125 tests
-- Python: 18 tests
-- Root JavaScript/browser: 134 tests
-- React lint, strict type checking, and Vite build: pass
-- Full serialized Chrome suite: pass with no skips
-
-Use Node `/Users/yuan/.nvm/versions/node/v24.14.1/bin/node`; the default Node 14 cannot run the current test runner.
+## Important Decisions
+- Production activity/category compatibility is defined by legacy `main` commit `01d6c6d`. The rewrite must accept old stored IDs, expose the new labels/IDs, preserve unknown fields, and avoid hardcoding weekly target values into UI or calculation logic.
+- React centralizes the production activity definitions and legacy ID mapping in the strict-TypeScript `activity-categories.ts` module. Life Pie and Planned vs actual import this contract instead of maintaining separate category lists.
+- Planned-hour decoding combines numeric old and new values that map to the same production activity while retaining unrelated fields unchanged. The UI persists the normalized object on the next edit rather than discarding compatibility data.
+- The temporary legacy shell loads a focused activity-category bridge during hydration because five routes still run inside that shell. All new bridge code follows the same `const`-by-default/no-`var` rule; it is compatibility infrastructure, not a replacement for the React TypeScript model.
+- Meditation and Journal remain standalone features but no longer contribute to activity totals or Life Pie. The Meditation regression explicitly verifies session persistence without a Life Pie side effect.
+- The rewrite must preserve visual parity with the legacy Planner; this is an architecture rewrite, not a UI redesign.
+- Do not add migration-preview branding, explanatory badges, new layouts, or invented visual treatments to the React UI.
+- During incremental migration, the Vite preview may use the complete legacy app as a temporary same-origin shell so unmigrated features and interactions remain unchanged while React owns one tested mount.
+- The legacy weekly-goal renderer skips `#weeklyGoals` only when the preview marks it `data-react-owned="true"`; the normal legacy application remains unaffected.
+- The React preview marks `.life-card` `data-react-owned="true"`, clears only its existing `.panel-inner`, and portals the legacy-equivalent Life Pie markup into that mount; the normal legacy application remains unaffected.
+- React's planner-store hook listens only for same-origin `hivePlanner.*` storage events. This is the compatibility bridge that keeps React-owned summaries current while task, physical, session, meditation, and journal writes remain in the legacy frame.
+- Planned vs actual stores one object at `hivePlanner.planned.<ISO-WEEK>` and must preserve unknown fields when editing. Each edit also appends the legacy-compatible `planned_hours_updated` record to `hivePlanner.activityLog` with the same group/activity metadata.
+- Energy trail remains derived from `hivePlanner.journal.entries` and dated task keys. React filters invalid tracker values before selecting the newest seven rows, and preserves the legacy rule that the comparison appears only after at least two low/empty energy days have previous-day task summaries in the 14-day insight window.
+- Journal-entry storage normalization now lives in one typed compatibility module shared by Energy trail and Journal archive. Both boundaries therefore agree on valid dates, tracker states, duration clamping, blank-entry removal, fallback IDs/timestamps, and newest-first ordering.
+- Clicking a React-owned Energy trail row delegates navigation through the existing legacy tab and journal-date controls so the unmigrated Journal view retains its established rendering and save behavior.
+- Money quick derives its category budgets, transfers, transactions, vendor rules, pace, and remaining-money summaries from the existing `hivePlanner.money.*` compatibility records. Saving writes a transaction, a normalized activity-log entry, and a remembered vendor rule when a vendor is present.
+- Money quick retains optimistic values per storage key until the corresponding external value supersedes them. This prevents an unrelated legacy activity-log write from hiding a newly saved React transaction while still allowing full Money settings changes to update the React summary immediately.
+- The legacy Money renderer continues synchronizing category inputs used by the full Money view, but skips only the React-owned quick-log select and summary mount. The normal legacy application remains unaffected.
+- Money overview and Money quick share the typed Money compatibility decoder, including the current week clipped to the month. The overview claims only `.money-overview-card .panel-inner`; the legacy renderer skips that card only when React marks it owned, so the normal legacy application remains unaffected.
+- Money Pace and projection extends the shared decoder with current-month total/flexible spending, projected spending, and long-term month-prefix totals. React claims only `.money-pacing-card .panel-inner`; its history disclosure remains uncontrolled so live store updates preserve open state while reload closes it like legacy.
+- Money Vendors uses that shared decoder for trimmed, case-sensitive current-month summaries and exact-name previous-month comparison. React claims only `.money-vendors-card .panel-inner`; the legacy renderer skips that card only when marked React-owned, so standalone legacy behavior remains unaffected.
+- Money recent activity uses the same typed Money decoder and claims only `.money-activity-card .panel-inner`. Its native disclosure state remains transient and open across live list updates, while reload creates a closed disclosure like the legacy app.
+- Money Budgets and categories uses the shared typed Money decoder and claims only `.money-budget-card .panel-inner`. Its focused persistence module normalizes known legacy fields while retaining unknown root, category, transfer, and notes data; monthly edits derive the weekly guide from the active month, and every write publishes through the existing bridge so all six React Money boundaries stay synchronized.
+- Budget inputs use the browser's native `change` event because the legacy editor commits only when editing finishes, not on every typed character. Invalid values restore the rendered amount; any edit collapses the outer settings disclosure while nested section and transfer disclosure state remains mounted until reload.
+- Meditation uses the existing `hivePlanner.meditation` `{active, sessions}` document. Start and cancel preserve compatible unknown root/session fields; expiry mirrors the legacy compact completion shape and appends one standalone session using the timer's persisted end timestamp.
+- The React app observes the legacy frame's Journal-date change and click events once and shares the selected date with both meditation and archive. Archive, Today, date-input, and Energy-trail navigation therefore update both React boundaries without duplicate iframe listeners.
+- The React Journal archive keeps its search text as local transient state, derives cards from `hivePlanner.journal.entries`, and delegates card selection through the existing legacy tab/date controls. The legacy archive renderer skips only `.journal-archive-card[data-react-owned="true"]`, so the normal legacy application remains unaffected while legacy editor saves still flow back through the storage bridge.
+- Pattern noticed and Pattern history use focused typed normalizers and a narrow `YuanPlannerDashboardInsightBridge`; the already-tested legacy insight engine remains the temporary source of metrics, prioritization, evidence, and action behavior.
+- React owns only `#dashboardInsightCard .panel-inner` and the contents of `#patternHistoryDialog`. Pattern actions delegate to the existing task/planned-hours controls, while the standalone legacy application keeps its original renderers.
+- Pattern history is a fixed 14-day snapshot in the shipped legacy UI; it has no range selector or dialog-level undo control. React refreshes the snapshot while the dialog is closed and remounts it on every open so native evidence disclosures reset exactly like the legacy rebuild.
+- React owns only the contents of `#dayStateOptions` and decodes `hivePlanner.dayState` with the legacy `okay` fallback. A narrow `YuanPlannerDayStateBridge` delegates writes to the existing save/audit/Sprouty/insight path so compatibility fields and cross-feature effects remain intact.
+- Both the legacy day-state renderer and its click binder honor `data-react-owned="true"`. The binder guard is required because iframe hydration may finish after React claims the mount; without it, the React buttons receive a second legacy handler and append duplicate audit records.
+- React owns `.day-banner`, `#tasksMount`, and `#taskForm`. Focused strict-TypeScript modules separately own compatibility decoding, the list/timers, editor, add form, shared options, persistence, and activity-log writes. The typed model preserves legacy truthy completion, retired activity IDs, time/reminder normalization, timer caps, calendar-source reminder flags, and focus-mode hidden tasks.
+- The legacy task renderer routes both empty and populated progress through one ownership-aware helper. This keeps the standalone app unchanged while preventing detached legacy span references from overwriting the React portal.
+- Legacy task/activity binders skip only React-owned mounts. Pattern task-focus and agent undo resolve/delegate through the live DOM/bridge because React replaces the original form children; the standalone legacy application remains unchanged.
+- React owns only `.intention-block` and derives its badge from `hivePlanner.routine.week.<ISO-WEEK>`. The typed model preserves the legacy Monday-first indexing, day-type aliases, and normal-day fallback without mutating stored compatibility data.
+- The legacy intention renderer continues updating the dashboard subtitle, date, and week-status heading, but skips only the detached badge when `.intention-block` is React-owned. The standalone legacy application therefore retains its original renderer.
+- `?view=moneyView` bypasses the iframe and composes the five Money-page cards directly inside a focused React shell. Other routes still instantiate `LegacyPlannerApp`, so this first direct page does not force an unsafe whole-app cutover.
+- The direct route loads the legacy stylesheet only while mounted. Loading it globally changes the parent body's padding and narrows every iframe preview, which the complete Money regression suite caught.
+- Direct-shell navigation writes the requested `view` and deterministic planner `date` into the URL. Navigating away from Money therefore reloads into the established legacy-shell route until that destination page is migrated.
+- React backup import/export preserves unknown `hivePlanner.*` values and excludes the transient Guitar session just like legacy. Import publishes same-window storage events so the direct Money cards update immediately.
+- The dashboard insight bridge stays unavailable until legacy server-first hydration completes. This prevents an early React read from interpreting an empty in-memory store as real current-day data and persisting an empty task list.
+- Insight action navigation resolves the current `#plannedMount` and `#taskTitle` at click time because React ownership replaces their original child nodes; retaining pre-migration references would target detached nodes.
+- React persistence explicitly publishes a same-window storage event after local writes because browsers do not deliver native storage events to the document that performed the write. This keeps sibling React boundaries synchronized immediately.
+- The legacy iframe listens for external `hivePlanner.*` storage writes from React-owned parent mounts and updates only its in-memory store. This prevents a later legacy write from overwriting newer React values without causing a second persistence loop.
+- Visual regression coverage must compare the legacy and React versions at identical desktop and mobile viewports, including computed styles/geometry and a rendered screenshot where stable.
+- Screenshot comparisons decode Chrome PNG pixels and allow at most 1% of pixels to differ by more than eight channel values; exact DOM content and computed style/geometry comparisons remain mandatory so minor cross-frame antialiasing does not create false failures.
+- The legacy document publishes `data-planner-ready="true"` only after asynchronous hydration, rendering, event binding, and initial-view selection finish. Browser visual helpers wait for this marker before scrolling, so a late `setActiveView` cannot reset capture position; card-only screenshots hide the unrelated animated mascot with `visibility: hidden` while preserving layout.
+- New code must be split into small, clear, single-responsibility modules with short focused functions and short explanatory comments for non-obvious logic; do not create new monolithic files.
+- Smoke tests alone are insufficient; migration tests must cover behavior, edge cases, persistence/compatibility, and critical cross-feature flows.
+- Use the same Git repository.
+- Keep `main` as the original working application.
+- Perform migration on `rewrite/react-typescript`.
+- Prefer a separate Git worktree for the rewrite branch.
+- Existing application is the behavioral reference.
+- SQLite is preserved initially.
+- Python backend is preserved initially.
+- Frontend will migrate to React + TypeScript.
+- Large rewrites in one step are prohibited.
+- Readability and learnability are priorities.
+- Use short explanatory comments for non-obvious code.
+- Treat every existing `hivePlanner.*` value as a compatibility contract; preserve unknown keys and unknown record fields until a tested migration explicitly handles them.
+- Preserve server-first hydration with local-storage backfill unless a separately documented migration changes it.
+- Keep task timers persistent, but keep current Skate and Guitar session start times transient across refresh.
+- The first React boundary should be read-only and use typed compatibility decoders against the existing `/api/kv` response.
+- Keep the new frontend in `frontend-react/` while the Python server continues serving the legacy `frontend/` application; use Vite only as the separate migration preview for now.
+- Fetch `/api/kv` without caching, reject malformed non-string API values, and keep weekly-goal decoding pure so compatibility behavior can be tested without a browser.
+- Weekly-goal decoding mirrors legacy behavior for missing, invalid JSON, array, and non-string values by rendering empty tracks while leaving stored data untouched.
+- Weekly-goal edits save on blur to match the legacy `change` interaction, trim the value, retain unknown fields in the stored object, update browser storage optimistically, and persist through the existing `/api/kv` endpoint.
+- Keep the Vite development API target configurable through `VITE_PLANNER_API_TARGET`; the default remains the existing server at `http://127.0.0.1:8765`.
+- Keep new compatibility logic in focused, pure UMD modules that the legacy app and Node tests both execute.
+- Calendar-linked task reconciliation must preserve user-edited task state, remove stale source links, and add each missing current event without duplication.
+- Keep browser-flow assertions separate from reusable Chrome protocol, Chrome lifecycle, and temporary planner-server helpers so each test file has one clear responsibility.
+- Browser tests may use the existing Chrome DevTools Protocol directly to avoid adding a production or test package dependency.
+- Reuse one browser-planner fixture for Chrome and temporary-server lifecycle instead of duplicating setup across user-flow tests.
 
 ## Known Problems
+- Existing project is over 20,000 lines.
+- Some files contain thousands of lines.
+- Duplicate/redundant functions likely exist.
+- Current architecture is difficult to understand.
+- `frontend/js/app.js` is 8,516 lines and still owns most storage, normalization, rendering, event handling, and cross-feature orchestration; only the newly extracted boundaries have direct coverage.
+- `frontend/css/styles.css` is 5,658 lines with several accumulated responsive sections.
+- Time/date parsing and normalization are duplicated across frontend modules and backend integrations.
+- Several declared storage keys and an older Study/Body weekly-overview path are inactive, while the real database still contains legacy-only keys that backups must preserve.
+- Browser inspection reports generated form controls without an `id` or `name`; the current Chrome run reported 29 controls.
+- The default `node` on the inspected machine is Node 14 and cannot run `node --test`; use the installed modern Node runtime or fix the local PATH before relying on `scripts/test.sh` without `NODE_BIN`.
+- Most remaining cross-feature flows in `app.js` still lack DOM or end-to-end tests; browser coverage now protects task and activity-session lifecycles, all six primary views, and eighteen React migration boundaries.
+- Weekly goals, dashboard day state, task progress, Today's intention, the task list/editor/form, Life Pie, Planned vs actual, Energy trail, Pattern noticed/history, all six Money boundaries, Journal meditation, and Journal archive are React-owned and verified. Dashboard orchestration and the other feature views still depend on the temporary iframe shell.
+- Browser smoke tests skip when Chrome/Chromium or Node WebSocket support is unavailable; they run with the documented Node 24 runtime on the inspected machine.
+- The React preview is not yet served directly by the Python backend. Its temporary legacy shell depends on Vite development proxies and is not the final production integration architecture.
+- The direct Money shell's Sprouty surface can call the backend and provides a safe fallback, but it does not yet reproduce the legacy local grounded-response context, quick prompts, or draggable position behavior. Finish shared-shell parity before replacing the legacy shell on every route.
+- The React visual regression test skips when Chrome or `frontend-react` dependencies are unavailable, matching the existing browser-test prerequisite policy.
+- Browser-capable root Node test files run serially to avoid Chrome/Vite startup timeouts under parallel process saturation.
 
-- `frontend/js/app.js` still owns most remaining orchestration and is about 8,500 lines.
-- `frontend/css/styles.css` is about 5,600 lines with accumulated responsive sections.
-- Time/date normalization remains duplicated across frontend and backend modules.
-- The preview still relies on Vite proxies and is not served directly by Python.
-- Direct Money Sprouty lacks full legacy grounded context, quick prompts, and dragging.
-- Generated legacy form controls retain existing missing `id`/`name` warnings.
-- Some remaining legacy cross-feature flows lack direct DOM/end-to-end coverage.
-- The clean Python API structure remains incomplete.
+## Session Log
 
-## Recent Sessions
+### Session 27 — Upstream compatibility note
 
-### Session 28 — Activity contract migration
+- Inspected the clean `rewrite/react-typescript` worktree, recent history, current handoff, and the React activity-category usages after legacy `main` shipped commit `01d6c6d`.
+- Recorded the new production activity IDs, legacy mappings, calendar mappings, Life Pie groups, Planned vs actual persistence contract, and live W41 target data.
+- Confirmed the rewrite still uses retired IDs in its React Life Pie and Planned vs actual boundaries; made reconciling those typed compatibility modules the next task before another page-level migration.
+- Documentation only; no application code or tests changed in this session.
 
-- Ported production category migration and moved Life Pie/Planned vs actual to a shared strict-TypeScript model.
-- Verified ID merging, calendar mappings, unknown-field retention, visual parity, and cross-feature behavior.
-- Commits: `108aeae`, `9286ad3`, `6d32791`, `015ecc2`.
+### Session 28
 
-### Session 29 — Dashboard tasks
+- Re-read `AGENTS.md`, this handoff, branch history, status, diff, and the implementation/browser-verification skills, then selected the documented upstream activity-category reconciliation as the focused task.
+- Added failing legacy and React tests first for the production category order, retired-ID normalization, old/new planned-hour merging, unknown-field preservation, event-category migration, and calendar-to-task mapping.
+- Ported the deployed legacy hydration/category bridge needed by the five iframe-backed routes, including new calendar choices/styles, task/event/log/planned migration, updated insight/agent classifications, and the production Life Pie grouping. All newly added or touched declarations follow the `const`-by-default/no-`var` rule.
+- Added the strict-TypeScript React activity model and moved Life Pie and Planned vs actual onto the production IDs. Life Pie now groups Work, Body, and Guitar and excludes Meditation/Journal; Planned vs actual combines retired and current values while preserving unrelated fields and logging edits under the new IDs.
+- Updated behavioral and visual contracts for Life Pie, Planned vs actual, task editing, Meditation independence, and day-state audit persistence. Real Chrome verified exact legacy/React desktop and mobile DOM, computed geometry, screenshots, persistence, reload behavior, and clean browser errors.
+- The first full run exposed the intended removed Meditation-to-Life-Pie side effect and a day-state two-write race in the test. The regressions now prove Meditation persists independently and wait for both the state and audit entry without weakening assertions.
+- Commits: `108aeae` ports the production compatibility bridge; `9286ad3` migrates the React TypeScript activity contract; `6d32791` aligns cross-feature regressions.
+- Final verification: 113 React tests, React lint, strict type-checking, and the Vite production build pass. The full safety net passes with 18 Python tests and 133 root JavaScript tests, including every serialized real-Chrome browser flow.
 
-- Migrated task compatibility, form, editor, list, timers, reminders, focus mode, persistence, and logs to focused React/TypeScript modules.
-- Added desktop/mobile Chrome parity and create/edit/complete/delete/reload coverage.
-- Fixed live-node Pattern delegation and hardened macOS Chrome-profile cleanup.
-- Commit: `5b7537a`.
+### Session 29
 
-### Session 30 — Handoff maintenance
+- Re-read `AGENTS.md`, this handoff, branch history, status, diff, and the implementation/browser-verification skills, then selected the documented Dashboard task list/editor boundary after the user explicitly requested continued React + TypeScript work.
+- Added focused strict-TypeScript modules for task compatibility/persistence, the add form, editor, list/timers, and shared form options. The decoder preserves malformed-data fallbacks, retired activity IDs, chronological ordering, legacy time parsing, 24-hour manual and eight-hour timer caps, calendar-source reminder semantics, focus-mode hidden tasks, and compatible activity logs.
+- React now owns `#tasksMount` and `#taskForm` alongside the existing task-progress portal. Narrow legacy guards preserve calendar reconciliation and Pattern computation without duplicate renderers or submit handlers; Pattern task-focus and agent undo resolve through live nodes/bridges after React replaces the original form children.
+- Added real-Chrome coverage for exact legacy-versus-React desktop/mobile DOM, computed geometry, and screenshots plus create, reload, edit, completion, deletion, SQLite persistence, and clean browser errors. Updated Life Pie and Planned-vs-actual cross-feature drivers to operate React-controlled inputs.
+- TDD evidence: the new TypeScript suite first failed because `tasks.ts` did not exist. Browser parity then caught that `other` remains timer-capable even though it is excluded from statistics, and the full suite caught the stale Pattern task-input reference; both contracts are now protected.
+- Hardened temporary Chrome profile cleanup with bounded retries after macOS produced a transient `ENOTEMPTY` teardown failure; the affected Money test passed in isolation and in the authoritative full rerun.
+- Final verification: 125 React tests, React lint, strict type-checking, and the Vite production build pass. The full safety net passes with 18 Python tests and 134 root JavaScript tests, including every serialized real-Chrome browser flow.
 
-- Replaced the 638-line session diary with this roughly 170-line operational handoff.
-- Kept current state, next work, compatibility contracts, architecture decisions, verification baseline, known problems, and the latest three sessions.
-- Older detail remains recoverable from Git history instead of being reread every session.
+---
 
 ## Before Ending Any Session
-
+Always:
 1. Run relevant tests.
 2. Review `git diff` and `git status`.
 3. Commit completed working changes.
-4. Update Current State, Next Task, Compatibility/Architecture Decisions, Known Problems, and Recent Sessions when needed.
+4. Update:
+   - Current Task
+   - Last Completed Task
+   - Next Task
+   - Important Decisions
+   - Known Problems
+   - Session Log
 
-The repository, Git history, tests, `AGENTS.md`, and this file are the source of truth. Do not rely on chat history.
+The next agent session must be able to continue using only:
+- the repository
+- this file
+- Git history
+- tests
+- relevant source files
+
+Do not depend on previous chat history.
