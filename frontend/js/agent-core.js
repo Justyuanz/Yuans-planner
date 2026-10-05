@@ -142,7 +142,7 @@
   function breakdownLabels(task) {
     var label = String(task && task.label || "").trim();
     var clean = label.replace(/^(\d{1,2})(?::?(\d{2}))?\s*/, "").trim();
-    if (/c\+\+|leetcode|python|study/i.test(clean)) {
+    if (/transcendence|mobile development|portfolio|job prep|study/i.test(clean)) {
       return [
         "Open " + clean + " and choose one tiny target",
         "Do one 25-minute block for " + clean,
@@ -436,7 +436,7 @@
           var seedTask = {
             id: String(context && context.idFactory ? context.idFactory("task") : ("task-" + Date.now())),
             label: recurringLabel,
-            activity: "lc",
+            activity: "portfolioJobPrep",
             hours: 0.5,
             timerSeconds: 0,
             timerStartedAt: null,
@@ -447,7 +447,7 @@
             return {
               id: String(context && context.idFactory ? context.idFactory("task") : ("task-" + Date.now() + "-" + Math.random().toString(36).slice(2, 6))),
               label: label,
-              activity: "lc",
+              activity: "portfolioJobPrep",
               hours: 0.25,
               timerSeconds: 0,
               timerStartedAt: null,

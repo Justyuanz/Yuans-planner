@@ -6,7 +6,7 @@ function makeTask(id, label, hours, done) {
   return {
     id: id,
     label: label,
-    activity: "lc",
+    activity: "portfolioJobPrep",
     hours: hours || 0,
     timerSeconds: 0,
     timerStartedAt: null,

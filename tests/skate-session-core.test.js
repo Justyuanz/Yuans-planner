@@ -18,7 +18,7 @@ test("applySessionDurationToTasks finishes the matching skate task and carries t
     {
       id: "task-2",
       label: "Study block",
-      activity: "python",
+      activity: "mobileDevelopment",
       done: false,
       timerStartedAt: null,
       timerSeconds: 0,

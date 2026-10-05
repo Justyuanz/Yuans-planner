@@ -473,6 +473,33 @@ h1 {
   color: #7f6aa0;
 }
 
+.week-event-button.transcendence-block,
+.event-pill.transcendence-block,
+.tag.transcendence-block,
+.selected-event.transcendence-block {
+  border-color: rgba(185, 206, 240, 0.75);
+  background: linear-gradient(180deg, rgba(244, 248, 255, 0.96), rgba(229, 238, 252, 0.9));
+  color: #718db9;
+}
+
+.week-event-button.mobile-development-block,
+.event-pill.mobile-development-block,
+.tag.mobile-development-block,
+.selected-event.mobile-development-block {
+  border-color: rgba(174, 209, 181, 0.64);
+  background: linear-gradient(180deg, rgba(241, 249, 236, 0.96), rgba(224, 241, 220, 0.9));
+  color: #66855e;
+}
+
+.week-event-button.portfolio-job-prep-block,
+.event-pill.portfolio-job-prep-block,
+.tag.portfolio-job-prep-block,
+.selected-event.portfolio-job-prep-block {
+  border-color: rgba(232, 209, 159, 0.64);
+  background: linear-gradient(180deg, rgba(255, 252, 236, 0.98), rgba(249, 239, 204, 0.92));
+  color: #9a8248;
+}
+
 .week-event-button.skate-block,
 .event-pill.skate-block,
 .tag.skate-block,
@@ -1000,15 +1027,15 @@ h1 {
   background: rgba(145, 145, 155, 0.45);
 }
 
-.weekly-goal-dot.cpp {
+.weekly-goal-dot.transcendence {
   background: #a5bfee;
 }
 
-.weekly-goal-dot.python {
+.weekly-goal-dot.mobile-development {
   background: #91ad61;
 }
 
-.weekly-goal-dot.lc {
+.weekly-goal-dot.portfolio-job-prep {
   background: #9b8b4a;
 }
 
@@ -1660,11 +1687,11 @@ h1 {
   box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.54);
 }
 
-.goal.python .dot {
+.goal.mobile-development .dot {
   background: var(--green-dark);
 }
 
-.goal.lc .dot {
+.goal.portfolio-job-prep .dot {
   background: var(--amber-dark);
 }
 
@@ -1900,18 +1927,18 @@ textarea {
   white-space: nowrap;
 }
 
-.activity-badge.lc {
+.activity-badge.portfolio-job-prep {
   border-color: rgba(129, 118, 64, 0.48);
   color: var(--amber-dark);
   background: rgba(255, 249, 204, 0.7);
 }
 
-.activity-badge.cpp {
+.activity-badge.transcendence {
   border-color: rgba(185, 206, 240, 0.75);
   color: #8da8d4;
 }
 
-.activity-badge.python {
+.activity-badge.mobile-development {
   border-color: rgba(102, 118, 67, 0.42);
   color: var(--green-dark);
   background: rgba(240, 246, 211, 0.55);
@@ -1941,15 +1968,15 @@ textarea {
   background: rgba(252, 238, 246, 0.94);
 }
 
-.breakdown-row.lc strong {
+.breakdown-row.portfolio-job-prep strong {
   color: var(--amber-dark);
 }
 
-.breakdown-row.cpp strong {
+.breakdown-row.transcendence strong {
   color: #8da8d4;
 }
 
-.breakdown-row.python strong {
+.breakdown-row.mobile-development strong {
   color: var(--green-dark);
 }
 
@@ -4005,7 +4032,7 @@ textarea {
   background: var(--gym);
 }
 
-.trend-row.python .trend-dots span {
+.trend-row.mobile-development .trend-dots span {
   background: var(--green);
 }
 
@@ -4039,11 +4066,11 @@ textarea {
   background: linear-gradient(90deg, rgba(185, 238, 238, 0.95), rgba(211, 228, 111, 0.82));
 }
 
-.frequency-row.python .frequency-fill {
+.frequency-row.mobile-development .frequency-fill {
   background: linear-gradient(90deg, rgba(240, 246, 211, 0.96), rgba(185, 238, 238, 0.82));
 }
 
-.frequency-row.lc .frequency-fill {
+.frequency-row.portfolio-job-prep .frequency-fill {
   background: linear-gradient(90deg, rgba(255, 249, 204, 0.98), rgba(239, 201, 166, 0.72));
 }
 
