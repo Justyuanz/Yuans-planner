@@ -253,12 +253,18 @@ async function editReactTranscendencePlan(planner) {
 
 async function assertReactLogSurvivesLegacyWrite(planner) {
   await planner.browser.evaluate(`(() => {
-    const documentRoot = document.querySelector("iframe").contentDocument;
-    documentRoot.getElementById("taskTitle").value = "Storage bridge check";
-    documentRoot.getElementById("taskTime").value = "0";
-    documentRoot.getElementById("taskActivity").value = "other";
+    const frame = document.querySelector("iframe");
+    const documentRoot = frame.contentDocument;
+    const setInput = Object.getOwnPropertyDescriptor(frame.contentWindow.HTMLInputElement.prototype, "value").set;
+    const setSelect = Object.getOwnPropertyDescriptor(frame.contentWindow.HTMLSelectElement.prototype, "value").set;
+    setInput.call(documentRoot.getElementById("taskTitle"), "Storage bridge check");
+    documentRoot.getElementById("taskTitle").dispatchEvent(new frame.contentWindow.Event("input", { bubbles: true }));
+    setInput.call(documentRoot.getElementById("taskTime"), "0");
+    documentRoot.getElementById("taskTime").dispatchEvent(new frame.contentWindow.Event("input", { bubbles: true }));
+    setSelect.call(documentRoot.getElementById("taskActivity"), "other");
+    documentRoot.getElementById("taskActivity").dispatchEvent(new frame.contentWindow.Event("change", { bubbles: true }));
     documentRoot.getElementById("taskForm").dispatchEvent(
-      new Event("submit", { bubbles: true, cancelable: true })
+      new frame.contentWindow.Event("submit", { bubbles: true, cancelable: true })
     );
   })()`);
   await planner.server.waitFor(async function () {
@@ -293,7 +299,7 @@ test("Planned vs actual preserves totals, editing, logging, and visual parity", 
 
   await seedPlanner(planner.server.url);
   await planner.browser.reload();
-  await planner.browser.waitForExpression('document.querySelector("#plannedMount .planned-title").textContent.includes("6.5h")');
+  await planner.browser.waitForExpression('document.querySelector("#plannedMount .planned-title")?.textContent.includes("6.5h")');
 
   assertPopulatedState(await planner.browser.evaluate(plannedActualState("document")));
   await editTranscendencePlan(planner);

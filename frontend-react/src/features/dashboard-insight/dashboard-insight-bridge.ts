@@ -9,6 +9,7 @@ interface DashboardInsightBridge {
   currentInsight: () => unknown;
   currentHistory?: () => unknown;
   openHistory: () => void;
+  undoAgentAction?: () => unknown;
 }
 
 function bridgeForFrame(frame: HTMLIFrameElement): DashboardInsightBridge | null {
@@ -41,6 +42,10 @@ export function readDashboardInsightHistory(
 
 export function openDashboardInsightHistory(frame: HTMLIFrameElement): void {
   bridgeForFrame(frame)?.openHistory();
+}
+
+export function undoDashboardAgentAction(frame: HTMLIFrameElement): void {
+  bridgeForFrame(frame)?.undoAgentAction?.();
 }
 
 declare global {

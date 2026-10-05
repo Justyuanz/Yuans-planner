@@ -241,7 +241,8 @@ test("React migration boundary preserves weekly goals and Life Pie design", { ti
   await planner.browser.evaluate(`(() => {
     const frame = document.querySelector("iframe");
     const input = frame.contentDocument.getElementById("task-hours-visual-study");
-    input.value = "4";
+    const valueSetter = Object.getOwnPropertyDescriptor(frame.contentWindow.HTMLInputElement.prototype, "value").set;
+    valueSetter.call(input, "4");
     input.dispatchEvent(new frame.contentWindow.Event("input", { bubbles: true }));
   })()`);
   await planner.browser.waitForExpression(`document.querySelector("iframe").contentDocument.getElementById("lifeDonutLabel").textContent === "8.5h"`);

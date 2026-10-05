@@ -179,7 +179,7 @@ async function startChromeSession(executable) {
         socket.close();
         processHandle.kill("SIGTERM");
         await waitForProcessExit(processHandle);
-        await rm(userDataDirectory, { recursive: true, force: true });
+        await rm(userDataDirectory, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
       }
     };
   } catch (error) {
@@ -188,7 +188,7 @@ async function startChromeSession(executable) {
     }
     processHandle.kill("SIGTERM");
     await waitForProcessExit(processHandle);
-    await rm(userDataDirectory, { recursive: true, force: true });
+    await rm(userDataDirectory, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
     throw error;
   }
 }

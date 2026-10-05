@@ -11,7 +11,8 @@ import {
   DASHBOARD_INSIGHT_UPDATED_EVENT,
   openDashboardInsightHistory,
   readDashboardInsight,
-  readDashboardInsightHistory
+  readDashboardInsightHistory,
+  undoDashboardAgentAction
 } from "../features/dashboard-insight/dashboard-insight-bridge";
 import {
   buildDashboardInsightModel,
@@ -36,6 +37,8 @@ import { PatternHistoryDialog } from "../features/pattern-history/PatternHistory
 import { emptyPatternHistoryModel } from "../features/pattern-history/pattern-history";
 import { TaskProgressBanner } from "../features/task-progress/TaskProgressBanner";
 import { buildTaskProgressModel } from "../features/task-progress/task-progress";
+import { TaskForm } from "../features/tasks/TaskForm";
+import { TaskList } from "../features/tasks/TaskList";
 import { TodayIntention } from "../features/today-intention/TodayIntention";
 import { buildTodayIntentionModel } from "../features/today-intention/today-intention";
 import { WeeklyGoalsCard } from "../features/weekly-goals/WeeklyGoalsCard";
@@ -72,6 +75,8 @@ function LegacyPlannerApp() {
   const [weeklyGoalsMount, setWeeklyGoalsMount] = useState<HTMLElement | null>(null);
   const [dayStateBoundary, setDayStateBoundary] = useState<FramePortalBoundary | null>(null);
   const [taskProgressMount, setTaskProgressMount] = useState<HTMLElement | null>(null);
+  const [taskListMount, setTaskListMount] = useState<HTMLElement | null>(null);
+  const [taskFormMount, setTaskFormMount] = useState<HTMLFormElement | null>(null);
   const [todayIntentionMount, setTodayIntentionMount] = useState<HTMLElement | null>(null);
   const [dashboardInsightBoundary, setDashboardInsightBoundary] = useState<FramePortalBoundary | null>(null);
   const [dashboardInsightModel, setDashboardInsightModel] = useState<DashboardInsightModel>(
@@ -127,6 +132,20 @@ function LegacyPlannerApp() {
       taskProgressMount.dataset.reactOwned = "true";
       taskProgressMount.replaceChildren();
       setTaskProgressMount(taskProgressMount);
+    }
+
+    const taskListMount = document?.getElementById("tasksMount");
+    if (taskListMount !== null && taskListMount !== undefined) {
+      taskListMount.dataset.reactOwned = "true";
+      taskListMount.replaceChildren();
+      setTaskListMount(taskListMount);
+    }
+
+    const taskFormMount = document?.querySelector<HTMLFormElement>("#taskForm");
+    if (taskFormMount !== null && taskFormMount !== undefined) {
+      taskFormMount.dataset.reactOwned = "true";
+      taskFormMount.replaceChildren();
+      setTaskFormMount(taskFormMount);
     }
 
     const todayIntentionMount = document?.querySelector<HTMLElement>(".intention-block");
@@ -367,6 +386,29 @@ function LegacyPlannerApp() {
         createPortal(
           <TaskProgressBanner model={buildTaskProgressModel(loadedStore, todayKey)} />,
           taskProgressMount
+        )
+      )}
+      {loadedStore !== null && taskListMount !== null && (
+        createPortal(
+          <TaskList
+            dateKey={todayKey}
+            onPersist={persistPlannerWrites}
+            onUndoAgentAction={() => {
+              if (legacyFrame !== null) undoDashboardAgentAction(legacyFrame);
+            }}
+            store={loadedStore}
+          />,
+          taskListMount
+        )
+      )}
+      {loadedStore !== null && taskFormMount !== null && (
+        createPortal(
+          <TaskForm
+            dateKey={todayKey}
+            onPersist={persistPlannerWrites}
+            store={loadedStore}
+          />,
+          taskFormMount
         )
       )}
       {loadedStore !== null && todayIntentionMount !== null && (

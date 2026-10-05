@@ -18,6 +18,7 @@ export interface ActivityDefinition {
   label: string;
   shortLabel: string;
   showInStats?: false;
+  trackTime?: false;
 }
 
 export const ACTIVITY_DEFINITIONS = [

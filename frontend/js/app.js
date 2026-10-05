@@ -2418,8 +2418,9 @@
 
       function focusTodayTaskInput() {
         setActiveView("todayView");
-        if (elements.taskTitle) {
-          elements.taskTitle.focus();
+        const taskTitle = document.getElementById("taskTitle") || elements.taskTitle;
+        if (taskTitle) {
+          taskTitle.focus();
         }
       }
 
@@ -2485,6 +2486,12 @@
             if (dashboardInsightBridgeReady) {
               openPatternHistoryDialog();
             }
+          },
+          undoAgentAction: function () {
+            if (dashboardInsightBridgeReady) {
+              return undoLastAgentAction();
+            }
+            return null;
           }
         });
       }
@@ -4075,7 +4082,8 @@
       }
 
       function renderActivities() {
-        if (!elements.taskActivity) {
+        if (!elements.taskActivity
+          || (elements.taskForm && elements.taskForm.dataset.reactOwned === "true")) {
           return;
         }
         elements.taskActivity.innerHTML = "";
@@ -4122,6 +4130,10 @@
         }
         elements.weekKeyLabel.textContent = "Live plan for " + todayKey;
         renderTaskProgress(doneCount, tasks.length);
+        if (elements.tasksMount.dataset.reactOwned === "true") {
+          renderDashboardInsight();
+          return;
+        }
         elements.tasksMount.innerHTML = "";
 
         if (tasks.length === 0) {
@@ -8257,7 +8269,7 @@
             renderPlannerActivityPicker();
           });
         }
-        if (elements.taskForm) {
+        if (elements.taskForm && elements.taskForm.dataset.reactOwned !== "true") {
           elements.taskForm.addEventListener("submit", addTask);
         }
         if (elements.dayStateOptions && elements.dayStateOptions.dataset.reactOwned !== "true") {
