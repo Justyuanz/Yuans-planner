@@ -181,13 +181,13 @@ For each feature:
 - [ ] remove legacy implementation only after tests pass
 
 ## Current Task
-The Dashboard task list, editor, add form, completion controls, hours, timers, reminders, deletion, focus-mode visibility, and task persistence are now React + strict TypeScript owned and verified. The Dashboard route still uses the migration iframe because Pattern calculation/actions, day-state side effects, calendar reconciliation, and agent undo still depend on narrow legacy bridges. Money remains the first complete route rendered directly by React.
+The Dashboard task system and Pattern action routing are now React + strict TypeScript owned and verified. Pattern metrics/rule derivation and history data, day-state side effects, calendar reconciliation, and agent undo still depend on narrow legacy bridges, so the Dashboard route continues to use the migration iframe. Money remains the first complete route rendered directly by React.
 
 ## Last Completed Task
-Migrated the coupled Dashboard task boundary to focused React/TypeScript modules. The typed decoder preserves legacy time parsing, retired activity IDs, caps, timer persistence, calendar-source reminder flags, activity logs, and focus-mode hidden tasks. Real Chrome verifies exact desktop/mobile DOM, geometry, screenshots, create/edit/complete/delete, SQLite persistence, reload survival, Life Pie/task-progress synchronization, and Pattern action compatibility.
+Moved all five Pattern action IDs and Pattern-history opening into a focused strict-TypeScript action module. React now resolves the live task, planned-hours, view, and dialog controls directly instead of delegating through the legacy insight bridge. Unit tests protect every known and unknown action ID, while real Chrome proves task focus, planned-hours scrolling, history opening, iframe-readiness handling, and visual behavior.
 
 ## Next Task
-Continue toward the direct React Dashboard page by replacing its remaining legacy-only orchestration: typed Pattern metric/rule/action persistence, day-state side effects, calendar-linked task reconciliation during hydration, and agent undo. Once those bridges are removed, compose the already-migrated Dashboard cards directly in `PlannerShell` and add a zero-iframe page regression. The clean Python API structure also remains incomplete in Phase 3.
+Continue toward the direct React Dashboard page by porting Pattern metric calculation and rule prioritization into focused strict-TypeScript modules, deriving the card/history models from the loaded React store, and preserving the existing 14-day evidence contract. After that, replace day-state side effects, calendar-linked task reconciliation, and agent undo before composing the Dashboard directly in `PlannerShell`. The clean Python API structure also remains incomplete in Phase 3.
 
 ## Upstream Legacy Change — Activity Categories (2026-10-05)
 
@@ -231,6 +231,7 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - The React app observes the legacy frame's Journal-date change and click events once and shares the selected date with both meditation and archive. Archive, Today, date-input, and Energy-trail navigation therefore update both React boundaries without duplicate iframe listeners.
 - The React Journal archive keeps its search text as local transient state, derives cards from `hivePlanner.journal.entries`, and delegates card selection through the existing legacy tab/date controls. The legacy archive renderer skips only `.journal-archive-card[data-react-owned="true"]`, so the normal legacy application remains unaffected while legacy editor saves still flow back through the storage bridge.
 - Pattern noticed and Pattern history use focused typed normalizers and a narrow `YuanPlannerDashboardInsightBridge`; the already-tested legacy insight engine remains the temporary source of metrics, prioritization, evidence, and action behavior.
+- Pattern action routing is React/TypeScript-owned. The action target resolves live iframe controls at click time for task focus, planned-hours scrolling, Money navigation, and Pattern-history opening; only metrics/history reads and agent undo remain on the legacy insight bridge.
 - React owns only `#dashboardInsightCard .panel-inner` and the contents of `#patternHistoryDialog`. Pattern actions delegate to the existing task/planned-hours controls, while the standalone legacy application keeps its original renderers.
 - Pattern history is a fixed 14-day snapshot in the shipped legacy UI; it has no range selector or dialog-level undo control. React refreshes the snapshot while the dialog is closed and remounts it on every open so native evidence disclosures reset exactly like the legacy rebuild.
 - React owns only the contents of `#dayStateOptions` and decodes `hivePlanner.dayState` with the legacy `okay` fallback. A narrow `YuanPlannerDayStateBridge` delegates writes to the existing save/audit/Sprouty/insight path so compatibility fields and cross-feature effects remain intact.
@@ -300,13 +301,6 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 
 ## Session Log
 
-### Session 27 — Upstream compatibility note
-
-- Inspected the clean `rewrite/react-typescript` worktree, recent history, current handoff, and the React activity-category usages after legacy `main` shipped commit `01d6c6d`.
-- Recorded the new production activity IDs, legacy mappings, calendar mappings, Life Pie groups, Planned vs actual persistence contract, and live W41 target data.
-- Confirmed the rewrite still uses retired IDs in its React Life Pie and Planned vs actual boundaries; made reconciling those typed compatibility modules the next task before another page-level migration.
-- Documentation only; no application code or tests changed in this session.
-
 ### Session 28
 
 - Re-read `AGENTS.md`, this handoff, branch history, status, diff, and the implementation/browser-verification skills, then selected the documented upstream activity-category reconciliation as the focused task.
@@ -327,6 +321,14 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - TDD evidence: the new TypeScript suite first failed because `tasks.ts` did not exist. Browser parity then caught that `other` remains timer-capable even though it is excluded from statistics, and the full suite caught the stale Pattern task-input reference; both contracts are now protected.
 - Hardened temporary Chrome profile cleanup with bounded retries after macOS produced a transient `ENOTEMPTY` teardown failure; the affected Money test passed in isolation and in the authoritative full rerun.
 - Final verification: 125 React tests, React lint, strict type-checking, and the Vite production build pass. The full safety net passes with 18 Python tests and 134 root JavaScript tests, including every serialized real-Chrome browser flow.
+
+### Session 30
+
+- Re-read `AGENTS.md`, this handoff, branch state, recent history, and the implementation skill, then selected Pattern action routing as the next focused React/TypeScript Dashboard increment.
+- Added a focused strict-TypeScript action module for task focus, making a task concrete, planned-hours review, Money navigation, spending-pause navigation, unknown IDs, and Pattern-history opening. React resolves live controls itself and no longer calls the legacy bridge for these interactions.
+- Reduced the insight bridge to metrics/history reads and agent undo. Strengthened the browser regression by replacing the legacy action/history methods with throwing guards, proving React does not silently delegate back to them.
+- The authoritative full suite exposed an iframe-readiness race in the Pattern browser helper. Its wait now treats a temporarily missing `contentDocument` as not ready instead of dereferencing it.
+- Final verification: 131 React tests, React lint, strict type-checking, and the Vite production build pass. The full safety net passes with 18 Python tests and all 134 root JavaScript tests, including the serialized real-Chrome browser flows.
 
 ---
 

@@ -40,6 +40,9 @@ async function openDashboard(browser, pageUrl, documentExpression = "document") 
   await browser.open(pageUrl);
   await browser.waitForExpression(`(() => {
     const documentRoot = ${documentExpression};
+    if (!documentRoot) {
+      return false;
+    }
     const card = documentRoot.getElementById("dashboardInsightCard");
     return documentRoot.documentElement.dataset.plannerReady === "true"
       && card
@@ -348,6 +351,20 @@ test("React Pattern noticed delegates actions and follows legacy task changes", 
   assert.equal(await planner.browser.evaluate(
     'document.querySelector("iframe").contentDocument.getElementById("dashboardInsightCard").dataset.reactOwned'
   ), "true");
+
+  await planner.browser.evaluate(`(() => {
+    const frameWindow = document.querySelector("iframe").contentWindow;
+    const bridge = frameWindow.YuanPlannerDashboardInsightBridge;
+    frameWindow.YuanPlannerDashboardInsightBridge = {
+      ...bridge,
+      applyAction() {
+        throw new Error("React Pattern actions must not use the legacy bridge");
+      },
+      openHistory() {
+        throw new Error("React Pattern history must not use the legacy bridge");
+      }
+    };
+  })()`);
 
   await planner.browser.evaluate(`(() => {
     const documentRoot = ${previewDocument};

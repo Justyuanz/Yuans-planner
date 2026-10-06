@@ -7,13 +7,16 @@ import { selectDayState } from "../features/day-state/day-state-bridge";
 import { decodeDayState } from "../features/day-state/day-state";
 import { DashboardInsightCard } from "../features/dashboard-insight/DashboardInsightCard";
 import {
-  applyDashboardInsightAction,
   DASHBOARD_INSIGHT_UPDATED_EVENT,
-  openDashboardInsightHistory,
   readDashboardInsight,
   readDashboardInsightHistory,
   undoDashboardAgentAction
 } from "../features/dashboard-insight/dashboard-insight-bridge";
+import {
+  applyDashboardInsightAction,
+  createDashboardInsightActionTarget,
+  openDashboardInsightHistory
+} from "../features/dashboard-insight/dashboard-insight-actions";
 import {
   buildDashboardInsightModel,
   type DashboardInsightModel
@@ -432,7 +435,10 @@ function LegacyPlannerApp() {
           <DashboardInsightCard
             model={dashboardInsightModel}
             onAction={(actionId) => {
-              applyDashboardInsightAction(dashboardInsightBoundary.frame, actionId);
+              applyDashboardInsightAction(
+                createDashboardInsightActionTarget(dashboardInsightBoundary.frame),
+                actionId
+              );
             }}
             onOpenHistory={() => {
               setPatternHistoryModel(readDashboardInsightHistory(
@@ -452,7 +458,10 @@ function LegacyPlannerApp() {
             key={patternHistoryRevision}
             model={patternHistoryModel}
             onAction={(actionId) => {
-              applyDashboardInsightAction(patternHistoryBoundary.frame, actionId);
+              applyDashboardInsightAction(
+                createDashboardInsightActionTarget(patternHistoryBoundary.frame),
+                actionId
+              );
             }}
           />,
           patternHistoryBoundary.mount

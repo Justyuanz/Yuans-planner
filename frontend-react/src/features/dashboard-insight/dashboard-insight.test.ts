@@ -1,6 +1,20 @@
 import { describe, expect, it } from "vitest";
 
 import { buildDashboardInsightModel } from "./dashboard-insight";
+import {
+  applyDashboardInsightAction,
+  type DashboardInsightActionTarget
+} from "./dashboard-insight-actions";
+
+function actionTarget() {
+  const calls: string[] = [];
+  const target: DashboardInsightActionTarget = {
+    focusTodayTaskInput: () => calls.push("focus"),
+    openMoneyView: () => calls.push("money"),
+    scrollToPlannedHours: () => calls.push("planned")
+  };
+  return { calls, target };
+}
 
 describe("buildDashboardInsightModel", () => {
   it("preserves the legacy quiet state when there is no strong insight", () => {
@@ -44,5 +58,27 @@ describe("buildDashboardInsightModel", () => {
       why: "Missing a title",
       actions: [{ id: "focus_today_tasks" }]
     })).toEqual(buildDashboardInsightModel(undefined));
+  });
+});
+
+describe("applyDashboardInsightAction", () => {
+  it.each([
+    ["focus_today_tasks", "focus"],
+    ["make_one_task_concrete", "focus"],
+    ["review_planned_hours", "planned"],
+    ["open_money_view", "money"],
+    ["pause_extra_spending", "money"]
+  ])("routes %s through the matching React action", (actionId, expectedCall) => {
+    const { calls, target } = actionTarget();
+
+    expect(applyDashboardInsightAction(target, actionId)).toBe(true);
+    expect(calls).toEqual([expectedCall]);
+  });
+
+  it("ignores unknown action IDs without changing the page", () => {
+    const { calls, target } = actionTarget();
+
+    expect(applyDashboardInsightAction(target, "future_action")).toBe(false);
+    expect(calls).toEqual([]);
   });
 });
