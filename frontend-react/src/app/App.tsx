@@ -8,10 +8,10 @@ import { decodeDayState } from "../features/day-state/day-state";
 import { DashboardInsightCard } from "../features/dashboard-insight/DashboardInsightCard";
 import {
   DASHBOARD_INSIGHT_UPDATED_EVENT,
-  readDashboardInsight,
   readDashboardInsightHistory,
   undoDashboardAgentAction
 } from "../features/dashboard-insight/dashboard-insight-bridge";
+import { buildDashboardInsightFromStore } from "../features/dashboard-insight/dashboard-insight-store";
 import {
   applyDashboardInsightAction,
   createDashboardInsightActionTarget,
@@ -277,13 +277,14 @@ function LegacyPlannerApp() {
   }
 
   useEffect(() => {
-    if (dashboardInsightBoundary === null) {
+    if (dashboardInsightBoundary === null || loadedStore === null) {
       return;
     }
+    const insightStore = loadedStore;
     const frame = dashboardInsightBoundary.frame;
     const frameWindow = frame.contentWindow;
     function syncDashboardInsight(): void {
-      setDashboardInsightModel(readDashboardInsight(frame));
+      setDashboardInsightModel(buildDashboardInsightFromStore(insightStore, today));
       const historyDialog = frame.contentDocument?.querySelector<HTMLDialogElement>("#patternHistoryDialog");
       // Legacy history is a snapshot taken when opened, not a live-changing dialog.
       if (!historyDialog?.open) {
@@ -295,7 +296,7 @@ function LegacyPlannerApp() {
     return () => {
       frameWindow?.removeEventListener(DASHBOARD_INSIGHT_UPDATED_EVENT, syncDashboardInsight);
     };
-  }, [dashboardInsightBoundary, loadedStore, todayKey]);
+  }, [dashboardInsightBoundary, loadedStore, today, todayKey]);
 
   useEffect(() => {
     if (legacyFrame === null) {
