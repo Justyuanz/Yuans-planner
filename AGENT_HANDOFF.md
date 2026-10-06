@@ -181,13 +181,13 @@ For each feature:
 - [ ] remove legacy implementation only after tests pass
 
 ## Current Task
-The Dashboard task system plus Pattern actions, rule derivation, and priority selection are now React + strict TypeScript owned and verified. Raw Pattern metric calculation and history evidence, day-state side effects, calendar reconciliation, and agent undo still depend on narrow legacy bridges, so the Dashboard route continues to use the migration iframe. Money remains the first complete route rendered directly by React.
+The Dashboard task system plus Pattern actions, rule derivation, and priority selection are React + strict TypeScript owned and verified. Task-derived Pattern metric calculation is also ported and parity-tested in focused TypeScript modules, but production still reads the complete legacy metric bundle until the remaining money/journal cross-domain metrics are ported. Pattern history evidence, day-state side effects, calendar reconciliation, and agent undo still depend on narrow legacy bridges, so the Dashboard route continues to use the migration iframe.
 
 ## Last Completed Task
-Ported all eleven Pattern rules, sample thresholds, cautious wording, action definitions, stable priority sorting, and top-insight selection into a focused strict-TypeScript module. The compatibility bridge now exposes raw metrics; React derives the displayed insight itself and no longer calls the legacy `currentInsight()` method. Unit and real-Chrome tests verify malformed data, small samples, cross-domain evidence, exact ordering/content, live task updates, and desktop/mobile parity.
+Ported task-derived Pattern metrics into three focused strict-TypeScript modules: shared numeric/date helpers, daily task summaries, and aggregate metrics. Parity tests cover legacy time prefixes, timers, schedule buckets, study detection, averages, morning overruns, evening load, edit frequency, carryover, unscheduled tasks, vague-task friction, malformed data, non-finite values, and mutation safety. The new metrics are intentionally not wired into production until the remaining cross-domain metrics can replace the legacy bundle without dropping behavior.
 
 ## Next Task
-Continue toward the direct React Dashboard page by porting Pattern metric calculation into focused strict-TypeScript modules that derive from the loaded React store, then build Pattern-history evidence from those typed metrics while preserving the fixed 14-day contract. After that, replace day-state side effects, calendar-linked task reconciliation, and agent undo before composing the Dashboard directly in `PlannerShell`. The clean Python API structure also remains incomplete in Phase 3.
+Continue toward the direct React Dashboard page by porting the remaining money, activity-log, and journal cross-domain Pattern metrics into focused strict-TypeScript modules. Then compose the complete metric bundle from the loaded React store, remove the raw-metrics bridge read, and build Pattern-history evidence from those typed metrics while preserving the fixed 14-day contract. After that, replace day-state side effects, calendar-linked task reconciliation, and agent undo before composing the Dashboard directly in `PlannerShell`.
 
 ## Upstream Legacy Change — Activity Categories (2026-10-05)
 
@@ -233,6 +233,7 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Pattern noticed and Pattern history use focused typed normalizers and a narrow `YuanPlannerDashboardInsightBridge`; the already-tested legacy insight engine remains the temporary source of raw metrics and history evidence only.
 - Pattern action routing is React/TypeScript-owned. The action target resolves live iframe controls at click time for task focus, planned-hours scrolling, Money navigation, and Pattern-history opening; only metrics/history reads and agent undo remain on the legacy insight bridge.
 - All eleven Pattern rules and top-insight priority selection are React/TypeScript-owned. The bridge exposes raw metrics, and the browser regression replaces legacy `currentInsight()` with a throwing guard to prove the React card does not consume legacy-derived insights.
+- Task-derived Pattern metrics are split across focused strict-TypeScript numeric/date, daily-summary, and aggregate modules. They remain behind parity tests rather than replacing production piecemeal; the switch happens only after the cross-domain metric bundle is complete, preventing temporarily missing insights.
 - React owns only `#dashboardInsightCard .panel-inner` and the contents of `#patternHistoryDialog`. Pattern actions delegate to the existing task/planned-hours controls, while the standalone legacy application keeps its original renderers.
 - Pattern history is a fixed 14-day snapshot in the shipped legacy UI; it has no range selector or dialog-level undo control. React refreshes the snapshot while the dialog is closed and remounts it on every open so native evidence disclosures reset exactly like the legacy rebuild.
 - React owns only the contents of `#dayStateOptions` and decodes `hivePlanner.dayState` with the legacy `okay` fallback. A narrow `YuanPlannerDayStateBridge` delegates writes to the existing save/audit/Sprouty/insight path so compatibility fields and cross-feature effects remain intact.
@@ -302,16 +303,6 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 
 ## Session Log
 
-### Session 29
-
-- Re-read `AGENTS.md`, this handoff, branch history, status, diff, and the implementation/browser-verification skills, then selected the documented Dashboard task list/editor boundary after the user explicitly requested continued React + TypeScript work.
-- Added focused strict-TypeScript modules for task compatibility/persistence, the add form, editor, list/timers, and shared form options. The decoder preserves malformed-data fallbacks, retired activity IDs, chronological ordering, legacy time parsing, 24-hour manual and eight-hour timer caps, calendar-source reminder semantics, focus-mode hidden tasks, and compatible activity logs.
-- React now owns `#tasksMount` and `#taskForm` alongside the existing task-progress portal. Narrow legacy guards preserve calendar reconciliation and Pattern computation without duplicate renderers or submit handlers; Pattern task-focus and agent undo resolve through live nodes/bridges after React replaces the original form children.
-- Added real-Chrome coverage for exact legacy-versus-React desktop/mobile DOM, computed geometry, and screenshots plus create, reload, edit, completion, deletion, SQLite persistence, and clean browser errors. Updated Life Pie and Planned-vs-actual cross-feature drivers to operate React-controlled inputs.
-- TDD evidence: the new TypeScript suite first failed because `tasks.ts` did not exist. Browser parity then caught that `other` remains timer-capable even though it is excluded from statistics, and the full suite caught the stale Pattern task-input reference; both contracts are now protected.
-- Hardened temporary Chrome profile cleanup with bounded retries after macOS produced a transient `ENOTEMPTY` teardown failure; the affected Money test passed in isolation and in the authoritative full rerun.
-- Final verification: 125 React tests, React lint, strict type-checking, and the Vite production build pass. The full safety net passes with 18 Python tests and 134 root JavaScript tests, including every serialized real-Chrome browser flow.
-
 ### Session 30
 
 - Re-read `AGENTS.md`, this handoff, branch state, recent history, and the implementation skill, then selected Pattern action routing as the next focused React/TypeScript Dashboard increment.
@@ -327,6 +318,14 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Ported all eleven legacy Pattern rules into a focused pure TypeScript module with typed insight output, explicit thresholds, stable sorting, cloned actions, and no `any` or `var`.
 - Added a raw-metrics compatibility method to the temporary bridge. React now derives the card insight from those metrics; the browser test replaces legacy `currentInsight()` with a throwing guard and still verifies live updates plus exact desktop/mobile visual parity.
 - Final verification: 136 React tests, React lint, strict type-checking, and the Vite production build pass. The full safety net passes with 18 Python tests and all 134 root JavaScript tests, including the serialized real-Chrome browser flows.
+
+### Session 32
+
+- Re-read `AGENTS.md`, this handoff, branch state, recent history, and the implementation skill, then selected task-derived Pattern metrics as the next focused strict-TypeScript increment.
+- Added failing parity tests first for legacy time parsing, timer precedence, daily summaries, window selection, empty/malformed input, task/hour averages, morning overruns, evening load, edits, carryover, unscheduled tasks, vague-task friction, and mutation safety.
+- Implemented three small single-responsibility TypeScript modules for metric utilities, daily task summaries, and aggregate task metrics. The code uses `const`, strict types, no `any`, no `var`, and safe malformed-value normalization.
+- Kept production on the complete legacy raw-metrics bridge for now. Wiring only the task subset would temporarily remove money/journal cross-domain insights, so the TypeScript switch waits for the next metric slice.
+- Final verification: 143 React tests, React lint, strict type-checking, and the Vite production build pass. The full safety net passes with 18 Python tests and all 134 root JavaScript tests, including the serialized real-Chrome browser flows.
 
 ---
 
