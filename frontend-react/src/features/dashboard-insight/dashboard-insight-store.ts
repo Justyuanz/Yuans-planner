@@ -3,6 +3,7 @@ import { isRecord } from "../../shared/is-record";
 import { journalEntries } from "../journal/journal-entry-store";
 import { formatPlannerDate } from "../life-pie/life-pie-store";
 import { decodeMoneyStore } from "../money-quick/money-quick-store";
+import { buildPatternHistoryFromMetrics } from "../pattern-history/pattern-history-builder";
 import { decodeTasks } from "../tasks/tasks";
 import { buildDashboardInsightModel } from "./dashboard-insight";
 import { buildDashboardCrossDomainMetrics } from "./dashboard-insight-cross-domain-metrics";
@@ -125,4 +126,18 @@ export function buildDashboardInsightFromStore(
   const metrics = buildDashboardInsightMetricsFromStore(store, referenceDate, lookbackDays);
   const insights = deriveDashboardInsights(metrics);
   return buildDashboardInsightModel(selectTopDashboardInsight(insights));
+}
+
+export function buildDashboardInsightHistoryFromStore(
+  store: PlannerStore,
+  referenceDate: Date,
+  lookbackDays = 14
+) {
+  const metrics = buildDashboardInsightMetricsFromStore(store, referenceDate, lookbackDays);
+  return buildPatternHistoryFromMetrics(
+    deriveDashboardInsights(metrics),
+    metrics,
+    metrics.currentDateKey,
+    metrics.lookbackDays
+  );
 }

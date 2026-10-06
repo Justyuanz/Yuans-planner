@@ -1,14 +1,8 @@
 import { isRecord } from "../../shared/is-record";
-import { buildPatternHistoryModel, type PatternHistoryModel } from "../pattern-history/pattern-history";
 
 export const DASHBOARD_INSIGHT_UPDATED_EVENT = "hive-planner-dashboard-insight-updated";
 
-interface DashboardInsightBridge {
-  currentHistory?: () => unknown;
-  undoAgentAction?: () => unknown;
-}
-
-function bridgeForFrame(frame: HTMLIFrameElement): DashboardInsightBridge | null {
+function bridgeForFrame(frame: HTMLIFrameElement): Record<string, unknown> | null {
   const candidate: unknown = frame.contentWindow?.YuanPlannerDashboardInsightBridge;
   if (!isRecord(candidate)) {
     return null;
@@ -16,16 +10,15 @@ function bridgeForFrame(frame: HTMLIFrameElement): DashboardInsightBridge | null
   return candidate;
 }
 
-export function readDashboardInsightHistory(
-  frame: HTMLIFrameElement,
-  currentDateKey: string
-): PatternHistoryModel {
-  const bridge = bridgeForFrame(frame);
-  return buildPatternHistoryModel(bridge?.currentHistory?.(), currentDateKey);
+function isCallable(value: unknown): value is () => unknown {
+  return typeof value === "function";
 }
 
 export function undoDashboardAgentAction(frame: HTMLIFrameElement): void {
-  bridgeForFrame(frame)?.undoAgentAction?.();
+  const undoAgentAction = bridgeForFrame(frame)?.undoAgentAction;
+  if (isCallable(undoAgentAction)) {
+    undoAgentAction();
+  }
 }
 
 declare global {

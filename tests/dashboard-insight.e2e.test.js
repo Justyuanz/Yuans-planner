@@ -366,6 +366,9 @@ test("React Pattern noticed delegates actions and follows legacy task changes", 
       currentMetrics() {
         throw new Error("React Pattern metrics must not use the legacy bridge");
       },
+      currentHistory() {
+        throw new Error("React Pattern history must not use the legacy bridge");
+      },
       openHistory() {
         throw new Error("React Pattern history must not use the legacy bridge");
       }

@@ -8,10 +8,12 @@ import { decodeDayState } from "../features/day-state/day-state";
 import { DashboardInsightCard } from "../features/dashboard-insight/DashboardInsightCard";
 import {
   DASHBOARD_INSIGHT_UPDATED_EVENT,
-  readDashboardInsightHistory,
   undoDashboardAgentAction
 } from "../features/dashboard-insight/dashboard-insight-bridge";
-import { buildDashboardInsightFromStore } from "../features/dashboard-insight/dashboard-insight-store";
+import {
+  buildDashboardInsightFromStore,
+  buildDashboardInsightHistoryFromStore
+} from "../features/dashboard-insight/dashboard-insight-store";
 import {
   applyDashboardInsightAction,
   createDashboardInsightActionTarget,
@@ -288,7 +290,7 @@ function LegacyPlannerApp() {
       const historyDialog = frame.contentDocument?.querySelector<HTMLDialogElement>("#patternHistoryDialog");
       // Legacy history is a snapshot taken when opened, not a live-changing dialog.
       if (!historyDialog?.open) {
-        setPatternHistoryModel(readDashboardInsightHistory(frame, todayKey));
+        setPatternHistoryModel(buildDashboardInsightHistoryFromStore(insightStore, today));
       }
     }
     frameWindow?.addEventListener(DASHBOARD_INSIGHT_UPDATED_EVENT, syncDashboardInsight);
@@ -442,10 +444,7 @@ function LegacyPlannerApp() {
               );
             }}
             onOpenHistory={() => {
-              setPatternHistoryModel(readDashboardInsightHistory(
-                dashboardInsightBoundary.frame,
-                todayKey
-              ));
+              setPatternHistoryModel(buildDashboardInsightHistoryFromStore(loadedStore, today));
               setPatternHistoryRevision((revision) => revision + 1);
               openDashboardInsightHistory(dashboardInsightBoundary.frame);
             }}

@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { PlannerStore } from "../../api/planner-store";
 import {
   buildDashboardInsightFromStore,
+  buildDashboardInsightHistoryFromStore,
   buildDashboardInsightMetricsFromStore
 } from "./dashboard-insight-store";
 
@@ -136,6 +137,10 @@ describe("buildDashboardInsightFromStore", () => {
     expect(buildDashboardInsightFromStore(store, REFERENCE_DATE)).toEqual(expect.objectContaining({
       modeText: "reality · 6 days",
       title: "Your mornings are usually taking longer than planned."
+    }));
+    expect(buildDashboardInsightHistoryFromStore(store, REFERENCE_DATE)).toEqual(expect.objectContaining({
+      isEmpty: false,
+      rangeLabel: "Last 14 days through 2026-08-07"
     }));
   });
 });

@@ -40,7 +40,8 @@ async function openPlanner(browser, pageUrl, documentExpression = "document") {
   await browser.open(pageUrl);
   await browser.waitForExpression(`(() => {
     const documentRoot = ${documentExpression};
-    return Boolean(documentRoot.documentElement.dataset.plannerReady === "true"
+    return Boolean(documentRoot
+      && documentRoot.documentElement.dataset.plannerReady === "true"
       && documentRoot.getElementById("openPatternHistory"));
   })()`);
 }
@@ -291,6 +292,16 @@ test("Pattern history records the legacy desktop and mobile visual contract", { 
   });
 
   await openPlanner(planner.browser, `${preview.url}/?date=${TEST_DATE}`, previewDocument);
+  await planner.browser.evaluate(`(() => {
+    const frameWindow = document.querySelector("iframe").contentWindow;
+    const bridge = frameWindow.YuanPlannerDashboardInsightBridge;
+    frameWindow.YuanPlannerDashboardInsightBridge = {
+      ...bridge,
+      currentHistory() {
+        throw new Error("React Pattern history must not use the legacy bridge");
+      }
+    };
+  })()`);
   await openHistory(planner.browser, previewDocument);
   assert.equal(await planner.browser.evaluate(
     `(${previewDocument}).getElementById("patternHistoryDialog").dataset.reactOwned`
