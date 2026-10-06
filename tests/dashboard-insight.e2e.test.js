@@ -360,6 +360,9 @@ test("React Pattern noticed delegates actions and follows legacy task changes", 
       applyAction() {
         throw new Error("React Pattern actions must not use the legacy bridge");
       },
+      currentInsight() {
+        throw new Error("React Pattern rules must not use the legacy bridge");
+      },
       openHistory() {
         throw new Error("React Pattern history must not use the legacy bridge");
       }
@@ -401,9 +404,9 @@ test("React Pattern noticed delegates actions and follows legacy task changes", 
     await planner.browser.evaluate(`(${previewDocument}).querySelector(".task-delete").click()`);
     await planner.browser.waitForExpression(`(${previewDocument}).querySelectorAll(".task-delete").length === ${remaining}`);
   }
-  const updatedBridgeTitle = await planner.browser.evaluate(`document.querySelector("iframe").contentWindow
-    .YuanPlannerDashboardInsightBridge.currentInsight()?.title || null`);
-  assert.equal(updatedBridgeTitle, "A few open tasks still look too vague to start cleanly.");
+  const updatedMetricCount = await planner.browser.evaluate(`document.querySelector("iframe").contentWindow
+    .YuanPlannerDashboardInsightBridge.currentMetrics()?.todaySummary?.plannedCount`);
+  assert.equal(updatedMetricCount, 0);
   await planner.browser.waitForExpression(`(${previewDocument}).getElementById("dashboardInsightTitle").textContent.trim()
     === "A few open tasks still look too vague to start cleanly."`);
   assert.deepEqual(await planner.browser.evaluate(insightState(previewDocument)), {

@@ -2476,6 +2476,12 @@
             const bundle = currentInsightBundle();
             return bundle ? bundle.topInsight : null;
           },
+          currentMetrics: function () {
+            if (!dashboardInsightBridgeReady) {
+              return null;
+            }
+            return currentInsightMetrics();
+          },
           currentHistory: function () {
             if (!dashboardInsightBridgeReady) {
               return null;
