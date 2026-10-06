@@ -295,6 +295,14 @@ test("day state records the legacy desktop and mobile visual contract", { timeou
   assert.deepEqual(previewMobile, legacyMobile);
   assertSameScreenshot(previewMobileScreenshot, legacyMobileScreenshot, "mobile day-state screenshot");
 
+  await planner.browser.evaluate(`(() => {
+    const frameWindow = document.querySelector("iframe").contentWindow;
+    frameWindow.YuanPlannerDayStateBridge = Object.freeze({
+      select() {
+        throw new Error("React day state must not use the legacy write bridge");
+      }
+    });
+  })()`);
   await planner.browser.evaluate(
     `${previewDocument}.querySelector("#dayStateOptions [data-day-state=tired]").click()`
   );

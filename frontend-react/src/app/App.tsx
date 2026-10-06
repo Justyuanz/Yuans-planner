@@ -3,8 +3,9 @@ import { createPortal } from "react-dom";
 
 import { putPlannerStoreValue, type PlannerStoreWrite } from "../api/planner-store";
 import { DayStateOptions } from "../features/day-state/DayStateOptions";
-import { selectDayState } from "../features/day-state/day-state-bridge";
 import { decodeDayState } from "../features/day-state/day-state";
+import { refreshLegacyDayStateEffects } from "../features/day-state/day-state-effects";
+import { buildDayStateWrites } from "../features/day-state/day-state-persistence";
 import { DashboardInsightCard } from "../features/dashboard-insight/DashboardInsightCard";
 import {
   DASHBOARD_INSIGHT_UPDATED_EVENT,
@@ -383,7 +384,13 @@ function LegacyPlannerApp() {
         createPortal(
           <DayStateOptions
             activeState={decodeDayState(loadedStore, todayKey)}
-            onSelect={(state) => selectDayState(dayStateBoundary.frame, state)}
+            onSelect={(state) => {
+              persistPlannerWrites(buildDayStateWrites(loadedStore, todayKey, state, {
+                activityId: `activity-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`,
+                timestamp: new Date().toISOString()
+              }));
+              refreshLegacyDayStateEffects(dayStateBoundary.frame, todayKey, state);
+            }}
           />,
           dayStateBoundary.mount
         )

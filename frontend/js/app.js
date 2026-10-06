@@ -90,9 +90,9 @@
       var weeklyPlannerCore = globalThis.YuanWeeklyPlannerCore;
       const storageCore = globalThis.YuanStorageCore;
       const calendarTaskSync = globalThis.YuanCalendarTaskSync;
+      const DAY_STATE_EFFECTS_EVENT = "hive-planner-day-state-effects";
       var currentInsightBundleState = null;
       let dashboardInsightBridgeReady = false;
-      let dayStateBridgeReady = false;
       var expandedHiddenTaskDates = {};
       var weeklyPlannerUiState = {
         weekSetupOpen: false,
@@ -2740,14 +2740,19 @@
         syncMascotBubble();
       }
 
-      function exposeDayStateBridge() {
-        globalThis.YuanPlannerDayStateBridge = Object.freeze({
-          select: function (state) {
-            if (dayStateBridgeReady) {
-              selectDayState(state);
-            }
-          }
-        });
+      function refreshDayStateEffects(event) {
+        const eventState = event && event.detail ? event.detail.state : null;
+        const eventDateKey = event && event.detail ? event.detail.dateKey : null;
+        const state = typeof eventState === "string" ? eventState : getDayState(formatDate(today));
+        if (typeof eventDateKey === "string" && typeof eventState === "string") {
+          const stateMap = getDayStateMap();
+          stateMap[eventDateKey] = eventState;
+          // Keep effect calculations current before the browser delivers its native storage event.
+          memoryStore[STORAGE.dayState] = JSON.stringify(stateMap);
+        }
+        renderMascotQuickAsks(state);
+        renderDashboardInsight();
+        syncMascotBubble();
       }
 
       function logAgentActionSummary(result, beforeState, afterState) {
@@ -3029,12 +3034,15 @@
         syncMascotBubble();
       }
 
-      function renderMascotQuickAsks() {
+      function renderMascotQuickAsks(dayStateOverride) {
         if (!elements.mascotQuickAsks || !mascotRag || typeof mascotRag.suggestedPrompts !== "function") {
           return;
         }
+        const promptState = typeof dayStateOverride === "string"
+          ? dayStateOverride
+          : getDayState(formatDate(today));
         elements.mascotQuickAsks.innerHTML = "";
-        mascotRag.suggestedPrompts(getDayState(formatDate(today))).forEach(function (prompt) {
+        mascotRag.suggestedPrompts(promptState).forEach(function (prompt) {
           var button = document.createElement("button");
           button.type = "button";
           button.className = "mascot-quick-ask";
@@ -8488,8 +8496,8 @@
       async function init() {
         await hydrateStore();
         dashboardInsightBridgeReady = true;
-        dayStateBridgeReady = true;
         window.addEventListener("storage", syncExternalPlannerStorage);
+        window.addEventListener(DAY_STATE_EFFECTS_EVENT, refreshDayStateEffects);
         bindNavigation();
         runUiSafely("activity choices", renderActivities);
         runUiSafely("workout options", renderWorkoutOptions);
@@ -8517,6 +8525,5 @@
       }
 
       exposeDashboardInsightBridge();
-      exposeDayStateBridge();
       init();
     }());

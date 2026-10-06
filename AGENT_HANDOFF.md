@@ -181,13 +181,13 @@ For each feature:
 - [ ] remove legacy implementation only after tests pass
 
 ## Current Task
-The Dashboard task system plus Pattern metrics, rules, priority selection, actions, and history evidence are React + strict TypeScript owned and verified. Day-state side effects, calendar reconciliation, and agent undo still depend on narrow legacy bridges, so the Dashboard route continues to use the migration iframe.
+The Dashboard task system, day-state persistence/auditing, and Pattern metrics, rules, priority selection, actions, and history evidence are React + strict TypeScript owned and verified. Calendar reconciliation and agent undo still depend on narrow legacy bridges, while Sprouty's unmigrated surface receives a read-only day-state effect notification, so the Dashboard route continues to use the migration iframe.
 
 ## Last Completed Task
-Ported Pattern-history grouping and all eleven evidence formats into a focused strict-TypeScript builder, then wired the production history snapshot to the typed Planner-store metrics. The fixed 14-day range, ordering, action limit, evidence wording, closed-dialog refresh, reopen reset, and desktop/mobile visual contract remain unchanged; the browser regressions now replace legacy `currentHistory()` with a throwing guard.
+Replaced the day-state write bridge with focused strict-TypeScript persistence that preserves unknown compatibility fields, normalizes existing activity records, and appends the exact legacy `day_state_updated` audit entry. A narrow notification refreshes the still-unmigrated Sprouty/insight surfaces without granting legacy code write ownership; browser coverage installs a throwing legacy bridge guard and verifies persistence, one audit entry, reload, side effects, and desktop/mobile visual parity.
 
 ## Next Task
-Continue toward the direct React Dashboard page by replacing the day-state write bridge with focused strict-TypeScript persistence, audit logging, and verified Sprouty/insight side effects. After that, replace calendar-linked task reconciliation and agent undo before composing the Dashboard directly in `PlannerShell`.
+Continue toward the direct React Dashboard page by replacing calendar-linked task reconciliation with focused strict-TypeScript ownership and compatibility tests. Then replace agent undo before composing the Dashboard directly in `PlannerShell`.
 
 ## Upstream Legacy Change — Activity Categories (2026-10-05)
 
@@ -237,7 +237,7 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Cross-domain Pattern metrics are split across focused strict-TypeScript Money/activity, Journal/energy, correlation, and composition modules. A focused store adapter now combines them with task metrics and production no longer reads the legacy raw-metrics bridge.
 - React owns only `#dashboardInsightCard .panel-inner` and the contents of `#patternHistoryDialog`. Pattern actions delegate to the existing task/planned-hours controls, while the standalone legacy application keeps its original renderers.
 - Pattern history is a fixed 14-day snapshot in the shipped legacy UI; it has no range selector or dialog-level undo control. A focused typed builder owns mode grouping, priority ordering, the two-action limit, and all eleven evidence formats. React refreshes the snapshot while the dialog is closed and remounts it on every open so native evidence disclosures reset exactly like the legacy rebuild.
-- React owns only the contents of `#dayStateOptions` and decodes `hivePlanner.dayState` with the legacy `okay` fallback. A narrow `YuanPlannerDayStateBridge` delegates writes to the existing save/audit/Sprouty/insight path so compatibility fields and cross-feature effects remain intact.
+- React owns the contents of `#dayStateOptions`, decodes `hivePlanner.dayState` with the legacy `okay` fallback, and persists both state and normalized `day_state_updated` audit writes in strict TypeScript while preserving unknown state fields. The legacy write bridge is removed; a narrow custom event carries the selected state only to refresh the still-unmigrated Sprouty prompts, insight renderer, and mascot bubble.
 - Both the legacy day-state renderer and its click binder honor `data-react-owned="true"`. The binder guard is required because iframe hydration may finish after React claims the mount; without it, the React buttons receive a second legacy handler and append duplicate audit records.
 - React owns `.day-banner`, `#tasksMount`, and `#taskForm`. Focused strict-TypeScript modules separately own compatibility decoding, the list/timers, editor, add form, shared options, persistence, and activity-log writes. The typed model preserves legacy truthy completion, retired activity IDs, time/reminder normalization, timer caps, calendar-source reminder flags, and focus-mode hidden tasks.
 - The legacy task renderer routes both empty and populated progress through one ownership-aware helper. This keeps the standalone app unchanged while preventing detached legacy span references from overwriting the React portal.
@@ -304,14 +304,6 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 
 ## Session Log
 
-### Session 33
-
-- Re-read `AGENTS.md`, this handoff, branch state, recent history, and the implementation skill, then selected the remaining cross-domain Pattern metrics as the next focused strict-TypeScript increment.
-- Added failing parity tests first for malformed and non-finite input handling, the legacy Money summary and fallback labels, the complete cross-domain fixture, essential metrics, and the latest-four low-energy-date limit.
-- Implemented focused TypeScript modules for Money/activity metrics, Journal/energy metrics, correlations, and bundle composition. The code uses `const`, strict types, no `any`, and no `var`.
-- Kept production on the complete legacy raw-metrics bridge. The next store-decoding/composition slice will combine task and cross-domain metrics and switch the complete bundle atomically.
-- Final verification: 147 React tests, React lint, strict type-checking, and the Vite production build pass. The full safety net passes with 18 Python tests and all 134 root JavaScript tests, including the serialized real-Chrome browser flows.
-
 ### Session 34
 
 - Re-read `AGENTS.md`, this handoff, branch state, recent history, and the implementation skill, then selected the strict Planner-store metric composer and production cutover as the next focused React/TypeScript increment.
@@ -328,6 +320,13 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Removed the production `currentHistory()` bridge read and its now-unused React legacy-model normalizer. Dashboard and Pattern-history browser regressions replace that legacy method with a throwing guard while preserving refresh, disclosure reset, actions, and exact desktop/mobile visual parity.
 - The focused browser run exposed an existing transient-null iframe race in the Pattern-history readiness helper; the wait now treats a missing `contentDocument` as not ready and the rerun passes.
 - Final verification: 150 React tests, React lint, strict type-checking, and the Vite production build pass. The full safety net passes with 18 Python tests and all 134 root JavaScript tests, including the serialized real-Chrome browser flows.
+
+### Session 36
+
+- Re-read `AGENTS.md`, this handoff, branch state, recent history, and the implementation skill, then selected removal of the day-state write bridge as the next focused strict-TypeScript increment.
+- Added persistence tests first for compatibility-field preservation, exact audit shape, malformed documents and audit records, legacy fallback behavior, and raw previous values.
+- Implemented typed day-state and activity-log writes, removed the React-to-legacy write bridge, and added a narrow effect-only event for the still-unmigrated Sprouty and insight surfaces. The browser regression installs a throwing legacy bridge guard to prove React owns the write.
+- Final verification: 153 React tests, React lint, strict type-checking, the Vite production build, and both focused real-Chrome day-state tests pass. The full safety net passed 18 Python tests and 133/134 root tests; its only failure was an unrelated transient-null iframe race in the Money navigation test, which passed immediately when rerun alone.
 
 ---
 
