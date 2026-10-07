@@ -1,12 +1,13 @@
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { putPlannerStoreValue, type PlannerStoreWrite } from "../api/planner-store";
+import { putPlannerStoreValue } from "../api/planner-store";
 import { DayStateOptions } from "../features/day-state/DayStateOptions";
 import { decodeDayState } from "../features/day-state/day-state";
 import { refreshLegacyDayStateEffects } from "../features/day-state/day-state-effects";
 import { buildDayStateWrites } from "../features/day-state/day-state-persistence";
 import { DashboardInsightCard } from "../features/dashboard-insight/DashboardInsightCard";
+import { DashboardPage } from "../features/dashboard-page/DashboardPage";
 import { DASHBOARD_INSIGHT_UPDATED_EVENT } from "../features/dashboard-insight/dashboard-insight-bridge";
 import {
   buildDashboardInsightFromStore,
@@ -55,6 +56,7 @@ import {
   type WeeklyGoalId
 } from "../features/weekly-goals/weekly-goals";
 import { usePlannerStore } from "./use-planner-store";
+import { persistPlannerWrites } from "./planner-persistence";
 
 interface ReactPanelBoundary {
   initialNowMs: number;
@@ -72,19 +74,6 @@ function selectedJournalDate(input: HTMLInputElement | null | undefined, fallbac
     return fallback;
   }
   return value;
-}
-
-function persistPlannerWrites(writes: readonly PlannerStoreWrite[]): void {
-  writes.forEach(({ key, value }) => {
-    try {
-      window.localStorage.setItem(key, value);
-    } catch {
-      // Server persistence still works when browser storage is unavailable.
-    }
-    // Native storage events skip the writing window, so notify sibling React boundaries explicitly.
-    window.dispatchEvent(new StorageEvent("storage", { key, newValue: value }));
-    void putPlannerStoreValue(key, value).catch(() => undefined);
-  });
 }
 
 function LegacyPlannerApp() {
@@ -581,5 +570,7 @@ function LegacyPlannerApp() {
 export function App() {
   const today = useMemo(() => plannerDateFromSearch(window.location.search, new Date()), []);
   const requestedView = new URLSearchParams(window.location.search).get("view");
-  return requestedView === "moneyView" ? <MoneyPage today={today} /> : <LegacyPlannerApp />;
+  if (requestedView === "moneyView") return <MoneyPage today={today} />;
+  if (requestedView === "todayView") return <DashboardPage today={today} />;
+  return <LegacyPlannerApp />;
 }

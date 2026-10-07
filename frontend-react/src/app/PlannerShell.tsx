@@ -3,6 +3,7 @@ import { useState, type ReactNode } from "react";
 import type { PlannerStore } from "../api/planner-store";
 import { formatPlannerDate } from "../features/life-pie/life-pie-store";
 import { BackupTools } from "./BackupTools";
+import { navigateToPlannerView } from "./planner-navigation";
 import { PlannerMascot } from "./PlannerMascot";
 
 const VIEWS = [
@@ -27,13 +28,6 @@ function humanDate(date: Date): string {
   return `${weekdays[date.getDay()]} ${months[date.getMonth()]} ${date.getDate()}`;
 }
 
-function navigateTo(viewId: string, today: Date): void {
-  const url = new URL(window.location.href);
-  url.searchParams.set("date", formatPlannerDate(today));
-  url.searchParams.set("view", viewId);
-  window.location.assign(url);
-}
-
 export function PlannerShell({ activeView, children, store, today }: PlannerShellProps) {
   const [chatOpen, setChatOpen] = useState(false);
 
@@ -46,7 +40,7 @@ export function PlannerShell({ activeView, children, store, today }: PlannerShel
               className={`tab-button${activeView === viewId ? " active" : ""}`}
               data-view-target={viewId}
               key={viewId}
-              onClick={() => navigateTo(viewId, today)}
+              onClick={() => navigateToPlannerView(viewId, today)}
               type="button"
             >
               {label}

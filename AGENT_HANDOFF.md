@@ -181,13 +181,13 @@ For each feature:
 - [ ] remove legacy implementation only after tests pass
 
 ## Current Task
-The Dashboard task system, calendar reconciliation, agent undo, day-state persistence/auditing, and Pattern metrics, rules, priority selection, actions, and history evidence are React + strict TypeScript owned and verified. The direct shell now gives Sprouty normalized Planner context and state-aware quick prompts, but iframe-only Pattern action/dialog orchestration and the remaining Sprouty fallback/skate behavior still block the direct Dashboard cutover.
+The explicit `?view=todayView` Dashboard and `?view=moneyView` Money routes now render directly in React + strict TypeScript with no iframe. Dashboard layout, task/calendar behavior, day state, weekly goals, Life Pie, Planned vs actual, Energy trail, Money quick, Pattern actions, and Pattern history are verified against legacy at desktop and mobile sizes. The no-view URL intentionally remains on the legacy iframe fallback while shared-shell Sprouty parity and final default-route verification are unfinished.
 
 ## Last Completed Task
-Added a focused strict-TypeScript Sprouty context builder for the direct React shell. It normalizes the current day state, tasks, activity log, Dashboard metrics and insights, journal entries, planned hours, and Money state, and restores the legacy state-aware quick prompts. The direct shell sends this grounded context to the existing mascot API and renders the user question, source, evidence, and response; browser coverage verifies the real request payload.
+Composed the explicit Dashboard route directly inside `PlannerShell`, replaced iframe-dependent Pattern actions and history opening with direct React targets and native dialog state, and extracted shared navigation, persistence, and direct-page setup used by Dashboard and Money. Added desktop/mobile visual and geometry parity coverage plus interaction checks. Also serialized each persistence batch so its final audit record cannot reach SQLite before the state writes it describes.
 
 ## Next Task
-Remove the iframe dependency from Dashboard Pattern actions and Pattern-history dialog opening by adding direct-shell action/navigation targets and direct dialog state with compatibility tests. Then compose the explicit Dashboard route directly in `PlannerShell`, preserving the existing layout and visual behavior while the default route remains available as a fallback during verification.
+Finish the direct shell's remaining Sprouty parity: the legacy evidence-based local fallback, Skate context, agent action suggestions, and draggable-position behavior. Add focused behavior and browser tests before implementation. After that, verify the no-view entry path against the explicit direct Dashboard route and switch the default route only when the fallback is no longer needed.
 
 ## Upstream Legacy Change — Activity Categories (2026-10-05)
 
@@ -231,11 +231,11 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - The React app observes the legacy frame's Journal-date change and click events once and shares the selected date with both meditation and archive. Archive, Today, date-input, and Energy-trail navigation therefore update both React boundaries without duplicate iframe listeners.
 - The React Journal archive keeps its search text as local transient state, derives cards from `hivePlanner.journal.entries`, and delegates card selection through the existing legacy tab/date controls. The legacy archive renderer skips only `.journal-archive-card[data-react-owned="true"]`, so the normal legacy application remains unaffected while legacy editor saves still flow back through the storage bridge.
 - Pattern noticed and Pattern history are fully React/TypeScript-owned. Both derive from the same strict Planner-store metric bundle, so the card and history evidence cannot drift between legacy and React calculation paths.
-- Pattern action routing is React/TypeScript-owned. The action target resolves live iframe controls at click time for task focus, planned-hours scrolling, Money navigation, and Pattern-history opening. Agent undo is also React/TypeScript-owned and no longer uses the legacy insight bridge.
+- Pattern action routing is React/TypeScript-owned. The direct Dashboard targets its live task input and Planned vs actual mount, navigates with the shared direct-shell helper, and opens Pattern history through native React dialog state. The fallback portal still resolves live iframe controls at click time. Agent undo is also React/TypeScript-owned and no longer uses the legacy insight bridge.
 - All eleven Pattern rules and top-insight priority selection are React/TypeScript-owned. The browser regression replaces legacy `currentInsight()` and `currentMetrics()` with throwing guards to prove the React card does not consume legacy-derived insights or metrics.
 - Task-derived Pattern metrics are split across focused strict-TypeScript numeric/date, daily-summary, and aggregate modules, with parity tests protecting their compatibility behavior.
 - Cross-domain Pattern metrics are split across focused strict-TypeScript Money/activity, Journal/energy, correlation, and composition modules. A focused store adapter now combines them with task metrics and production no longer reads the legacy raw-metrics bridge.
-- React owns only `#dashboardInsightCard .panel-inner` and the contents of `#patternHistoryDialog`. Pattern actions delegate to the existing task/planned-hours controls, while the standalone legacy application keeps its original renderers.
+- On the explicit Dashboard route, React owns the complete Dashboard composition and `#patternHistoryDialog`; on the temporary fallback route it owns only `#dashboardInsightCard .panel-inner` and the dialog contents through portals. The standalone legacy application keeps its original renderers.
 - Pattern history is a fixed 14-day snapshot in the shipped legacy UI; it has no range selector or dialog-level undo control. A focused typed builder owns mode grouping, priority ordering, the two-action limit, and all eleven evidence formats. React refreshes the snapshot while the dialog is closed and remounts it on every open so native evidence disclosures reset exactly like the legacy rebuild.
 - React owns the contents of `#dayStateOptions`, decodes `hivePlanner.dayState` with the legacy `okay` fallback, and persists both state and normalized `day_state_updated` audit writes in strict TypeScript while preserving unknown state fields. The legacy write bridge is removed; a narrow custom event carries the selected state only to refresh the still-unmigrated Sprouty prompts, insight renderer, and mascot bubble.
 - Both the legacy day-state renderer and its click binder honor `data-react-owned="true"`. The binder guard is required because iframe hydration may finish after React claims the mount; without it, the React buttons receive a second legacy handler and append duplicate audit records.
@@ -244,13 +244,13 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Legacy task/activity binders skip only React-owned mounts. Pattern task-focus resolves the live DOM because React replaces the original form children; agent undo now builds and persists its own typed compatibility writes. The standalone legacy application retains its original undo behavior.
 - React owns only `.intention-block` and derives its badge from `hivePlanner.routine.week.<ISO-WEEK>`. The typed model preserves the legacy Monday-first indexing, day-type aliases, and normal-day fallback without mutating stored compatibility data.
 - The legacy intention renderer continues updating the dashboard subtitle, date, and week-status heading, but skips only the detached badge when `.intention-block` is React-owned. The standalone legacy application therefore retains its original renderer.
-- `?view=moneyView` bypasses the iframe and composes the five Money-page cards directly inside a focused React shell. Other routes still instantiate `LegacyPlannerApp`, so this first direct page does not force an unsafe whole-app cutover.
+- `?view=moneyView` and `?view=todayView` bypass the iframe and compose their pages directly inside the focused React shell. The no-view URL and the four remaining feature routes still instantiate `LegacyPlannerApp`, preserving a verification fallback during incremental cutover.
 - The direct route loads the legacy stylesheet only while mounted. Loading it globally changes the parent body's padding and narrows every iframe preview, which the complete Money regression suite caught.
-- Direct-shell navigation writes the requested `view` and deterministic planner `date` into the URL. Navigating away from Money therefore reloads into the established legacy-shell route until that destination page is migrated.
+- Direct-shell navigation writes the requested `view` and deterministic planner `date` into the URL. Dashboard and Money now navigate directly to each other; Calendar, Activity, Skate, and Journal still reload into the established legacy-shell route until migrated.
 - React backup import/export preserves unknown `hivePlanner.*` values and excludes the transient Guitar session just like legacy. Import publishes same-window storage events so the direct Money cards update immediately.
 - The React Pattern store adapter runs only after the server-first Planner store is loaded and the hydrated legacy frame exposes the portal boundary. It never interprets bridge memory as source data or writes metric inputs back to storage.
 - Insight action navigation resolves the current `#plannedMount` and `#taskTitle` at click time because React ownership replaces their original child nodes; retaining pre-migration references would target detached nodes.
-- React persistence explicitly publishes a same-window storage event after local writes because browsers do not deliver native storage events to the document that performed the write. This keeps sibling React boundaries synchronized immediately.
+- React persistence explicitly publishes a same-window storage event after local writes because browsers do not deliver native storage events to the document that performed the write. This keeps sibling React boundaries synchronized immediately. Server writes within one logical batch are serialized so a trailing audit entry cannot become observable before the restored state it records.
 - The legacy iframe listens for external `hivePlanner.*` storage writes from React-owned parent mounts and updates only its in-memory store. This prevents a later legacy write from overwriting newer React values without causing a second persistence loop.
 - Visual regression coverage must compare the legacy and React versions at identical desktop and mobile viewports, including computed styles/geometry and a rendered screenshot where stable.
 - Screenshot comparisons decode Chrome PNG pixels and allow at most 1% of pixels to differ by more than eight channel values; exact DOM content and computed style/geometry comparisons remain mandatory so minor cross-frame antialiasing does not create false failures.
@@ -297,8 +297,8 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Several declared storage keys and an older Study/Body weekly-overview path are inactive, while the real database still contains legacy-only keys that backups must preserve.
 - Browser inspection reports generated form controls without an `id` or `name`; the current Chrome run reported 29 controls.
 - The default `node` on the inspected machine is Node 14 and cannot run `node --test`; use the installed modern Node runtime or fix the local PATH before relying on `scripts/test.sh` without `NODE_BIN`.
-- Most remaining cross-feature flows in `app.js` still lack DOM or end-to-end tests; browser coverage now protects task and activity-session lifecycles, all six primary views, and eighteen React migration boundaries.
-- Weekly goals, dashboard day state, task progress, Today's intention, the task list/editor/form, Life Pie, Planned vs actual, Energy trail, Pattern noticed/history, all six Money boundaries, Journal meditation, and Journal archive are React-owned and verified. Dashboard orchestration and the other feature views still depend on the temporary iframe shell.
+- Most remaining cross-feature flows in `app.js` still lack DOM or end-to-end tests; browser coverage now protects task and activity-session lifecycles, all six primary views, the direct Dashboard and Money pages, and the migrated React boundaries.
+- Weekly goals, dashboard day state, task progress, Today's intention, the task list/editor/form, Life Pie, Planned vs actual, Energy trail, Pattern noticed/history, all six Money boundaries, Journal meditation, and Journal archive are React-owned and verified. The explicit Dashboard and Money routes are directly composed; the no-view fallback plus Calendar, Activity, Skate, and Journal route orchestration still depend on the temporary iframe shell.
 - Browser smoke tests skip when Chrome/Chromium or Node WebSocket support is unavailable; they run with the documented Node 24 runtime on the inspected machine.
 - The React preview is not yet served directly by the Python backend. Its temporary legacy shell depends on Vite development proxies and is not the final production integration architecture.
 - The direct shell's Sprouty surface now sends grounded task, insight, journal, planning, activity, day-state, and Money context and restores state-aware quick prompts. It still needs the legacy evidence-based local fallback, Skate context, agent action suggestions, and draggable position behavior before shared-shell parity is complete.
@@ -306,14 +306,6 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Browser-capable root Node test files run serially to avoid Chrome/Vite startup timeouts under parallel process saturation.
 
 ## Session Log
-
-### Session 37
-
-- Re-read `AGENTS.md`, this handoff, branch state, recent history, and the implementation skill, then selected calendar-linked task reconciliation as the next focused strict-TypeScript increment.
-- Added failing tests first for structured and legacy event compatibility, category mapping, user-edited linked state, stale-link and retired-routine removal, malformed storage, duplicate events, and stable repeated reconciliation.
-- Implemented a focused typed reconciler and overlaid its task result across React task progress, list/form, and Pattern calculations before persisting changed task state. The standalone legacy app retains its reconciler but skips it when React owns the task mount.
-- Added a real-browser ownership regression that makes the legacy reconciler throw, then verifies calendar creation, exact linked-task fields, persistence, reload non-duplication, and deletion synchronization. The first full run exposed a readiness race in this new test; waiting for the existing planner-ready marker fixed it, and the affected rerun passed.
-- Final verification: 156 React tests, React lint, strict type-checking, the Vite production build, 18 Python tests, and all 135 root JavaScript tests pass, including the serialized real-Chrome browser flows.
 
 ### Session 38
 
@@ -330,6 +322,14 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Implemented a focused strict-TypeScript context builder and connected the direct React mascot to real Planner context, state-aware quick asks, user/assistant messages, source labels, and evidence. The safe generic fallback remains while the larger evidence-based local engine is still pending.
 - Extended the direct Money browser regression to capture the mascot request and verify its date, day state, selected prompt, task, and journal context. Also made its existing Dashboard-navigation readiness wait tolerate the transient missing iframe document element recorded in the previous handoff.
 - Final verification: 162 React tests, React lint, strict type-checking, the Vite production build, 18 Python tests, and all 136 root JavaScript tests pass, including the serialized real-Chrome browser flows.
+
+### Session 40
+
+- Re-read `AGENTS.md`, this handoff, branch state, recent history, current diff, and the implementation skill, then selected direct Dashboard composition and removal of its iframe-only Pattern orchestration as the next strict-TypeScript increment.
+- Added a real-browser regression first that compares the direct React Dashboard with legacy at 1280×720 and 390×844 using exact state and geometry plus Dashboard-region screenshots. It also proves there is no iframe and verifies direct task focus, Planned vs actual scrolling, Pattern-history range, close/reopen behavior, and evidence-disclosure reset.
+- Composed the explicit `?view=todayView` page directly in `PlannerShell`, reusing the verified React-owned Dashboard cards and adding direct Pattern action targets and native dialog state. Extracted shared navigation, ordered persistence, and direct-page stylesheet/readiness helpers used by Dashboard and Money; Money-to-Dashboard navigation now verifies a direct route.
+- The first complete suite exposed a persistence race where the final undo audit could reach SQLite before the restored agent state. Server writes now preserve their logical batch order; the focused undo regression and the complete suite pass.
+- Final verification: 162 React tests, React lint, strict type-checking, the Vite production build, 18 Python tests, and all 137 root JavaScript tests pass, including the direct Dashboard desktop/mobile visual regression and serialized real-Chrome browser flows.
 
 ---
 

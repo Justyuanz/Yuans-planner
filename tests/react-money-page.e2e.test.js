@@ -231,6 +231,8 @@ test("Money is a direct React page with legacy parity, navigation, and persisten
 
   await planner.browser.evaluate('document.querySelector("[data-view-target=todayView]").click()');
   await planner.browser.waitForExpression('location.search.includes("view=todayView")');
-  await planner.browser.waitForExpression('document.querySelector("iframe")?.contentDocument?.documentElement?.dataset.plannerReady === "true"');
+  await planner.browser.waitForExpression(`document.documentElement.dataset.plannerReady === "true"
+    && document.getElementById("todayView")?.classList.contains("active")`);
+  assert.equal(await planner.browser.evaluate('document.querySelectorAll("iframe").length'), 0);
   assert.deepEqual(planner.browser.errors(), []);
 });
