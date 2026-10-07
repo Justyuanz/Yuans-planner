@@ -1,4 +1,8 @@
-import { useState, type FormEvent } from "react";
+import { useMemo, useState, type FormEvent } from "react";
+
+import type { PlannerStore } from "../api/planner-store";
+import { isRecord } from "../shared/is-record";
+import { buildMascotContext, suggestedMascotPrompts } from "./mascot-context";
 
 const LINES = [
   "Pick the next useful move.",
@@ -10,36 +14,74 @@ const LINES = [
 interface PlannerMascotProps {
   chatOpen: boolean;
   onChatToggle: () => void;
+  store: PlannerStore;
+  today: Date;
 }
 
-export function PlannerMascot({ chatOpen, onChatToggle }: PlannerMascotProps) {
+interface MascotReply {
+  answer: string;
+  evidence: string[];
+  source: string;
+}
+
+function decodeMascotReply(value: unknown): MascotReply | null {
+  if (!isRecord(value) || value.ok !== true || !isRecord(value.reply)) return null;
+  const answer = typeof value.reply.answer === "string" ? value.reply.answer.trim() : "";
+  if (!answer) return null;
+  return {
+    answer,
+    evidence: Array.isArray(value.reply.evidence)
+      ? value.reply.evidence.filter((line): line is string => typeof line === "string" && Boolean(line.trim())).slice(0, 3)
+      : [],
+    source: typeof value.reply.source === "string" ? value.reply.source : "openai"
+  };
+}
+
+export function PlannerMascot({ chatOpen, onChatToggle, store, today }: PlannerMascotProps) {
   const [lineIndex, setLineIndex] = useState(0);
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
+  const [evidence, setEvidence] = useState<string[]>([]);
+  const [lastQuestion, setLastQuestion] = useState("");
+  const [source, setSource] = useState("");
+  const context = useMemo(() => buildMascotContext(store, today), [store, today]);
+  const prompts = suggestedMascotPrompts(context.dayState);
 
-  async function askMascot(event: FormEvent<HTMLFormElement>): Promise<void> {
-    event.preventDefault();
-    const trimmed = question.trim();
+  async function askMascot(rawQuestion: string): Promise<void> {
+    const trimmed = rawQuestion.trim();
     if (!trimmed) return;
+    setLastQuestion(trimmed);
     setAnswer("Thinking about one useful next move...");
+    setEvidence([]);
+    setSource("thinking");
     try {
       const response = await fetch("/api/mascot/chat", {
-        body: JSON.stringify({ context: {}, question: trimmed }),
+        body: JSON.stringify({ context, question: trimmed }),
         headers: { "Content-Type": "application/json" },
         method: "POST"
       });
       const payload: unknown = await response.json();
-      const reply = typeof payload === "object" && payload !== null && "reply" in payload
-        ? payload.reply
-        : null;
-      const text = typeof reply === "object" && reply !== null && "answer" in reply
-        ? reply.answer
-        : null;
-      setAnswer(typeof text === "string" ? text : "Pick one small task and make the first move visible.");
+      const reply = decodeMascotReply(payload);
+      if (reply === null) throw new Error("Mascot server returned an invalid reply");
+      setAnswer(reply.answer);
+      setEvidence(reply.evidence);
+      setSource(reply.source);
     } catch {
       setAnswer("Pick one small task and make the first move visible.");
+      setEvidence([]);
+      setSource("local");
     }
     setQuestion("");
+  }
+
+  function submitQuestion(event: FormEvent<HTMLFormElement>): void {
+    event.preventDefault();
+    void askMascot(question);
+  }
+
+  function askPrompt(prompt: string): void {
+    if (!chatOpen) onChatToggle();
+    void askMascot(prompt);
   }
 
   return (
@@ -105,10 +147,30 @@ export function PlannerMascot({ chatOpen, onChatToggle }: PlannerMascotProps) {
           {chatOpen ? "Hide Sprouty" : "Ask Sprouty"}
         </button>
         <div className="mascot-chat" hidden={!chatOpen}>
-          <div className="mascot-chat-log" aria-live="polite">
-            {answer && <div className="mascot-message assistant">{answer}</div>}
+          <div className="mascot-quick-asks">
+            {prompts.map((prompt) => (
+              <button className="mascot-quick-ask" key={prompt} onClick={() => askPrompt(prompt)} type="button">
+                {prompt}
+              </button>
+            ))}
           </div>
-          <form className="mascot-chat-form" onSubmit={(event) => void askMascot(event)}>
+          <div className="mascot-chat-log" aria-live="polite">
+            {lastQuestion && (
+              <div className="mascot-message user">
+                <strong>You</strong>
+                <p>{lastQuestion}</p>
+              </div>
+            )}
+            {answer && (
+              <div className="mascot-message assistant">
+                {source && <span className="mascot-message-source">{source === "openai" ? "OpenAI" : source}</span>}
+                <strong>Mascot</strong>
+                <p>{answer}</p>
+                {evidence.length > 0 && <ul>{evidence.map((line) => <li key={line}>{line}</li>)}</ul>}
+              </div>
+            )}
+          </div>
+          <form className="mascot-chat-form" onSubmit={submitQuestion}>
             <input
               autoComplete="off"
               maxLength={140}

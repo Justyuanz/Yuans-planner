@@ -53,7 +53,12 @@ export function PlannerShell({ activeView, children, store, today }: PlannerShel
             </button>
           ))}
         </nav>
-        <PlannerMascot chatOpen={chatOpen} onChatToggle={() => setChatOpen((open) => !open)} />
+        <PlannerMascot
+          chatOpen={chatOpen}
+          onChatToggle={() => setChatOpen((open) => !open)}
+          store={store}
+          today={today}
+        />
       </aside>
       <div className="workspace">
         <header className="hero">

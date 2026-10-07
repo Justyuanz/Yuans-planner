@@ -7,6 +7,15 @@ const { startReactPreviewServer } = require("./helpers/react-preview-server");
 
 const TEST_DATE = "2026-09-14";
 
+async function putStoredValue(serverUrl, key, value) {
+  const response = await fetch(`${serverUrl}/api/kv`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ key, value })
+  });
+  assert.equal(response.ok, true);
+}
+
 async function openReady(browser, url, documentExpression = "document") {
   await browser.open(url);
   await browser.waitForExpression(
@@ -96,6 +105,26 @@ test("Money is a direct React page with legacy parity, navigation, and persisten
 
   const legacyUrl = `${planner.server.url}/?view=moneyView&date=${TEST_DATE}`;
   const previewUrl = `${preview.url}/?view=moneyView&date=${TEST_DATE}`;
+  await putStoredValue(
+    planner.server.url,
+    "hivePlanner.dayState",
+    JSON.stringify({ [TEST_DATE]: "tired" })
+  );
+  await putStoredValue(
+    planner.server.url,
+    `hivePlanner.dailyTasks.${TEST_DATE}`,
+    JSON.stringify([{ done: false, hours: 0.5, id: "mascot-task", label: "11 Send invoice" }])
+  );
+  await putStoredValue(
+    planner.server.url,
+    "hivePlanner.journal.entries",
+    JSON.stringify([{
+      content: "Morning felt slower than planned.",
+      date: TEST_DATE,
+      id: "mascot-journal",
+      title: "Slow morning"
+    }])
+  );
 
   await planner.browser.setViewport(1280, 720);
   await openReady(planner.browser, legacyUrl);
@@ -158,8 +187,50 @@ test("Money is a direct React page with legacy parity, navigation, and persisten
   assertSameScreenshot(previewMobileScreenshot, legacyMobileScreenshot, "mobile Money page");
   assert.equal(previewMobileGeometry.overflow, false);
 
+  await planner.browser.evaluate(`(() => {
+    const originalFetch = window.fetch.bind(window);
+    window.fetch = async (url, options) => {
+      if (String(url) === "/api/mascot/chat") {
+        window.__mascotRequest = JSON.parse(options.body);
+        return {
+          json: async () => ({
+            ok: true,
+            reply: {
+              answer: "Grounded browser reply",
+              evidence: ["Used Planner context"],
+              source: "openai"
+            }
+          })
+        };
+      }
+      return originalFetch(url, options);
+    };
+    document.querySelector(".top-ai-button").click();
+  })()`);
+  await planner.browser.waitForExpression(
+    'document.querySelector(".mascot-quick-ask")?.textContent.includes("tired")'
+  );
+  await planner.browser.evaluate('document.querySelector(".mascot-quick-ask").click()');
+  await planner.browser.waitForExpression(
+    'document.querySelector(".mascot-message.assistant")?.textContent.includes("Grounded browser reply")'
+  );
+  const mascotRequest = await planner.browser.evaluate(`(() => ({
+    currentDateKey: window.__mascotRequest.context.currentDateKey,
+    dayState: window.__mascotRequest.context.dayState,
+    journalTitle: window.__mascotRequest.context.journalEntries[0].title,
+    prompt: window.__mascotRequest.question,
+    taskLabel: window.__mascotRequest.context.todayTasks[0].label
+  }))()`);
+  assert.deepEqual(mascotRequest, {
+    currentDateKey: TEST_DATE,
+    dayState: "tired",
+    journalTitle: "Slow morning",
+    prompt: "I'm tired. Can you cut today down?",
+    taskLabel: "11 Send invoice"
+  });
+
   await planner.browser.evaluate('document.querySelector("[data-view-target=todayView]").click()');
   await planner.browser.waitForExpression('location.search.includes("view=todayView")');
-  await planner.browser.waitForExpression('document.querySelector("iframe")?.contentDocument?.documentElement.dataset.plannerReady === "true"');
+  await planner.browser.waitForExpression('document.querySelector("iframe")?.contentDocument?.documentElement?.dataset.plannerReady === "true"');
   assert.deepEqual(planner.browser.errors(), []);
 });
