@@ -124,6 +124,20 @@ function patternReply(context: MascotContext): string {
     : "The clearest pattern I see is that your planner has useful data, but there is not enough consistent evidence yet for a sharper conclusion.";
 }
 
+function skateReply(context: MascotContext): string {
+  const recentGreenCount = context.skate.recentSessions.slice(0, 4)
+    .filter(({ intensity }) => intensity === "green").length;
+  const supportMinutes = context.skate.supportThisWeek.reduce((sum, item) => sum + item.minutes, 0);
+  const hasRecoverySupport = context.skate.supportThisWeek.some(({ type }) =>
+    ["Yoga", "Stretch", "Recovery"].includes(type)
+  );
+  if (recentGreenCount >= 3 && !hasRecoverySupport && supportMinutes < 45) {
+    return `Make today Blue or keep it very light. You already have ${recentGreenCount} green sessions in the last four logs and this week does not show much recovery support yet.`;
+  }
+  const plan = context.skate.todayPlan;
+  return `Today's skate plan is already narrow: ${plan.mainFocus}. Keep the 30-minute block to "${plan.skateiq}" and let ${plan.flow} be the optional easy finish.`;
+}
+
 export function answerMascotQuestion(question: string, context: MascotContext): MascotLocalReply {
   const allSnippets = buildMascotSnippets(context);
   const selected = relevantMascotSnippets(question, allSnippets);
@@ -138,7 +152,7 @@ export function answerMascotQuestion(question: string, context: MascotContext): 
     return { ...base, answer: "Your money pattern looks tight enough right now that a small pause before extra spending would probably help more than another budget tweak." };
   }
   if (selected.intent === "skate") {
-    return { ...base, answer: "I do not have enough skate context yet to be precise. Once the skate plan and logs are present, I can answer from them." };
+    return { ...base, answer: skateReply(context) };
   }
   if (selected.intent === "move_task") return { ...base, answer: moveTaskReply(context) };
   if (selected.intent === "breakdown") return { ...base, answer: breakdownReply(context) };

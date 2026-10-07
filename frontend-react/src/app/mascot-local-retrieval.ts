@@ -191,6 +191,23 @@ export function buildMascotSnippets(context: MascotContext): MascotSnippet[] {
     detail: `${mascotTaskLabel(task)}${task.hours ? ` (${formatMascotHours(task.hours)})` : ""}`,
     id: `open-task-${index}`, tags: ["next_step", "avoidance", "general"], title: "Open task"
   }));
+  if (context.skate.todayPlan) snippets.push({
+    detail: `${context.skate.todayPlan.phaseWeekLabel}. ${context.skate.todayPlan.blockLabel}. Main focus: ${previewText(context.skate.todayPlan.mainFocus, 64)}.`,
+    id: "skate-plan", tags: ["skate", "general", "next_step"], title: "Today's skate plan"
+  });
+  snippets.push({
+    detail: `Today's selected intensity is ${context.skate.todayState.selectedIntensity.toUpperCase()}.`,
+    id: "skate-intensity", tags: ["skate", "general", "patterns"], title: "Today's skate intensity"
+  });
+  context.skate.recentSessions.slice(0, 4).forEach((session, index) => snippets.push({
+    detail: `${session.intensity.toUpperCase()} · ${previewText(session.mainFocus || session.flowFocus || "Saved session", 64)}`,
+    id: `skate-session-${index}`, tags: ["skate", "patterns", "general"],
+    title: session.date || "Recent skate session"
+  }));
+  context.skate.supportThisWeek.slice(0, 4).forEach((support, index) => snippets.push({
+    detail: `${support.minutes ? `${support.minutes} min` : "Logged"}${support.note ? ` · ${previewText(support.note, 48)}` : ""}`,
+    id: `skate-support-${index}`, tags: ["skate", "patterns", "general"], title: support.type
+  }));
   return snippets;
 }
 

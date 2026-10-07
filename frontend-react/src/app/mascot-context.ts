@@ -13,6 +13,7 @@ import { formatPlannerDate } from "../features/life-pie/life-pie-store";
 import { decodeMoneyStore } from "../features/money-quick/money-quick-store";
 import { decodePlannedValues } from "../features/planned-actual/planned-actual";
 import { ACTIVITY_LOG_KEY, decodeTasks } from "../features/tasks/tasks";
+import { buildSkateMascotContext } from "./skate-mascot-context";
 
 const DEFAULT_PROMPTS = [
   "What keeps slipping in my plan?",
@@ -102,7 +103,7 @@ export function buildMascotContext(store: PlannerStore, referenceDate: Date) {
     moneyState: mascotMoneyState(store, referenceDate),
     plannedHours: decodePlannedValues(store, referenceDate),
     recentTaskHistory: recentTaskHistory(metrics),
-    skate: {},
+    skate: buildSkateMascotContext(store, referenceDate),
     todayTasks: decodeTasks(
       store[`hivePlanner.dailyTasks.${currentDateKey}`],
       `${currentDateKey}T00:00:00.000Z`

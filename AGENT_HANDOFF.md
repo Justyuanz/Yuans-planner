@@ -181,13 +181,13 @@ For each feature:
 - [ ] remove legacy implementation only after tests pass
 
 ## Current Task
-The explicit `?view=todayView` Dashboard and `?view=moneyView` Money routes render directly in React + strict TypeScript with no iframe. The direct shell now has grounded server context, state-aware prompts, and the evidence-based local Sprouty fallback. Skate context, agent action suggestions, draggable mascot position, and final no-view default-route verification remain before the iframe fallback can be retired.
+The explicit `?view=todayView` Dashboard and `?view=moneyView` Money routes render directly in React + strict TypeScript with no iframe. The direct shell now has grounded server context including SkateIQ, state-aware prompts, and the evidence-based local Sprouty fallback. Agent action suggestions, draggable mascot position, and final no-view default-route verification remain before the iframe fallback can be retired.
 
 ## Last Completed Task
-Ported the legacy evidence-based Sprouty fallback into focused strict-TypeScript retrieval and reply modules. Failed or malformed mascot API responses now classify the question, select normalized Planner evidence, and return intent-specific local guidance instead of a generic sentence. Unit coverage protects concrete tasks, rescheduled mornings, thin context, and classification; browser coverage proves the direct shell displays the grounded local answer, evidence, and source during a server outage.
+Added a focused strict-TypeScript Skate context model for Sprouty. It preserves the immutable 60-day SkateIQ plan, manually pinned program day, per-date intensity override, six priorities, newest-first normalized sessions, and eligible Monday–Sunday body-support logs. Both server payloads and local replies now use that context; local guidance recommends a Blue/light day after repeated Green sessions without recovery, otherwise narrows the answer to the pinned plan.
 
 ## Next Task
-Add normalized Skate plan, intensity, recent-session, and weekly support data to the direct shell's Sprouty context, with focused compatibility and failed-server answer tests. Then migrate agent action suggestions and draggable mascot position as separate increments before switching the no-view entry path to the direct Dashboard.
+Migrate Sprouty's agent action suggestions into focused strict-TypeScript proposal logic, append the highest-value suggestion to server and local answers exactly like legacy, and protect question-aware behavior in unit and browser tests. Keep action application separate from suggestion wording unless the existing UI contract requires an actionable control. Then migrate draggable mascot position before switching the no-view entry path to the direct Dashboard.
 
 ## Upstream Legacy Change — Activity Categories (2026-10-05)
 
@@ -282,6 +282,7 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Agent undo is React/TypeScript-owned. Its typed compatibility layer consumes one legacy stack entry, caps the remaining stack at ten, restores normalized today/tomorrow tasks and compatible agent UI state, preserves unknown state fields, and appends the exact `agent_action_undone` audit record. The legacy bridge method is removed while the standalone legacy undo path remains available to the standalone app.
 - Agent undo, day-state, and Money transaction writes share one strict activity-log compatibility decoder so validation and chronological ordering cannot drift across those React persistence boundaries.
 - The direct React shell builds Sprouty server context only from typed compatibility decoders and the existing React Dashboard metric/rule pipeline. State-aware prompt choices match legacy wording. Invalid or failed server replies use focused strict-TypeScript retrieval and reply modules to classify the question, select up to three normalized evidence snippets, and produce the established intent-specific local guidance.
+- Sprouty's Skate context uses a data-only strict-TypeScript copy of the immutable 60-day SkateIQ reference plan, separated from normalization logic. The model follows the shipped manual-progression contract: `currentProgramDay` selects the plan after season start, date-specific intensity overrides the plan default, recent sessions are newest-first, and weekly support includes only done/modified logs in the local Monday–Sunday window.
 - Keep browser-flow assertions separate from reusable Chrome protocol, Chrome lifecycle, and temporary planner-server helpers so each test file has one clear responsibility.
 - Browser tests may use the existing Chrome DevTools Protocol directly to avoid adding a production or test package dependency.
 - Reuse one browser-planner fixture for Chrome and temporary-server lifecycle instead of duplicating setup across user-flow tests.
@@ -301,19 +302,11 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Weekly goals, dashboard day state, task progress, Today's intention, the task list/editor/form, Life Pie, Planned vs actual, Energy trail, Pattern noticed/history, all six Money boundaries, Journal meditation, and Journal archive are React-owned and verified. The explicit Dashboard and Money routes are directly composed; the no-view fallback plus Calendar, Activity, Skate, and Journal route orchestration still depend on the temporary iframe shell.
 - Browser smoke tests skip when Chrome/Chromium or Node WebSocket support is unavailable; they run with the documented Node 24 runtime on the inspected machine.
 - The React preview is not yet served directly by the Python backend. Its temporary legacy shell depends on Vite development proxies and is not the final production integration architecture.
-- The direct shell's Sprouty surface now sends grounded task, insight, journal, planning, activity, day-state, and Money context, restores state-aware quick prompts, and handles server failure with evidence-based local answers. It still needs Skate context, agent action suggestions, and draggable position behavior before shared-shell parity is complete.
+- The direct shell's Sprouty surface now sends grounded task, insight, journal, planning, activity, day-state, Money, and Skate context, restores state-aware quick prompts, and handles server failure with evidence-based local answers. It still needs agent action suggestions and draggable position behavior before shared-shell parity is complete.
 - The React visual regression test skips when Chrome or `frontend-react` dependencies are unavailable, matching the existing browser-test prerequisite policy.
 - Browser-capable root Node test files run serially to avoid Chrome/Vite startup timeouts under parallel process saturation.
 
 ## Session Log
-
-### Session 39
-
-- Re-read `AGENTS.md`, this handoff, branch state, recent history, and the implementation skill, then inventoried the remaining direct-Dashboard iframe dependencies and selected shared-shell Sprouty grounding as the first blocker to remove.
-- Added tests first for exact legacy prompt choices, normalized task/journal/activity/planning/Money context, Dashboard metrics and recent history, and malformed compatibility records.
-- Implemented a focused strict-TypeScript context builder and connected the direct React mascot to real Planner context, state-aware quick asks, user/assistant messages, source labels, and evidence. The safe generic fallback remains while the larger evidence-based local engine is still pending.
-- Extended the direct Money browser regression to capture the mascot request and verify its date, day state, selected prompt, task, and journal context. Also made its existing Dashboard-navigation readiness wait tolerate the transient missing iframe document element recorded in the previous handoff.
-- Final verification: 162 React tests, React lint, strict type-checking, the Vite production build, 18 Python tests, and all 136 root JavaScript tests pass, including the serialized real-Chrome browser flows.
 
 ### Session 40
 
@@ -330,6 +323,14 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Implemented focused retrieval and reply modules that use the existing normalized mascot context and Dashboard metrics. The engine preserves legacy question families, task-shift evidence, capacity/money/cross-domain snippets, concrete next-task, move, breakdown, avoidance, journal, reality, and pattern guidance; Skate-specific evidence remains intentionally separate for the next increment.
 - Replaced the direct shell's generic catch sentence with the typed local engine for failed, unavailable, or malformed server replies. No JavaScript compatibility implementation is used by the direct React path.
 - Final verification: 166 React tests, React lint, strict type-checking, the Vite production build, 18 Python tests, and all 137 root JavaScript tests pass, including the real-Chrome server-outage Sprouty regression.
+
+### Session 42
+
+- Re-read `AGENTS.md`, this handoff, branch state, recent history, current diff, and the implementation skill, then selected Sprouty's Skate context as one focused strict-TypeScript parity increment.
+- Added failing tests first for manual Day 17 selection, per-date Green intensity, newest-first session compatibility, current-week done/modified support filtering, malformed storage, pre-season Day 1 preview, all 60 sequential plan days, benchmark boundaries, recovery-aware local guidance, and ordinary pinned-plan guidance.
+- Extracted the immutable 60-day SkateIQ reference into a data-only strict-TypeScript module and implemented a separate focused context normalizer. Sprouty server requests now include the exact pinned plan, selected intensity, six priorities, eight recent sessions, and eligible weekly support without loading legacy JavaScript.
+- Extended the typed retrieval and reply engine with Skate plan/intensity/session/support evidence. Three recent Green sessions without at least 45 minutes or an explicit recovery-support log produce the legacy Blue/light recommendation; other Skate questions stay narrowed to the pinned 30-minute plan.
+- Extended the real-browser Money/Sprouty regression to verify the exact Skate request context and the local recovery answer during an API outage. Final verification: 171 React tests, React lint, strict type-checking, the Vite production build, 18 Python tests, all 137 root JavaScript tests, and the post-edge-fix focused browser rerun pass.
 
 ---
 

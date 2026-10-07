@@ -82,7 +82,11 @@ describe("buildMascotContext", () => {
     expect(context.plannedHours).toEqual({ transcendence: 12 });
     expect(context.moneyState.month).toEqual(expect.objectContaining({ spentCents: 2500 }));
     expect(context.moneyState.categories).toContainEqual(expect.objectContaining({ id: "groceries" }));
-    expect(context.skate).toEqual({});
+    expect(context.skate.todayPlan).toEqual(expect.objectContaining({
+      blockLabel: "Day 1",
+      defaultIntensity: "blue"
+    }));
+    expect(context.skate.todayState.selectedIntensity).toBe("blue");
   });
 
   it("uses stable defaults for malformed compatibility records", () => {

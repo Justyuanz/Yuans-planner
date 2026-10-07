@@ -125,6 +125,25 @@ test("Money is a direct React page with legacy parity, navigation, and persisten
       title: "Slow morning"
     }])
   );
+  await putStoredValue(
+    planner.server.url,
+    "hivePlanner.skate.settings",
+    JSON.stringify({ currentProgramDay: 17, intensityByDate: { [TEST_DATE]: "green" } })
+  );
+  await putStoredValue(
+    planner.server.url,
+    "hivePlanner.skate.sessions",
+    JSON.stringify([0, 1, 2].map((index) => ({
+      finishedAt: `2026-09-${String(13 - index).padStart(2, "0")}T18:00:00.000Z`,
+      intensity: "green",
+      mainFocus: `Session ${index + 1}`
+    })))
+  );
+  await putStoredValue(
+    planner.server.url,
+    "hivePlanner.physical.logs",
+    JSON.stringify([{ date: TEST_DATE, kind: "gym", minutes: 30, name: "Gym", status: "done" }])
+  );
 
   await planner.browser.setViewport(1280, 720);
   await openReady(planner.browser, legacyUrl);
@@ -220,6 +239,10 @@ test("Money is a direct React page with legacy parity, navigation, and persisten
     dayState: window.__mascotRequest.context.dayState,
     journalTitle: window.__mascotRequest.context.journalEntries[0].title,
     prompt: window.__mascotRequest.question,
+    skateBlock: window.__mascotRequest.context.skate.todayPlan.blockLabel,
+    skateIntensity: window.__mascotRequest.context.skate.todayState.selectedIntensity,
+    skateSessionCount: window.__mascotRequest.context.skate.recentSessions.length,
+    supportType: window.__mascotRequest.context.skate.supportThisWeek[0].type,
     taskLabel: window.__mascotRequest.context.todayTasks[0].label
   }))()`);
   assert.deepEqual(mascotRequest, {
@@ -227,6 +250,10 @@ test("Money is a direct React page with legacy parity, navigation, and persisten
     dayState: "tired",
     journalTitle: "Slow morning",
     prompt: "I'm tired. Can you cut today down?",
+    skateBlock: "Day 17",
+    skateIntensity: "green",
+    skateSessionCount: 3,
+    supportType: "Gym",
     taskLabel: "11 Send invoice"
   });
 
@@ -238,13 +265,13 @@ test("Money is a direct React page with legacy parity, navigation, and persisten
     const input = document.querySelector(".mascot-chat-form input");
     Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(
       input,
-      "What should I do next?"
+      "How hard should I skate today?"
     );
     input.dispatchEvent(new Event("input", { bubbles: true }));
   })()`);
   await planner.browser.evaluate('document.querySelector(".mascot-chat-form").requestSubmit()');
   await planner.browser.waitForExpression(
-    'document.querySelector(".mascot-message.assistant")?.textContent.includes("Send invoice")'
+    'document.querySelector(".mascot-message.assistant")?.textContent.includes("Make today Blue")'
   );
   assert.equal(
     await planner.browser.evaluate('document.querySelector(".mascot-message-source")?.textContent'),
