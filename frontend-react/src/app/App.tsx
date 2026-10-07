@@ -45,6 +45,8 @@ import { TaskProgressBanner } from "../features/task-progress/TaskProgressBanner
 import { buildTaskProgressModel } from "../features/task-progress/task-progress";
 import { TaskForm } from "../features/tasks/TaskForm";
 import { TaskList } from "../features/tasks/TaskList";
+import { buildCalendarTaskReconciliation } from "../features/tasks/calendar-task-reconciliation";
+import { makeTaskRelatedId } from "../features/tasks/task-options";
 import { TodayIntention } from "../features/today-intention/TodayIntention";
 import { buildTodayIntentionModel } from "../features/today-intention/today-intention";
 import { WeeklyGoalsCard } from "../features/weekly-goals/WeeklyGoalsCard";
@@ -72,6 +74,19 @@ function selectedJournalDate(input: HTMLInputElement | null | undefined, fallbac
     return fallback;
   }
   return value;
+}
+
+function persistPlannerWrites(writes: readonly PlannerStoreWrite[]): void {
+  writes.forEach(({ key, value }) => {
+    try {
+      window.localStorage.setItem(key, value);
+    } catch {
+      // Server persistence still works when browser storage is unavailable.
+    }
+    // Native storage events skip the writing window, so notify sibling React boundaries explicitly.
+    window.dispatchEvent(new StorageEvent("storage", { key, newValue: value }));
+    void putPlannerStoreValue(key, value).catch(() => undefined);
+  });
 }
 
 function LegacyPlannerApp() {
@@ -113,6 +128,23 @@ function LegacyPlannerApp() {
   const weeklyStore = loadedStore === null || weeklyGoalsOverride === null
     ? loadedStore
     : { ...loadedStore, [WEEKLY_GOALS_STORAGE_KEY]: weeklyGoalsOverride };
+  const calendarTaskReconciliation = useMemo(() => loadedStore === null ? null
+    : buildCalendarTaskReconciliation(loadedStore, todayKey, () => ({
+      createdAt: new Date().toISOString(),
+      id: makeTaskRelatedId("calendar-task")
+    })), [loadedStore, todayKey]);
+  const dashboardStore = useMemo(() => calendarTaskReconciliation === null || loadedStore === null
+    ? loadedStore
+    : ({
+      ...loadedStore,
+      [`hivePlanner.dailyTasks.${todayKey}`]: JSON.stringify(calendarTaskReconciliation.tasks)
+    }), [calendarTaskReconciliation, loadedStore, todayKey]);
+
+  useEffect(() => {
+    if (calendarTaskReconciliation?.write !== null && calendarTaskReconciliation?.write !== undefined) {
+      persistPlannerWrites([calendarTaskReconciliation.write]);
+    }
+  }, [calendarTaskReconciliation]);
 
   function claimReactMounts(frame: HTMLIFrameElement): void {
     const document = frame.contentDocument;
@@ -280,10 +312,10 @@ function LegacyPlannerApp() {
   }
 
   useEffect(() => {
-    if (dashboardInsightBoundary === null || loadedStore === null) {
+    if (dashboardInsightBoundary === null || dashboardStore === null) {
       return;
     }
-    const insightStore = loadedStore;
+    const insightStore = dashboardStore;
     const frame = dashboardInsightBoundary.frame;
     const frameWindow = frame.contentWindow;
     function syncDashboardInsight(): void {
@@ -299,7 +331,7 @@ function LegacyPlannerApp() {
     return () => {
       frameWindow?.removeEventListener(DASHBOARD_INSIGHT_UPDATED_EVENT, syncDashboardInsight);
     };
-  }, [dashboardInsightBoundary, loadedStore, today, todayKey]);
+  }, [dashboardInsightBoundary, dashboardStore, today, todayKey]);
 
   useEffect(() => {
     if (legacyFrame === null) {
@@ -334,19 +366,6 @@ function LegacyPlannerApp() {
       // Server persistence still works when browser storage is unavailable.
     }
     void putPlannerStoreValue(WEEKLY_GOALS_STORAGE_KEY, value).catch(() => undefined);
-  }
-
-  function persistPlannerWrites(writes: readonly PlannerStoreWrite[]): void {
-    writes.forEach(({ key, value }) => {
-      try {
-        window.localStorage.setItem(key, value);
-      } catch {
-        // Server persistence still works when browser storage is unavailable.
-      }
-      // Native storage events skip the writing window, so notify sibling React boundaries explicitly.
-      window.dispatchEvent(new StorageEvent("storage", { key, newValue: value }));
-      void putPlannerStoreValue(key, value).catch(() => undefined);
-    });
   }
 
   function openJournalDate(boundary: FramePortalBoundary, date: string): void {
@@ -395,13 +414,13 @@ function LegacyPlannerApp() {
           dayStateBoundary.mount
         )
       )}
-      {loadedStore !== null && taskProgressMount !== null && (
+      {dashboardStore !== null && taskProgressMount !== null && (
         createPortal(
-          <TaskProgressBanner model={buildTaskProgressModel(loadedStore, todayKey)} />,
+          <TaskProgressBanner model={buildTaskProgressModel(dashboardStore, todayKey)} />,
           taskProgressMount
         )
       )}
-      {loadedStore !== null && taskListMount !== null && (
+      {dashboardStore !== null && taskListMount !== null && (
         createPortal(
           <TaskList
             dateKey={todayKey}
@@ -409,17 +428,17 @@ function LegacyPlannerApp() {
             onUndoAgentAction={() => {
               if (legacyFrame !== null) undoDashboardAgentAction(legacyFrame);
             }}
-            store={loadedStore}
+            store={dashboardStore}
           />,
           taskListMount
         )
       )}
-      {loadedStore !== null && taskFormMount !== null && (
+      {dashboardStore !== null && taskFormMount !== null && (
         createPortal(
           <TaskForm
             dateKey={todayKey}
             onPersist={persistPlannerWrites}
-            store={loadedStore}
+            store={dashboardStore}
           />,
           taskFormMount
         )
@@ -440,7 +459,7 @@ function LegacyPlannerApp() {
           lifePieBoundary.mount
         )
       )}
-      {loadedStore !== null && dashboardInsightBoundary !== null && (
+      {dashboardStore !== null && dashboardInsightBoundary !== null && (
         createPortal(
           <DashboardInsightCard
             model={dashboardInsightModel}
@@ -451,7 +470,7 @@ function LegacyPlannerApp() {
               );
             }}
             onOpenHistory={() => {
-              setPatternHistoryModel(buildDashboardInsightHistoryFromStore(loadedStore, today));
+              setPatternHistoryModel(buildDashboardInsightHistoryFromStore(dashboardStore, today));
               setPatternHistoryRevision((revision) => revision + 1);
               openDashboardInsightHistory(dashboardInsightBoundary.frame);
             }}

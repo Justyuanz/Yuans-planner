@@ -2151,6 +2151,9 @@
 
       function mergedTodayTasks(tasks) {
         const normalizedTasks = normalizeTasks(tasks);
+        if (elements.tasksMount && elements.tasksMount.dataset.reactOwned === "true") {
+          return { tasks: normalizedTasks, changed: false };
+        }
         const events = plannerEventsForDate(formatDate(today));
         const result = calendarTaskSync.mergeLinkedTasks(normalizedTasks, events, createCalendarTask);
         return {

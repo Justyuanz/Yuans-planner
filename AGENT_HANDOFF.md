@@ -181,13 +181,13 @@ For each feature:
 - [ ] remove legacy implementation only after tests pass
 
 ## Current Task
-The Dashboard task system, day-state persistence/auditing, and Pattern metrics, rules, priority selection, actions, and history evidence are React + strict TypeScript owned and verified. Calendar reconciliation and agent undo still depend on narrow legacy bridges, while Sprouty's unmigrated surface receives a read-only day-state effect notification, so the Dashboard route continues to use the migration iframe.
+The Dashboard task system, calendar reconciliation, day-state persistence/auditing, and Pattern metrics, rules, priority selection, actions, and history evidence are React + strict TypeScript owned and verified. Agent undo still depends on a narrow legacy bridge, while Sprouty's unmigrated surface receives a read-only day-state effect notification, so the Dashboard route continues to use the migration iframe.
 
 ## Last Completed Task
-Replaced the day-state write bridge with focused strict-TypeScript persistence that preserves unknown compatibility fields, normalizes existing activity records, and appends the exact legacy `day_state_updated` audit entry. A narrow notification refreshes the still-unmigrated Sprouty/insight surfaces without granting legacy code write ownership; browser coverage installs a throwing legacy bridge guard and verifies persistence, one audit entry, reload, side effects, and desktop/mobile visual parity.
+Replaced legacy calendar-to-task reconciliation with a focused strict-TypeScript module that normalizes legacy categories and times, preserves user-edited linked task state, removes stale and retired links, imports each missing event once, and recovers malformed storage. The reconciled task store now feeds React task progress, list/form, and Pattern calculations; browser coverage poisons the legacy reconciler and verifies create, persistence, reload non-duplication, and source-event removal.
 
 ## Next Task
-Continue toward the direct React Dashboard page by replacing calendar-linked task reconciliation with focused strict-TypeScript ownership and compatibility tests. Then replace agent undo before composing the Dashboard directly in `PlannerShell`.
+Continue toward the direct React Dashboard page by replacing agent undo with focused strict-TypeScript persistence and compatibility tests. Then compose the Dashboard directly in `PlannerShell` once no write behavior depends on the iframe.
 
 ## Upstream Legacy Change — Activity Categories (2026-10-05)
 
@@ -278,7 +278,7 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Weekly-goal edits save on blur to match the legacy `change` interaction, trim the value, retain unknown fields in the stored object, update browser storage optimistically, and persist through the existing `/api/kv` endpoint.
 - Keep the Vite development API target configurable through `VITE_PLANNER_API_TARGET`; the default remains the existing server at `http://127.0.0.1:8765`.
 - Keep new compatibility logic in focused, pure UMD modules that the legacy app and Node tests both execute.
-- Calendar-linked task reconciliation must preserve user-edited task state, remove stale source links, and add each missing current event without duplication.
+- Calendar-linked task reconciliation is React/TypeScript-owned. Its typed compatibility layer accepts legacy category/time formats, preserves user-edited linked task state, removes retired routine and stale source links, ignores malformed/duplicate event records, and adds each missing current event exactly once. The legacy reconciler remains only for the standalone application and is skipped when React owns `#tasksMount`.
 - Keep browser-flow assertions separate from reusable Chrome protocol, Chrome lifecycle, and temporary planner-server helpers so each test file has one clear responsibility.
 - Browser tests may use the existing Chrome DevTools Protocol directly to avoid adding a production or test package dependency.
 - Reuse one browser-planner fixture for Chrome and temporary-server lifecycle instead of duplicating setup across user-flow tests.
@@ -288,7 +288,7 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Some files contain thousands of lines.
 - Duplicate/redundant functions likely exist.
 - Current architecture is difficult to understand.
-- `frontend/js/app.js` is 8,516 lines and still owns most storage, normalization, rendering, event handling, and cross-feature orchestration; only the newly extracted boundaries have direct coverage.
+- `frontend/js/app.js` is 8,532 lines and still owns most storage, normalization, rendering, event handling, and cross-feature orchestration; only the newly extracted boundaries have direct coverage.
 - `frontend/css/styles.css` is 5,658 lines with several accumulated responsive sections.
 - Time/date parsing and normalization are duplicated across frontend modules and backend integrations.
 - Several declared storage keys and an older Study/Body weekly-overview path are inactive, while the real database still contains legacy-only keys that backups must preserve.
@@ -303,14 +303,6 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Browser-capable root Node test files run serially to avoid Chrome/Vite startup timeouts under parallel process saturation.
 
 ## Session Log
-
-### Session 34
-
-- Re-read `AGENTS.md`, this handoff, branch state, recent history, and the implementation skill, then selected the strict Planner-store metric composer and production cutover as the next focused React/TypeScript increment.
-- Added failing store-level tests first for malformed compatibility values, complete task/activity/Money/Journal composition, mutation safety, and direct visible-card derivation.
-- Implemented a focused strict-TypeScript adapter that decodes dated task keys, legacy-valid activity records, shared Money state/transactions, and shared Journal entries before composing all Pattern metrics and rules.
-- Switched the production React Pattern card from the legacy `currentMetrics()` bridge to the loaded Planner store. The real-browser regression makes both `currentInsight()` and `currentMetrics()` throw while live task deletion still updates the card.
-- Final verification: 150 React tests, React lint, strict type-checking, and the Vite production build pass. The full safety net passes with 18 Python tests and all 134 root JavaScript tests, including the serialized real-Chrome browser flows.
 
 ### Session 35
 
@@ -327,6 +319,14 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Added persistence tests first for compatibility-field preservation, exact audit shape, malformed documents and audit records, legacy fallback behavior, and raw previous values.
 - Implemented typed day-state and activity-log writes, removed the React-to-legacy write bridge, and added a narrow effect-only event for the still-unmigrated Sprouty and insight surfaces. The browser regression installs a throwing legacy bridge guard to prove React owns the write.
 - Final verification: 153 React tests, React lint, strict type-checking, the Vite production build, and both focused real-Chrome day-state tests pass. The full safety net passed 18 Python tests and 133/134 root tests; its only failure was an unrelated transient-null iframe race in the Money navigation test, which passed immediately when rerun alone.
+
+### Session 37
+
+- Re-read `AGENTS.md`, this handoff, branch state, recent history, and the implementation skill, then selected calendar-linked task reconciliation as the next focused strict-TypeScript increment.
+- Added failing tests first for structured and legacy event compatibility, category mapping, user-edited linked state, stale-link and retired-routine removal, malformed storage, duplicate events, and stable repeated reconciliation.
+- Implemented a focused typed reconciler and overlaid its task result across React task progress, list/form, and Pattern calculations before persisting changed task state. The standalone legacy app retains its reconciler but skips it when React owns the task mount.
+- Added a real-browser ownership regression that makes the legacy reconciler throw, then verifies calendar creation, exact linked-task fields, persistence, reload non-duplication, and deletion synchronization. The first full run exposed a readiness race in this new test; waiting for the existing planner-ready marker fixed it, and the affected rerun passed.
+- Final verification: 156 React tests, React lint, strict type-checking, the Vite production build, 18 Python tests, and all 135 root JavaScript tests pass, including the serialized real-Chrome browser flows.
 
 ---
 

@@ -6,6 +6,7 @@ const { compareScreenshots } = require("./helpers/png-compare");
 const { startReactPreviewServer } = require("./helpers/react-preview-server");
 
 const TEST_DATE = "2026-10-05";
+const EVENTS_KEY = "hivePlanner.events";
 const TASK_KEY = `hivePlanner.dailyTasks.${TEST_DATE}`;
 const TASKS = [
   {
@@ -112,6 +113,15 @@ async function putTasks(serverUrl) {
     method: "PUT",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ key: TASK_KEY, value: JSON.stringify(TASKS) })
+  });
+  assert.equal(response.ok, true);
+}
+
+async function putStoredValue(serverUrl, key, value) {
+  const response = await fetch(`${serverUrl}/api/kv`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ key, value })
   });
   assert.equal(response.ok, true);
 }
@@ -227,6 +237,88 @@ test("React tasks preserve the legacy design and task lifecycle", { timeout: 60_
     const data = await planner.server.readPlannerData();
     const tasks = JSON.parse(data[TASK_KEY] || "[]");
     return !tasks.some(({ label }) => label === "Edited React task");
+  });
+  assert.deepEqual(planner.browser.errors(), []);
+});
+
+test("React owns calendar-linked task reconciliation", { timeout: 60_000 }, async function (context) {
+  const planner = await startBrowserPlanner(context);
+  if (!planner) return;
+  const preview = await startReactPreviewServer(planner.server.url);
+  if (!preview) {
+    context.skip("Install frontend-react dependencies to run React task tests.");
+    return;
+  }
+  context.after(async function () {
+    await preview.close();
+  });
+  await putTasks(planner.server.url);
+  await putStoredValue(planner.server.url, EVENTS_KEY, "[]");
+  await planner.browser.open(`${preview.url}/?date=${TEST_DATE}`);
+  await planner.browser.waitForExpression(REACT_READY);
+  await planner.browser.waitForExpression(
+    'document.querySelector("iframe")?.contentDocument?.documentElement?.dataset.plannerReady === "true"'
+  );
+
+  await planner.browser.evaluate(`(() => {
+    const frame = document.querySelector("iframe");
+    const root = frame.contentDocument;
+    frame.contentWindow.YuanCalendarTaskSync.mergeLinkedTasks = () => {
+      throw new Error("React tasks must not use legacy calendar reconciliation");
+    };
+    root.getElementById("eventDate").value = "${TEST_DATE}";
+    root.getElementById("eventTitle").value = "Calendar React task";
+    root.getElementById("eventStartTime").value = "10:15";
+    root.getElementById("eventEndTime").value = "11:00";
+    root.getElementById("eventCategory").value = "Transcendence";
+    root.getElementById("eventForm").dispatchEvent(new frame.contentWindow.Event("submit", {
+      bubbles: true,
+      cancelable: true
+    }));
+  })()`);
+  const linkedTask = await planner.server.waitFor(async function () {
+    const data = await planner.server.readPlannerData();
+    const events = JSON.parse(data[EVENTS_KEY] || "[]");
+    const tasks = JSON.parse(data[TASK_KEY] || "[]");
+    const event = events.find(({ title }) => title === "Calendar React task");
+    return event && tasks.find(({ sourceEventId }) => sourceEventId === event.id);
+  });
+  assert.deepEqual({
+    activity: linkedTask.activity,
+    done: linkedTask.done,
+    label: linkedTask.label,
+    reminderMinutes: linkedTask.reminderMinutes,
+    scheduledTime: linkedTask.scheduledTime,
+    useSourceEventReminder: linkedTask.useSourceEventReminder
+  }, {
+    activity: "transcendence",
+    done: false,
+    label: "Calendar React task",
+    reminderMinutes: 0,
+    scheduledTime: "10:15",
+    useSourceEventReminder: true
+  });
+  assert.deepEqual(planner.browser.errors(), []);
+
+  await planner.browser.reload();
+  await planner.browser.waitForExpression(REACT_READY.replace("=== 2", "=== 3"));
+  const reloadedData = await planner.server.readPlannerData();
+  const reloadedTasks = JSON.parse(reloadedData[TASK_KEY] || "[]");
+  assert.equal(reloadedTasks.filter(({ sourceEventId }) => sourceEventId === linkedTask.sourceEventId).length, 1);
+
+  await planner.browser.evaluate(`(async () => {
+    const frameWindow = document.querySelector("iframe").contentWindow;
+    await frameWindow.fetch("/api/kv", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ key: "${EVENTS_KEY}", value: "[]" })
+    });
+    frameWindow.localStorage.setItem("${EVENTS_KEY}", "[]");
+  })()`);
+  await planner.server.waitFor(async function () {
+    const data = await planner.server.readPlannerData();
+    const tasks = JSON.parse(data[TASK_KEY] || "[]");
+    return tasks.every(({ sourceEventId }) => sourceEventId !== linkedTask.sourceEventId);
   });
   assert.deepEqual(planner.browser.errors(), []);
 });
