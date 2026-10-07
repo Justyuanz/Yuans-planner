@@ -3,6 +3,7 @@ import { useMemo, useState, type FormEvent } from "react";
 import type { PlannerStore } from "../api/planner-store";
 import { isRecord } from "../shared/is-record";
 import { buildMascotContext, suggestedMascotPrompts } from "./mascot-context";
+import { answerMascotQuestion } from "./mascot-local-reply";
 
 const LINES = [
   "Pick the next useful move.",
@@ -67,9 +68,10 @@ export function PlannerMascot({ chatOpen, onChatToggle, store, today }: PlannerM
       setEvidence(reply.evidence);
       setSource(reply.source);
     } catch {
-      setAnswer("Pick one small task and make the first move visible.");
-      setEvidence([]);
-      setSource("local");
+      const reply = answerMascotQuestion(trimmed, context);
+      setAnswer(reply.answer);
+      setEvidence(reply.evidence);
+      setSource(reply.source);
     }
     setQuestion("");
   }

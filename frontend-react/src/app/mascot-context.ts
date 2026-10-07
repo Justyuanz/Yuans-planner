@@ -110,3 +110,5 @@ export function buildMascotContext(store: PlannerStore, referenceDate: Date) {
     topInsight: selectTopDashboardInsight(insights)
   };
 }
+
+export type MascotContext = ReturnType<typeof buildMascotContext>;

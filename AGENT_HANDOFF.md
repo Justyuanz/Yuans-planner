@@ -181,13 +181,13 @@ For each feature:
 - [ ] remove legacy implementation only after tests pass
 
 ## Current Task
-The explicit `?view=todayView` Dashboard and `?view=moneyView` Money routes now render directly in React + strict TypeScript with no iframe. Dashboard layout, task/calendar behavior, day state, weekly goals, Life Pie, Planned vs actual, Energy trail, Money quick, Pattern actions, and Pattern history are verified against legacy at desktop and mobile sizes. The no-view URL intentionally remains on the legacy iframe fallback while shared-shell Sprouty parity and final default-route verification are unfinished.
+The explicit `?view=todayView` Dashboard and `?view=moneyView` Money routes render directly in React + strict TypeScript with no iframe. The direct shell now has grounded server context, state-aware prompts, and the evidence-based local Sprouty fallback. Skate context, agent action suggestions, draggable mascot position, and final no-view default-route verification remain before the iframe fallback can be retired.
 
 ## Last Completed Task
-Composed the explicit Dashboard route directly inside `PlannerShell`, replaced iframe-dependent Pattern actions and history opening with direct React targets and native dialog state, and extracted shared navigation, persistence, and direct-page setup used by Dashboard and Money. Added desktop/mobile visual and geometry parity coverage plus interaction checks. Also serialized each persistence batch so its final audit record cannot reach SQLite before the state writes it describes.
+Ported the legacy evidence-based Sprouty fallback into focused strict-TypeScript retrieval and reply modules. Failed or malformed mascot API responses now classify the question, select normalized Planner evidence, and return intent-specific local guidance instead of a generic sentence. Unit coverage protects concrete tasks, rescheduled mornings, thin context, and classification; browser coverage proves the direct shell displays the grounded local answer, evidence, and source during a server outage.
 
 ## Next Task
-Finish the direct shell's remaining Sprouty parity: the legacy evidence-based local fallback, Skate context, agent action suggestions, and draggable-position behavior. Add focused behavior and browser tests before implementation. After that, verify the no-view entry path against the explicit direct Dashboard route and switch the default route only when the fallback is no longer needed.
+Add normalized Skate plan, intensity, recent-session, and weekly support data to the direct shell's Sprouty context, with focused compatibility and failed-server answer tests. Then migrate agent action suggestions and draggable mascot position as separate increments before switching the no-view entry path to the direct Dashboard.
 
 ## Upstream Legacy Change — Activity Categories (2026-10-05)
 
@@ -281,7 +281,7 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Calendar-linked task reconciliation is React/TypeScript-owned. Its typed compatibility layer accepts legacy category/time formats, preserves user-edited linked task state, removes retired routine and stale source links, ignores malformed/duplicate event records, and adds each missing current event exactly once. The legacy reconciler remains only for the standalone application and is skipped when React owns `#tasksMount`.
 - Agent undo is React/TypeScript-owned. Its typed compatibility layer consumes one legacy stack entry, caps the remaining stack at ten, restores normalized today/tomorrow tasks and compatible agent UI state, preserves unknown state fields, and appends the exact `agent_action_undone` audit record. The legacy bridge method is removed while the standalone legacy undo path remains available to the standalone app.
 - Agent undo, day-state, and Money transaction writes share one strict activity-log compatibility decoder so validation and chronological ordering cannot drift across those React persistence boundaries.
-- The direct React shell builds Sprouty server context only from typed compatibility decoders and the existing React Dashboard metric/rule pipeline. State-aware prompt choices match legacy wording; invalid server replies use the safe local one-step fallback rather than rendering malformed data.
+- The direct React shell builds Sprouty server context only from typed compatibility decoders and the existing React Dashboard metric/rule pipeline. State-aware prompt choices match legacy wording. Invalid or failed server replies use focused strict-TypeScript retrieval and reply modules to classify the question, select up to three normalized evidence snippets, and produce the established intent-specific local guidance.
 - Keep browser-flow assertions separate from reusable Chrome protocol, Chrome lifecycle, and temporary planner-server helpers so each test file has one clear responsibility.
 - Browser tests may use the existing Chrome DevTools Protocol directly to avoid adding a production or test package dependency.
 - Reuse one browser-planner fixture for Chrome and temporary-server lifecycle instead of duplicating setup across user-flow tests.
@@ -301,19 +301,11 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Weekly goals, dashboard day state, task progress, Today's intention, the task list/editor/form, Life Pie, Planned vs actual, Energy trail, Pattern noticed/history, all six Money boundaries, Journal meditation, and Journal archive are React-owned and verified. The explicit Dashboard and Money routes are directly composed; the no-view fallback plus Calendar, Activity, Skate, and Journal route orchestration still depend on the temporary iframe shell.
 - Browser smoke tests skip when Chrome/Chromium or Node WebSocket support is unavailable; they run with the documented Node 24 runtime on the inspected machine.
 - The React preview is not yet served directly by the Python backend. Its temporary legacy shell depends on Vite development proxies and is not the final production integration architecture.
-- The direct shell's Sprouty surface now sends grounded task, insight, journal, planning, activity, day-state, and Money context and restores state-aware quick prompts. It still needs the legacy evidence-based local fallback, Skate context, agent action suggestions, and draggable position behavior before shared-shell parity is complete.
+- The direct shell's Sprouty surface now sends grounded task, insight, journal, planning, activity, day-state, and Money context, restores state-aware quick prompts, and handles server failure with evidence-based local answers. It still needs Skate context, agent action suggestions, and draggable position behavior before shared-shell parity is complete.
 - The React visual regression test skips when Chrome or `frontend-react` dependencies are unavailable, matching the existing browser-test prerequisite policy.
 - Browser-capable root Node test files run serially to avoid Chrome/Vite startup timeouts under parallel process saturation.
 
 ## Session Log
-
-### Session 38
-
-- Re-read `AGENTS.md`, this handoff, branch state, recent history, and the implementation skill, then selected the remaining agent-undo bridge as the next focused strict-TypeScript ownership increment.
-- Added tests first for exact five-write restoration and audit behavior, legacy task/category/hour normalization, compatible agent-state field preservation, malformed or missing stacks, and the ten-entry stack cap.
-- Implemented focused typed undo persistence, connected the React task banner directly to it, and removed the unused React and legacy bridge methods while retaining the standalone legacy undo path. Extracted the repeated activity-log compatibility decoder shared by undo, day-state, and Money transaction writes.
-- Added a real-browser ownership regression that installs a throwing legacy bridge method, restores both task days and agent UI state, verifies the exact audit contract, and confirms reload persistence.
-- Final verification: 159 React tests, React lint, strict type-checking, the Vite production build, 18 Python tests, and all 136 root JavaScript tests pass, including the serialized real-Chrome browser flows.
 
 ### Session 39
 
@@ -330,6 +322,14 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Composed the explicit `?view=todayView` page directly in `PlannerShell`, reusing the verified React-owned Dashboard cards and adding direct Pattern action targets and native dialog state. Extracted shared navigation, ordered persistence, and direct-page stylesheet/readiness helpers used by Dashboard and Money; Money-to-Dashboard navigation now verifies a direct route.
 - The first complete suite exposed a persistence race where the final undo audit could reach SQLite before the restored agent state. Server writes now preserve their logical batch order; the focused undo regression and the complete suite pass.
 - Final verification: 162 React tests, React lint, strict type-checking, the Vite production build, 18 Python tests, and all 137 root JavaScript tests pass, including the direct Dashboard desktop/mobile visual regression and serialized real-Chrome browser flows.
+
+### Session 41
+
+- Re-read `AGENTS.md`, this handoff, branch state, recent history, current diff, and the implementation skill, then selected the evidence-based local Sprouty fallback as one focused strict-TypeScript parity increment.
+- Added failing unit tests first for concrete timed-task guidance with evidence, task-rescheduling morning guidance, empty normalized context, and established question classification. Extended the real-browser Money/Sprouty flow to force an API outage and require a grounded local answer, visible evidence, and the local source label.
+- Implemented focused retrieval and reply modules that use the existing normalized mascot context and Dashboard metrics. The engine preserves legacy question families, task-shift evidence, capacity/money/cross-domain snippets, concrete next-task, move, breakdown, avoidance, journal, reality, and pattern guidance; Skate-specific evidence remains intentionally separate for the next increment.
+- Replaced the direct shell's generic catch sentence with the typed local engine for failed, unavailable, or malformed server replies. No JavaScript compatibility implementation is used by the direct React path.
+- Final verification: 166 React tests, React lint, strict type-checking, the Vite production build, 18 Python tests, and all 137 root JavaScript tests pass, including the real-Chrome server-outage Sprouty regression.
 
 ---
 

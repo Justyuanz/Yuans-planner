@@ -189,6 +189,7 @@ test("Money is a direct React page with legacy parity, navigation, and persisten
 
   await planner.browser.evaluate(`(() => {
     const originalFetch = window.fetch.bind(window);
+    window.__originalFetch = originalFetch;
     window.fetch = async (url, options) => {
       if (String(url) === "/api/mascot/chat") {
         window.__mascotRequest = JSON.parse(options.body);
@@ -228,6 +229,31 @@ test("Money is a direct React page with legacy parity, navigation, and persisten
     prompt: "I'm tired. Can you cut today down?",
     taskLabel: "11 Send invoice"
   });
+
+  await planner.browser.evaluate(`(() => {
+    window.fetch = async (url, options) => {
+      if (String(url) === "/api/mascot/chat") throw new Error("test server outage");
+      return window.__originalFetch(url, options);
+    };
+    const input = document.querySelector(".mascot-chat-form input");
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(
+      input,
+      "What should I do next?"
+    );
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  })()`);
+  await planner.browser.evaluate('document.querySelector(".mascot-chat-form").requestSubmit()');
+  await planner.browser.waitForExpression(
+    'document.querySelector(".mascot-message.assistant")?.textContent.includes("Send invoice")'
+  );
+  assert.equal(
+    await planner.browser.evaluate('document.querySelector(".mascot-message-source")?.textContent'),
+    "local"
+  );
+  assert.equal(
+    await planner.browser.evaluate('document.querySelectorAll(".mascot-message.assistant li").length > 0'),
+    true
+  );
 
   await planner.browser.evaluate('document.querySelector("[data-view-target=todayView]").click()');
   await planner.browser.waitForExpression('location.search.includes("view=todayView")');
