@@ -181,13 +181,13 @@ For each feature:
 - [ ] remove legacy implementation only after tests pass
 
 ## Current Task
-The Dashboard task system, calendar reconciliation, day-state persistence/auditing, and Pattern metrics, rules, priority selection, actions, and history evidence are React + strict TypeScript owned and verified. Agent undo still depends on a narrow legacy bridge, while Sprouty's unmigrated surface receives a read-only day-state effect notification, so the Dashboard route continues to use the migration iframe.
+The Dashboard task system, calendar reconciliation, agent undo, day-state persistence/auditing, and Pattern metrics, rules, priority selection, actions, and history evidence are React + strict TypeScript owned and verified. Sprouty's unmigrated surface still receives a read-only day-state effect notification, and the Dashboard route continues to use the migration iframe instead of direct React composition.
 
 ## Last Completed Task
-Replaced legacy calendar-to-task reconciliation with a focused strict-TypeScript module that normalizes legacy categories and times, preserves user-edited linked task state, removes stale and retired links, imports each missing event once, and recovers malformed storage. The reconciled task store now feeds React task progress, list/form, and Pattern calculations; browser coverage poisons the legacy reconciler and verifies create, persistence, reload non-duplication, and source-event removal.
+Replaced the remaining React agent-undo bridge with focused strict-TypeScript persistence. The typed boundary safely consumes legacy undo stacks, restores both task days and compatible agent UI state, preserves unknown state fields, appends the exact normalized audit entry, and caps the remaining stack. Browser coverage makes the removed legacy bridge method throw and verifies restoration, audit data, synchronization, and reload persistence.
 
 ## Next Task
-Continue toward the direct React Dashboard page by replacing agent undo with focused strict-TypeScript persistence and compatibility tests. Then compose the Dashboard directly in `PlannerShell` once no write behavior depends on the iframe.
+Compose the Dashboard directly in `PlannerShell` in a small verified increment, preserving the existing layout and visual behavior. Inventory the remaining read-only or effect-only iframe dependencies first, especially Sprouty, calendar, and navigation, and keep any still-required compatibility surface narrowly scoped.
 
 ## Upstream Legacy Change — Activity Categories (2026-10-05)
 
@@ -231,7 +231,7 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - The React app observes the legacy frame's Journal-date change and click events once and shares the selected date with both meditation and archive. Archive, Today, date-input, and Energy-trail navigation therefore update both React boundaries without duplicate iframe listeners.
 - The React Journal archive keeps its search text as local transient state, derives cards from `hivePlanner.journal.entries`, and delegates card selection through the existing legacy tab/date controls. The legacy archive renderer skips only `.journal-archive-card[data-react-owned="true"]`, so the normal legacy application remains unaffected while legacy editor saves still flow back through the storage bridge.
 - Pattern noticed and Pattern history are fully React/TypeScript-owned. Both derive from the same strict Planner-store metric bundle, so the card and history evidence cannot drift between legacy and React calculation paths.
-- Pattern action routing is React/TypeScript-owned. The action target resolves live iframe controls at click time for task focus, planned-hours scrolling, Money navigation, and Pattern-history opening; only agent undo remains on the legacy insight bridge.
+- Pattern action routing is React/TypeScript-owned. The action target resolves live iframe controls at click time for task focus, planned-hours scrolling, Money navigation, and Pattern-history opening. Agent undo is also React/TypeScript-owned and no longer uses the legacy insight bridge.
 - All eleven Pattern rules and top-insight priority selection are React/TypeScript-owned. The browser regression replaces legacy `currentInsight()` and `currentMetrics()` with throwing guards to prove the React card does not consume legacy-derived insights or metrics.
 - Task-derived Pattern metrics are split across focused strict-TypeScript numeric/date, daily-summary, and aggregate modules, with parity tests protecting their compatibility behavior.
 - Cross-domain Pattern metrics are split across focused strict-TypeScript Money/activity, Journal/energy, correlation, and composition modules. A focused store adapter now combines them with task metrics and production no longer reads the legacy raw-metrics bridge.
@@ -241,7 +241,7 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Both the legacy day-state renderer and its click binder honor `data-react-owned="true"`. The binder guard is required because iframe hydration may finish after React claims the mount; without it, the React buttons receive a second legacy handler and append duplicate audit records.
 - React owns `.day-banner`, `#tasksMount`, and `#taskForm`. Focused strict-TypeScript modules separately own compatibility decoding, the list/timers, editor, add form, shared options, persistence, and activity-log writes. The typed model preserves legacy truthy completion, retired activity IDs, time/reminder normalization, timer caps, calendar-source reminder flags, and focus-mode hidden tasks.
 - The legacy task renderer routes both empty and populated progress through one ownership-aware helper. This keeps the standalone app unchanged while preventing detached legacy span references from overwriting the React portal.
-- Legacy task/activity binders skip only React-owned mounts. Pattern task-focus and agent undo resolve/delegate through the live DOM/bridge because React replaces the original form children; the standalone legacy application remains unchanged.
+- Legacy task/activity binders skip only React-owned mounts. Pattern task-focus resolves the live DOM because React replaces the original form children; agent undo now builds and persists its own typed compatibility writes. The standalone legacy application retains its original undo behavior.
 - React owns only `.intention-block` and derives its badge from `hivePlanner.routine.week.<ISO-WEEK>`. The typed model preserves the legacy Monday-first indexing, day-type aliases, and normal-day fallback without mutating stored compatibility data.
 - The legacy intention renderer continues updating the dashboard subtitle, date, and week-status heading, but skips only the detached badge when `.intention-block` is React-owned. The standalone legacy application therefore retains its original renderer.
 - `?view=moneyView` bypasses the iframe and composes the five Money-page cards directly inside a focused React shell. Other routes still instantiate `LegacyPlannerApp`, so this first direct page does not force an unsafe whole-app cutover.
@@ -279,6 +279,8 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Keep the Vite development API target configurable through `VITE_PLANNER_API_TARGET`; the default remains the existing server at `http://127.0.0.1:8765`.
 - Keep new compatibility logic in focused, pure UMD modules that the legacy app and Node tests both execute.
 - Calendar-linked task reconciliation is React/TypeScript-owned. Its typed compatibility layer accepts legacy category/time formats, preserves user-edited linked task state, removes retired routine and stale source links, ignores malformed/duplicate event records, and adds each missing current event exactly once. The legacy reconciler remains only for the standalone application and is skipped when React owns `#tasksMount`.
+- Agent undo is React/TypeScript-owned. Its typed compatibility layer consumes one legacy stack entry, caps the remaining stack at ten, restores normalized today/tomorrow tasks and compatible agent UI state, preserves unknown state fields, and appends the exact `agent_action_undone` audit record. The legacy bridge method is removed while the standalone legacy undo path remains available to the standalone app.
+- Agent undo, day-state, and Money transaction writes share one strict activity-log compatibility decoder so validation and chronological ordering cannot drift across those React persistence boundaries.
 - Keep browser-flow assertions separate from reusable Chrome protocol, Chrome lifecycle, and temporary planner-server helpers so each test file has one clear responsibility.
 - Browser tests may use the existing Chrome DevTools Protocol directly to avoid adding a production or test package dependency.
 - Reuse one browser-planner fixture for Chrome and temporary-server lifecycle instead of duplicating setup across user-flow tests.
@@ -288,7 +290,7 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Some files contain thousands of lines.
 - Duplicate/redundant functions likely exist.
 - Current architecture is difficult to understand.
-- `frontend/js/app.js` is 8,532 lines and still owns most storage, normalization, rendering, event handling, and cross-feature orchestration; only the newly extracted boundaries have direct coverage.
+- `frontend/js/app.js` is 8,526 lines and still owns most storage, normalization, rendering, event handling, and cross-feature orchestration; only the newly extracted boundaries have direct coverage.
 - `frontend/css/styles.css` is 5,658 lines with several accumulated responsive sections.
 - Time/date parsing and normalization are duplicated across frontend modules and backend integrations.
 - Several declared storage keys and an older Study/Body weekly-overview path are inactive, while the real database still contains legacy-only keys that backups must preserve.
@@ -304,15 +306,6 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 
 ## Session Log
 
-### Session 35
-
-- Re-read `AGENTS.md`, this handoff, branch state, recent history, and the implementation skill, then selected typed Pattern-history evidence and the production history cutover as the next focused React/TypeScript increment.
-- Added failing builder tests first for the fixed empty snapshot, mode grouping, priority ordering, the two-action limit, and exact evidence text for all eleven Pattern rules.
-- Implemented a focused strict-TypeScript history builder and exposed store-backed history composition beside the existing typed card composition.
-- Removed the production `currentHistory()` bridge read and its now-unused React legacy-model normalizer. Dashboard and Pattern-history browser regressions replace that legacy method with a throwing guard while preserving refresh, disclosure reset, actions, and exact desktop/mobile visual parity.
-- The focused browser run exposed an existing transient-null iframe race in the Pattern-history readiness helper; the wait now treats a missing `contentDocument` as not ready and the rerun passes.
-- Final verification: 150 React tests, React lint, strict type-checking, and the Vite production build pass. The full safety net passes with 18 Python tests and all 134 root JavaScript tests, including the serialized real-Chrome browser flows.
-
 ### Session 36
 
 - Re-read `AGENTS.md`, this handoff, branch state, recent history, and the implementation skill, then selected removal of the day-state write bridge as the next focused strict-TypeScript increment.
@@ -327,6 +320,14 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Implemented a focused typed reconciler and overlaid its task result across React task progress, list/form, and Pattern calculations before persisting changed task state. The standalone legacy app retains its reconciler but skips it when React owns the task mount.
 - Added a real-browser ownership regression that makes the legacy reconciler throw, then verifies calendar creation, exact linked-task fields, persistence, reload non-duplication, and deletion synchronization. The first full run exposed a readiness race in this new test; waiting for the existing planner-ready marker fixed it, and the affected rerun passed.
 - Final verification: 156 React tests, React lint, strict type-checking, the Vite production build, 18 Python tests, and all 135 root JavaScript tests pass, including the serialized real-Chrome browser flows.
+
+### Session 38
+
+- Re-read `AGENTS.md`, this handoff, branch state, recent history, and the implementation skill, then selected the remaining agent-undo bridge as the next focused strict-TypeScript ownership increment.
+- Added tests first for exact five-write restoration and audit behavior, legacy task/category/hour normalization, compatible agent-state field preservation, malformed or missing stacks, and the ten-entry stack cap.
+- Implemented focused typed undo persistence, connected the React task banner directly to it, and removed the unused React and legacy bridge methods while retaining the standalone legacy undo path. Extracted the repeated activity-log compatibility decoder shared by undo, day-state, and Money transaction writes.
+- Added a real-browser ownership regression that installs a throwing legacy bridge method, restores both task days and agent UI state, verifies the exact audit contract, and confirms reload persistence.
+- Final verification: 159 React tests, React lint, strict type-checking, the Vite production build, 18 Python tests, and all 136 root JavaScript tests pass, including the serialized real-Chrome browser flows.
 
 ---
 

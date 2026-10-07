@@ -7,10 +7,7 @@ import { decodeDayState } from "../features/day-state/day-state";
 import { refreshLegacyDayStateEffects } from "../features/day-state/day-state-effects";
 import { buildDayStateWrites } from "../features/day-state/day-state-persistence";
 import { DashboardInsightCard } from "../features/dashboard-insight/DashboardInsightCard";
-import {
-  DASHBOARD_INSIGHT_UPDATED_EVENT,
-  undoDashboardAgentAction
-} from "../features/dashboard-insight/dashboard-insight-bridge";
+import { DASHBOARD_INSIGHT_UPDATED_EVENT } from "../features/dashboard-insight/dashboard-insight-bridge";
 import {
   buildDashboardInsightFromStore,
   buildDashboardInsightHistoryFromStore
@@ -45,6 +42,7 @@ import { TaskProgressBanner } from "../features/task-progress/TaskProgressBanner
 import { buildTaskProgressModel } from "../features/task-progress/task-progress";
 import { TaskForm } from "../features/tasks/TaskForm";
 import { TaskList } from "../features/tasks/TaskList";
+import { buildAgentUndoWrites } from "../features/tasks/agent-undo";
 import { buildCalendarTaskReconciliation } from "../features/tasks/calendar-task-reconciliation";
 import { makeTaskRelatedId } from "../features/tasks/task-options";
 import { TodayIntention } from "../features/today-intention/TodayIntention";
@@ -426,7 +424,11 @@ function LegacyPlannerApp() {
             dateKey={todayKey}
             onPersist={persistPlannerWrites}
             onUndoAgentAction={() => {
-              if (legacyFrame !== null) undoDashboardAgentAction(legacyFrame);
+              const result = buildAgentUndoWrites(dashboardStore, {
+                activityId: makeTaskRelatedId("activity"),
+                timestamp: new Date().toISOString()
+              });
+              persistPlannerWrites(result.writes);
             }}
             store={dashboardStore}
           />,

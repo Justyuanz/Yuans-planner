@@ -6,8 +6,13 @@ const { compareScreenshots } = require("./helpers/png-compare");
 const { startReactPreviewServer } = require("./helpers/react-preview-server");
 
 const TEST_DATE = "2026-10-05";
+const TOMORROW_DATE = "2026-10-06";
 const EVENTS_KEY = "hivePlanner.events";
 const TASK_KEY = `hivePlanner.dailyTasks.${TEST_DATE}`;
+const TOMORROW_TASK_KEY = `hivePlanner.dailyTasks.${TOMORROW_DATE}`;
+const ACTIVITY_LOG_KEY = "hivePlanner.activityLog";
+const AGENT_UI_STATE_KEY = "hivePlanner.agent.uiState";
+const AGENT_UNDO_KEY = "hivePlanner.agent.undo";
 const TASKS = [
   {
     id: "task-migrate-1",
@@ -320,5 +325,117 @@ test("React owns calendar-linked task reconciliation", { timeout: 60_000 }, asyn
     const tasks = JSON.parse(data[TASK_KEY] || "[]");
     return tasks.every(({ sourceEventId }) => sourceEventId !== linkedTask.sourceEventId);
   });
+  assert.deepEqual(planner.browser.errors(), []);
+});
+
+test("React owns agent undo persistence without the legacy bridge", { timeout: 60_000 }, async function (context) {
+  const planner = await startBrowserPlanner(context);
+  if (!planner) return;
+  const preview = await startReactPreviewServer(planner.server.url);
+  if (!preview) {
+    context.skip("Install frontend-react dependencies to run React task tests.");
+    return;
+  }
+  context.after(async function () {
+    await preview.close();
+  });
+
+  const tomorrowBefore = [{
+    ...TASKS[0],
+    id: "task-tomorrow-restored",
+    label: "Restored tomorrow task"
+  }];
+  const agentBefore = {
+    dayStates: { [TEST_DATE]: "okay" },
+    hiddenTaskIdsByDate: {}
+  };
+  const agentAfter = {
+    dayStates: { [TEST_DATE]: "okay" },
+    hiddenTaskIdsByDate: { [TEST_DATE]: ["task-migrate-2"] }
+  };
+  const undoEntry = {
+    actionId: "simplify_today",
+    actionLabel: "Simplify today",
+    snapshot: {
+      actionId: "simplify_today",
+      after: {
+        agentState: agentAfter,
+        plannedHours: {},
+        todayTasks: TASKS,
+        tomorrowTasks: []
+      },
+      before: {
+        agentState: agentBefore,
+        plannedHours: {},
+        todayTasks: TASKS,
+        tomorrowTasks: tomorrowBefore
+      }
+    },
+    todayKey: TEST_DATE,
+    tomorrowKey: TOMORROW_DATE
+  };
+  await putTasks(planner.server.url);
+  await putStoredValue(planner.server.url, TOMORROW_TASK_KEY, "[]");
+  await putStoredValue(planner.server.url, EVENTS_KEY, "[]");
+  await putStoredValue(planner.server.url, ACTIVITY_LOG_KEY, "[]");
+  await putStoredValue(planner.server.url, AGENT_UI_STATE_KEY, JSON.stringify(agentAfter));
+  await putStoredValue(planner.server.url, AGENT_UNDO_KEY, JSON.stringify([undoEntry]));
+
+  await planner.browser.open(`${preview.url}/?date=${TEST_DATE}`);
+  await planner.browser.waitForExpression(REACT_READY.replace("=== 2", "=== 1"));
+  await planner.browser.waitForExpression(`(() => {
+    const root = document.querySelector("iframe")?.contentDocument;
+    return root?.documentElement?.dataset.plannerReady === "true"
+      && root.querySelector(".agent-focus-banner") !== null;
+  })()`);
+  await planner.browser.evaluate(`(() => {
+    const frame = document.querySelector("iframe");
+    frame.contentWindow.YuanPlannerDashboardInsightBridge.undoAgentAction = () => {
+      throw new Error("React tasks must not use the legacy agent undo bridge");
+    };
+    frame.contentDocument.querySelector(".agent-focus-actions button:last-child").click();
+  })()`);
+
+  const persisted = await planner.server.waitFor(async function () {
+    const data = await planner.server.readPlannerData();
+    const undoStack = JSON.parse(data[AGENT_UNDO_KEY] || "null");
+    const todayTasks = JSON.parse(data[TASK_KEY] || "null");
+    const tomorrowTasks = JSON.parse(data[TOMORROW_TASK_KEY] || "null");
+    const agentState = JSON.parse(data[AGENT_UI_STATE_KEY] || "null");
+    const log = JSON.parse(data[ACTIVITY_LOG_KEY] || "null");
+    if (undoStack?.length !== 0 || log?.length !== 1) return null;
+    return { agentState, log, todayTasks, tomorrowTasks };
+  });
+  const normalizedTasks = (tasks) => tasks.map((task) => ({
+    ...task,
+    sourceEventId: "",
+    useSourceEventReminder: false
+  }));
+  assert.deepEqual(persisted.todayTasks, normalizedTasks(TASKS));
+  assert.deepEqual(persisted.tomorrowTasks, normalizedTasks(tomorrowBefore));
+  assert.deepEqual(persisted.agentState, agentBefore);
+  assert.deepEqual(persisted.log[0], {
+    action: "agent_action_undone",
+    after: undoEntry.snapshot.before,
+    before: undoEntry.snapshot.after,
+    dateKey: TEST_DATE,
+    entityId: "simplify_today",
+    entityType: "agent_action",
+    field: "",
+    id: persisted.log[0].id,
+    meta: { label: "Simplify today" },
+    timestamp: persisted.log[0].timestamp
+  });
+  assert.match(persisted.log[0].id, /^activity-/);
+  assert.equal(Number.isNaN(Date.parse(persisted.log[0].timestamp)), false);
+  assert.deepEqual(planner.browser.errors(), []);
+
+  await planner.browser.reload();
+  await planner.browser.waitForExpression(REACT_READY);
+  await planner.browser.waitForExpression(`(() => {
+    const root = document.querySelector("iframe")?.contentDocument;
+    return root?.documentElement?.dataset.plannerReady === "true"
+      && root.querySelector(".agent-focus-banner") === null;
+  })()`);
   assert.deepEqual(planner.browser.errors(), []);
 });

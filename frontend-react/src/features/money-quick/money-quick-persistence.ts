@@ -1,4 +1,5 @@
 import type { PlannerStore, PlannerStoreWrite } from "../../api/planner-store";
+import { decodeActivityLog } from "../../shared/activity-log";
 import { isRecord } from "../../shared/is-record";
 import { formatPlannerDate } from "../life-pie/life-pie-store";
 import {
@@ -28,14 +29,6 @@ export interface MoneyTransactionUpdate {
   writes: readonly PlannerStoreWrite[];
 }
 
-const VALID_ACTIVITY_ACTIONS = new Set([
-  "task_created", "task_updated", "task_deleted", "task_done_changed",
-  "task_timer_started", "task_timer_paused", "task_timer_ended", "planned_hours_updated",
-  "money_transaction_created", "money_transaction_updated", "money_transaction_deleted",
-  "journal_entry_created", "journal_entry_updated", "journal_entry_deleted",
-  "day_state_updated", "agent_action_applied", "agent_action_undone"
-]);
-
 function parseArray(rawValue: string | undefined): unknown[] | null {
   try {
     const parsed: unknown = rawValue ? JSON.parse(rawValue) : null;
@@ -50,41 +43,12 @@ function encodeTransactions(rawValue: string | undefined, transaction: MoneyTran
   return JSON.stringify([transaction, ...existing]);
 }
 
-function normalizedActivityEntry(candidate: unknown): Record<string, unknown> | null {
-  if (!isRecord(candidate)) {
-    return null;
-  }
-  const action = typeof candidate.action === "string" ? candidate.action.trim() : "";
-  const timestamp = typeof candidate.timestamp === "string" ? candidate.timestamp : "";
-  const entityType = typeof candidate.entityType === "string" ? candidate.entityType.trim() : "";
-  const entityId = typeof candidate.entityId === "string" ? candidate.entityId.trim() : "";
-  if (!VALID_ACTIVITY_ACTIONS.has(action) || !timestamp || !entityType || !entityId) {
-    return null;
-  }
-  return {
-    id: typeof candidate.id === "string" ? candidate.id : "",
-    timestamp,
-    action,
-    entityType,
-    entityId,
-    dateKey: typeof candidate.dateKey === "string" ? candidate.dateKey : "",
-    field: typeof candidate.field === "string" ? candidate.field : "",
-    before: candidate.before,
-    after: candidate.after,
-    meta: isRecord(candidate.meta) ? { ...candidate.meta } : {}
-  };
-}
-
 function encodeActivityLog(
   rawValue: string | undefined,
   transaction: MoneyTransaction,
   identity: MoneyTransactionIdentity
 ): string {
-  const entries = (parseArray(rawValue) ?? [])
-    .map(normalizedActivityEntry)
-    .filter((entry): entry is Record<string, unknown> => entry !== null)
-    .sort((left, right) => String(left.timestamp).localeCompare(String(right.timestamp))
-      || String(left.id).localeCompare(String(right.id)));
+  const entries = decodeActivityLog(rawValue);
   entries.push({
     id: identity.activityId,
     timestamp: identity.timestamp,

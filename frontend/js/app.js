@@ -2495,12 +2495,6 @@
             if (dashboardInsightBridgeReady) {
               openPatternHistoryDialog();
             }
-          },
-          undoAgentAction: function () {
-            if (dashboardInsightBridgeReady) {
-              return undoLastAgentAction();
-            }
-            return null;
           }
         });
       }
