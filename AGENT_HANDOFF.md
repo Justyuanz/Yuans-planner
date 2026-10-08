@@ -181,13 +181,13 @@ For each feature:
 - [ ] remove legacy implementation only after tests pass
 
 ## Current Task
-The explicit `?view=todayView` Dashboard and `?view=moneyView` Money routes render directly in React + strict TypeScript with no iframe. The direct shell now has grounded server context including SkateIQ, state-aware prompts, the evidence-based local Sprouty fallback, and question-aware action suggestions. Draggable mascot position and final no-view default-route verification remain before the iframe fallback can be retired.
+The explicit `?view=todayView` Dashboard and `?view=moneyView` Money routes render directly in React + strict TypeScript with no iframe. The direct shell now has complete Sprouty shared-shell parity: grounded server context including SkateIQ, state-aware prompts, evidence-based local fallback, question-aware action suggestions, pointer-follow motion, draggable persisted position, post-drag click suppression, and mobile transform behavior. Final no-view default-route verification remains before the Dashboard iframe fallback can be retired.
 
 ## Last Completed Task
-Migrated Sprouty's action-suggestion proposal and reply-finalization path into focused strict TypeScript. The model preserves legacy question intent, action eligibility, stable priority, two-suggestion limit, carryover threshold, task choice, and exact `Useful next step:` wording. Both successful server replies and evidence-based local fallbacks now append the highest-value suggestion without duplicating an existing one.
+Migrated Sprouty's motion and draggable position into focused strict TypeScript. The React shell restores the exact legacy `hivePlanner.mascot.position` document, applies the same pointer/scroll drift, keeps coordinates unbounded like legacy, persists drag results through the Planner writer, suppresses only the first click after movement above five total pixels, and retains the mobile-open transform override. Normal mascot clicks now toggle chat and replay the established excitement animation.
 
 ## Next Task
-Migrate Sprouty's draggable mascot position into focused strict TypeScript. Protect drag boundaries, click-versus-drag behavior, persisted `hivePlanner.mascotPosition` compatibility, reload restoration, and representative desktop/mobile behavior before changing the direct shell. Then verify and switch the no-view entry path to the direct Dashboard while retaining the legacy-shell fallback for the four unmigrated feature routes.
+Verify and switch the no-view entry path to the direct React Dashboard. Add browser coverage proving the root URL and explicit `?view=todayView` route produce the same direct page without an iframe, preserve the selected date and navigation, and keep Calendar, Journal, Skate, and Guitar on the temporary legacy-shell fallback. Then run the complete regression suite and document the next feature-route migration.
 
 ## Upstream Legacy Change — Activity Categories (2026-10-05)
 
@@ -284,6 +284,7 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - The direct React shell builds Sprouty server context only from typed compatibility decoders and the existing React Dashboard metric/rule pipeline. State-aware prompt choices match legacy wording. Invalid or failed server replies use focused strict-TypeScript retrieval and reply modules to classify the question, select up to three normalized evidence snippets, and produce the established intent-specific local guidance.
 - Sprouty's Skate context uses a data-only strict-TypeScript copy of the immutable 60-day SkateIQ reference plan, separated from normalization logic. The model follows the shipped manual-progression contract: `currentProgramDay` selects the plan after season start, date-specific intensity overrides the plan default, recent sessions are newest-first, and weekly support includes only done/modified logs in the local Monday–Sunday window.
 - Sprouty's action suggestions are wording-only in the chat; action application remains a separate compatibility path. The strict-TypeScript proposal model preserves the legacy 15% high-carryover threshold, question-aware priority, availability filtering, two-suggestion cap, and exact highest-value `Useful next step:` append for both server and local replies.
+- Sprouty's direct-shell motion uses the exact legacy `hivePlanner.mascot.position` `{x, y}` document. Coordinates remain intentionally unbounded for compatibility; pointer movement above five total pixels suppresses exactly one click, pointer-up persists even an unchanged position, reload restores the CSS transform before paint, and the existing mobile-open CSS continues to force `transform: none` while hiding the mascot button.
 - Keep browser-flow assertions separate from reusable Chrome protocol, Chrome lifecycle, and temporary planner-server helpers so each test file has one clear responsibility.
 - Browser tests may use the existing Chrome DevTools Protocol directly to avoid adding a production or test package dependency.
 - Reuse one browser-planner fixture for Chrome and temporary-server lifecycle instead of duplicating setup across user-flow tests.
@@ -303,19 +304,11 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Weekly goals, dashboard day state, task progress, Today's intention, the task list/editor/form, Life Pie, Planned vs actual, Energy trail, Pattern noticed/history, all six Money boundaries, Journal meditation, and Journal archive are React-owned and verified. The explicit Dashboard and Money routes are directly composed; the no-view fallback plus Calendar, Activity, Skate, and Journal route orchestration still depend on the temporary iframe shell.
 - Browser smoke tests skip when Chrome/Chromium or Node WebSocket support is unavailable; they run with the documented Node 24 runtime on the inspected machine.
 - The React preview is not yet served directly by the Python backend. Its temporary legacy shell depends on Vite development proxies and is not the final production integration architecture.
-- The direct shell's Sprouty surface now sends grounded task, insight, journal, planning, activity, day-state, Money, and Skate context, restores state-aware quick prompts, handles server failure with evidence-based local answers, and appends question-aware action suggestions. It still needs draggable position behavior before shared-shell parity is complete.
+- The direct shell's Sprouty surface now sends grounded task, insight, journal, planning, activity, day-state, Money, and Skate context; restores state-aware quick prompts; handles server failure with evidence-based local answers; appends question-aware action suggestions; and preserves pointer-follow, drag persistence, click suppression, and mobile motion behavior. Shared-shell Sprouty parity is complete.
 - The React visual regression test skips when Chrome or `frontend-react` dependencies are unavailable, matching the existing browser-test prerequisite policy.
 - Browser-capable root Node test files run serially to avoid Chrome/Vite startup timeouts under parallel process saturation.
 
 ## Session Log
-
-### Session 41
-
-- Re-read `AGENTS.md`, this handoff, branch state, recent history, current diff, and the implementation skill, then selected the evidence-based local Sprouty fallback as one focused strict-TypeScript parity increment.
-- Added failing unit tests first for concrete timed-task guidance with evidence, task-rescheduling morning guidance, empty normalized context, and established question classification. Extended the real-browser Money/Sprouty flow to force an API outage and require a grounded local answer, visible evidence, and the local source label.
-- Implemented focused retrieval and reply modules that use the existing normalized mascot context and Dashboard metrics. The engine preserves legacy question families, task-shift evidence, capacity/money/cross-domain snippets, concrete next-task, move, breakdown, avoidance, journal, reality, and pattern guidance; Skate-specific evidence remains intentionally separate for the next increment.
-- Replaced the direct shell's generic catch sentence with the typed local engine for failed, unavailable, or malformed server replies. No JavaScript compatibility implementation is used by the direct React path.
-- Final verification: 166 React tests, React lint, strict type-checking, the Vite production build, 18 Python tests, and all 137 root JavaScript tests pass, including the real-Chrome server-outage Sprouty regression.
 
 ### Session 42
 
@@ -332,6 +325,14 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Implemented a focused proposal/finalization module that uses normalized React task, day-state, carryover, and recent-history context. It preserves legacy action availability, task selection, question-aware ordering, suggestion copy, and the exact `Useful next step:` append without porting action application into the chat.
 - Wired both successful server answers and evidence-based local fallback answers through the typed finalizer. Extended the real-browser Money/Sprouty flow to verify the exact appended suggestion on both paths.
 - Final verification: 179 React tests, React lint, strict type-checking, the Vite production build, 18 Python tests, and all 137 root JavaScript tests pass, including the direct Money desktop/mobile visual regression and real-browser Sprouty server/fallback flow.
+
+### Session 44
+
+- Re-read `AGENTS.md`, this handoff, branch state, recent history, current diff, and the implementation and browser-verification skills, then selected Sprouty's draggable persisted position as one focused strict-TypeScript parity increment.
+- Added failing unit tests first for numeric legacy coordinate decoding, malformed storage, drag deltas, the exact greater-than-five-pixel click-suppression boundary, and the exact persistence key/document. Extended the direct Money browser flow with legacy/React initial-position parity, synthetic pointer drag, server persistence, reload restoration, drag-versus-click behavior, and mobile transform/button assertions.
+- Implemented a focused position compatibility module and a separate motion hook. The hook applies saved coordinates before paint, mirrors pointer-follow and scroll drift, uses pointer capture where available, updates drag CSS without render churn, persists on pointer-up, and consumes exactly one click after a real drag.
+- Restored the legacy normal-click contract in the React mascot: a click toggles Sprouty chat, advances the encouragement line, and retriggers the 1.6-second excitement animation. Mobile-open mode remains controlled entirely by the existing legacy CSS.
+- Final verification: 188 React tests, React lint, strict type-checking, the Vite production build, 18 Python tests, and all 137 root JavaScript tests pass, including the updated direct Money desktop/mobile visual regression and real-browser drag/reload flow.
 
 ---
 

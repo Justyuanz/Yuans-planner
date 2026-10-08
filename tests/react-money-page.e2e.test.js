@@ -144,17 +144,36 @@ test("Money is a direct React page with legacy parity, navigation, and persisten
     "hivePlanner.physical.logs",
     JSON.stringify([{ date: TEST_DATE, kind: "gym", minutes: 30, name: "Gym", status: "done" }])
   );
+  await putStoredValue(
+    planner.server.url,
+    "hivePlanner.mascot.position",
+    JSON.stringify({ x: 15, y: -10 })
+  );
 
   await planner.browser.setViewport(1280, 720);
   await openReady(planner.browser, legacyUrl);
   const legacyDesktopState = await planner.browser.evaluate(pageState());
   const legacyDesktopGeometry = await planner.browser.evaluate(pageGeometry());
+  const legacyMascotPosition = await planner.browser.evaluate(`(() => {
+    const style = document.querySelector(".mascot-card").style;
+    return {
+      x: style.getPropertyValue("--mascot-drag-x"),
+      y: style.getPropertyValue("--mascot-drag-y")
+    };
+  })()`);
   await prepareScreenshot(planner.browser);
   const legacyDesktopScreenshot = await planner.browser.captureScreenshot(overviewClip());
 
   await openReady(planner.browser, previewUrl);
   const previewDesktopState = await planner.browser.evaluate(pageState());
   const previewDesktopGeometry = await planner.browser.evaluate(pageGeometry());
+  const previewMascotPosition = await planner.browser.evaluate(`(() => {
+    const style = document.querySelector(".mascot-card").style;
+    return {
+      x: style.getPropertyValue("--mascot-drag-x"),
+      y: style.getPropertyValue("--mascot-drag-y")
+    };
+  })()`);
   await prepareScreenshot(planner.browser);
   const previewDesktopScreenshot = await planner.browser.captureScreenshot(overviewClip());
 
@@ -163,7 +182,60 @@ test("Money is a direct React page with legacy parity, navigation, and persisten
     iframeCount: 0
   });
   assert.deepEqual(previewDesktopGeometry, legacyDesktopGeometry);
+  assert.deepEqual(previewMascotPosition, legacyMascotPosition);
+  assert.deepEqual(previewMascotPosition, { x: "15.00px", y: "-10.00px" });
   assertSameScreenshot(previewDesktopScreenshot, legacyDesktopScreenshot, "desktop Money page");
+
+  const dragResult = await planner.browser.evaluate(`(() => {
+    const card = document.querySelector(".mascot-card");
+    const button = document.querySelector(".soft-mascot");
+    const event = (type, x, y) => new PointerEvent(type, {
+      bubbles: true,
+      clientX: x,
+      clientY: y,
+      pointerId: 7
+    });
+    button.dispatchEvent(event("pointerdown", 100, 80));
+    const wasDragging = card.classList.contains("is-dragging");
+    button.dispatchEvent(event("pointermove", 124, 94));
+    button.dispatchEvent(event("pointerup", 124, 94));
+    button.click();
+    return {
+      chatStayedClosed: document.querySelector(".mascot-chat").hidden,
+      wasDragging,
+      x: card.style.getPropertyValue("--mascot-drag-x"),
+      y: card.style.getPropertyValue("--mascot-drag-y")
+    };
+  })()`);
+  assert.deepEqual(dragResult, {
+    chatStayedClosed: true,
+    wasDragging: true,
+    x: "39.00px",
+    y: "4.00px"
+  });
+  await planner.server.waitFor(async function () {
+    const data = await planner.server.readPlannerData();
+    return data["hivePlanner.mascot.position"] === '{"x":39,"y":4}';
+  });
+  await planner.browser.evaluate('document.querySelector(".soft-mascot").click()');
+  await planner.browser.waitForExpression('document.querySelector(".mascot-chat").hidden === false');
+  await planner.browser.evaluate('document.querySelector(".soft-mascot").click()');
+  await planner.browser.waitForExpression('document.querySelector(".mascot-chat").hidden === true');
+
+  await planner.browser.reload();
+  await planner.browser.waitForExpression(
+    'document.documentElement.dataset.plannerReady === "true"'
+  );
+  assert.deepEqual(
+    await planner.browser.evaluate(`(() => {
+      const style = document.querySelector(".mascot-card").style;
+      return {
+        x: style.getPropertyValue("--mascot-drag-x"),
+        y: style.getPropertyValue("--mascot-drag-y")
+      };
+    })()`),
+    { x: "39.00px", y: "4.00px" }
+  );
 
   await planner.browser.evaluate(`(() => {
     document.querySelector(".money-budget-card .money-settings-panel").open = true;
@@ -227,6 +299,13 @@ test("Money is a direct React page with legacy parity, navigation, and persisten
     };
     document.querySelector(".top-ai-button").click();
   })()`);
+  await planner.browser.waitForExpression(
+    'getComputedStyle(document.querySelector(".mascot-card")).transform === "none"'
+  );
+  assert.equal(
+    await planner.browser.evaluate('getComputedStyle(document.querySelector(".soft-mascot")).display'),
+    "none"
+  );
   await planner.browser.waitForExpression(
     'document.querySelector(".mascot-quick-ask")?.textContent.includes("tired")'
   );

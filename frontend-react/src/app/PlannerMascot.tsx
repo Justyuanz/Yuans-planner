@@ -1,10 +1,16 @@
-import { useMemo, useState, type FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
-import type { PlannerStore } from "../api/planner-store";
+import type { PlannerStore, PlannerStoreWrite } from "../api/planner-store";
 import { isRecord } from "../shared/is-record";
 import { buildMascotActionContext, finalizeMascotReply } from "./mascot-action-suggestions";
 import { buildMascotContext, suggestedMascotPrompts } from "./mascot-context";
 import { answerMascotQuestion } from "./mascot-local-reply";
+import {
+  buildMascotPositionWrite,
+  decodeMascotPosition,
+  MASCOT_POSITION_STORAGE_KEY
+} from "./mascot-position";
+import { useMascotMotion } from "./use-mascot-motion";
 
 const LINES = [
   "Pick the next useful move.",
@@ -16,6 +22,7 @@ const LINES = [
 interface PlannerMascotProps {
   chatOpen: boolean;
   onChatToggle: () => void;
+  onPersist: (writes: readonly PlannerStoreWrite[]) => void;
   store: PlannerStore;
   today: Date;
 }
@@ -39,16 +46,38 @@ function decodeMascotReply(value: unknown): MascotReply | null {
   };
 }
 
-export function PlannerMascot({ chatOpen, onChatToggle, store, today }: PlannerMascotProps) {
+export function PlannerMascot({ chatOpen, onChatToggle, onPersist, store, today }: PlannerMascotProps) {
   const [lineIndex, setLineIndex] = useState(0);
+  const [isExcited, setIsExcited] = useState(false);
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
   const [evidence, setEvidence] = useState<string[]>([]);
   const [lastQuestion, setLastQuestion] = useState("");
   const [source, setSource] = useState("");
+  const excitementFrameRef = useRef<number | null>(null);
+  const excitementTimerRef = useRef<number | null>(null);
   const context = useMemo(() => buildMascotContext(store, today), [store, today]);
   const actionContext = useMemo(() => buildMascotActionContext(context), [context]);
+  const initialPosition = useMemo(
+    () => decodeMascotPosition(store[MASCOT_POSITION_STORAGE_KEY]),
+    [store]
+  );
+  const {
+    cardRef,
+    consumeDragClick,
+    mascotRef,
+    onPointerDown,
+    onPointerMove,
+    onPointerUp
+  } = useMascotMotion(initialPosition, (position) => {
+    onPersist([buildMascotPositionWrite(position)]);
+  });
   const prompts = suggestedMascotPrompts(context.dayState);
+
+  useEffect(() => () => {
+    if (excitementFrameRef.current !== null) cancelAnimationFrame(excitementFrameRef.current);
+    if (excitementTimerRef.current !== null) window.clearTimeout(excitementTimerRef.current);
+  }, []);
 
   async function askMascot(rawQuestion: string): Promise<void> {
     const trimmed = rawQuestion.trim();
@@ -90,13 +119,34 @@ export function PlannerMascot({ chatOpen, onChatToggle, store, today }: PlannerM
     void askMascot(prompt);
   }
 
+  function clickMascot(): void {
+    if (consumeDragClick()) return;
+    onChatToggle();
+    setLineIndex((current) => (current + 1) % LINES.length);
+    setIsExcited(false);
+    if (excitementFrameRef.current !== null) cancelAnimationFrame(excitementFrameRef.current);
+    if (excitementTimerRef.current !== null) window.clearTimeout(excitementTimerRef.current);
+    excitementFrameRef.current = requestAnimationFrame(() => {
+      setIsExcited(true);
+      excitementTimerRef.current = window.setTimeout(() => setIsExcited(false), 1600);
+    });
+  }
+
   return (
-    <div className={`mascot-card${chatOpen ? " is-mobile-open" : ""}`} aria-label="Planner companion">
+    <div
+      className={`mascot-card${chatOpen ? " is-mobile-open" : ""}`}
+      aria-label="Planner companion"
+      ref={cardRef}
+    >
       <div className="mascot-bubble" aria-live="polite">{answer || LINES[lineIndex]}</div>
       <button
         aria-label="Get a small encouraging note"
-        className="soft-mascot"
-        onClick={() => setLineIndex((current) => (current + 1) % LINES.length)}
+        className={`soft-mascot${isExcited ? " is-excited" : ""}`}
+        onClick={clickMascot}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        ref={mascotRef}
         type="button"
       >
         <svg className="mascot-svg" viewBox="0 0 180 190" role="img" aria-hidden="true">

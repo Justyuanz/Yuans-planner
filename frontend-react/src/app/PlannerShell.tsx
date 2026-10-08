@@ -4,6 +4,7 @@ import type { PlannerStore } from "../api/planner-store";
 import { formatPlannerDate } from "../features/life-pie/life-pie-store";
 import { BackupTools } from "./BackupTools";
 import { navigateToPlannerView } from "./planner-navigation";
+import { persistPlannerWrites } from "./planner-persistence";
 import { PlannerMascot } from "./PlannerMascot";
 
 const VIEWS = [
@@ -50,6 +51,7 @@ export function PlannerShell({ activeView, children, store, today }: PlannerShel
         <PlannerMascot
           chatOpen={chatOpen}
           onChatToggle={() => setChatOpen((open) => !open)}
+          onPersist={persistPlannerWrites}
           store={store}
           today={today}
         />
