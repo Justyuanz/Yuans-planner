@@ -3053,6 +3053,11 @@ textarea {
   transition: transform 0.18s ease, box-shadow 0.18s ease, background 0.18s ease, border-color 0.18s ease;
 }
 
+.day-cell[role="button"] {
+  cursor: pointer;
+  font: inherit;
+}
+
 .day-cell:hover,
 .day-cell.selected {
   z-index: 2;

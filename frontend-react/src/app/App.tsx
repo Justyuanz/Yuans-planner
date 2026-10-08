@@ -2,6 +2,13 @@ import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { putPlannerStoreValue } from "../api/planner-store";
+import { MonthlyCalendarCard } from "../features/calendar/MonthlyCalendarCard";
+import {
+  CALENDAR_STATE_EVENT,
+  calendarBridgeStateFromEvent,
+  dispatchCalendarNavigation,
+  type CalendarBridgeState
+} from "../features/calendar/calendar-bridge";
 import { DayStateOptions } from "../features/day-state/DayStateOptions";
 import { decodeDayState } from "../features/day-state/day-state";
 import { refreshLegacyDayStateEffects } from "../features/day-state/day-state-effects";
@@ -100,6 +107,7 @@ function LegacyPlannerApp() {
   const [plannedBoundary, setPlannedBoundary] = useState<ReactPanelBoundary | null>(null);
   const [energyTrailBoundary, setEnergyTrailBoundary] = useState<FramePortalBoundary | null>(null);
   const [journalArchiveBoundary, setJournalArchiveBoundary] = useState<FramePortalBoundary | null>(null);
+  const [monthlyCalendarBoundary, setMonthlyCalendarBoundary] = useState<FramePortalBoundary | null>(null);
   const [legacyFrame, setLegacyFrame] = useState<HTMLIFrameElement | null>(null);
   const [meditationBoundary, setMeditationBoundary] = useState<ReactPanelBoundary | null>(null);
   const [moneyActivityMount, setMoneyActivityMount] = useState<HTMLElement | null>(null);
@@ -110,6 +118,10 @@ function LegacyPlannerApp() {
   const [moneyVendorsMount, setMoneyVendorsMount] = useState<HTMLElement | null>(null);
   const [weeklyGoalsOverride, setWeeklyGoalsOverride] = useState<string | null>(null);
   const [selectedJournalDateKey, setSelectedJournalDateKey] = useState(formatPlannerDate(today));
+  const [calendarState, setCalendarState] = useState<CalendarBridgeState>({
+    cursorDate: formatPlannerDate(new Date(today.getFullYear(), today.getMonth(), 1)),
+    selectedDate: formatPlannerDate(today)
+  });
   const legacyUrl = `/legacy/${window.location.search}`;
   const loadedStore = plannerStore.status === "ready" ? plannerStore.store : null;
   const plannedKey = plannedStorageKey(today);
@@ -234,6 +246,15 @@ function LegacyPlannerApp() {
       setJournalArchiveBoundary({ frame, mount: journalArchiveMount });
     }
 
+    const monthlyCalendarCard = document?.querySelector<HTMLElement>(".monthly-calendar-card");
+    const monthlyCalendarMount = monthlyCalendarCard?.querySelector<HTMLElement>(".panel-inner");
+    if (monthlyCalendarCard !== null && monthlyCalendarCard !== undefined
+      && monthlyCalendarMount !== null && monthlyCalendarMount !== undefined) {
+      monthlyCalendarCard.dataset.reactOwned = "true";
+      monthlyCalendarMount.replaceChildren();
+      setMonthlyCalendarBoundary({ frame, mount: monthlyCalendarMount });
+    }
+
     const moneyQuickCard = document?.querySelector<HTMLElement>(".money-quick-card");
     const moneyQuickPanel = moneyQuickCard?.querySelector<HTMLElement>(".panel-inner");
     if (moneyQuickCard !== null && moneyQuickCard !== undefined
@@ -339,6 +360,17 @@ function LegacyPlannerApp() {
       frameWindow?.removeEventListener("change", syncSelectedDate);
       frameWindow?.removeEventListener("click", syncSelectedDate);
     };
+  }, [legacyFrame]);
+
+  useEffect(() => {
+    const frameWindow = legacyFrame?.contentWindow;
+    if (frameWindow === null || frameWindow === undefined) return;
+    function syncCalendarState(event: Event): void {
+      const state = calendarBridgeStateFromEvent(event);
+      if (state !== null) setCalendarState(state);
+    }
+    frameWindow.addEventListener(CALENDAR_STATE_EVENT, syncCalendarState);
+    return () => frameWindow.removeEventListener(CALENDAR_STATE_EVENT, syncCalendarState);
   }, [legacyFrame]);
 
   function saveWeeklyGoal(goalId: WeeklyGoalId, text: string): void {
@@ -515,6 +547,29 @@ function LegacyPlannerApp() {
             store={loadedStore}
           />,
           journalArchiveBoundary.mount
+        )
+      )}
+      {loadedStore !== null && monthlyCalendarBoundary !== null && (
+        createPortal(
+          <MonthlyCalendarCard
+            cursorDate={calendarState.cursorDate}
+            onEditEvent={(eventId, date) => {
+              setCalendarState((current) => ({ ...current, selectedDate: date }));
+              dispatchCalendarNavigation(monthlyCalendarBoundary.frame, { action: "edit-event", eventId });
+            }}
+            onSelectDate={(date) => {
+              setCalendarState((current) => ({ ...current, selectedDate: date }));
+              dispatchCalendarNavigation(monthlyCalendarBoundary.frame, { action: "select-date", date });
+            }}
+            onShiftMonth={(amount) => dispatchCalendarNavigation(monthlyCalendarBoundary.frame, {
+              action: "shift-month",
+              amount: amount < 0 ? -1 : 1
+            })}
+            selectedDate={calendarState.selectedDate}
+            store={loadedStore}
+            today={today}
+          />,
+          monthlyCalendarBoundary.mount
         )
       )}
       {loadedStore !== null && moneyQuickMount !== null && (

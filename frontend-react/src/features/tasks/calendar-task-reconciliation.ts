@@ -2,13 +2,17 @@ import type { PlannerStore, PlannerStoreWrite } from "../../api/planner-store";
 import { isRecord } from "../../shared/is-record";
 import type { ActivityId } from "../activity-categories/activity-categories";
 import {
+  CALENDAR_EVENTS_STORAGE_KEY,
+  normalizeCalendarCategory
+} from "../calendar/calendar-event-store";
+import {
   decodeTasks,
   normalizeReminderMinutes,
   normalizeScheduledTime,
   type PlannerTask
 } from "./tasks";
 
-export const CALENDAR_EVENTS_KEY = "hivePlanner.events";
+export const CALENDAR_EVENTS_KEY = CALENDAR_EVENTS_STORAGE_KEY;
 
 interface CalendarTaskIdentity {
   createdAt: string;
@@ -42,37 +46,11 @@ const CATEGORY_ACTIVITY: Readonly<Record<string, ActivityId>> = {
   Guitar: "guitar"
 };
 
-const CATEGORY_ALIASES: Readonly<Record<string, string>> = {
-  Coding: "Transcendence",
-  Python: "Mobile Development",
-  Leetcode: "Portfolio / Job Prep",
-  LeetCode: "Portfolio / Job Prep",
-  "Study deadline": "Study/school",
-  "Home study": "Study/school",
-  "School study": "Study/school",
-  Chore: "Chores/groceries"
-};
-
 const CATEGORY_LABELS: Readonly<Record<string, string>> = {
   "Study/school": "Study",
   "Mobile Development": "Mobile Dev",
   "Portfolio / Job Prep": "Portfolio"
 };
-
-const KNOWN_CATEGORIES = new Set([
-  "Study/school",
-  "Finnish",
-  "Transcendence",
-  "Mobile Development",
-  "Portfolio / Job Prep",
-  "Skate",
-  "Gym",
-  "Cooking",
-  "Chores/groceries",
-  "Social",
-  "Guitar",
-  "Personal"
-]);
 
 function parseArray(rawValue: string | undefined): unknown[] | null {
   try {
@@ -81,12 +59,6 @@ function parseArray(rawValue: string | undefined): unknown[] | null {
   } catch {
     return null;
   }
-}
-
-function normalizeCategory(value: unknown): string {
-  const category = typeof value === "string" ? value.trim() : "";
-  const aliased = CATEGORY_ALIASES[category] ?? category;
-  return KNOWN_CATEGORIES.has(aliased) ? aliased : "Personal";
 }
 
 function leadingRangeStart(title: string): string {
@@ -123,7 +95,7 @@ function normalizedEvent(candidate: unknown, dateKey: string): CalendarEvent | n
     || typeof candidate.id !== "string" || !candidate.id) {
     return null;
   }
-  const category = normalizeCategory(candidate.category);
+  const category = normalizeCalendarCategory(candidate.category);
   const rawTitle = typeof candidate.title === "string" ? candidate.title.trim() : "";
   const structuredTime = normalizeScheduledTime(candidate.startTime);
   return {

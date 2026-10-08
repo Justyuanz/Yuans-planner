@@ -91,6 +91,8 @@
       const storageCore = globalThis.YuanStorageCore;
       const calendarTaskSync = globalThis.YuanCalendarTaskSync;
       const DAY_STATE_EFFECTS_EVENT = "hive-planner-day-state-effects";
+      const CALENDAR_NAVIGATE_EVENT = "hive-planner-calendar-navigate";
+      const CALENDAR_STATE_EVENT = "hive-planner-calendar-state";
       var currentInsightBundleState = null;
       let dashboardInsightBridgeReady = false;
       var expandedHiddenTaskDates = {};
@@ -7662,6 +7664,16 @@
 
       // Calendar events are simple date pills saved with the rest of the planner data.
       function renderCalendar() {
+        window.dispatchEvent(new CustomEvent(CALENDAR_STATE_EVENT, {
+          detail: {
+            cursorDate: formatDate(calendarCursor),
+            selectedDate: selectedDate
+          }
+        }));
+        const calendarCard = elements.calendarGrid && elements.calendarGrid.closest(".monthly-calendar-card");
+        if (calendarCard && calendarCard.dataset.reactOwned === "true") {
+          return;
+        }
         var year = calendarCursor.getFullYear();
         var month = calendarCursor.getMonth();
         var firstOfMonth = new Date(year, month, 1);
@@ -8223,6 +8235,31 @@
       }
 
       function bindEvents() {
+        window.addEventListener(CALENDAR_NAVIGATE_EVENT, function (event) {
+          const detail = event && event.detail && typeof event.detail === "object" ? event.detail : {};
+          if (detail.action === "shift-month") {
+            const amount = Number(detail.amount) < 0 ? -1 : 1;
+            calendarCursor = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth() + amount, 1);
+            renderCalendar();
+            return;
+          }
+          if (detail.action === "edit-event" && typeof detail.eventId === "string") {
+            startEditEvent(detail.eventId);
+            return;
+          }
+          if (detail.action !== "select-date" || typeof detail.date !== "string") {
+            return;
+          }
+          selectedDate = detail.date;
+          weeklyPlannerUiState.expandedDateKey = detail.date;
+          weeklyPlannerUiState.activityPickerOpen = false;
+          renderWeeklyPlannerSection();
+          renderCalendar();
+          if (elements.eventStartTime) {
+            elements.eventStartTime.focus();
+          }
+        });
+
         bindEvent(elements.prevMonth, "click", function () {
           calendarCursor = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth() - 1, 1);
           renderCalendar();
