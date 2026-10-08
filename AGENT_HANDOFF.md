@@ -181,13 +181,13 @@ For each feature:
 - [ ] remove legacy implementation only after tests pass
 
 ## Current Task
-The root/no-view entry path plus explicit Dashboard, Money, Journal, and Calendar routes render directly in React + strict TypeScript with no iframe. Calendar's monthly grid, weekly planner, week setup, selected-day event editor, load validation, persistence, and calendar-linked task synchronization are React-owned and verified. Skate and Guitar remain on the temporary legacy-shell fallback. Skate is the next route-level migration.
+The root/no-view entry path plus explicit Dashboard, Money, Journal, and Calendar routes render directly in React + strict TypeScript with no iframe. Skate and Guitar remain on the temporary legacy-shell fallback, but Skate's complete hero card is now React-owned and verified there. Continue the incremental Skate migration with the intensity-roadmap/trends boundary before composing the direct route.
 
 ## Last Completed Task
-Completed the Calendar migration. React/strict-TypeScript modules now own the weekly planner and setup rules, selected-day CRUD editor, reminder and load validation, legacy category/time decoding, goal-step synchronization, calendar-linked task reconciliation, and the complete direct Calendar composition. The explicit Calendar route no longer creates an iframe; `view=legacyShell` remains only as the verified portal fixture. Desktop/mobile browser coverage proves state and geometry parity, rendered month-grid parity, week/month navigation, editor focus, invalid and empty inputs, persistence/reload, task synchronization, and direct-shell navigation. Commits: `19d6b46 feat(react): migrate calendar weekly planner` and `46c43e3 feat(react): complete calendar migration`.
+Migrated the complete Skate hero card to React + strict TypeScript inside the fallback shell. A narrow typed bridge keeps the existing SkateIQ phase/benchmark mapping and session lifecycle as the compatibility source while React owns the settings, metrics, plan summary, intensity controls, and timer actions. Browser coverage proves exact desktop/mobile state, geometry, and pixel parity; empty and oversized program-day normalization; setting/intensity persistence; timer and retro-log dialogs; transient timer reset on reload; and console cleanliness. Commit: `4dfa254 feat(react): migrate skate hero card`.
 
 ## Next Task
-Migrate the Skate route as the next focused React/strict-TypeScript page. Preserve the immutable 60-day SkateIQ plan, prestart/streak/post-streak date mapping, phase and benchmark behavior, intensity overrides, timer/session lifecycle, retro logging, board-hours totals, task synchronization without double-counting, persistence compatibility, and exact desktop/mobile visual behavior. Add regression coverage before replacing each important behavior, keep modules focused, and retain `view=legacyShell` for the still-unmigrated Guitar route and portal fixtures.
+Migrate Skate's intensity-roadmap/trends card as the next focused React/strict-TypeScript boundary. Preserve the full season history, selected-day behavior, missed-session logging, post-streak weekly mapping, persisted sessions and intensity overrides, and exact desktop/mobile visual behavior. After that, migrate body-support metrics, training-plan/session feedback behavior, and finally compose the direct Skate route; retain `view=legacyShell` for Guitar and portal fixtures until their replacements are verified.
 
 ## Upstream Legacy Change — Activity Categories (2026-10-05)
 
@@ -250,6 +250,8 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - The direct Calendar route composes the month grid, weekly planner, week setup, and event editor inside `PlannerShell` with no iframe. Its typed editor preserves raw unknown event fields, legacy title-prefixed times and category aliases, reminder markers, goal-step references, empty-date fallback, and cross-feature task reconciliation.
 - Calendar day cells remain native buttons to match the legacy browser rendering exactly. Event pills are non-button descendants with delegated pointer editing, avoiding the legacy invalid nested-button markup while preserving the visual contract and date-cell keyboard behavior.
 - Calendar event category normalization is shared by the React month model and React-owned calendar-task reconciliation, while decoded event records retain their raw stored category label where the legacy tooltip exposes it.
+- Skate's fallback hero card is React-owned through a narrow typed state/action bridge. The bridge deliberately delegates program-day normalization, phase/benchmark mapping, intensity persistence, and timer/session transitions to the still-active legacy Skate model so this first boundary cannot drift while the remaining Skate modules are migrated.
+- Skate program-day edits commit on blur like legacy, restore the last rendered value while legacy normalization runs, and then accept the normalized 1–60 day snapshot. Current Skate session start time remains transient across reload; settings and intensity choices remain persisted.
 - The root/no-view entry path plus explicit Dashboard, Money, Journal, and Calendar routes bypass the iframe and compose their pages directly inside the focused React shell. Skate and Guitar still instantiate `LegacyPlannerApp`, preserving a verification fallback during incremental cutover.
 - A missing `view` maps to the direct React Dashboard, while unknown explicit values continue through `LegacyPlannerApp`. Migration-boundary browser fixtures use `view=legacyShell`, which the parent intentionally treats as fallback and the legacy app safely normalizes to its Dashboard.
 - The direct route loads the legacy stylesheet only while mounted. Loading it globally changes the parent body's padding and narrows every iframe preview, which the complete Money regression suite caught.
@@ -308,7 +310,7 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Browser inspection reports generated form controls without an `id` or `name`; the current Chrome run reported 29 controls.
 - The default `node` on the inspected machine is Node 14 and cannot run `node --test`; use the installed modern Node runtime or fix the local PATH before relying on `scripts/test.sh` without `NODE_BIN`.
 - Most remaining cross-feature flows in `app.js` still lack DOM or end-to-end tests; browser coverage now protects task and activity-session lifecycles, all six primary views, the direct Dashboard, Money, Journal, and Calendar pages, and the other migrated React boundaries.
-- Weekly goals, dashboard day state, task progress, Today's intention, the task list/editor/form, Life Pie, Planned vs actual, Energy trail, Pattern noticed/history, all six Money boundaries, Journal editor, Meditation, Journal archive, and the complete Calendar page are React-owned and verified. The root/no-view Dashboard plus explicit Dashboard, Money, Journal, and Calendar routes are directly composed; only Skate and Guitar still depend on the temporary iframe shell.
+- Weekly goals, dashboard day state, task progress, Today's intention, the task list/editor/form, Life Pie, Planned vs actual, Energy trail, Pattern noticed/history, all six Money boundaries, Journal editor, Meditation, Journal archive, the complete Calendar page, and the Skate hero card are React-owned and verified. The root/no-view Dashboard plus explicit Dashboard, Money, Journal, and Calendar routes are directly composed; Skate and Guitar still depend on the temporary iframe shell while Skate is migrated boundary by boundary.
 - Browser smoke tests skip when Chrome/Chromium or Node WebSocket support is unavailable; they run with the documented Node 24 runtime on the inspected machine.
 - The React preview is not yet served directly by the Python backend. Its temporary legacy shell depends on Vite development proxies and is not the final production integration architecture.
 - The direct shell's Sprouty surface now sends grounded task, insight, journal, planning, activity, day-state, Money, and Skate context; restores state-aware quick prompts; handles server failure with evidence-based local answers; appends question-aware action suggestions; and preserves pointer-follow, drag persistence, click suppression, and mobile motion behavior. Shared-shell Sprouty parity is complete.
@@ -316,14 +318,6 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Browser-capable root Node test files run serially to avoid Chrome/Vite startup timeouts under parallel process saturation.
 
 ## Session Log
-
-### Session 46
-
-- Re-read `AGENTS.md`, this handoff, branch state, recent history, and current diff; traced the complete legacy Journal composition, editor/state-tracker behavior, storage normalization, audit writes, date selection, and existing React Meditation/Archive boundaries before implementation.
-- Added focused strict-TypeScript tests for missing/malformed legacy storage, selected-entry normalization, create/update/delete audit writes, duplicate-date ordering, blank deletion, tracker-only entries, fractional/clamped minutes, and the legacy long-date label.
-- Implemented a focused Journal editor model and component, then composed the direct `JournalPage` from the new editor plus the existing React Meditation and Journal Archive components. The explicit Journal route now renders inside `PlannerShell` with no iframe while `view=legacyShell` remains available for fallback boundary tests.
-- Added a complete real-browser Journal route regression covering exact desktop/mobile state, geometry, and pixel screenshots; direct-route/no-iframe ownership; title/content/context/energy/focus/minutes persistence; reload restoration; archive and Today navigation; audit logging; and direct Dashboard navigation. Existing Journal Archive, Meditation, Energy Trail, and Dashboard cross-feature regressions also pass.
-- Final verification: 195 React tests, React lint, strict type-checking, the Vite production build, 18 Python tests, and all 138 root JavaScript/browser tests pass. The sandboxed Python run could not bind a loopback port; the required escalated rerun passed all 18 tests.
 
 ### Session 47
 
@@ -339,6 +333,13 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Added a focused typed event-editor model and component covering legacy aliases and title times, selected-event ordering, activity selection, effort defaults, reminder validation, recovery/capacity rules, create/update/delete behavior, sent-reminder clearing, unknown-field preservation, goal-step synchronization, empty-date fallback, task synchronization, reload, and deterministic focus.
 - Composed the complete direct `CalendarPage` inside `PlannerShell`, retained `view=legacyShell` for fallback fixtures, updated cross-route regressions for direct Calendar ownership, and preserved native day-cell button rendering for exact visual parity without retaining nested buttons.
 - Final verification: 212 React tests, React lint, strict type-checking, the Vite production build, 18 Python tests, and all 142 root JavaScript/browser tests pass. After the final empty-date compatibility assertion, the focused Calendar editor and direct-route browser regressions plus the full React checks also pass. Commits: `19d6b46 feat(react): migrate calendar weekly planner` and `46c43e3 feat(react): complete calendar migration`.
+
+### Session 49
+
+- Re-read `AGENTS.md`, this handoff, branch state, recent history, and current diff; traced the legacy Skate hero rendering, settings normalization, immutable SkateIQ plan mapping, intensity selection, transient timer behavior, feedback dialog, and task/session synchronization before choosing the first focused boundary.
+- Implemented a focused React + strict-TypeScript Skate hero card with small settings, focus-summary, intensity, and session-action components. A typed iframe-realm bridge snapshots the existing Skate model and delegates actions without introducing new `var` or `any`, while the standalone legacy application remains unchanged.
+- Added focused bridge validation plus a complete real-browser regression covering exact legacy/React state, computed geometry, and pixel parity at 1280×720 and 390×844; rest and extra-rest settings; empty, oversized, and valid program days; intensity persistence; timer start/finish; retro logging; reload persistence; transient timer reset; and console cleanliness.
+- Final verification: 214 React tests, React lint, strict type-checking, the Vite production build, 18 Python tests, and all 143 root JavaScript/browser tests pass. Commit: `4dfa254 feat(react): migrate skate hero card`.
 
 ---
 
