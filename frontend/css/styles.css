@@ -442,6 +442,10 @@ h1 {
   gap: 14px;
 }
 
+.legacy-event-editor-mount {
+  display: contents;
+}
+
 .week-event-button {
   min-height: 30px;
   display: inline-flex;

@@ -5216,10 +5216,17 @@
         elements.formHint.textContent = message || ("Selected: " + dateKey);
         renderCalendar();
         renderSelectedDate();
-        if (elements.eventTitle) {
-          elements.eventTitle.focus();
-        } else if (elements.eventStartTime) {
-          elements.eventStartTime.focus();
+        const focusEventEditor = function () {
+          if (elements.eventTitle) {
+            elements.eventTitle.focus();
+          } else if (elements.eventStartTime) {
+            elements.eventStartTime.focus();
+          }
+        };
+        if (elements.weeklyPlannerMount.dataset.reactOwned === "true") {
+          window.requestAnimationFrame(focusEventEditor);
+        } else {
+          focusEventEditor();
         }
       }
 
@@ -5427,6 +5434,16 @@
 
       function renderWeeklyPlanner() {
         if (!elements.weeklyPlannerMount) {
+          return;
+        }
+        window.dispatchEvent(new CustomEvent(CALENDAR_STATE_EVENT, {
+          detail: {
+            cursorDate: formatDate(calendarCursor),
+            expandedDate: weeklyPlannerUiState.expandedDateKey,
+            selectedDate: selectedDate
+          }
+        }));
+        if (elements.weeklyPlannerMount.dataset.reactOwned === "true") {
           return;
         }
         var referenceDate = parseDate(selectedDate);
@@ -7667,11 +7684,11 @@
         window.dispatchEvent(new CustomEvent(CALENDAR_STATE_EVENT, {
           detail: {
             cursorDate: formatDate(calendarCursor),
+            expandedDate: weeklyPlannerUiState.expandedDateKey,
             selectedDate: selectedDate
           }
         }));
-        const calendarCard = elements.calendarGrid && elements.calendarGrid.closest(".monthly-calendar-card");
-        if (calendarCard && calendarCard.dataset.reactOwned === "true") {
+        if (elements.calendarGrid && elements.calendarGrid.dataset.reactOwned === "true") {
           return;
         }
         var year = calendarCursor.getFullYear();
@@ -7976,10 +7993,17 @@
         elements.eventSaveButton.textContent = "Update activity";
         renderWeeklyPlannerSection();
         renderCalendar();
-        if (elements.eventTitle) {
-          elements.eventTitle.focus();
-        } else if (elements.eventStartTime) {
-          elements.eventStartTime.focus();
+        const focusEditedEvent = function () {
+          if (elements.eventTitle) {
+            elements.eventTitle.focus();
+          } else if (elements.eventStartTime) {
+            elements.eventStartTime.focus();
+          }
+        };
+        if (elements.weeklyPlannerMount.dataset.reactOwned === "true") {
+          window.requestAnimationFrame(focusEditedEvent);
+        } else {
+          focusEditedEvent();
         }
       }
 
@@ -8243,6 +8267,29 @@
             renderCalendar();
             return;
           }
+          if (detail.action === "shift-week") {
+            shiftSelectedWeek(Number(detail.amount) < 0 ? -1 : 1);
+            return;
+          }
+          if (detail.action === "collapse-day") {
+            weeklyPlannerUiState.expandedDateKey = "";
+            weeklyPlannerUiState.activityPickerOpen = false;
+            renderWeeklyPlannerSection();
+            return;
+          }
+          if (detail.action === "select-week-day" && typeof detail.date === "string") {
+            const day = parseDate(detail.date);
+            selectedDate = detail.date;
+            calendarCursor = new Date(day.getFullYear(), day.getMonth(), 1);
+            weeklyPlannerUiState.expandedDateKey = detail.expanded ? detail.date : "";
+            if (!weeklyPlannerUiState.expandedDateKey) {
+              weeklyPlannerUiState.activityPickerOpen = false;
+            }
+            renderWeeklyPlannerSection();
+            renderCalendar();
+            renderSelectedDate();
+            return;
+          }
           if (detail.action === "edit-event" && typeof detail.eventId === "string") {
             startEditEvent(detail.eventId);
             return;
@@ -8256,7 +8303,9 @@
           renderWeeklyPlannerSection();
           renderCalendar();
           if (elements.eventStartTime) {
-            elements.eventStartTime.focus();
+            window.requestAnimationFrame(function () {
+              elements.eventStartTime.focus();
+            });
           }
         });
 
