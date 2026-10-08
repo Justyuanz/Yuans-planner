@@ -24,6 +24,7 @@ import {
 } from "../features/dashboard-insight/dashboard-insight";
 import { EnergyTrailCard } from "../features/energy-trail/EnergyTrailCard";
 import { JournalArchiveCard } from "../features/journal-archive/JournalArchiveCard";
+import { JournalPage } from "../features/journal-page/JournalPage";
 import { LifePieCard } from "../features/life-pie/LifePieCard";
 import { plannerDateFromSearch } from "../features/life-pie/life-pie";
 import { formatPlannerDate } from "../features/life-pie/life-pie-store";
@@ -571,6 +572,7 @@ export function App() {
   const today = useMemo(() => plannerDateFromSearch(window.location.search, new Date()), []);
   const requestedView = new URLSearchParams(window.location.search).get("view");
   if (requestedView === "moneyView") return <MoneyPage today={today} />;
+  if (requestedView === "journalView") return <JournalPage today={today} />;
   if (requestedView === null || requestedView === "todayView") return <DashboardPage today={today} />;
   return <LegacyPlannerApp />;
 }

@@ -1,10 +1,13 @@
 import type { PlannerStore } from "../../api/planner-store";
 import { isRecord } from "../../shared/is-record";
 
+export type JournalEnergyState = "" | "empty" | "low" | "okay" | "good" | "strong";
+export type JournalFocusState = "" | "foggy" | "wavy" | "steady" | "clear";
+
 export interface JournalTracker {
   context: string;
-  energy: string;
-  focus: string;
+  energy: JournalEnergyState;
+  focus: JournalFocusState;
 }
 
 export interface JournalEntry {
@@ -34,9 +37,9 @@ function parseStoredJson(rawValue: string | undefined): unknown {
   }
 }
 
-function normalizedChoice(value: unknown, allowed: readonly string[]): string {
+function normalizedChoice<T extends string>(value: unknown, allowed: readonly T[]): T {
   const normalized = typeof value === "string" ? value.trim().toLowerCase() : "";
-  return allowed.includes(normalized) ? normalized : "";
+  return allowed.includes(normalized as T) ? normalized as T : allowed[0]!;
 }
 
 function finiteClamped(value: unknown, maximum: number): number {
@@ -44,7 +47,7 @@ function finiteClamped(value: unknown, maximum: number): number {
   return Number.isFinite(number) ? Math.min(maximum, Math.max(0, number)) : 0;
 }
 
-function normalizeTracker(candidate: unknown): JournalTracker {
+export function normalizeJournalTracker(candidate: unknown): JournalTracker {
   const tracker = isRecord(candidate) ? candidate : {};
   return {
     context: typeof tracker.context === "string" ? tracker.context.trim() : "",
@@ -53,11 +56,11 @@ function normalizeTracker(candidate: unknown): JournalTracker {
   };
 }
 
-function hasTrackerContent(tracker: JournalTracker): boolean {
+export function hasJournalTrackerContent(tracker: JournalTracker): boolean {
   return Boolean(tracker.energy || tracker.focus || tracker.context);
 }
 
-function normalizeEntry(candidate: unknown): JournalEntry | null {
+export function normalizeJournalEntry(candidate: unknown): JournalEntry | null {
   if (!isRecord(candidate)) {
     return null;
   }
@@ -67,9 +70,9 @@ function normalizeEntry(candidate: unknown): JournalEntry | null {
   }
   const content = typeof candidate.content === "string" ? candidate.content : "";
   const title = typeof candidate.title === "string" ? candidate.title.trim() : "";
-  const tracker = normalizeTracker(candidate.tracker);
+  const tracker = normalizeJournalTracker(candidate.tracker);
   const durationMinutes = finiteClamped(candidate.durationMinutes, 1440);
-  if (!(durationMinutes || title || content.trim() || hasTrackerContent(tracker))) {
+  if (!(durationMinutes || title || content.trim() || hasJournalTrackerContent(tracker))) {
     return null;
   }
   const createdAt = typeof candidate.createdAt === "string" && candidate.createdAt
@@ -102,7 +105,7 @@ export function journalEntries(store: PlannerStore): JournalEntry[] {
     return [];
   }
   return parsed
-    .map(normalizeEntry)
+    .map(normalizeJournalEntry)
     .filter((entry): entry is JournalEntry => entry !== null)
     .sort(compareEntriesNewestFirst);
 }
@@ -124,4 +127,3 @@ export function filterJournalEntries(
     entry.tracker.context
   ].join("\n").toLowerCase().includes(normalizedQuery));
 }
-

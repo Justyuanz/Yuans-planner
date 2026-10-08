@@ -176,7 +176,16 @@ test("Dashboard is a direct React page with legacy layout and Pattern behavior",
   assert.equal(await planner.browser.evaluate('location.search.includes("date=2026-09-14")'), true);
   assert.equal(await planner.browser.evaluate('document.querySelectorAll("iframe").length'), 0);
 
-  for (const viewId of ["journalView", "calendarView", "skateView", "guitarView"]) {
+  await openReady(planner.browser, `${preview.url}/?view=journalView&date=${TEST_DATE}`);
+  assert.deepEqual(
+    await planner.browser.evaluate(`(() => ({
+      active: document.getElementById("journalView").classList.contains("active"),
+      iframeCount: document.querySelectorAll("iframe").length
+    }))()`),
+    { active: true, iframeCount: 0 }
+  );
+
+  for (const viewId of ["calendarView", "skateView", "guitarView"]) {
     await planner.browser.open(`${preview.url}/?view=${viewId}&date=${TEST_DATE}`);
     await planner.browser.waitForExpression(`document.querySelector("iframe")?.contentDocument
       ?.documentElement?.dataset.plannerReady === "true"`);
