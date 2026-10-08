@@ -1,7 +1,9 @@
+import { isSkateIntensity, type SkateIntensity } from "./skate-intensity";
+
 export const SKATE_HERO_ACTION_EVENT = "hive-planner-skate-hero-action";
 export const SKATE_HERO_STATE_EVENT = "hive-planner-skate-hero-state";
 
-export type SkateIntensity = "blue" | "green" | "yellow";
+export type { SkateIntensity } from "./skate-intensity";
 
 export interface SkateHeroState {
   attemptBudget: string;
@@ -58,7 +60,7 @@ const TEXT_IDS = {
 function selectedIntensity(document: Document): SkateIntensity {
   const value = document.querySelector<HTMLElement>("#skateIntensityToggle [data-intensity].active")
     ?.dataset.intensity;
-  return value === "blue" || value === "green" ? value : "yellow";
+  return isSkateIntensity(value) ? value : "yellow";
 }
 
 export function skateHeroStateFromDocument(document: Document): SkateHeroState | null {
@@ -96,7 +98,7 @@ export function skateHeroStateFromEvent(event: Event): SkateHeroState | null {
     || typeof candidate.currentDay !== "string"
     || typeof candidate.extraRestDay !== "string"
     || typeof candidate.finishDisabled !== "boolean"
-    || !["blue", "green", "yellow"].includes(candidate.intensity ?? "")
+    || !isSkateIntensity(candidate.intensity)
     || typeof candidate.restDay !== "string"
     || typeof candidate.startDisabled !== "boolean") return null;
   return candidate as SkateHeroState;

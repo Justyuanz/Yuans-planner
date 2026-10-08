@@ -95,6 +95,7 @@
       const CALENDAR_STATE_EVENT = "hive-planner-calendar-state";
       const SKATE_HERO_ACTION_EVENT = "hive-planner-skate-hero-action";
       const SKATE_HERO_STATE_EVENT = "hive-planner-skate-hero-state";
+      const SKATE_ROADMAP_ACTION_EVENT = "hive-planner-skate-roadmap-action";
       var currentInsightBundleState = null;
       let dashboardInsightBridgeReady = false;
       var expandedHiddenTaskDates = {};
@@ -8398,6 +8399,24 @@
               hint: "Logging a skate session without the timer is okay too."
             });
           }
+        });
+        window.addEventListener(SKATE_ROADMAP_ACTION_EVENT, function (event) {
+          const detail = event && event.detail && typeof event.detail === "object" ? event.detail : {};
+          if (detail.action !== "log-date") {
+            return;
+          }
+          const dateKey = skateSessionCore.normalizeSessionDateKey(detail.dateKey);
+          if (!dateKey) {
+            return;
+          }
+          const intensity = ["blue", "yellow", "green"].indexOf(detail.intensity) !== -1
+            ? detail.intensity : null;
+          openSkateFeedbackDialog({
+            dateKey: dateKey,
+            intensity: intensity,
+            durationMinutes: Math.max(1, Math.round(Number(detail.durationMinutes) || 45)),
+            hint: "Logging for " + humanDate(dateKey) + "."
+          });
         });
 
         bindEvent(elements.prevMonth, "click", function () {

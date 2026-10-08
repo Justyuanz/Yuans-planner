@@ -54,6 +54,7 @@ import { plannedStorageKey } from "../features/planned-actual/planned-actual";
 import { PatternHistoryDialog } from "../features/pattern-history/PatternHistoryDialog";
 import { emptyPatternHistoryModel } from "../features/pattern-history/pattern-history";
 import { SkateHeroCard } from "../features/skate/SkateHeroCard";
+import { SkateRoadmapCard } from "../features/skate/SkateRoadmapCard";
 import {
   SKATE_HERO_STATE_EVENT,
   dispatchSkateHeroAction,
@@ -61,6 +62,7 @@ import {
   skateHeroStateFromEvent,
   type SkateHeroState
 } from "../features/skate/skate-hero-bridge";
+import { dispatchSkateRoadmapLog } from "../features/skate/skate-roadmap-bridge";
 import { TaskProgressBanner } from "../features/task-progress/TaskProgressBanner";
 import { buildTaskProgressModel } from "../features/task-progress/task-progress";
 import { TaskForm } from "../features/tasks/TaskForm";
@@ -130,6 +132,7 @@ function LegacyPlannerApp() {
   const [weeklyPlannerBoundary, setWeeklyPlannerBoundary] = useState<WeeklyPlannerBoundary | null>(null);
   const [skateHeroBoundary, setSkateHeroBoundary] = useState<FramePortalBoundary | null>(null);
   const [skateHeroState, setSkateHeroState] = useState<SkateHeroState | null>(null);
+  const [skateRoadmapBoundary, setSkateRoadmapBoundary] = useState<FramePortalBoundary | null>(null);
   const [legacyFrame, setLegacyFrame] = useState<HTMLIFrameElement | null>(null);
   const [meditationBoundary, setMeditationBoundary] = useState<ReactPanelBoundary | null>(null);
   const [moneyActivityMount, setMoneyActivityMount] = useState<HTMLElement | null>(null);
@@ -320,6 +323,15 @@ function LegacyPlannerApp() {
       skateHeroCard.dataset.reactOwned = "true";
       skateHeroMount.replaceChildren();
       setSkateHeroBoundary({ frame, mount: skateHeroMount });
+    }
+
+    const skateRoadmapCard = document?.querySelector<HTMLElement>(".skate-trends-card");
+    const skateRoadmapMount = skateRoadmapCard?.querySelector<HTMLElement>(".panel-inner");
+    if (skateRoadmapCard !== null && skateRoadmapCard !== undefined
+      && skateRoadmapMount !== null && skateRoadmapMount !== undefined) {
+      skateRoadmapCard.dataset.reactOwned = "true";
+      skateRoadmapMount.replaceChildren();
+      setSkateRoadmapBoundary({ frame, mount: skateRoadmapMount });
     }
 
     const moneyQuickCard = document?.querySelector<HTMLElement>(".money-quick-card");
@@ -707,6 +719,16 @@ function LegacyPlannerApp() {
             state={skateHeroState}
           />,
           skateHeroBoundary.mount
+        )
+      )}
+      {loadedStore !== null && skateRoadmapBoundary !== null && (
+        createPortal(
+          <SkateRoadmapCard
+            onLogDate={(request) => dispatchSkateRoadmapLog(skateRoadmapBoundary.frame, request)}
+            store={loadedStore}
+            today={today}
+          />,
+          skateRoadmapBoundary.mount
         )
       )}
       {loadedStore !== null && moneyQuickMount !== null && (

@@ -1,4 +1,5 @@
-import type { SkateHeroAction, SkateHeroState, SkateIntensity } from "./skate-hero-bridge";
+import type { SkateHeroAction, SkateHeroState } from "./skate-hero-bridge";
+import { SKATE_INTENSITIES } from "./skate-intensity";
 
 interface SkateHeroCardProps {
   onAction: (action: SkateHeroAction) => void;
@@ -8,7 +9,6 @@ interface SkateHeroCardProps {
 type SkateHeroSectionProps = SkateHeroCardProps;
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-const INTENSITIES: readonly SkateIntensity[] = ["blue", "yellow", "green"];
 
 function SkateProgramDayInput({ onAction, state }: SkateHeroSectionProps) {
   function commitProgramDay(input: HTMLInputElement): void {
@@ -107,7 +107,7 @@ function SkateIntensityCard({ onAction, state }: SkateHeroSectionProps) {
         <p className="small-note" id="skateIntensityDescription">{state.intensityDescription}</p>
       </div>
       <div className="skate-intensity-toggle" id="skateIntensityToggle" aria-label="Skate intensity">
-        {INTENSITIES.map((intensity) => (
+        {SKATE_INTENSITIES.map((intensity) => (
           <button
             className={state.intensity === intensity ? "active" : ""}
             key={intensity}
