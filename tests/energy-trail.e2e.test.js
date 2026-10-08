@@ -211,7 +211,7 @@ test("Energy trail preserves history, pattern, navigation, and visual parity", {
   const legacyDesktop = await planner.browser.evaluate(energyTrailVisualContract("document"));
   const legacyDesktopScreenshot = await planner.browser.captureScreenshot(LEGACY_CLIP);
 
-  await planner.browser.open(`${preview.url}/?date=${TEST_DATE}`);
+  await planner.browser.open(`${preview.url}/?view=legacyShell&date=${TEST_DATE}`);
   await planner.browser.waitForExpression('document.querySelector("iframe")?.contentDocument?.querySelectorAll("#energyTrailList .state-trail-item").length === 7');
   await scrollToEnergyTrail(planner.browser, 'document.querySelector("iframe").contentDocument');
   const previewDesktop = await planner.browser.evaluate(
@@ -253,7 +253,7 @@ test("Energy trail preserves history, pattern, navigation, and visual parity", {
   const legacyMobile = await planner.browser.evaluate(energyTrailVisualContract("document"));
   const legacyMobileScreenshot = await planner.browser.captureScreenshot(LEGACY_CLIP);
 
-  await planner.browser.open(`${preview.url}/?date=${TEST_DATE}`);
+  await planner.browser.open(`${preview.url}/?view=legacyShell&date=${TEST_DATE}`);
   await planner.browser.waitForExpression('document.querySelector("iframe")?.contentDocument?.querySelectorAll("#energyTrailList .state-trail-item").length === 7');
   await scrollToEnergyTrail(planner.browser, 'document.querySelector("iframe").contentDocument');
   const previewMobile = await planner.browser.evaluate(

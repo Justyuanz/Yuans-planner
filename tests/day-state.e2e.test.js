@@ -249,7 +249,7 @@ test("day state records the legacy desktop and mobile visual contract", { timeou
     optionsHeight: 30
   });
 
-  await openPlanner(planner.browser, `${preview.url}/?date=${TEST_DATE}`, previewDocument);
+  await openPlanner(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, previewDocument);
   assert.equal(
     await planner.browser.evaluate(`${previewDocument}.getElementById("dayStateOptions").dataset.reactOwned`),
     "true"
@@ -283,7 +283,7 @@ test("day state records the legacy desktop and mobile visual contract", { timeou
     optionsHeight: 68
   });
 
-  await openPlanner(planner.browser, `${preview.url}/?date=${TEST_DATE}`, previewDocument);
+  await openPlanner(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, previewDocument);
   const previewMobileState = await planner.browser.evaluate(dayState(previewDocument));
   const previewMobile = await planner.browser.evaluate(dayStateVisualContract(previewDocument));
   await scrollToDayState(planner.browser, previewDocument);

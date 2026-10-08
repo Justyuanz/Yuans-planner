@@ -204,7 +204,7 @@ test("React migration boundary preserves weekly goals and Life Pie design", { ti
   const legacyLifeDesktop = await planner.browser.evaluate(lifePieVisualContract("document"));
   const legacyLifeScreenshot = await planner.browser.captureScreenshot(LEGACY_LIFE_PANEL_CLIP);
 
-  await planner.browser.open(`${preview.url}/?date=${TEST_DATE}`);
+  await planner.browser.open(`${preview.url}/?view=legacyShell&date=${TEST_DATE}`);
   await planner.browser.waitForExpression(REACT_GOALS_READY);
   await planner.browser.waitForExpression(
     'document.querySelector("iframe").contentDocument.documentElement.dataset.plannerReady === "true"'
@@ -288,7 +288,7 @@ test("React migration boundary preserves weekly goals and Life Pie design", { ti
   const legacyLifeMobile = await planner.browser.evaluate(lifePieVisualContract("document"));
   const legacyLifeMobileScreenshot = await planner.browser.captureScreenshot(LEGACY_LIFE_PANEL_CLIP);
 
-  await planner.browser.open(`${preview.url}/?date=${TEST_DATE}`);
+  await planner.browser.open(`${preview.url}/?view=legacyShell&date=${TEST_DATE}`);
   await planner.browser.waitForExpression(REACT_GOALS_READY);
   await planner.browser.waitForExpression(
     'document.querySelector("iframe").contentDocument.documentElement.dataset.plannerReady === "true"'

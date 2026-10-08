@@ -281,7 +281,7 @@ test("Pattern noticed records the legacy desktop and mobile visual contract", { 
   assert.ok(legacyDesktopScreenshot.length > 1_000);
 
   const previewDocument = 'document.querySelector("iframe").contentDocument';
-  await openDashboard(planner.browser, `${preview.url}/?date=${TEST_DATE}`, previewDocument);
+  await openDashboard(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, previewDocument);
   await waitForTaskOverpacking(planner.browser, previewDocument);
   assert.equal(await planner.browser.evaluate(
     'document.querySelector("iframe").contentDocument.getElementById("dashboardInsightCard").dataset.reactOwned'
@@ -314,7 +314,7 @@ test("Pattern noticed records the legacy desktop and mobile visual contract", { 
   });
   assert.ok(legacyMobileScreenshot.length > 1_000);
 
-  await openDashboard(planner.browser, `${preview.url}/?date=${TEST_DATE}`, previewDocument);
+  await openDashboard(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, previewDocument);
   await waitForTaskOverpacking(planner.browser, previewDocument);
   const previewMobileState = await planner.browser.evaluate(insightState(previewDocument));
   const previewMobile = await planner.browser.evaluate(insightVisualContract(previewDocument));
@@ -346,7 +346,7 @@ test("React Pattern noticed delegates actions and follows legacy task changes", 
 
   const previewDocument = 'document.querySelector("iframe").contentDocument';
   await planner.browser.setViewport(1280, 720);
-  await openDashboard(planner.browser, `${preview.url}/?date=${TEST_DATE}`, previewDocument);
+  await openDashboard(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, previewDocument);
   await waitForTaskOverpacking(planner.browser, previewDocument);
   assert.equal(await planner.browser.evaluate(
     'document.querySelector("iframe").contentDocument.getElementById("dashboardInsightCard").dataset.reactOwned'

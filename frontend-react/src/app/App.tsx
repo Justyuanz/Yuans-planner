@@ -571,6 +571,6 @@ export function App() {
   const today = useMemo(() => plannerDateFromSearch(window.location.search, new Date()), []);
   const requestedView = new URLSearchParams(window.location.search).get("view");
   if (requestedView === "moneyView") return <MoneyPage today={today} />;
-  if (requestedView === "todayView") return <DashboardPage today={today} />;
+  if (requestedView === null || requestedView === "todayView") return <DashboardPage today={today} />;
   return <LegacyPlannerApp />;
 }

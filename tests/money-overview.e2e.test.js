@@ -200,7 +200,7 @@ test("Money overview preserves totals, dates, synchronization, and visual behavi
     await preview.close();
   });
 
-  await openMoney(planner.browser, `${preview.url}/?date=${TEST_DATE}`, 'document.querySelector("iframe").contentDocument');
+  await openMoney(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, 'document.querySelector("iframe").contentDocument');
   const previewDocument = 'document.querySelector("iframe").contentDocument';
   assert.equal(await planner.browser.evaluate(
     'document.querySelector("iframe").contentDocument.querySelector(".money-overview-card").dataset.reactOwned'
@@ -226,7 +226,7 @@ test("Money overview preserves totals, dates, synchronization, and visual behavi
   const legacyMobile = await planner.browser.evaluate(moneyOverviewVisualContract("document"));
   const legacyMobileScreenshot = await planner.browser.captureScreenshot(LEGACY_CLIP);
 
-  await openMoney(planner.browser, `${preview.url}/?date=${TEST_DATE}`, previewDocument);
+  await openMoney(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, previewDocument);
   await scrollToMoneyOverview(planner.browser, previewDocument);
   const previewMobile = await planner.browser.evaluate(moneyOverviewVisualContract(previewDocument));
   const previewMobileScreenshot = await planner.browser.captureScreenshot(PREVIEW_CLIP);

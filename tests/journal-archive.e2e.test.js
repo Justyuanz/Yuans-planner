@@ -300,7 +300,7 @@ test("Journal archive preserves filtering, navigation, and visual behavior", { t
   const legacyDesktop = await planner.browser.evaluate(archiveVisualContract("document"));
   const legacyDesktopScreenshot = await planner.browser.captureScreenshot(LEGACY_CLIP);
 
-  await openJournal(planner.browser, `${preview.url}/?date=${TEST_DATE}`, 'document.querySelector("iframe").contentDocument');
+  await openJournal(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, 'document.querySelector("iframe").contentDocument');
   await planner.browser.waitForExpression('document.querySelector("iframe")?.contentDocument?.querySelectorAll("#journalArchiveList .journal-entry-card").length === 5');
   await scrollToArchive(planner.browser, 'document.querySelector("iframe").contentDocument');
   const previewDesktop = await planner.browser.evaluate(
@@ -319,7 +319,7 @@ test("Journal archive preserves filtering, navigation, and visual behavior", { t
   await scrollToArchive(planner.browser, "document");
   const legacyMobile = await planner.browser.evaluate(archiveVisualContract("document"));
 
-  await openJournal(planner.browser, `${preview.url}/?date=${TEST_DATE}`, 'document.querySelector("iframe").contentDocument');
+  await openJournal(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, 'document.querySelector("iframe").contentDocument');
   await planner.browser.waitForExpression('document.querySelector("iframe")?.contentDocument?.querySelectorAll("#journalArchiveList .journal-entry-card").length === 5');
   await scrollToArchive(planner.browser, 'document.querySelector("iframe").contentDocument');
   const previewMobile = await planner.browser.evaluate(
@@ -349,7 +349,7 @@ test("Journal archive preserves filtering, navigation, and visual behavior", { t
   })()`);
   await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.querySelector("#journalArchiveList .journal-entry-card strong").textContent === "Updated from the legacy editor"');
 
-  await openJournal(planner.browser, `${preview.url}/?date=${TEST_DATE}`, previewDocument);
+  await openJournal(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, previewDocument);
   await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.querySelectorAll("#journalArchiveList .journal-entry-card").length === 5');
   const reloadedState = await planner.browser.evaluate(archiveState(previewDocument));
   assert.equal(reloadedState.search.value, "");

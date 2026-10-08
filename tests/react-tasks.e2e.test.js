@@ -153,7 +153,7 @@ test("React tasks preserve the legacy design and task lifecycle", { timeout: 60_
     const legacyContract = await planner.browser.evaluate(taskContract("document"));
     const legacyScreenshot = await planner.browser.captureScreenshot(clipExpression(false));
 
-    await planner.browser.open(`${preview.url}/?date=${TEST_DATE}`);
+    await planner.browser.open(`${preview.url}/?view=legacyShell&date=${TEST_DATE}`);
     await planner.browser.waitForExpression(REACT_READY);
     await planner.browser.waitForExpression(
       'document.querySelector("iframe").contentDocument.documentElement.dataset.plannerReady === "true"'
@@ -170,7 +170,7 @@ test("React tasks preserve the legacy design and task lifecycle", { timeout: 60_
   }
 
   await planner.browser.setViewport(1280, 720);
-  await planner.browser.open(`${preview.url}/?date=${TEST_DATE}`);
+  await planner.browser.open(`${preview.url}/?view=legacyShell&date=${TEST_DATE}`);
   await planner.browser.waitForExpression(REACT_READY);
   await planner.browser.evaluate(`(() => {
     const frame = document.querySelector("iframe");
@@ -259,7 +259,7 @@ test("React owns calendar-linked task reconciliation", { timeout: 60_000 }, asyn
   });
   await putTasks(planner.server.url);
   await putStoredValue(planner.server.url, EVENTS_KEY, "[]");
-  await planner.browser.open(`${preview.url}/?date=${TEST_DATE}`);
+  await planner.browser.open(`${preview.url}/?view=legacyShell&date=${TEST_DATE}`);
   await planner.browser.waitForExpression(REACT_READY);
   await planner.browser.waitForExpression(
     'document.querySelector("iframe")?.contentDocument?.documentElement?.dataset.plannerReady === "true"'
@@ -381,7 +381,7 @@ test("React owns agent undo persistence without the legacy bridge", { timeout: 6
   await putStoredValue(planner.server.url, AGENT_UI_STATE_KEY, JSON.stringify(agentAfter));
   await putStoredValue(planner.server.url, AGENT_UNDO_KEY, JSON.stringify([undoEntry]));
 
-  await planner.browser.open(`${preview.url}/?date=${TEST_DATE}`);
+  await planner.browser.open(`${preview.url}/?view=legacyShell&date=${TEST_DATE}`);
   await planner.browser.waitForExpression(REACT_READY.replace("=== 2", "=== 1"));
   await planner.browser.waitForExpression(`(() => {
     const root = document.querySelector("iframe")?.contentDocument;

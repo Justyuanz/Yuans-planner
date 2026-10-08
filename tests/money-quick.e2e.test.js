@@ -409,7 +409,7 @@ test("Money quick log preserves entry, persistence, and visual behavior", { time
   const legacyDesktop = await planner.browser.evaluate(moneyQuickVisualContract("document"));
   const legacyDesktopScreenshot = await planner.browser.captureScreenshot(LEGACY_CLIP);
 
-  await planner.browser.open(`${preview.url}/?date=${TEST_DATE}`);
+  await planner.browser.open(`${preview.url}/?view=legacyShell&date=${TEST_DATE}`);
   await planner.browser.waitForExpression('document.querySelector("iframe")?.contentDocument?.querySelector("#moneyQuickSummary .money-mini-stat strong")?.textContent === "€102.34"');
   await scrollToMoneyQuick(planner.browser, 'document.querySelector("iframe").contentDocument');
   const previewDesktop = await planner.browser.evaluate(
@@ -431,7 +431,7 @@ test("Money quick log preserves entry, persistence, and visual behavior", { time
   const legacyMobile = await planner.browser.evaluate(moneyQuickVisualContract("document"));
   const legacyMobileScreenshot = await planner.browser.captureScreenshot(LEGACY_CLIP);
 
-  await planner.browser.open(`${preview.url}/?date=${TEST_DATE}`);
+  await planner.browser.open(`${preview.url}/?view=legacyShell&date=${TEST_DATE}`);
   await planner.browser.waitForExpression('document.querySelector("iframe")?.contentDocument?.querySelector("#moneyQuickSummary .money-mini-stat strong")?.textContent === "€103.46"');
   await scrollToMoneyQuick(planner.browser, 'document.querySelector("iframe").contentDocument');
   const previewMobile = await planner.browser.evaluate(

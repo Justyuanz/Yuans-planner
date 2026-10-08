@@ -181,13 +181,13 @@ For each feature:
 - [ ] remove legacy implementation only after tests pass
 
 ## Current Task
-The explicit `?view=todayView` Dashboard and `?view=moneyView` Money routes render directly in React + strict TypeScript with no iframe. The direct shell now has complete Sprouty shared-shell parity: grounded server context including SkateIQ, state-aware prompts, evidence-based local fallback, question-aware action suggestions, pointer-follow motion, draggable persisted position, post-drag click suppression, and mobile transform behavior. Final no-view default-route verification remains before the Dashboard iframe fallback can be retired.
+The root/no-view entry path, explicit `?view=todayView` Dashboard, and explicit `?view=moneyView` Money route render directly in React + strict TypeScript with no iframe. The Dashboard/shared-shell cutover phase is complete, including Sprouty parity and root-route visual/navigation verification. Journal, Calendar, Skate, and Guitar remain on the temporary legacy-shell fallback and are the next route-level migration work.
 
 ## Last Completed Task
-Migrated Sprouty's motion and draggable position into focused strict TypeScript. The React shell restores the exact legacy `hivePlanner.mascot.position` document, applies the same pointer/scroll drift, keeps coordinates unbounded like legacy, persists drag results through the Planner writer, suppresses only the first click after movement above five total pixels, and retains the mobile-open transform override. Normal mascot clicks now toggle chat and replay the established excitement animation.
+Switched the missing-`view` root entry path to the direct React Dashboard. Browser coverage now proves literal `/` is direct, a no-view URL with a selected date is state/geometry/pixel-identical to explicit `?view=todayView`, Dashboard-to-Money navigation preserves the date, and Journal, Calendar, Skate, and Guitar still open the correct legacy iframe route. Existing portal-boundary tests now request an explicit test-only legacy-shell fallback instead of depending on the old root behavior.
 
 ## Next Task
-Verify and switch the no-view entry path to the direct React Dashboard. Add browser coverage proving the root URL and explicit `?view=todayView` route produce the same direct page without an iframe, preserve the selected date and navigation, and keep Calendar, Journal, Skate, and Guitar on the temporary legacy-shell fallback. Then run the complete regression suite and document the next feature-route migration.
+Start the direct Journal route migration. First document the remaining legacy Journal page composition and editor/tracker/save behavior, then add browser regressions for the complete desktop/mobile Journal route. Reuse the already React-owned Meditation and Journal archive boundaries, migrate one focused remaining Journal boundary at a time in strict TypeScript, and keep the legacy-shell fixture available until the full route reaches parity.
 
 ## Upstream Legacy Change — Activity Categories (2026-10-05)
 
@@ -244,7 +244,8 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Legacy task/activity binders skip only React-owned mounts. Pattern task-focus resolves the live DOM because React replaces the original form children; agent undo now builds and persists its own typed compatibility writes. The standalone legacy application retains its original undo behavior.
 - React owns only `.intention-block` and derives its badge from `hivePlanner.routine.week.<ISO-WEEK>`. The typed model preserves the legacy Monday-first indexing, day-type aliases, and normal-day fallback without mutating stored compatibility data.
 - The legacy intention renderer continues updating the dashboard subtitle, date, and week-status heading, but skips only the detached badge when `.intention-block` is React-owned. The standalone legacy application therefore retains its original renderer.
-- `?view=moneyView` and `?view=todayView` bypass the iframe and compose their pages directly inside the focused React shell. The no-view URL and the four remaining feature routes still instantiate `LegacyPlannerApp`, preserving a verification fallback during incremental cutover.
+- The root/no-view entry path plus `?view=moneyView` and `?view=todayView` bypass the iframe and compose their pages directly inside the focused React shell. The four remaining feature routes still instantiate `LegacyPlannerApp`, preserving a verification fallback during incremental cutover.
+- A missing `view` now maps to the direct React Dashboard, while unknown explicit values continue through `LegacyPlannerApp`. Migration-boundary browser fixtures use `view=legacyShell`, which the parent intentionally treats as fallback and the legacy app safely normalizes to its Dashboard; production Journal, Calendar, Skate, and Guitar route behavior remains unchanged.
 - The direct route loads the legacy stylesheet only while mounted. Loading it globally changes the parent body's padding and narrows every iframe preview, which the complete Money regression suite caught.
 - Direct-shell navigation writes the requested `view` and deterministic planner `date` into the URL. Dashboard and Money now navigate directly to each other; Calendar, Activity, Skate, and Journal still reload into the established legacy-shell route until migrated.
 - React backup import/export preserves unknown `hivePlanner.*` values and excludes the transient Guitar session just like legacy. Import publishes same-window storage events so the direct Money cards update immediately.
@@ -301,7 +302,7 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Browser inspection reports generated form controls without an `id` or `name`; the current Chrome run reported 29 controls.
 - The default `node` on the inspected machine is Node 14 and cannot run `node --test`; use the installed modern Node runtime or fix the local PATH before relying on `scripts/test.sh` without `NODE_BIN`.
 - Most remaining cross-feature flows in `app.js` still lack DOM or end-to-end tests; browser coverage now protects task and activity-session lifecycles, all six primary views, the direct Dashboard and Money pages, and the migrated React boundaries.
-- Weekly goals, dashboard day state, task progress, Today's intention, the task list/editor/form, Life Pie, Planned vs actual, Energy trail, Pattern noticed/history, all six Money boundaries, Journal meditation, and Journal archive are React-owned and verified. The explicit Dashboard and Money routes are directly composed; the no-view fallback plus Calendar, Activity, Skate, and Journal route orchestration still depend on the temporary iframe shell.
+- Weekly goals, dashboard day state, task progress, Today's intention, the task list/editor/form, Life Pie, Planned vs actual, Energy trail, Pattern noticed/history, all six Money boundaries, Journal meditation, and Journal archive are React-owned and verified. The root/no-view Dashboard plus explicit Dashboard and Money routes are directly composed; Journal, Calendar, Skate, and Guitar route orchestration still depends on the temporary iframe shell.
 - Browser smoke tests skip when Chrome/Chromium or Node WebSocket support is unavailable; they run with the documented Node 24 runtime on the inspected machine.
 - The React preview is not yet served directly by the Python backend. Its temporary legacy shell depends on Vite development proxies and is not the final production integration architecture.
 - The direct shell's Sprouty surface now sends grounded task, insight, journal, planning, activity, day-state, Money, and Skate context; restores state-aware quick prompts; handles server failure with evidence-based local answers; appends question-aware action suggestions; and preserves pointer-follow, drag persistence, click suppression, and mobile motion behavior. Shared-shell Sprouty parity is complete.
@@ -309,14 +310,6 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Browser-capable root Node test files run serially to avoid Chrome/Vite startup timeouts under parallel process saturation.
 
 ## Session Log
-
-### Session 42
-
-- Re-read `AGENTS.md`, this handoff, branch state, recent history, current diff, and the implementation skill, then selected Sprouty's Skate context as one focused strict-TypeScript parity increment.
-- Added failing tests first for manual Day 17 selection, per-date Green intensity, newest-first session compatibility, current-week done/modified support filtering, malformed storage, pre-season Day 1 preview, all 60 sequential plan days, benchmark boundaries, recovery-aware local guidance, and ordinary pinned-plan guidance.
-- Extracted the immutable 60-day SkateIQ reference into a data-only strict-TypeScript module and implemented a separate focused context normalizer. Sprouty server requests now include the exact pinned plan, selected intensity, six priorities, eight recent sessions, and eligible weekly support without loading legacy JavaScript.
-- Extended the typed retrieval and reply engine with Skate plan/intensity/session/support evidence. Three recent Green sessions without at least 45 minutes or an explicit recovery-support log produce the legacy Blue/light recommendation; other Skate questions stay narrowed to the pinned 30-minute plan.
-- Extended the real-browser Money/Sprouty regression to verify the exact Skate request context and the local recovery answer during an API outage. Final verification: 171 React tests, React lint, strict type-checking, the Vite production build, 18 Python tests, all 137 root JavaScript tests, and the post-edge-fix focused browser rerun pass.
 
 ### Session 43
 
@@ -333,6 +326,14 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Implemented a focused position compatibility module and a separate motion hook. The hook applies saved coordinates before paint, mirrors pointer-follow and scroll drift, uses pointer capture where available, updates drag CSS without render churn, persists on pointer-up, and consumes exactly one click after a real drag.
 - Restored the legacy normal-click contract in the React mascot: a click toggles Sprouty chat, advances the encouragement line, and retriggers the 1.6-second excitement animation. Mobile-open mode remains controlled entirely by the existing legacy CSS.
 - Final verification: 188 React tests, React lint, strict type-checking, the Vite production build, 18 Python tests, and all 137 root JavaScript tests pass, including the updated direct Money desktop/mobile visual regression and real-browser drag/reload flow.
+
+### Session 45
+
+- Re-read `AGENTS.md`, this handoff, branch state, recent history, current diff, and the implementation and browser-verification skills, then selected the missing-view Dashboard cutover as the final shared-shell phase increment.
+- Added a failing real-browser regression first for literal `/`, no-view selected-date parity against explicit `?view=todayView`, exact desktop state/geometry/screenshots, date-preserving direct Money navigation, and the four unmigrated feature-route fallbacks.
+- Changed only the top-level route decision so a missing `view` renders `DashboardPage`; explicit Money/Dashboard behavior and all other route values remain unchanged. The focused browser regression passes at desktop and mobile viewports with no console errors.
+- The first complete suite correctly exposed 21 old migration-boundary browser fixtures that relied on no-view to obtain the iframe shell. Updated those fixtures to request `view=legacyShell`; the parent preserves the fallback while the legacy app normalizes the unknown view to Dashboard, keeping their portal-boundary purpose intact without weakening the new root contract.
+- Final verification: 188 React tests, React lint, strict type-checking, the Vite production build, 18 Python tests, and all 137 root JavaScript tests pass, including root/direct Dashboard pixel parity and all explicit legacy feature fallbacks.
 
 ---
 

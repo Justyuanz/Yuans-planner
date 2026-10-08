@@ -247,7 +247,7 @@ async function assertExpiredMeditationFinishesOnce(planner, pageUrl, documentExp
 
 async function exerciseReactTimer(planner, previewUrl) {
   await planner.browser.setViewport(1280, 720);
-  await openJournal(planner.browser, `${previewUrl}/?date=${TEST_DATE}`, 'document.querySelector("iframe").contentDocument');
+  await openJournal(planner.browser, `${previewUrl}/?view=legacyShell&date=${TEST_DATE}`, 'document.querySelector("iframe").contentDocument');
   await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.querySelector(".meditation-card").dataset.reactOwned === "true"');
   await planner.browser.evaluate(`(() => {
     const frame = document.querySelector("iframe");
@@ -266,7 +266,7 @@ async function exerciseReactTimer(planner, previewUrl) {
     return state.active?.minutes === 1;
   });
 
-  await openJournal(planner.browser, `${previewUrl}/?date=${TEST_DATE}`, 'document.querySelector("iframe").contentDocument');
+  await openJournal(planner.browser, `${previewUrl}/?view=legacyShell&date=${TEST_DATE}`, 'document.querySelector("iframe").contentDocument');
   await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.getElementById("cancelMeditation").hidden === false');
   await planner.browser.evaluate('document.querySelector("iframe").contentDocument.getElementById("cancelMeditation").click()');
   await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.getElementById("meditationCountdown").textContent === "Ready"');
@@ -310,7 +310,7 @@ async function exerciseReactTimer(planner, previewUrl) {
   });
   await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.getElementById("meditationStatus").textContent === "45 min saved for Mon Sep 14."');
 
-  await openJournal(planner.browser, `${previewUrl}/?date=${TEST_DATE}`, 'document.querySelector("iframe").contentDocument');
+  await openJournal(planner.browser, `${previewUrl}/?view=legacyShell&date=${TEST_DATE}`, 'document.querySelector("iframe").contentDocument');
   await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.getElementById("meditationStatus").textContent === "45 min saved for Mon Sep 14."');
   const persisted = await planner.server.readPlannerData();
   const persistedState = JSON.parse(persisted[MEDITATION_KEY] || "{}");
@@ -370,7 +370,7 @@ test("Meditation preserves timer, persistence, standalone totals, and visual beh
   const legacyDesktop = await planner.browser.evaluate(meditationVisualContract("document"));
   const legacyDesktopScreenshot = await planner.browser.captureScreenshot(LEGACY_CLIP);
 
-  await openJournal(planner.browser, `${preview.url}/?date=${TEST_DATE}`, 'document.querySelector("iframe").contentDocument');
+  await openJournal(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, 'document.querySelector("iframe").contentDocument');
   await planner.browser.waitForExpression('document.querySelector("iframe")?.contentDocument?.getElementById("meditationStatus")?.textContent');
   assert.equal(await planner.browser.evaluate(
     'document.querySelector("iframe").contentDocument.getElementById("meditationStatus").textContent'
@@ -393,7 +393,7 @@ test("Meditation preserves timer, persistence, standalone totals, and visual beh
   const legacyMobile = await planner.browser.evaluate(meditationVisualContract("document"));
   const legacyMobileScreenshot = await planner.browser.captureScreenshot(LEGACY_CLIP);
 
-  await openJournal(planner.browser, `${preview.url}/?date=${TEST_DATE}`, 'document.querySelector("iframe").contentDocument');
+  await openJournal(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, 'document.querySelector("iframe").contentDocument');
   await planner.browser.waitForExpression('document.querySelector("iframe")?.contentDocument?.getElementById("meditationStatus")?.textContent === "30 min saved for Mon Sep 14."');
   await scrollToMeditation(planner.browser, 'document.querySelector("iframe").contentDocument');
   const previewMobile = await planner.browser.evaluate(

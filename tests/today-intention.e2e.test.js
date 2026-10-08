@@ -189,7 +189,7 @@ test("today intention records the legacy desktop and mobile visual contract", { 
     badgeHeight: 37.1875
   });
 
-  await openPlanner(planner.browser, `${preview.url}/?date=${TEST_DATE}`, previewDocument);
+  await openPlanner(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, previewDocument);
   assert.equal(await planner.browser.evaluate(
     'document.querySelector("iframe").contentDocument.querySelector(".intention-block").dataset.reactOwned'
   ), "true");
@@ -222,7 +222,7 @@ test("today intention records the legacy desktop and mobile visual contract", { 
     badgeHeight: 37.1875
   });
 
-  await openPlanner(planner.browser, `${preview.url}/?date=${TEST_DATE}`, previewDocument);
+  await openPlanner(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, previewDocument);
   const previewMobileState = await planner.browser.evaluate(intentionState(previewDocument));
   const previewMobile = await planner.browser.evaluate(intentionVisualContract(previewDocument));
   await scrollToIntention(planner.browser, previewDocument);

@@ -425,7 +425,7 @@ test("Money budgets records the legacy desktop and mobile visual contract", { ti
     await preview.close();
   });
   const previewDocument = 'document.querySelector("iframe").contentDocument';
-  await openMoney(planner.browser, `${preview.url}/?date=${TEST_DATE}`, previewDocument);
+  await openMoney(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, previewDocument);
   await planner.browser.waitForExpression(`(${previewDocument}).querySelector('[data-react-budget-settings="true"]') !== null`);
   assert.equal(await planner.browser.evaluate(
     'document.querySelector("iframe").contentDocument.querySelector(".money-budget-card").dataset.reactOwned'
@@ -465,7 +465,7 @@ test("Money budgets records the legacy desktop and mobile visual contract", { ti
   });
   assert.ok(mobileScreenshot.length > 1_000);
 
-  await openMoney(planner.browser, `${preview.url}/?date=${TEST_DATE}`, previewDocument);
+  await openMoney(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, previewDocument);
   await planner.browser.waitForExpression(`(${previewDocument}).querySelector('[data-react-budget-settings="true"]') !== null`);
   await expandBudgetVisual(planner.browser, previewDocument);
   await scrollToBudgets(planner.browser, previewDocument);
@@ -500,7 +500,7 @@ test("React Money budgets preserves compatibility and updates sibling Money card
 
   const previewDocument = 'document.querySelector("iframe").contentDocument';
   await planner.browser.setViewport(1280, 720);
-  await openMoney(planner.browser, `${preview.url}/?date=${TEST_DATE}`, previewDocument);
+  await openMoney(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, previewDocument);
   await planner.browser.waitForExpression(`(${previewDocument}).querySelector('[data-react-budget-settings="true"]') !== null`);
   await planner.browser.waitForExpression(`[...(${previewDocument}).querySelectorAll(".money-budget-row input")].every((input) => typeof input.onchange === "function")`);
   await expandBudgetCard(planner.browser, previewDocument);
@@ -587,7 +587,7 @@ test("React Money budgets preserves compatibility and updates sibling Money card
   await planner.browser.evaluate(`(${previewDocument}).querySelector("#moneyTransferList .money-transfer-row button").click()`);
   await planner.browser.waitForExpression(`(${previewDocument}).querySelectorAll("#moneyTransferList .money-transfer-row").length === 1`);
 
-  await openMoney(planner.browser, `${preview.url}/?date=${TEST_DATE}`, previewDocument);
+  await openMoney(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, previewDocument);
   state = await planner.browser.evaluate(budgetState(previewDocument));
   assert.equal(state.settings.open, false);
   assert.deepEqual(state.sections.map((section) => section.open), [false, false]);

@@ -308,7 +308,7 @@ test("Planned vs actual preserves totals, editing, logging, and visual parity", 
   const legacyDesktop = await planner.browser.evaluate(plannedActualVisualContract("document"));
   const legacyDesktopScreenshot = await planner.browser.captureScreenshot(LEGACY_CLIP);
 
-  await planner.browser.open(`${preview.url}/?date=${TEST_DATE}`);
+  await planner.browser.open(`${preview.url}/?view=legacyShell&date=${TEST_DATE}`);
   await planner.browser.waitForExpression(`document.querySelector("iframe")?.contentDocument?.querySelectorAll("#plannedMount .planned-row").length === 6`);
   assert.equal(await planner.browser.evaluate(`document.querySelector("iframe").contentDocument.querySelector(".planned-card").dataset.reactOwned`), "true");
   await scrollToPlannedCard(planner.browser, 'document.querySelector("iframe").contentDocument');
@@ -328,7 +328,7 @@ test("Planned vs actual preserves totals, editing, logging, and visual parity", 
   const legacyMobile = await planner.browser.evaluate(plannedActualVisualContract("document"));
   const legacyMobileScreenshot = await planner.browser.captureScreenshot(LEGACY_CLIP);
 
-  await planner.browser.open(`${preview.url}/?date=${TEST_DATE}`);
+  await planner.browser.open(`${preview.url}/?view=legacyShell&date=${TEST_DATE}`);
   await planner.browser.waitForExpression(`document.querySelector("iframe")?.contentDocument?.getElementById("planned-transcendence")?.value === "4.5"`);
   await scrollToPlannedCard(planner.browser, 'document.querySelector("iframe").contentDocument');
   const reactMobile = await planner.browser.evaluate(

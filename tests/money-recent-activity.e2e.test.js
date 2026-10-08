@@ -219,7 +219,7 @@ test("Money recent activity preserves ordering, disclosure state, and visual beh
   });
 
   const previewDocument = 'document.querySelector("iframe").contentDocument';
-  await openMoney(planner.browser, `${preview.url}/?date=${TEST_DATE}`, previewDocument);
+  await openMoney(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, previewDocument);
   assert.equal(await planner.browser.evaluate(
     'document.querySelector("iframe").contentDocument.querySelector(".money-activity-card").dataset.reactOwned'
   ), "true");
@@ -239,7 +239,7 @@ test("Money recent activity preserves ordering, disclosure state, and visual beh
   await planner.browser.waitForExpression(`(${previewDocument}).querySelector("#moneyRecentActivity .money-vendor-row strong").textContent === "No activity yet"`);
   assert.equal((await planner.browser.evaluate(activityState(previewDocument))).open, true);
 
-  await openMoney(planner.browser, `${preview.url}/?date=${TEST_DATE}`, previewDocument);
+  await openMoney(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, previewDocument);
   assert.equal((await planner.browser.evaluate(activityState(previewDocument))).open, false);
 
   await planner.browser.setViewport(390, 844, true);
@@ -249,7 +249,7 @@ test("Money recent activity preserves ordering, disclosure state, and visual beh
   const legacyMobile = await planner.browser.evaluate(activityVisualContract("document"));
   const legacyMobileScreenshot = await planner.browser.captureScreenshot(LEGACY_MOBILE_CLIP);
 
-  await openMoney(planner.browser, `${preview.url}/?date=${TEST_DATE}`, previewDocument);
+  await openMoney(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, previewDocument);
   await expandActivity(planner.browser, previewDocument);
   await scrollToActivity(planner.browser, previewDocument);
   const previewMobile = await planner.browser.evaluate(activityVisualContract(previewDocument));

@@ -286,7 +286,7 @@ test("Money pacing preserves projections, charts, history, and visual behavior",
   });
 
   const previewDocument = 'document.querySelector("iframe").contentDocument';
-  await openMoney(planner.browser, `${preview.url}/?date=${TEST_DATE}`, previewDocument);
+  await openMoney(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, previewDocument);
   assert.equal(await planner.browser.evaluate(
     'document.querySelector("iframe").contentDocument.querySelector(".money-pacing-card").dataset.reactOwned'
   ), "true");
@@ -310,7 +310,7 @@ test("Money pacing preserves projections, charts, history, and visual behavior",
   await planner.browser.waitForExpression(`(${previewDocument}).querySelector("#moneyProgressList .money-progress-copy span").textContent === "€0.00 spent of €1,300.00"`);
   assertDefaultState(await planner.browser.evaluate(pacingState(previewDocument)), true);
 
-  await openMoney(planner.browser, `${preview.url}/?date=${TEST_DATE}`, previewDocument);
+  await openMoney(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, previewDocument);
   assert.equal((await planner.browser.evaluate(pacingState(previewDocument))).history.open, false);
 
   await planner.browser.setViewport(390, 844, true);
@@ -320,7 +320,7 @@ test("Money pacing preserves projections, charts, history, and visual behavior",
   const legacyMobile = await planner.browser.evaluate(pacingVisualContract("document"));
   const legacyMobileScreenshot = await planner.browser.captureScreenshot(LEGACY_CLIP);
 
-  await openMoney(planner.browser, `${preview.url}/?date=${TEST_DATE}`, previewDocument);
+  await openMoney(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, previewDocument);
   await expandHistory(planner.browser, previewDocument);
   await scrollToPacing(planner.browser, previewDocument);
   const previewMobile = await planner.browser.evaluate(pacingVisualContract(previewDocument));

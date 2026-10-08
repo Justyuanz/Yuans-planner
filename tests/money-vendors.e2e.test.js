@@ -199,7 +199,7 @@ test("Money vendors preserves aggregation, month comparison, limits, and visual 
   });
 
   const previewDocument = 'document.querySelector("iframe").contentDocument';
-  await openMoney(planner.browser, `${preview.url}/?date=${TEST_DATE}`, previewDocument);
+  await openMoney(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, previewDocument);
   assert.equal(await planner.browser.evaluate(
     'document.querySelector("iframe").contentDocument.querySelector(".money-vendors-card").dataset.reactOwned'
   ), "true");
@@ -222,7 +222,7 @@ test("Money vendors preserves aggregation, month comparison, limits, and visual 
   const legacyMobile = await planner.browser.evaluate(vendorsVisualContract("document"));
   const legacyMobileScreenshot = await planner.browser.captureScreenshot(LEGACY_CLIP);
 
-  await openMoney(planner.browser, `${preview.url}/?date=${TEST_DATE}`, previewDocument);
+  await openMoney(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, previewDocument);
   await scrollToVendors(planner.browser, previewDocument);
   const previewMobile = await planner.browser.evaluate(vendorsVisualContract(previewDocument));
   const previewMobileScreenshot = await planner.browser.captureScreenshot(PREVIEW_CLIP);

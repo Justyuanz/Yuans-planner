@@ -192,7 +192,7 @@ test("task progress records the legacy desktop and mobile visual contract", { ti
     progressHeight: 35.1875
   });
 
-  await openPlanner(planner.browser, `${preview.url}/?date=${TEST_DATE}`, previewDocument);
+  await openPlanner(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, previewDocument);
   assert.equal(
     await planner.browser.evaluate(`${previewDocument}.querySelector(".day-banner").dataset.reactOwned`),
     "true"
@@ -226,7 +226,7 @@ test("task progress records the legacy desktop and mobile visual contract", { ti
     progressHeight: 35.1875
   });
 
-  await openPlanner(planner.browser, `${preview.url}/?date=${TEST_DATE}`, previewDocument);
+  await openPlanner(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, previewDocument);
   const previewMobileState = await planner.browser.evaluate(progressState(previewDocument));
   const previewMobile = await planner.browser.evaluate(progressVisualContract(previewDocument));
   await scrollToProgress(planner.browser, previewDocument);

@@ -291,7 +291,7 @@ test("Pattern history records the legacy desktop and mobile visual contract", { 
     bodyOverflow: "auto"
   });
 
-  await openPlanner(planner.browser, `${preview.url}/?date=${TEST_DATE}`, previewDocument);
+  await openPlanner(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, previewDocument);
   await planner.browser.evaluate(`(() => {
     const frameWindow = document.querySelector("iframe").contentWindow;
     const bridge = frameWindow.YuanPlannerDashboardInsightBridge;
@@ -334,7 +334,7 @@ test("Pattern history records the legacy desktop and mobile visual contract", { 
     bodyOverflow: "auto"
   });
 
-  await openPlanner(planner.browser, `${preview.url}/?date=${TEST_DATE}`, previewDocument);
+  await openPlanner(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, previewDocument);
   await openHistory(planner.browser, previewDocument);
   await planner.browser.evaluate(`(${previewDocument}).querySelector('.pattern-history-evidence summary').click()`);
   const previewMobileState = await planner.browser.evaluate(historyState(previewDocument));

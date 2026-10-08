@@ -44,6 +44,7 @@ function pageState() {
   return `(() => ({
     activeTab: document.querySelector(".tab-button.active")?.textContent.trim(),
     dashboardActive: document.getElementById("todayView")?.classList.contains("active"),
+    date: document.getElementById("dashboardDate")?.textContent.trim(),
     headings: [...document.querySelectorAll("#todayView article h2, #todayView article h3")]
       .map((heading) => heading.textContent.trim()),
     iframeCount: document.querySelectorAll("iframe").length,
@@ -116,6 +117,7 @@ test("Dashboard is a direct React page with legacy layout and Pattern behavior",
   await seedDashboard(planner.server.url);
   const legacyUrl = `${planner.server.url}/?view=todayView&date=${TEST_DATE}`;
   const previewUrl = `${preview.url}/?view=todayView&date=${TEST_DATE}`;
+  const rootPreviewUrl = `${preview.url}/?date=${TEST_DATE}`;
 
   for (const [width, height] of [[1280, 720], [390, 844]]) {
     await planner.browser.setViewport(width, height, width < 500);
@@ -139,6 +141,57 @@ test("Dashboard is a direct React page with legacy layout and Pattern behavior",
   }
 
   await planner.browser.setViewport(1280, 720);
+  await openReady(planner.browser, previewUrl);
+  const explicitState = await planner.browser.evaluate(pageState());
+  const explicitGeometry = await planner.browser.evaluate(pageGeometry());
+  await prepareScreenshot(planner.browser);
+  const explicitScreenshot = await planner.browser.captureScreenshot(dashboardClip());
+
+  await openReady(planner.browser, rootPreviewUrl);
+  const rootState = await planner.browser.evaluate(pageState());
+  const rootGeometry = await planner.browser.evaluate(pageGeometry());
+  await prepareScreenshot(planner.browser);
+  const rootScreenshot = await planner.browser.captureScreenshot(dashboardClip());
+  assert.deepEqual(rootState, explicitState);
+  assert.deepEqual(rootGeometry, explicitGeometry);
+  assert.equal(rootState.iframeCount, 0);
+  assert.equal(rootState.date, "Mon Sep 14");
+  assert.equal(compareScreenshots(rootScreenshot, explicitScreenshot).matches, true);
+
+  await openReady(planner.browser, `${preview.url}/`);
+  assert.deepEqual(
+    await planner.browser.evaluate(`(() => ({
+      activeTab: document.querySelector(".tab-button.active")?.textContent.trim(),
+      iframeCount: document.querySelectorAll("iframe").length
+    }))()`),
+    { activeTab: "Dashboard", iframeCount: 0 }
+  );
+
+  await openReady(planner.browser, rootPreviewUrl);
+  await planner.browser.evaluate('document.querySelector("[data-view-target=moneyView]").click()');
+  await planner.browser.waitForExpression('location.search.includes("view=moneyView")');
+  await planner.browser.waitForExpression(
+    'document.documentElement.dataset.plannerReady === "true"'
+  );
+  assert.equal(await planner.browser.evaluate('location.search.includes("date=2026-09-14")'), true);
+  assert.equal(await planner.browser.evaluate('document.querySelectorAll("iframe").length'), 0);
+
+  for (const viewId of ["journalView", "calendarView", "skateView", "guitarView"]) {
+    await planner.browser.open(`${preview.url}/?view=${viewId}&date=${TEST_DATE}`);
+    await planner.browser.waitForExpression(`document.querySelector("iframe")?.contentDocument
+      ?.documentElement?.dataset.plannerReady === "true"`);
+    assert.deepEqual(
+      await planner.browser.evaluate(`(() => {
+        const frame = document.querySelector("iframe");
+        return {
+          active: frame.contentDocument.getElementById("${viewId}").classList.contains("active"),
+          iframeCount: document.querySelectorAll("iframe").length
+        };
+      })()`),
+      { active: true, iframeCount: 1 }
+    );
+  }
+
   await openReady(planner.browser, previewUrl);
   await planner.browser.evaluate('document.querySelector("#dashboardInsightActions .insight-action").click()');
   assert.equal(await planner.browser.evaluate('document.activeElement === document.getElementById("taskTitle")'), true);
