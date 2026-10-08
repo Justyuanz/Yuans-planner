@@ -54,6 +54,7 @@ import { plannedStorageKey } from "../features/planned-actual/planned-actual";
 import { PatternHistoryDialog } from "../features/pattern-history/PatternHistoryDialog";
 import { emptyPatternHistoryModel } from "../features/pattern-history/pattern-history";
 import { SkateHeroCard } from "../features/skate/SkateHeroCard";
+import { SkateBodySupportCard } from "../features/skate/SkateBodySupportCard";
 import { SkateRoadmapCard } from "../features/skate/SkateRoadmapCard";
 import {
   SKATE_HERO_STATE_EVENT,
@@ -132,6 +133,7 @@ function LegacyPlannerApp() {
   const [weeklyPlannerBoundary, setWeeklyPlannerBoundary] = useState<WeeklyPlannerBoundary | null>(null);
   const [skateHeroBoundary, setSkateHeroBoundary] = useState<FramePortalBoundary | null>(null);
   const [skateHeroState, setSkateHeroState] = useState<SkateHeroState | null>(null);
+  const [skateBodySupportMount, setSkateBodySupportMount] = useState<HTMLElement | null>(null);
   const [skateRoadmapBoundary, setSkateRoadmapBoundary] = useState<FramePortalBoundary | null>(null);
   const [legacyFrame, setLegacyFrame] = useState<HTMLIFrameElement | null>(null);
   const [meditationBoundary, setMeditationBoundary] = useState<ReactPanelBoundary | null>(null);
@@ -332,6 +334,15 @@ function LegacyPlannerApp() {
       skateRoadmapCard.dataset.reactOwned = "true";
       skateRoadmapMount.replaceChildren();
       setSkateRoadmapBoundary({ frame, mount: skateRoadmapMount });
+    }
+
+    const skateBodySupportCard = document?.querySelector<HTMLElement>(".body-log-card");
+    const skateBodySupportMount = skateBodySupportCard?.querySelector<HTMLElement>(".panel-inner");
+    if (skateBodySupportCard !== null && skateBodySupportCard !== undefined
+      && skateBodySupportMount !== null && skateBodySupportMount !== undefined) {
+      skateBodySupportCard.dataset.reactOwned = "true";
+      skateBodySupportMount.replaceChildren();
+      setSkateBodySupportMount(skateBodySupportMount);
     }
 
     const moneyQuickCard = document?.querySelector<HTMLElement>(".money-quick-card");
@@ -729,6 +740,16 @@ function LegacyPlannerApp() {
             today={today}
           />,
           skateRoadmapBoundary.mount
+        )
+      )}
+      {loadedStore !== null && skateBodySupportMount !== null && (
+        createPortal(
+          <SkateBodySupportCard
+            onPersist={persistPlannerWrites}
+            store={loadedStore}
+            today={today}
+          />,
+          skateBodySupportMount
         )
       )}
       {loadedStore !== null && moneyQuickMount !== null && (

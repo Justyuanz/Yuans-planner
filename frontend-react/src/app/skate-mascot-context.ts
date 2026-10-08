@@ -1,13 +1,12 @@
 import type { PlannerStore } from "../api/planner-store";
 import { SKATE_PROGRAM } from "../features/skate/skate-program-data";
+import { bodySupportLogsForWeek } from "../features/skate/skate-body-support";
 import { formatPlannerDate } from "../features/life-pie/life-pie-store";
 import { isRecord } from "../shared/is-record";
 
 const SETTINGS_KEY = "hivePlanner.skate.settings";
 const SESSIONS_KEY = "hivePlanner.skate.sessions";
-const PHYSICAL_LOGS_KEY = "hivePlanner.physical.logs";
 const VALID_INTENSITIES = new Set(["blue", "yellow", "green"]);
-const SUPPORT_TYPES = new Set(["gym", "judo", "yoga", "stretch", "recovery", "walk", "other"]);
 
 type SkateIntensity = "blue" | "green" | "yellow";
 
@@ -92,47 +91,6 @@ function recentSessions(rawValue: string | undefined) {
   });
 }
 
-function weekDateKeys(referenceDate: Date): { end: string; start: string } {
-  const day = referenceDate.getDay();
-  const mondayOffset = day === 0 ? -6 : 1 - day;
-  const start = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), referenceDate.getDate() + mondayOffset);
-  const end = new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6);
-  return { end: formatPlannerDate(end), start: formatPlannerDate(start) };
-}
-
-function supportType(value: unknown): string {
-  const normalized = typeof value === "string" ? value.trim().toLowerCase() : "";
-  return SUPPORT_TYPES.has(normalized) ? normalized : "other";
-}
-
-function supportLabel(kind: string): string {
-  return kind === "gym" ? "Gym" : kind === "judo" ? "Judo" : kind === "yoga" ? "Yoga"
-    : kind === "stretch" ? "Stretch" : kind === "recovery" ? "Recovery"
-      : kind === "walk" ? "Walk" : "Other";
-}
-
-function weeklySupport(rawValue: string | undefined, referenceDate: Date) {
-  const parsed = storedValue(rawValue);
-  if (!Array.isArray(parsed)) return [];
-  const range = weekDateKeys(referenceDate);
-  return parsed.filter(isRecord).flatMap((log) => {
-    const date = typeof log.date === "string" ? log.date : "";
-    const name = typeof log.name === "string" ? log.name : "";
-    if (!date || !name) return [];
-    const status = ["done", "modified", "skipped"].includes(String(log.status))
-      ? String(log.status) : "done";
-    if (!new Set(["done", "modified"]).has(status) || date < range.start || date > range.end) return [];
-    const kindValue = typeof log.kind === "string" && log.kind.trim() ? log.kind : name;
-    const kind = supportType(kindValue);
-    return [{
-      date,
-      minutes: Math.max(0, Number(log.minutes) || 0),
-      note: typeof log.note === "string" ? log.note : "",
-      type: supportLabel(kind)
-    }];
-  });
-}
-
 export function buildSkateMascotContext(store: PlannerStore, referenceDate: Date) {
   const settings = storedValue(store[SETTINGS_KEY]);
   const todayPlan = planForDate(settings, referenceDate);
@@ -140,7 +98,12 @@ export function buildSkateMascotContext(store: PlannerStore, referenceDate: Date
   return {
     priorities: SKATE_PROGRAM.priorities.map((priority) => ({ ...priority })),
     recentSessions: recentSessions(store[SESSIONS_KEY]),
-    supportThisWeek: weeklySupport(store[PHYSICAL_LOGS_KEY], referenceDate),
+    supportThisWeek: bodySupportLogsForWeek(store, referenceDate).map((log) => ({
+      date: log.date,
+      minutes: log.minutes,
+      note: log.note,
+      type: log.type
+    })),
     todayPlan,
     todayState: {
       selectedIntensity: selectedIntensity(settings, dateKey, todayPlan.defaultIntensity)
