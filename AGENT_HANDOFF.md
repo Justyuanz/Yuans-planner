@@ -181,13 +181,13 @@ For each feature:
 - [ ] remove legacy implementation only after tests pass
 
 ## Current Task
-The root/no-view entry path plus explicit Dashboard, Money, and Journal routes render directly in React + strict TypeScript with no iframe. The Dashboard/shared-shell and Journal cutovers are complete with desktop/mobile visual parity, persistence, reload, date-navigation, and cross-feature verification. Calendar, Skate, and Guitar remain on the temporary legacy-shell fallback and are the next route-level migration work.
+The root/no-view entry path plus explicit Dashboard, Money, and Journal routes render directly in React + strict TypeScript with no iframe. Calendar remains on the temporary legacy-shell fallback, but its monthly grid is now React-owned and verified; the weekly planner and selected-day event editor remain legacy-owned. Skate and Guitar also remain on the fallback. Calendar is the active route-level migration.
 
 ## Last Completed Task
-Migrated the complete explicit `?view=journalView` route to direct React composition. A focused strict-TypeScript editor model now owns legacy-compatible entry normalization, create/update/delete persistence, duration bounds, tracker values, and activity-log writes. `JournalPage` composes that editor with the existing React Meditation and Journal Archive boundaries inside `PlannerShell`. Browser coverage proves desktop/mobile state, geometry, and screenshots match legacy; the route has no iframe; editor/tracker/minutes changes persist across reload; archive and Today/date navigation stay synchronized; and Dashboard navigation remains direct. Commit: `1c8c4aa feat(react): migrate journal page`.
+Migrated the Calendar monthly grid as one focused React/strict-TypeScript boundary inside the fallback shell. Typed modules now own event/category decoding, legacy alias styling, chronological sorting, time and duration labels, 42-day month construction, routine-event filtering, day-type classes, pill limits, month navigation, date selection, and event-edit delegation. The shared decoder also removes duplicate category normalization from calendar-linked task reconciliation. Browser coverage proves exact desktop state/geometry/pixel parity, exact mobile state/geometry parity, keyboard date selection, legacy-editor delegation, server persistence, reload restoration, and month navigation. Commit: `d00a5a4 feat(react): migrate calendar month grid`.
 
 ## Next Task
-Start the direct Calendar route migration. First document the legacy Calendar page composition, week/date navigation, weekly planner, event editing, recurrence/reminder behavior, task synchronization, and persistence boundaries. Add complete desktop/mobile route regressions before cutover, reuse the already React-owned calendar-linked task reconciliation, and migrate one focused strict-TypeScript boundary at a time while keeping the explicit `view=legacyShell` fixture available for remaining portal regressions.
+Continue the Calendar route migration with the weekly planner boundary. Preserve ISO-week navigation and setup, day-type/load guidance, activity grouping, expanded-day selection, routine and legacy stored-data compatibility, and the selected-day editor insertion point. Add focused strict-TypeScript unit coverage plus desktop/mobile browser parity before replacing the legacy renderer. Keep event editing/persistence delegated until its own tested boundary, and keep `view=legacyShell` available for remaining portal regressions.
 
 ## Upstream Legacy Change — Activity Categories (2026-10-05)
 
@@ -245,6 +245,9 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Legacy task/activity binders skip only React-owned mounts. Pattern task-focus resolves the live DOM because React replaces the original form children; agent undo now builds and persists its own typed compatibility writes. The standalone legacy application retains its original undo behavior.
 - React owns only `.intention-block` and derives its badge from `hivePlanner.routine.week.<ISO-WEEK>`. The typed model preserves the legacy Monday-first indexing, day-type aliases, and normal-day fallback without mutating stored compatibility data.
 - The legacy intention renderer continues updating the dashboard subtitle, date, and week-status heading, but skips only the detached badge when `.intention-block` is React-owned. The standalone legacy application therefore retains its original renderer.
+- React owns `.monthly-calendar-card .panel-inner` on fallback routes. Focused strict-TypeScript modules preserve the legacy six-week Sunday-first grid, chronological event ordering, four-pill limit, time/duration labels, raw stored category text in tooltips, legacy category aliases for styling, routine-managed event filtering, and Monday-first saved day-type classes.
+- The Calendar bridge carries only month/date navigation state and delegates selected-day/editor actions to the still-legacy weekly planner. Events are created in the iframe realm, and the legacy renderer skips only `.monthly-calendar-card[data-react-owned="true"]`; standalone legacy Calendar behavior remains unchanged.
+- Calendar event category normalization is shared by the React month model and React-owned calendar-task reconciliation, while decoded event records retain their raw stored category label where the legacy tooltip exposes it.
 - The root/no-view entry path plus explicit Dashboard, Money, and Journal routes bypass the iframe and compose their pages directly inside the focused React shell. Calendar, Skate, and Guitar still instantiate `LegacyPlannerApp`, preserving a verification fallback during incremental cutover.
 - A missing `view` maps to the direct React Dashboard, while unknown explicit values continue through `LegacyPlannerApp`. Migration-boundary browser fixtures use `view=legacyShell`, which the parent intentionally treats as fallback and the legacy app safely normalizes to its Dashboard.
 - The direct route loads the legacy stylesheet only while mounted. Loading it globally changes the parent body's padding and narrows every iframe preview, which the complete Money regression suite caught.
@@ -296,14 +299,14 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Some files contain thousands of lines.
 - Duplicate/redundant functions likely exist.
 - Current architecture is difficult to understand.
-- `frontend/js/app.js` is 8,526 lines and still owns most storage, normalization, rendering, event handling, and cross-feature orchestration; only the newly extracted boundaries have direct coverage.
-- `frontend/css/styles.css` is 5,658 lines with several accumulated responsive sections.
+- `frontend/js/app.js` is 8,563 lines and still owns most storage, normalization, rendering, event handling, and cross-feature orchestration; only the newly extracted boundaries have direct coverage.
+- `frontend/css/styles.css` is 5,663 lines with several accumulated responsive sections.
 - Time/date parsing and normalization are duplicated across frontend modules and backend integrations.
 - Several declared storage keys and an older Study/Body weekly-overview path are inactive, while the real database still contains legacy-only keys that backups must preserve.
 - Browser inspection reports generated form controls without an `id` or `name`; the current Chrome run reported 29 controls.
 - The default `node` on the inspected machine is Node 14 and cannot run `node --test`; use the installed modern Node runtime or fix the local PATH before relying on `scripts/test.sh` without `NODE_BIN`.
-- Most remaining cross-feature flows in `app.js` still lack DOM or end-to-end tests; browser coverage now protects task and activity-session lifecycles, all six primary views, the direct Dashboard, Money, and Journal pages, and the migrated React boundaries.
-- Weekly goals, dashboard day state, task progress, Today's intention, the task list/editor/form, Life Pie, Planned vs actual, Energy trail, Pattern noticed/history, all six Money boundaries, Journal editor, Meditation, and Journal archive are React-owned and verified. The root/no-view Dashboard plus explicit Dashboard, Money, and Journal routes are directly composed; Calendar, Skate, and Guitar route orchestration still depends on the temporary iframe shell.
+- Most remaining cross-feature flows in `app.js` still lack DOM or end-to-end tests; browser coverage now protects task and activity-session lifecycles, all six primary views, the direct Dashboard, Money, and Journal pages, the Calendar monthly grid, and the other migrated React boundaries.
+- Weekly goals, dashboard day state, task progress, Today's intention, the task list/editor/form, Life Pie, Planned vs actual, Energy trail, Pattern noticed/history, all six Money boundaries, Journal editor, Meditation, Journal archive, and the Calendar monthly grid are React-owned and verified. The root/no-view Dashboard plus explicit Dashboard, Money, and Journal routes are directly composed; Calendar weekly/editor orchestration plus Skate and Guitar still depend on the temporary iframe shell.
 - Browser smoke tests skip when Chrome/Chromium or Node WebSocket support is unavailable; they run with the documented Node 24 runtime on the inspected machine.
 - The React preview is not yet served directly by the Python backend. Its temporary legacy shell depends on Vite development proxies and is not the final production integration architecture.
 - The direct shell's Sprouty surface now sends grounded task, insight, journal, planning, activity, day-state, Money, and Skate context; restores state-aware quick prompts; handles server failure with evidence-based local answers; appends question-aware action suggestions; and preserves pointer-follow, drag persistence, click suppression, and mobile motion behavior. Shared-shell Sprouty parity is complete.
@@ -311,14 +314,6 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Browser-capable root Node test files run serially to avoid Chrome/Vite startup timeouts under parallel process saturation.
 
 ## Session Log
-
-### Session 44
-
-- Re-read `AGENTS.md`, this handoff, branch state, recent history, current diff, and the implementation and browser-verification skills, then selected Sprouty's draggable persisted position as one focused strict-TypeScript parity increment.
-- Added failing unit tests first for numeric legacy coordinate decoding, malformed storage, drag deltas, the exact greater-than-five-pixel click-suppression boundary, and the exact persistence key/document. Extended the direct Money browser flow with legacy/React initial-position parity, synthetic pointer drag, server persistence, reload restoration, drag-versus-click behavior, and mobile transform/button assertions.
-- Implemented a focused position compatibility module and a separate motion hook. The hook applies saved coordinates before paint, mirrors pointer-follow and scroll drift, uses pointer capture where available, updates drag CSS without render churn, persists on pointer-up, and consumes exactly one click after a real drag.
-- Restored the legacy normal-click contract in the React mascot: a click toggles Sprouty chat, advances the encouragement line, and retriggers the 1.6-second excitement animation. Mobile-open mode remains controlled entirely by the existing legacy CSS.
-- Final verification: 188 React tests, React lint, strict type-checking, the Vite production build, 18 Python tests, and all 137 root JavaScript tests pass, including the updated direct Money desktop/mobile visual regression and real-browser drag/reload flow.
 
 ### Session 45
 
@@ -335,6 +330,14 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Implemented a focused Journal editor model and component, then composed the direct `JournalPage` from the new editor plus the existing React Meditation and Journal Archive components. The explicit Journal route now renders inside `PlannerShell` with no iframe while `view=legacyShell` remains available for fallback boundary tests.
 - Added a complete real-browser Journal route regression covering exact desktop/mobile state, geometry, and pixel screenshots; direct-route/no-iframe ownership; title/content/context/energy/focus/minutes persistence; reload restoration; archive and Today navigation; audit logging; and direct Dashboard navigation. Existing Journal Archive, Meditation, Energy Trail, and Dashboard cross-feature regressions also pass.
 - Final verification: 195 React tests, React lint, strict type-checking, the Vite production build, 18 Python tests, and all 138 root JavaScript/browser tests pass. The sandboxed Python run could not bind a loopback port; the required escalated rerun passed all 18 tests.
+
+### Session 47
+
+- Re-read `AGENTS.md`, this handoff, branch state, recent history, current diff, and the implementation/browser-verification skills; mapped the Calendar page into monthly-grid, weekly-planner, and selected-day editor boundaries before choosing the isolated read-only monthly grid.
+- Added focused strict-TypeScript compatibility modules and tests for malformed/missing event storage, legacy category aliases, raw tooltip labels, structured and title-prefixed times, duration labels, chronological ordering, routine-event filtering, the four-pill limit, exact 42-day boundaries, selected/today/outside classes, and saved weekly day types. Calendar-linked task reconciliation now imports the same category normalizer instead of duplicating it.
+- Portaled a focused React monthly-grid component into the fallback Calendar card. A narrow iframe-realm bridge preserves previous/next month navigation, pointer and keyboard day selection, selected-day editor focus, event-edit delegation, and synchronization after legacy editor writes while leaving standalone legacy rendering unchanged.
+- Added a real-browser regression covering exact legacy/React state and computed visual parity at 1280×720 and 390×844, desktop pixel parity, keyboard date selection, edit-form population/focus, server persistence, reload restoration, month navigation, and console cleanliness.
+- Final verification: 199 React tests, React lint, strict type-checking, the Vite production build, 18 Python tests, and all 139 root JavaScript/browser tests pass.
 
 ---
 
