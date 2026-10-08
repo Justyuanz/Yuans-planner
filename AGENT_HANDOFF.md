@@ -181,13 +181,13 @@ For each feature:
 - [ ] remove legacy implementation only after tests pass
 
 ## Current Task
-The explicit `?view=todayView` Dashboard and `?view=moneyView` Money routes render directly in React + strict TypeScript with no iframe. The direct shell now has grounded server context including SkateIQ, state-aware prompts, and the evidence-based local Sprouty fallback. Agent action suggestions, draggable mascot position, and final no-view default-route verification remain before the iframe fallback can be retired.
+The explicit `?view=todayView` Dashboard and `?view=moneyView` Money routes render directly in React + strict TypeScript with no iframe. The direct shell now has grounded server context including SkateIQ, state-aware prompts, the evidence-based local Sprouty fallback, and question-aware action suggestions. Draggable mascot position and final no-view default-route verification remain before the iframe fallback can be retired.
 
 ## Last Completed Task
-Added a focused strict-TypeScript Skate context model for Sprouty. It preserves the immutable 60-day SkateIQ plan, manually pinned program day, per-date intensity override, six priorities, newest-first normalized sessions, and eligible Monday–Sunday body-support logs. Both server payloads and local replies now use that context; local guidance recommends a Blue/light day after repeated Green sessions without recovery, otherwise narrows the answer to the pinned plan.
+Migrated Sprouty's action-suggestion proposal and reply-finalization path into focused strict TypeScript. The model preserves legacy question intent, action eligibility, stable priority, two-suggestion limit, carryover threshold, task choice, and exact `Useful next step:` wording. Both successful server replies and evidence-based local fallbacks now append the highest-value suggestion without duplicating an existing one.
 
 ## Next Task
-Migrate Sprouty's agent action suggestions into focused strict-TypeScript proposal logic, append the highest-value suggestion to server and local answers exactly like legacy, and protect question-aware behavior in unit and browser tests. Keep action application separate from suggestion wording unless the existing UI contract requires an actionable control. Then migrate draggable mascot position before switching the no-view entry path to the direct Dashboard.
+Migrate Sprouty's draggable mascot position into focused strict TypeScript. Protect drag boundaries, click-versus-drag behavior, persisted `hivePlanner.mascotPosition` compatibility, reload restoration, and representative desktop/mobile behavior before changing the direct shell. Then verify and switch the no-view entry path to the direct Dashboard while retaining the legacy-shell fallback for the four unmigrated feature routes.
 
 ## Upstream Legacy Change — Activity Categories (2026-10-05)
 
@@ -283,6 +283,7 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Agent undo, day-state, and Money transaction writes share one strict activity-log compatibility decoder so validation and chronological ordering cannot drift across those React persistence boundaries.
 - The direct React shell builds Sprouty server context only from typed compatibility decoders and the existing React Dashboard metric/rule pipeline. State-aware prompt choices match legacy wording. Invalid or failed server replies use focused strict-TypeScript retrieval and reply modules to classify the question, select up to three normalized evidence snippets, and produce the established intent-specific local guidance.
 - Sprouty's Skate context uses a data-only strict-TypeScript copy of the immutable 60-day SkateIQ reference plan, separated from normalization logic. The model follows the shipped manual-progression contract: `currentProgramDay` selects the plan after season start, date-specific intensity overrides the plan default, recent sessions are newest-first, and weekly support includes only done/modified logs in the local Monday–Sunday window.
+- Sprouty's action suggestions are wording-only in the chat; action application remains a separate compatibility path. The strict-TypeScript proposal model preserves the legacy 15% high-carryover threshold, question-aware priority, availability filtering, two-suggestion cap, and exact highest-value `Useful next step:` append for both server and local replies.
 - Keep browser-flow assertions separate from reusable Chrome protocol, Chrome lifecycle, and temporary planner-server helpers so each test file has one clear responsibility.
 - Browser tests may use the existing Chrome DevTools Protocol directly to avoid adding a production or test package dependency.
 - Reuse one browser-planner fixture for Chrome and temporary-server lifecycle instead of duplicating setup across user-flow tests.
@@ -302,19 +303,11 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Weekly goals, dashboard day state, task progress, Today's intention, the task list/editor/form, Life Pie, Planned vs actual, Energy trail, Pattern noticed/history, all six Money boundaries, Journal meditation, and Journal archive are React-owned and verified. The explicit Dashboard and Money routes are directly composed; the no-view fallback plus Calendar, Activity, Skate, and Journal route orchestration still depend on the temporary iframe shell.
 - Browser smoke tests skip when Chrome/Chromium or Node WebSocket support is unavailable; they run with the documented Node 24 runtime on the inspected machine.
 - The React preview is not yet served directly by the Python backend. Its temporary legacy shell depends on Vite development proxies and is not the final production integration architecture.
-- The direct shell's Sprouty surface now sends grounded task, insight, journal, planning, activity, day-state, Money, and Skate context, restores state-aware quick prompts, and handles server failure with evidence-based local answers. It still needs agent action suggestions and draggable position behavior before shared-shell parity is complete.
+- The direct shell's Sprouty surface now sends grounded task, insight, journal, planning, activity, day-state, Money, and Skate context, restores state-aware quick prompts, handles server failure with evidence-based local answers, and appends question-aware action suggestions. It still needs draggable position behavior before shared-shell parity is complete.
 - The React visual regression test skips when Chrome or `frontend-react` dependencies are unavailable, matching the existing browser-test prerequisite policy.
 - Browser-capable root Node test files run serially to avoid Chrome/Vite startup timeouts under parallel process saturation.
 
 ## Session Log
-
-### Session 40
-
-- Re-read `AGENTS.md`, this handoff, branch state, recent history, current diff, and the implementation skill, then selected direct Dashboard composition and removal of its iframe-only Pattern orchestration as the next strict-TypeScript increment.
-- Added a real-browser regression first that compares the direct React Dashboard with legacy at 1280×720 and 390×844 using exact state and geometry plus Dashboard-region screenshots. It also proves there is no iframe and verifies direct task focus, Planned vs actual scrolling, Pattern-history range, close/reopen behavior, and evidence-disclosure reset.
-- Composed the explicit `?view=todayView` page directly in `PlannerShell`, reusing the verified React-owned Dashboard cards and adding direct Pattern action targets and native dialog state. Extracted shared navigation, ordered persistence, and direct-page stylesheet/readiness helpers used by Dashboard and Money; Money-to-Dashboard navigation now verifies a direct route.
-- The first complete suite exposed a persistence race where the final undo audit could reach SQLite before the restored agent state. Server writes now preserve their logical batch order; the focused undo regression and the complete suite pass.
-- Final verification: 162 React tests, React lint, strict type-checking, the Vite production build, 18 Python tests, and all 137 root JavaScript tests pass, including the direct Dashboard desktop/mobile visual regression and serialized real-Chrome browser flows.
 
 ### Session 41
 
@@ -331,6 +324,14 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Extracted the immutable 60-day SkateIQ reference into a data-only strict-TypeScript module and implemented a separate focused context normalizer. Sprouty server requests now include the exact pinned plan, selected intensity, six priorities, eight recent sessions, and eligible weekly support without loading legacy JavaScript.
 - Extended the typed retrieval and reply engine with Skate plan/intensity/session/support evidence. Three recent Green sessions without at least 45 minutes or an explicit recovery-support log produce the legacy Blue/light recommendation; other Skate questions stay narrowed to the pinned 30-minute plan.
 - Extended the real-browser Money/Sprouty regression to verify the exact Skate request context and the local recovery answer during an API outage. Final verification: 171 React tests, React lint, strict type-checking, the Vite production build, 18 Python tests, all 137 root JavaScript tests, and the post-edge-fix focused browser rerun pass.
+
+### Session 43
+
+- Re-read `AGENTS.md`, this handoff, branch state, recent history, current diff, and the implementation and browser-verification skills, then selected Sprouty's legacy action-suggestion wording as one focused strict-TypeScript parity increment.
+- Added failing unit tests first for direct move intent, high-carryover one-thing questions, no eligible work, stable two-action priority, server/local finalization, duplicate prevention, and blank-answer fallback.
+- Implemented a focused proposal/finalization module that uses normalized React task, day-state, carryover, and recent-history context. It preserves legacy action availability, task selection, question-aware ordering, suggestion copy, and the exact `Useful next step:` append without porting action application into the chat.
+- Wired both successful server answers and evidence-based local fallback answers through the typed finalizer. Extended the real-browser Money/Sprouty flow to verify the exact appended suggestion on both paths.
+- Final verification: 179 React tests, React lint, strict type-checking, the Vite production build, 18 Python tests, and all 137 root JavaScript tests pass, including the direct Money desktop/mobile visual regression and real-browser Sprouty server/fallback flow.
 
 ---
 

@@ -2,6 +2,7 @@ import { useMemo, useState, type FormEvent } from "react";
 
 import type { PlannerStore } from "../api/planner-store";
 import { isRecord } from "../shared/is-record";
+import { buildMascotActionContext, finalizeMascotReply } from "./mascot-action-suggestions";
 import { buildMascotContext, suggestedMascotPrompts } from "./mascot-context";
 import { answerMascotQuestion } from "./mascot-local-reply";
 
@@ -46,6 +47,7 @@ export function PlannerMascot({ chatOpen, onChatToggle, store, today }: PlannerM
   const [lastQuestion, setLastQuestion] = useState("");
   const [source, setSource] = useState("");
   const context = useMemo(() => buildMascotContext(store, today), [store, today]);
+  const actionContext = useMemo(() => buildMascotActionContext(context), [context]);
   const prompts = suggestedMascotPrompts(context.dayState);
 
   async function askMascot(rawQuestion: string): Promise<void> {
@@ -64,14 +66,16 @@ export function PlannerMascot({ chatOpen, onChatToggle, store, today }: PlannerM
       const payload: unknown = await response.json();
       const reply = decodeMascotReply(payload);
       if (reply === null) throw new Error("Mascot server returned an invalid reply");
-      setAnswer(reply.answer);
-      setEvidence(reply.evidence);
-      setSource(reply.source);
+      const finalized = finalizeMascotReply(trimmed, reply, actionContext);
+      setAnswer(finalized.answer);
+      setEvidence(finalized.evidence);
+      setSource(finalized.source);
     } catch {
       const reply = answerMascotQuestion(trimmed, context);
-      setAnswer(reply.answer);
-      setEvidence(reply.evidence);
-      setSource(reply.source);
+      const finalized = finalizeMascotReply(trimmed, reply, actionContext);
+      setAnswer(finalized.answer);
+      setEvidence(finalized.evidence);
+      setSource(finalized.source);
     }
     setQuestion("");
   }

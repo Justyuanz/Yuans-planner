@@ -234,6 +234,10 @@ test("Money is a direct React page with legacy parity, navigation, and persisten
   await planner.browser.waitForExpression(
     'document.querySelector(".mascot-message.assistant")?.textContent.includes("Grounded browser reply")'
   );
+  assert.equal(
+    await planner.browser.evaluate('document.querySelector(".mascot-message.assistant p")?.textContent'),
+    "Grounded browser reply Useful next step: cut today to a 2-task version."
+  );
   const mascotRequest = await planner.browser.evaluate(`(() => ({
     currentDateKey: window.__mascotRequest.context.currentDateKey,
     dayState: window.__mascotRequest.context.dayState,
@@ -272,6 +276,10 @@ test("Money is a direct React page with legacy parity, navigation, and persisten
   await planner.browser.evaluate('document.querySelector(".mascot-chat-form").requestSubmit()');
   await planner.browser.waitForExpression(
     'document.querySelector(".mascot-message.assistant")?.textContent.includes("Make today Blue")'
+  );
+  assert.match(
+    await planner.browser.evaluate('document.querySelector(".mascot-message.assistant p")?.textContent'),
+    /Useful next step: cut today to a 2-task version\.$/
   );
   assert.equal(
     await planner.browser.evaluate('document.querySelector(".mascot-message-source")?.textContent'),
