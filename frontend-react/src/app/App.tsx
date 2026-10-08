@@ -53,6 +53,14 @@ import { PlannedActualCard } from "../features/planned-actual/PlannedActualCard"
 import { plannedStorageKey } from "../features/planned-actual/planned-actual";
 import { PatternHistoryDialog } from "../features/pattern-history/PatternHistoryDialog";
 import { emptyPatternHistoryModel } from "../features/pattern-history/pattern-history";
+import { SkateHeroCard } from "../features/skate/SkateHeroCard";
+import {
+  SKATE_HERO_STATE_EVENT,
+  dispatchSkateHeroAction,
+  skateHeroStateFromDocument,
+  skateHeroStateFromEvent,
+  type SkateHeroState
+} from "../features/skate/skate-hero-bridge";
 import { TaskProgressBanner } from "../features/task-progress/TaskProgressBanner";
 import { buildTaskProgressModel } from "../features/task-progress/task-progress";
 import { TaskForm } from "../features/tasks/TaskForm";
@@ -120,6 +128,8 @@ function LegacyPlannerApp() {
   const [journalArchiveBoundary, setJournalArchiveBoundary] = useState<FramePortalBoundary | null>(null);
   const [monthlyCalendarBoundary, setMonthlyCalendarBoundary] = useState<FramePortalBoundary | null>(null);
   const [weeklyPlannerBoundary, setWeeklyPlannerBoundary] = useState<WeeklyPlannerBoundary | null>(null);
+  const [skateHeroBoundary, setSkateHeroBoundary] = useState<FramePortalBoundary | null>(null);
+  const [skateHeroState, setSkateHeroState] = useState<SkateHeroState | null>(null);
   const [legacyFrame, setLegacyFrame] = useState<HTMLIFrameElement | null>(null);
   const [meditationBoundary, setMeditationBoundary] = useState<ReactPanelBoundary | null>(null);
   const [moneyActivityMount, setMoneyActivityMount] = useState<HTMLElement | null>(null);
@@ -299,6 +309,19 @@ function LegacyPlannerApp() {
       });
     }
 
+    const skateHeroCard = document?.querySelector<HTMLElement>(".skate-hero-card");
+    const skateHeroMount = skateHeroCard?.querySelector<HTMLElement>(".panel-inner");
+    const initialSkateHeroState = document === null ? null : skateHeroStateFromDocument(document);
+    if (document !== null
+      && skateHeroCard !== null && skateHeroCard !== undefined
+      && skateHeroMount !== null && skateHeroMount !== undefined
+      && initialSkateHeroState !== null) {
+      setSkateHeroState(initialSkateHeroState);
+      skateHeroCard.dataset.reactOwned = "true";
+      skateHeroMount.replaceChildren();
+      setSkateHeroBoundary({ frame, mount: skateHeroMount });
+    }
+
     const moneyQuickCard = document?.querySelector<HTMLElement>(".money-quick-card");
     const moneyQuickPanel = moneyQuickCard?.querySelector<HTMLElement>(".panel-inner");
     if (moneyQuickCard !== null && moneyQuickCard !== undefined
@@ -416,6 +439,17 @@ function LegacyPlannerApp() {
     frameWindow.addEventListener(CALENDAR_STATE_EVENT, syncCalendarState);
     return () => frameWindow.removeEventListener(CALENDAR_STATE_EVENT, syncCalendarState);
   }, [legacyFrame]);
+
+  useEffect(() => {
+    const frameWindow = skateHeroBoundary?.frame.contentWindow;
+    if (frameWindow === null || frameWindow === undefined) return;
+    function syncSkateHeroState(event: Event): void {
+      const state = skateHeroStateFromEvent(event);
+      if (state !== null) setSkateHeroState(state);
+    }
+    frameWindow.addEventListener(SKATE_HERO_STATE_EVENT, syncSkateHeroState);
+    return () => frameWindow.removeEventListener(SKATE_HERO_STATE_EVENT, syncSkateHeroState);
+  }, [skateHeroBoundary]);
 
   function saveWeeklyGoal(goalId: WeeklyGoalId, text: string): void {
     if (weeklyStore === null) {
@@ -664,6 +698,15 @@ function LegacyPlannerApp() {
             store={loadedStore}
           />,
           weeklyPlannerBoundary.editorMount
+        )
+      )}
+      {skateHeroBoundary !== null && skateHeroState !== null && (
+        createPortal(
+          <SkateHeroCard
+            onAction={(action) => dispatchSkateHeroAction(skateHeroBoundary.frame, action)}
+            state={skateHeroState}
+          />,
+          skateHeroBoundary.mount
         )
       )}
       {loadedStore !== null && moneyQuickMount !== null && (

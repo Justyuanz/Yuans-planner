@@ -93,6 +93,8 @@
       const DAY_STATE_EFFECTS_EVENT = "hive-planner-day-state-effects";
       const CALENDAR_NAVIGATE_EVENT = "hive-planner-calendar-navigate";
       const CALENDAR_STATE_EVENT = "hive-planner-calendar-state";
+      const SKATE_HERO_ACTION_EVENT = "hive-planner-skate-hero-action";
+      const SKATE_HERO_STATE_EVENT = "hive-planner-skate-hero-state";
       var currentInsightBundleState = null;
       let dashboardInsightBridgeReady = false;
       var expandedHiddenTaskDates = {};
@@ -6286,6 +6288,40 @@
         });
       }
 
+      function publishSkateHeroState() {
+        if (!elements.skatePhaseBadge || !elements.skateIntensityToggle) {
+          return;
+        }
+        const activeIntensity = elements.skateIntensityToggle.querySelector("[data-intensity].active");
+        window.dispatchEvent(new CustomEvent(SKATE_HERO_STATE_EVENT, {
+          detail: {
+            attemptBudget: elements.skateAttemptBudget.textContent || "",
+            benchmarkLabel: elements.skateBenchmarkLabel.textContent || "",
+            benchmarkVisible: !elements.skateBenchmarkChip.hidden,
+            blockLabel: elements.skateBlockLabel.textContent || "",
+            boardHours: elements.skateBoardHours.textContent || "",
+            currentDay: elements.skateCurrentDay ? elements.skateCurrentDay.value : "1",
+            dayCount: elements.skateDayCount.textContent || "",
+            extraRestDay: elements.skateExtraRestDay ? elements.skateExtraRestDay.value : "",
+            finishDisabled: Boolean(elements.finishSkateSession && elements.finishSkateSession.disabled),
+            flowFocus: elements.skateFlowFocus.textContent || "",
+            heroSubtitle: elements.skateHeroSubtitle.textContent || "",
+            intensity: activeIntensity && activeIntensity.dataset.intensity || "yellow",
+            intensityDescription: elements.skateIntensityDescription.textContent || "",
+            intensityEffort: elements.skateIntensityEffort.textContent || "",
+            mainFocus: elements.skateMainFocus.textContent || "",
+            phaseBadge: elements.skatePhaseBadge.textContent || "",
+            restDay: elements.skateRestDay ? elements.skateRestDay.value : "0",
+            sessionDaysCount: elements.skateSessionDaysCount.textContent || "",
+            sessionHint: elements.skateSessionHint.textContent || "",
+            skateiqBlock: elements.skateSkateiqBlock.textContent || "",
+            settingsNote: elements.skateSettingsNote.textContent || "",
+            startDisabled: Boolean(elements.startSkateSession && elements.startSkateSession.disabled),
+            weekCount: elements.skateWeekCount.textContent || ""
+          }
+        }));
+      }
+
       function renderSkateHero(session) {
         var hero = currentSkateHero();
         if (!hero || !elements.skatePhaseBadge) {
@@ -6551,6 +6587,7 @@
         renderSkateWeeklyMetrics();
         renderSkateTrendCharts();
         elements.skateCoachFlow.appendChild(renderSkateTrainingPlan());
+        publishSkateHeroState();
       }
 
       function renderSkateTrainingPlan() {
@@ -7237,6 +7274,7 @@
         if (elements.skateSessionHint && config.hint) {
           elements.skateSessionHint.textContent = config.hint;
         }
+        publishSkateHeroState();
         if (elements.skateFeedbackDialog && typeof elements.skateFeedbackDialog.showModal === "function") {
           elements.skateFeedbackDialog.showModal();
           return;
@@ -7257,12 +7295,14 @@
           latest.startedAt = new Date().toISOString();
         });
         elements.skateSessionHint.textContent = "Skate session started. Go get the reps.";
+        publishSkateHeroState();
       }
 
       function finishSkateSession() {
         var session = getCurrentSkateSession();
         if (!session.startedAt) {
           elements.skateSessionHint.textContent = "No session is running yet. Use \"Log past session\" if you just want to save missed skate time.";
+          publishSkateHeroState();
           return;
         }
         openSkateFeedbackDialog({
@@ -8311,6 +8351,52 @@
                 elements.eventStartTime.focus();
               });
             }
+          }
+        });
+        window.addEventListener(SKATE_HERO_ACTION_EVENT, function (event) {
+          const detail = event && event.detail && typeof event.detail === "object" ? event.detail : {};
+          if (detail.action === "set-rest-day") {
+            updateSkateSettings(function (settings) {
+              settings.restDayOfWeek = normalizeSkateRestDay(detail.value);
+              settings.extraRestDayOfWeek = normalizeOptionalSkateRestDay(settings.extraRestDayOfWeek, settings.restDayOfWeek);
+            });
+            return;
+          }
+          if (detail.action === "set-extra-rest-day") {
+            updateSkateSettings(function (settings) {
+              settings.extraRestDayOfWeek = normalizeOptionalSkateRestDay(detail.value, settings.restDayOfWeek);
+            });
+            return;
+          }
+          if (detail.action === "set-current-day") {
+            updateSkateSettings(function (settings) {
+              settings.currentProgramDay = clampSkateProgramDay(detail.value);
+            });
+            return;
+          }
+          if (detail.action === "set-intensity" && ["blue", "yellow", "green"].indexOf(detail.value) !== -1) {
+            updateSkateSettings(function (settings) {
+              settings.intensityByDate[formatDate(today)] = detail.value;
+            });
+            updateSkateSession(function (latest) {
+              latest.plannedIntensity = detail.value;
+            });
+            return;
+          }
+          if (detail.action === "start-session") {
+            startSkateSession();
+            return;
+          }
+          if (detail.action === "finish-session") {
+            finishSkateSession();
+            return;
+          }
+          if (detail.action === "log-session") {
+            openSkateFeedbackDialog({
+              dateKey: formatDate(today),
+              durationMinutes: 45,
+              hint: "Logging a skate session without the timer is okay too."
+            });
           }
         });
 
