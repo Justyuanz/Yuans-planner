@@ -181,13 +181,13 @@ For each feature:
 - [ ] remove legacy implementation only after tests pass
 
 ## Current Task
-The root/no-view entry path plus explicit Dashboard, Money, Journal, and Calendar routes render directly in React + strict TypeScript with no iframe. Skate and Guitar remain on the temporary legacy-shell fallback, but Skate's complete hero card is now React-owned and verified there. Continue the incremental Skate migration with the intensity-roadmap/trends boundary before composing the direct route.
+The root/no-view entry path plus explicit Dashboard, Money, Journal, and Calendar routes render directly in React + strict TypeScript with no iframe. Skate and Guitar remain on the temporary legacy-shell fallback, but Skate's hero and intensity roadmap are now React-owned and verified there. Continue the incremental Skate migration with the Body support boundary before composing the direct route.
 
 ## Last Completed Task
-Migrated the complete Skate hero card to React + strict TypeScript inside the fallback shell. A narrow typed bridge keeps the existing SkateIQ phase/benchmark mapping and session lifecycle as the compatibility source while React owns the settings, metrics, plan summary, intensity controls, and timer actions. Browser coverage proves exact desktop/mobile state, geometry, and pixel parity; empty and oversized program-day normalization; setting/intensity persistence; timer and retro-log dialogs; transient timer reset on reload; and console cleanliness. Commit: `4dfa254 feat(react): migrate skate hero card`.
+Migrated Skate's complete intensity roadmap to React + strict TypeScript inside the fallback shell. A pure typed model now decodes compatible saved sessions, builds the season-to-date calendar grid, preserves last-session color/title behavior, and continues beyond the 60-day streak. React owns the card while a narrow action-only bridge opens the still-legacy feedback dialog. Browser coverage proves exact desktop/mobile state, geometry, and pixel parity; populated and pre-season states; existing-session defaults; missed historical session logging; live repaint; persistence/reload; no accidental past task creation; and console cleanliness. Commit: `9a332c4 feat(react): migrate skate intensity roadmap`.
 
 ## Next Task
-Migrate Skate's intensity-roadmap/trends card as the next focused React/strict-TypeScript boundary. Preserve the full season history, selected-day behavior, missed-session logging, post-streak weekly mapping, persisted sessions and intensity overrides, and exact desktop/mobile visual behavior. After that, migrate body-support metrics, training-plan/session feedback behavior, and finally compose the direct Skate route; retain `view=legacyShell` for Guitar and portal fixtures until their replacements are verified.
+Migrate Skate's Body support card as the next focused React/strict-TypeScript boundary. Preserve support-type normalization, minutes and note handling, current-week aggregation, done/modified/skipped compatibility, persistence/reload, and exact desktop/mobile visual behavior. After that, migrate the training plan and session-feedback behavior, then compose the direct Skate route; retain `view=legacyShell` for Guitar and portal fixtures until their replacements are verified.
 
 ## Upstream Legacy Change — Activity Categories (2026-10-05)
 
@@ -252,6 +252,8 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Calendar event category normalization is shared by the React month model and React-owned calendar-task reconciliation, while decoded event records retain their raw stored category label where the legacy tooltip exposes it.
 - Skate's fallback hero card is React-owned through a narrow typed state/action bridge. The bridge deliberately delegates program-day normalization, phase/benchmark mapping, intensity persistence, and timer/session transitions to the still-active legacy Skate model so this first boundary cannot drift while the remaining Skate modules are migrated.
 - Skate program-day edits commit on blur like legacy, restore the last rendered value while legacy normalization runs, and then accept the normalized 1–60 day snapshot. Current Skate session start time remains transient across reload; settings and intensity choices remain persisted.
+- Skate's intensity roadmap derives directly from `hivePlanner.skate.sessions` through a pure typed compatibility model. Stored order decides the latest dot color/title exactly like legacy; malformed records are ignored safely, invalid intensities fall back to yellow, explicit session dates take precedence, and the roadmap continues after Day 60.
+- The roadmap bridge carries only a selected date, compatible intensity, and duration into the existing feedback dialog. Saving remains legacy-owned for now, while browser storage events immediately refresh the React roadmap from the persisted session record.
 - The root/no-view entry path plus explicit Dashboard, Money, Journal, and Calendar routes bypass the iframe and compose their pages directly inside the focused React shell. Skate and Guitar still instantiate `LegacyPlannerApp`, preserving a verification fallback during incremental cutover.
 - A missing `view` maps to the direct React Dashboard, while unknown explicit values continue through `LegacyPlannerApp`. Migration-boundary browser fixtures use `view=legacyShell`, which the parent intentionally treats as fallback and the legacy app safely normalizes to its Dashboard.
 - The direct route loads the legacy stylesheet only while mounted. Loading it globally changes the parent body's padding and narrows every iframe preview, which the complete Money regression suite caught.
@@ -310,7 +312,7 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Browser inspection reports generated form controls without an `id` or `name`; the current Chrome run reported 29 controls.
 - The default `node` on the inspected machine is Node 14 and cannot run `node --test`; use the installed modern Node runtime or fix the local PATH before relying on `scripts/test.sh` without `NODE_BIN`.
 - Most remaining cross-feature flows in `app.js` still lack DOM or end-to-end tests; browser coverage now protects task and activity-session lifecycles, all six primary views, the direct Dashboard, Money, Journal, and Calendar pages, and the other migrated React boundaries.
-- Weekly goals, dashboard day state, task progress, Today's intention, the task list/editor/form, Life Pie, Planned vs actual, Energy trail, Pattern noticed/history, all six Money boundaries, Journal editor, Meditation, Journal archive, the complete Calendar page, and the Skate hero card are React-owned and verified. The root/no-view Dashboard plus explicit Dashboard, Money, Journal, and Calendar routes are directly composed; Skate and Guitar still depend on the temporary iframe shell while Skate is migrated boundary by boundary.
+- Weekly goals, dashboard day state, task progress, Today's intention, the task list/editor/form, Life Pie, Planned vs actual, Energy trail, Pattern noticed/history, all six Money boundaries, Journal editor, Meditation, Journal archive, the complete Calendar page, and the Skate hero and intensity roadmap are React-owned and verified. The root/no-view Dashboard plus explicit Dashboard, Money, Journal, and Calendar routes are directly composed; Skate and Guitar still depend on the temporary iframe shell while Skate is migrated boundary by boundary.
 - Browser smoke tests skip when Chrome/Chromium or Node WebSocket support is unavailable; they run with the documented Node 24 runtime on the inspected machine.
 - The React preview is not yet served directly by the Python backend. Its temporary legacy shell depends on Vite development proxies and is not the final production integration architecture.
 - The direct shell's Sprouty surface now sends grounded task, insight, journal, planning, activity, day-state, Money, and Skate context; restores state-aware quick prompts; handles server failure with evidence-based local answers; appends question-aware action suggestions; and preserves pointer-follow, drag persistence, click suppression, and mobile motion behavior. Shared-shell Sprouty parity is complete.
@@ -318,14 +320,6 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Browser-capable root Node test files run serially to avoid Chrome/Vite startup timeouts under parallel process saturation.
 
 ## Session Log
-
-### Session 47
-
-- Re-read `AGENTS.md`, this handoff, branch state, recent history, current diff, and the implementation/browser-verification skills; mapped the Calendar page into monthly-grid, weekly-planner, and selected-day editor boundaries before choosing the isolated read-only monthly grid.
-- Added focused strict-TypeScript compatibility modules and tests for malformed/missing event storage, legacy category aliases, raw tooltip labels, structured and title-prefixed times, duration labels, chronological ordering, routine-event filtering, the four-pill limit, exact 42-day boundaries, selected/today/outside classes, and saved weekly day types. Calendar-linked task reconciliation now imports the same category normalizer instead of duplicating it.
-- Portaled a focused React monthly-grid component into the fallback Calendar card. A narrow iframe-realm bridge preserves previous/next month navigation, pointer and keyboard day selection, selected-day editor focus, event-edit delegation, and synchronization after legacy editor writes while leaving standalone legacy rendering unchanged.
-- Added a real-browser regression covering exact legacy/React state and computed visual parity at 1280×720 and 390×844, desktop pixel parity, keyboard date selection, edit-form population/focus, server persistence, reload restoration, month navigation, and console cleanliness.
-- Final verification: 199 React tests, React lint, strict type-checking, the Vite production build, 18 Python tests, and all 139 root JavaScript/browser tests pass.
 
 ### Session 48
 
@@ -340,6 +334,13 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Implemented a focused React + strict-TypeScript Skate hero card with small settings, focus-summary, intensity, and session-action components. A typed iframe-realm bridge snapshots the existing Skate model and delegates actions without introducing new `var` or `any`, while the standalone legacy application remains unchanged.
 - Added focused bridge validation plus a complete real-browser regression covering exact legacy/React state, computed geometry, and pixel parity at 1280×720 and 390×844; rest and extra-rest settings; empty, oversized, and valid program days; intensity persistence; timer start/finish; retro logging; reload persistence; transient timer reset; and console cleanliness.
 - Final verification: 214 React tests, React lint, strict type-checking, the Vite production build, 18 Python tests, and all 143 root JavaScript/browser tests pass. Commit: `4dfa254 feat(react): migrate skate hero card`.
+
+### Session 50
+
+- Re-read `AGENTS.md`, this handoff, branch state, recent history, current diff, and the implementation/browser-verification/commit workflows; traced the legacy roadmap range, session grouping, date fallbacks, last-session color/title rule, month-grid placement, and feedback-dialog launch before implementation.
+- Added a focused pure strict-TypeScript roadmap model, shared Skate intensity normalization, a small React card, and an action-only iframe bridge. The React model owns season-to-date rendering from stored session data and keeps growing after the 60-day streak; the bridge delegates only the existing feedback dialog until session feedback is migrated.
+- Added unit coverage for pre-season, populated, duplicate-day, malformed, timestamp-fallback, invalid-intensity, duration-boundary, and post-streak behavior. Added a real-browser regression for exact legacy/React state, computed geometry, and pixel parity at 1280×720 and 390×844; existing-session dialog defaults; missed historical session logging; no past-task side effect; live storage synchronization; reload persistence; pre-season behavior; and console cleanliness.
+- Final verification: 218 React tests, React lint, strict type-checking, the Vite production build, 18 Python tests, and all 144 root JavaScript/browser tests pass. Commit: `9a332c4 feat(react): migrate skate intensity roadmap`.
 
 ---
 
