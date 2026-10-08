@@ -15,6 +15,25 @@ export interface CalendarWeekActivity {
   shortLabel: string;
 }
 
+export interface CalendarActivityInput {
+  category: string;
+  effort: string;
+  endTime: string;
+  reminderOnly: boolean;
+  startTime: string;
+  title: string;
+}
+
+export interface CalendarActivityPreview {
+  allowed: boolean;
+  candidateLoad: number;
+  candidateMinutes: number;
+  capacityLoad: number;
+  projectedLoad: number;
+  reason: string;
+  remainingLoad: number;
+}
+
 export interface CalendarWeekDay {
   activities: readonly CalendarWeekActivity[];
   capacityHint: string;
@@ -23,6 +42,7 @@ export interface CalendarWeekDay {
   dayLabel: string;
   expanded: boolean;
   humanDate: string;
+  remainingLoad: number;
   selected: boolean;
   status: string;
   type: CalendarDayType;
@@ -36,6 +56,7 @@ export interface CalendarWeekModel {
 
 interface NormalizedWeekActivity extends CalendarWeekActivity {
   category: string;
+  id: string;
   load: number;
   reminderOnly: boolean;
   sortMinutes: number | null;
@@ -66,7 +87,7 @@ function roundLoad(value: number): number {
   return Math.round(value * 100) / 100;
 }
 
-function normalizeClock(value: unknown): string {
+export function normalizeCalendarClock(value: unknown): string {
   const text = typeof value === "string" ? value.trim() : "";
   const twelveHour = /^(\d{1,2})(?::(\d{2}))?\s*([AaPp][Mm])$/.exec(text);
   const twentyFourHour = /^(\d{1,2}):(\d{2})$/.exec(text);
@@ -91,12 +112,12 @@ function normalizeClock(value: unknown): string {
 function fallbackRange(title: string): { endTime: string; startTime: string } {
   const match = /^(\d{1,2})(?::?(\d{2}))?\s*[-–]\s*(\d{1,2})(?::?(\d{2}))?(?=\s|$)/.exec(title.trim());
   if (match === null) return { endTime: "", startTime: "" };
-  const start = normalizeClock(`${match[1]}:${match[2] ?? "00"}`);
-  const end = normalizeClock(`${match[3]}:${match[4] ?? "00"}`);
+  const start = normalizeCalendarClock(`${match[1]}:${match[2] ?? "00"}`);
+  const end = normalizeCalendarClock(`${match[3]}:${match[4] ?? "00"}`);
   return { endTime: end, startTime: start };
 }
 
-function activityDuration(startTime: string, endTime: string): number {
+export function calendarActivityDuration(startTime: string, endTime: string): number {
   const minutes = (value: string) => Number(value.slice(0, 2)) * 60 + Number(value.slice(3));
   return startTime && endTime ? Math.max(0, minutes(endTime) - minutes(startTime)) : 0;
 }
@@ -110,9 +131,9 @@ function normalizeActivities(store: PlannerStore, date: string): NormalizedWeekA
     .map((event): NormalizedWeekActivity | null => {
       const category = normalizeCalendarCategory(event.category);
       const fallback = fallbackRange(event.title);
-      const startTime = normalizeClock(event.startTime || fallback.startTime);
-      const endTime = normalizeClock(event.endTime || fallback.endTime);
-      const duration = activityDuration(startTime, endTime);
+      const startTime = normalizeCalendarClock(event.startTime || fallback.startTime);
+      const endTime = normalizeCalendarClock(event.endTime || fallback.endTime);
+      const duration = calendarActivityDuration(startTime, endTime);
       const reminderOnly = event.reminderOnly;
       if (!reminderOnly && duration <= 0) return null;
       const effort = ["easy", "standard", "demanding"].includes(event.effort.toLowerCase())
@@ -122,6 +143,7 @@ function normalizeActivities(store: PlannerStore, date: string): NormalizedWeekA
       return {
         category,
         categoryClass: calendarCategoryMeta(category).className,
+        id: event.id,
         load: reminderOnly ? 0 : (duration / 60) * (CATEGORY_LOAD[category] ?? 0.75) * effortMultiplier,
         reminderOnly,
         shortLabel: calendarCategoryMeta(category).shortLabel,
@@ -156,7 +178,73 @@ function daySummary(type: CalendarDayType, activities: readonly NormalizedWeekAc
     : `${formatLoad(remainingLoad)} left.`;
   return {
     capacityHint: `${formatLoad(usedLoad)} / ${formatLoad(type.capacityLoad)} load hours planned${switchNote} · ${ending}`,
+    contextSwitchLoad,
+    remainingLoad,
+    usedLoad,
     status
+  };
+}
+
+function normalizedCandidate(input: CalendarActivityInput): NormalizedWeekActivity {
+  const category = normalizeCalendarCategory(input.category);
+  const startTime = normalizeCalendarClock(input.startTime);
+  const endTime = normalizeCalendarClock(input.endTime);
+  const minutes = calendarActivityDuration(startTime, endTime);
+  const effort = ["easy", "standard", "demanding"].includes(input.effort.toLowerCase())
+    ? input.effort.toLowerCase()
+    : (["Skate", "Gym"].includes(category) ? "demanding" : "standard");
+  const effortMultiplier = effort === "easy" ? 0.75 : effort === "demanding" ? 1.25 : 1;
+  return {
+    category,
+    categoryClass: calendarCategoryMeta(category).className,
+    id: "",
+    load: input.reminderOnly ? 0 : (minutes / 60) * (CATEGORY_LOAD[category] ?? 0.75) * effortMultiplier,
+    reminderOnly: input.reminderOnly,
+    shortLabel: calendarCategoryMeta(category).shortLabel,
+    sortMinutes: clockMinutes(startTime),
+    title: input.title
+  };
+}
+
+export function previewCalendarActivity(
+  store: PlannerStore,
+  date: string,
+  input: CalendarActivityInput,
+  excludedEventId = ""
+): CalendarActivityPreview {
+  const dateValue = new Date(Number(date.slice(0, 4)), Number(date.slice(5, 7)) - 1, Number(date.slice(8, 10)));
+  const plan = decodeCalendarWeek(store, dateValue);
+  const dayIndex = calendarWeekDates(dateValue).findIndex((entry) => formatPlannerDate(entry) === date);
+  const type = calendarDayType(plan.days[dayIndex]?.type);
+  const existing = normalizeActivities(store, date).filter((activity) => activity.id !== excludedEventId);
+  const candidate = normalizedCandidate(input);
+  const startTime = normalizeCalendarClock(input.startTime);
+  const endTime = normalizeCalendarClock(input.endTime);
+  const minutes = calendarActivityDuration(startTime, endTime);
+  let reason = "";
+  if (input.reminderOnly) {
+    if ((startTime && !endTime) || (!startTime && endTime)) {
+      reason = "Pick both a start and end time, or leave both blank.";
+    }
+  } else if (!startTime || !endTime || minutes <= 0) {
+    reason = startTime && endTime
+      ? "End time needs to be after start time."
+      : "Pick a valid start and end time.";
+  } else if (type.id === "recovery" && ["Skate", "Gym"].includes(candidate.category) && minutes > 30) {
+    reason = "Recovery Day keeps skate and gym to 30 minutes or less.";
+  }
+  const projected = daySummary(type, [...existing, candidate]);
+  if (!reason && !input.reminderOnly && projected.remainingLoad < 0) {
+    reason = `This would be ${formatLoad(projected.remainingLoad)} load hours over the ${formatLoad(type.capacityLoad)} load-hour budget.`;
+  }
+  return {
+    allowed: !reason,
+    candidateLoad: roundLoad(candidate.load),
+    candidateMinutes: minutes,
+    capacityLoad: type.capacityLoad,
+    projectedLoad: projected.usedLoad,
+    reason,
+    remainingLoad: projected.remainingLoad
   };
 }
 
@@ -190,6 +278,7 @@ export function buildCalendarWeek(
         dayLabel: DAY_LABELS[index]!,
         expanded: dateKey === expandedDate,
         humanDate: humanDate(date),
+        remainingLoad: summary.remainingLoad,
         selected: dateKey === selectedDate,
         status: summary.status,
         type
@@ -206,9 +295,9 @@ export function recoveryTypeChangeReason(store: PlannerStore, date: string): str
       const category = normalizeCalendarCategory(event.category);
       if (!(["Skate", "Gym"].includes(category)) || event.reminderOnly) return false;
       const fallback = fallbackRange(event.title);
-      return activityDuration(
-        normalizeClock(event.startTime || fallback.startTime),
-        normalizeClock(event.endTime || fallback.endTime)
+      return calendarActivityDuration(
+        normalizeCalendarClock(event.startTime || fallback.startTime),
+        normalizeCalendarClock(event.endTime || fallback.endTime)
       ) > 30;
     });
   return hasLongPhysicalActivity

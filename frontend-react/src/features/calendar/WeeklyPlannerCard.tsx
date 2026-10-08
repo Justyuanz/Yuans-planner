@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type MouseEvent } from "react";
+import { useLayoutEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
 
 import type { PlannerStore, PlannerStoreWrite } from "../../api/planner-store";
 import { dateFromKey } from "./calendar-month";
@@ -14,7 +14,8 @@ import {
 } from "./calendar-week-store";
 
 interface WeeklyPlannerCardProps {
-  editorCard: HTMLElement;
+  editorCard?: HTMLElement;
+  editorContent?: ReactNode;
   expandedDate: string;
   onCollapseDay: () => void;
   onNavigateWeek: (amount: -1 | 1) => void;
@@ -57,6 +58,7 @@ function clickedInteractiveElement(event: MouseEvent<HTMLElement>): boolean {
 
 export function WeeklyPlannerCard({
   editorCard,
+  editorContent,
   expandedDate,
   onCollapseDay,
   onNavigateWeek,
@@ -138,7 +140,9 @@ export function WeeklyPlannerCard({
                   </span>
                 ))}
             </div>
-            {day.expanded && <LegacyEditorMount editorCard={editorCard} />}
+            {day.expanded && (editorCard === undefined
+              ? editorContent
+              : <LegacyEditorMount editorCard={editorCard} />)}
           </section>
         )) : (
           <section className="week-setup-card">

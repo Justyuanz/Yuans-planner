@@ -51,6 +51,8 @@ const CATEGORY_META: Readonly<Record<string, CalendarCategoryMeta>> = {
   Personal: { className: "personal-block", label: "Personal", shortLabel: "Personal" }
 };
 
+export const CALENDAR_CATEGORY_ORDER = Object.keys(CATEGORY_META);
+
 function parseStoredArray(rawValue: string | undefined): unknown[] {
   try {
     const parsed: unknown = rawValue === undefined ? null : JSON.parse(rawValue);

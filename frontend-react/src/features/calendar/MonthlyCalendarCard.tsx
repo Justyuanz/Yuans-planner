@@ -17,7 +17,7 @@ interface MonthlyCalendarCardProps {
   today: Date;
 }
 
-function activateCell(event: KeyboardEvent<HTMLDivElement>, cell: CalendarMonthCell, onSelectDate: (date: string) => void): void {
+function activateCell(event: KeyboardEvent<HTMLButtonElement>, cell: CalendarMonthCell, onSelectDate: (date: string) => void): void {
   if (event.key !== "Enter" && event.key !== " ") return;
   event.preventDefault();
   onSelectDate(cell.date);
@@ -48,14 +48,13 @@ export function MonthlyCalendarCard({
       <div className="calendar-grid" id="calendarGrid" aria-label="Monthly calendar">
         {model.weekdays.map((weekday) => <div className="weekday" key={weekday}>{weekday}</div>)}
         {model.cells.map((cell) => (
-          <div
+          <button
             aria-label={cell.ariaLabel}
             className={cell.className}
             key={cell.date}
             onClick={() => onSelectDate(cell.date)}
             onKeyDown={(event) => activateCell(event, cell, onSelectDate)}
-            role="button"
-            tabIndex={0}
+            type="button"
           >
             <div className="day-number">
               {cell.dayNumber}
@@ -63,23 +62,23 @@ export function MonthlyCalendarCard({
             </div>
             <div className="event-pills">
               {cell.pills.map((pill, index) => (
-                <button
+                <span
                   className={`event-pill ${pill.categoryClass}`}
                   key={`${pill.eventId}:${index}`}
                   onClick={(event) => {
+                    event.preventDefault();
                     event.stopPropagation();
                     onEditEvent(pill.eventId, pill.date);
                   }}
                   title={pill.title}
-                  type="button"
                 >
                   {pill.startLabel && <span className="event-pill-start">{pill.startLabel}</span>}
                   <span className="event-pill-name">{pill.label}</span>
-                </button>
+                </span>
               ))}
               {cell.moreCount > 0 && <span className="event-pill more-pill">+{cell.moreCount} more</span>}
             </div>
-          </div>
+          </button>
         ))}
       </div>
     </>

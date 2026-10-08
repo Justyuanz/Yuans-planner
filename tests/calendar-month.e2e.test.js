@@ -88,6 +88,12 @@ async function seedCalendar(serverUrl) {
 async function openCalendar(browser, url, documentExpression) {
   await browser.open(url);
   await browser.waitForExpression(`(${documentExpression}).documentElement.dataset.plannerReady === "true"`);
+  await browser.evaluate(`(() => {
+    const documentRoot = ${documentExpression};
+    if (!documentRoot.getElementById("calendarView").classList.contains("active")) {
+      documentRoot.querySelector('[data-view-target="calendarView"]').click();
+    }
+  })()`);
   await browser.waitForExpression(`(${documentExpression}).querySelectorAll("#calendarGrid .day-cell").length === 42`);
 }
 
@@ -200,7 +206,7 @@ test("Calendar month grid preserves legacy visuals, navigation, editing, and rel
   await seedCalendar(planner.server.url);
 
   const legacyUrl = `${planner.server.url}/?view=calendarView&date=${TEST_DATE}`;
-  const previewUrl = `${preview.url}/?view=calendarView&date=${TEST_DATE}`;
+  const previewUrl = `${preview.url}/?view=legacyShell&date=${TEST_DATE}`;
   const previewDocument = 'document.querySelector("iframe").contentDocument';
 
   for (const [width, height] of [[1280, 720], [390, 844]]) {
@@ -263,7 +269,9 @@ test("Calendar month grid preserves legacy visuals, navigation, editing, and rel
 
   await planner.browser.evaluate(`(() => {
     const documentRoot = ${previewDocument};
-    documentRoot.getElementById("eventTitle").value = "Focused rewrite";
+    const input = documentRoot.getElementById("eventTitle");
+    Object.getOwnPropertyDescriptor(documentRoot.defaultView.HTMLInputElement.prototype, "value").set.call(input, "Focused rewrite");
+    input.dispatchEvent(new documentRoot.defaultView.Event("input", { bubbles: true }));
     documentRoot.getElementById("eventForm").requestSubmit();
   })()`);
   await planner.browser.waitForExpression(`(${previewDocument}).querySelector('.day-cell[aria-label="Select Mon Sep 14"] .event-pill-name').textContent === "Focused rewrite"`);

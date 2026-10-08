@@ -268,14 +268,19 @@ test("React owns calendar-linked task reconciliation", { timeout: 60_000 }, asyn
   await planner.browser.evaluate(`(() => {
     const frame = document.querySelector("iframe");
     const root = frame.contentDocument;
+    const setInput = (id, value) => {
+      const input = root.getElementById(id);
+      const setter = Object.getOwnPropertyDescriptor(frame.contentWindow.HTMLInputElement.prototype, "value").set;
+      setter.call(input, value);
+      input.dispatchEvent(new frame.contentWindow.Event("input", { bubbles: true }));
+    };
     frame.contentWindow.YuanCalendarTaskSync.mergeLinkedTasks = () => {
       throw new Error("React tasks must not use legacy calendar reconciliation");
     };
-    root.getElementById("eventDate").value = "${TEST_DATE}";
-    root.getElementById("eventTitle").value = "Calendar React task";
-    root.getElementById("eventStartTime").value = "10:15";
-    root.getElementById("eventEndTime").value = "11:00";
-    root.getElementById("eventCategory").value = "Transcendence";
+    setInput("eventDate", "${TEST_DATE}");
+    setInput("eventTitle", "Calendar React task");
+    setInput("eventStartTime", "10:15");
+    setInput("eventEndTime", "11:00");
     root.getElementById("eventForm").dispatchEvent(new frame.contentWindow.Event("submit", {
       bubbles: true,
       cancelable: true

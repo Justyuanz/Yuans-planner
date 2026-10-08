@@ -7801,6 +7801,9 @@
         if (!elements.eventEditorCard) {
           return;
         }
+        if (elements.eventEditorCard.dataset.reactOwned === "true") {
+          return;
+        }
         var events = plannerEventsForDate(selectedDate);
         var summary = plannerDaySummary(selectedDate);
         var type = summary.dayType;
@@ -8303,9 +8306,11 @@
           renderWeeklyPlannerSection();
           renderCalendar();
           if (elements.eventStartTime) {
-            window.requestAnimationFrame(function () {
-              elements.eventStartTime.focus();
-            });
+            if (elements.eventEditorCard.dataset.reactOwned !== "true") {
+              window.requestAnimationFrame(function () {
+                elements.eventStartTime.focus();
+              });
+            }
           }
         });
 

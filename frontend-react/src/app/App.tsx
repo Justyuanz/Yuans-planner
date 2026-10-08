@@ -3,6 +3,11 @@ import { createPortal } from "react-dom";
 
 import { putPlannerStoreValue } from "../api/planner-store";
 import { MonthlyCalendarCard } from "../features/calendar/MonthlyCalendarCard";
+import {
+  CalendarEventEditor,
+  type CalendarEditorRequest
+} from "../features/calendar/CalendarEventEditor";
+import { CalendarPage } from "../features/calendar/CalendarPage";
 import { WeeklyPlannerCard } from "../features/calendar/WeeklyPlannerCard";
 import {
   CALENDAR_STATE_EVENT,
@@ -79,6 +84,7 @@ interface FramePortalBoundary {
 
 interface WeeklyPlannerBoundary extends FramePortalBoundary {
   editorCard: HTMLElement;
+  editorMount: HTMLElement;
 }
 
 function selectedJournalDate(input: HTMLInputElement | null | undefined, fallback: string): string {
@@ -128,6 +134,11 @@ function LegacyPlannerApp() {
     cursorDate: formatPlannerDate(new Date(today.getFullYear(), today.getMonth(), 1)),
     expandedDate: "",
     selectedDate: formatPlannerDate(today)
+  });
+  const [calendarEditorRequest, setCalendarEditorRequest] = useState<CalendarEditorRequest>({
+    eventId: null,
+    focus: "start",
+    revision: 0
   });
   const legacyUrl = `/legacy/${window.location.search}`;
   const loadedStore = plannerStore.status === "ready" ? plannerStore.store : null;
@@ -269,14 +280,23 @@ function LegacyPlannerApp() {
     const weeklyPlannerMount = weeklyPlannerCard?.querySelector<HTMLElement>(".panel-inner");
     const legacyWeeklyPlannerMount = document?.getElementById("weeklyPlannerMount");
     const eventEditorCard = document?.getElementById("eventEditorCard");
+    const eventEditorMount = eventEditorCard?.querySelector<HTMLElement>(".panel-inner");
     if (weeklyPlannerCard !== null && weeklyPlannerCard !== undefined
       && weeklyPlannerMount !== null && weeklyPlannerMount !== undefined
       && legacyWeeklyPlannerMount !== null && legacyWeeklyPlannerMount !== undefined
-      && eventEditorCard !== null && eventEditorCard !== undefined) {
+      && eventEditorCard !== null && eventEditorCard !== undefined
+      && eventEditorMount !== null && eventEditorMount !== undefined) {
       weeklyPlannerCard.dataset.reactOwned = "true";
       legacyWeeklyPlannerMount.dataset.reactOwned = "true";
+      eventEditorCard.dataset.reactOwned = "true";
       weeklyPlannerMount.replaceChildren();
-      setWeeklyPlannerBoundary({ editorCard: eventEditorCard, frame, mount: weeklyPlannerMount });
+      eventEditorMount.replaceChildren();
+      setWeeklyPlannerBoundary({
+        editorCard: eventEditorCard,
+        editorMount: eventEditorMount,
+        frame,
+        mount: weeklyPlannerMount
+      });
     }
 
     const moneyQuickCard = document?.querySelector<HTMLElement>(".money-quick-card");
@@ -579,10 +599,20 @@ function LegacyPlannerApp() {
             cursorDate={calendarState.cursorDate}
             onEditEvent={(eventId, date) => {
               setCalendarState((current) => ({ ...current, selectedDate: date }));
-              dispatchCalendarNavigation(monthlyCalendarBoundary.frame, { action: "edit-event", eventId });
+              setCalendarEditorRequest((current) => ({
+                eventId,
+                focus: "title",
+                revision: current.revision + 1
+              }));
+              dispatchCalendarNavigation(monthlyCalendarBoundary.frame, { action: "select-date", date });
             }}
             onSelectDate={(date) => {
               setCalendarState((current) => ({ ...current, selectedDate: date }));
+              setCalendarEditorRequest((current) => ({
+                eventId: null,
+                focus: "start",
+                revision: current.revision + 1
+              }));
               dispatchCalendarNavigation(monthlyCalendarBoundary.frame, { action: "select-date", date });
             }}
             onShiftMonth={(amount) => dispatchCalendarNavigation(monthlyCalendarBoundary.frame, {
@@ -618,6 +648,22 @@ function LegacyPlannerApp() {
             store={loadedStore}
           />,
           weeklyPlannerBoundary.mount
+        )
+      )}
+      {loadedStore !== null && weeklyPlannerBoundary !== null && (
+        createPortal(
+          <CalendarEventEditor
+            editRequest={calendarEditorRequest}
+            key={`${calendarState.selectedDate}:${calendarEditorRequest.revision}`}
+            onPersist={persistPlannerWrites}
+            onSavedDate={(date) => {
+              setCalendarState((current) => ({ ...current, selectedDate: date }));
+              dispatchCalendarNavigation(weeklyPlannerBoundary.frame, { action: "select-date", date });
+            }}
+            selectedDate={calendarState.selectedDate}
+            store={loadedStore}
+          />,
+          weeklyPlannerBoundary.editorMount
         )
       )}
       {loadedStore !== null && moneyQuickMount !== null && (
@@ -676,6 +722,7 @@ export function App() {
   const requestedView = new URLSearchParams(window.location.search).get("view");
   if (requestedView === "moneyView") return <MoneyPage today={today} />;
   if (requestedView === "journalView") return <JournalPage today={today} />;
+  if (requestedView === "calendarView") return <CalendarPage today={today} />;
   if (requestedView === null || requestedView === "todayView") return <DashboardPage today={today} />;
   return <LegacyPlannerApp />;
 }
