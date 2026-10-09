@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { putPlannerStoreValue } from "../api/planner-store";
 import { MonthlyCalendarCard } from "../features/calendar/MonthlyCalendarCard";
 import {
   CalendarEventEditor,
@@ -44,7 +43,6 @@ import { buildGuitarGoalModel, buildGuitarGoalWrite } from "../features/guitar/g
 import { useGuitarSessionController } from "../features/guitar/use-guitar-session-controller";
 import { JournalArchiveCard } from "../features/journal-archive/JournalArchiveCard";
 import { JournalPage } from "../features/journal-page/JournalPage";
-import { LifePieCard } from "../features/life-pie/LifePieCard";
 import { plannerDateFromSearch } from "../features/life-pie/life-pie";
 import { formatPlannerDate } from "../features/life-pie/life-pie-store";
 import { MeditationCard } from "../features/meditation/MeditationCard";
@@ -87,13 +85,6 @@ import { buildCalendarTaskReconciliation } from "../features/tasks/calendar-task
 import { makeTaskRelatedId } from "../features/tasks/task-options";
 import { TodayIntention } from "../features/today-intention/TodayIntention";
 import { buildTodayIntentionModel } from "../features/today-intention/today-intention";
-import { WeeklyGoalsCard } from "../features/weekly-goals/WeeklyGoalsCard";
-import {
-  decodeWeeklyGoals,
-  encodeWeeklyGoalUpdate,
-  WEEKLY_GOALS_STORAGE_KEY,
-  type WeeklyGoalId
-} from "../features/weekly-goals/weekly-goals";
 import { usePlannerStore } from "./use-planner-store";
 import { persistPlannerWrites } from "./planner-persistence";
 
@@ -124,7 +115,6 @@ function LegacyPlannerApp() {
   const plannerStore = usePlannerStore();
   const today = useMemo(() => plannerDateFromSearch(window.location.search, new Date()), []);
   const todayKey = formatPlannerDate(today);
-  const [weeklyGoalsMount, setWeeklyGoalsMount] = useState<HTMLElement | null>(null);
   const [dayStateBoundary, setDayStateBoundary] = useState<FramePortalBoundary | null>(null);
   const [taskProgressMount, setTaskProgressMount] = useState<HTMLElement | null>(null);
   const [taskListMount, setTaskListMount] = useState<HTMLElement | null>(null);
@@ -139,7 +129,6 @@ function LegacyPlannerApp() {
     emptyPatternHistoryModel(todayKey)
   );
   const [patternHistoryRevision, setPatternHistoryRevision] = useState(0);
-  const [lifePieBoundary, setLifePieBoundary] = useState<ReactPanelBoundary | null>(null);
   const [plannedBoundary, setPlannedBoundary] = useState<ReactPanelBoundary | null>(null);
   const [energyTrailBoundary, setEnergyTrailBoundary] = useState<FramePortalBoundary | null>(null);
   const [guitarGoalMount, setGuitarGoalMount] = useState<HTMLElement | null>(null);
@@ -160,7 +149,6 @@ function LegacyPlannerApp() {
   const [moneyPacingMount, setMoneyPacingMount] = useState<HTMLElement | null>(null);
   const [moneyQuickMount, setMoneyQuickMount] = useState<HTMLElement | null>(null);
   const [moneyVendorsMount, setMoneyVendorsMount] = useState<HTMLElement | null>(null);
-  const [weeklyGoalsOverride, setWeeklyGoalsOverride] = useState<string | null>(null);
   const [selectedJournalDateKey, setSelectedJournalDateKey] = useState(formatPlannerDate(today));
   const [calendarState, setCalendarState] = useState<CalendarBridgeState>({
     cursorDate: formatPlannerDate(new Date(today.getFullYear(), today.getMonth(), 1)),
@@ -179,9 +167,6 @@ function LegacyPlannerApp() {
     [loadedStore, today]
   );
   const plannedKey = plannedStorageKey(today);
-  const weeklyStore = loadedStore === null || weeklyGoalsOverride === null
-    ? loadedStore
-    : { ...loadedStore, [WEEKLY_GOALS_STORAGE_KEY]: weeklyGoalsOverride };
   const calendarTaskReconciliation = useMemo(() => loadedStore === null ? null
     : buildCalendarTaskReconciliation(loadedStore, todayKey, () => ({
       createdAt: new Date().toISOString(),
@@ -221,13 +206,6 @@ function LegacyPlannerApp() {
     const journalDate = document?.querySelector<HTMLInputElement>("#journalDate");
     setLegacyFrame(frame);
     setSelectedJournalDateKey(selectedJournalDate(journalDate, formatPlannerDate(today)));
-    const weeklyMount = document?.getElementById("weeklyGoals");
-    if (weeklyMount !== null && weeklyMount !== undefined) {
-      // The legacy renderer respects this marker so React remains the sole owner of the boundary.
-      weeklyMount.dataset.reactOwned = "true";
-      setWeeklyGoalsMount(weeklyMount);
-    }
-
     const dayStateMount = document?.getElementById("dayStateOptions");
     if (dayStateMount !== null && dayStateMount !== undefined) {
       dayStateMount.dataset.reactOwned = "true";
@@ -278,15 +256,6 @@ function LegacyPlannerApp() {
       patternHistoryDialog.dataset.reactOwned = "true";
       patternHistoryDialog.replaceChildren();
       setPatternHistoryBoundary({ frame, mount: patternHistoryDialog });
-    }
-
-    const lifeCard = document?.querySelector<HTMLElement>(".life-card");
-    const lifeMount = lifeCard?.querySelector<HTMLElement>(".panel-inner");
-    if (lifeCard !== null && lifeCard !== undefined && lifeMount !== null && lifeMount !== undefined) {
-      lifeCard.dataset.reactOwned = "true";
-      // Remove the static children before the portal becomes this panel's only renderer.
-      lifeMount.replaceChildren();
-      setLifePieBoundary({ initialNowMs: Date.now(), mount: lifeMount });
     }
 
     const plannedCard = document?.querySelector<HTMLElement>(".planned-card");
@@ -562,21 +531,6 @@ function LegacyPlannerApp() {
     };
   }, [legacyFrame]);
 
-  function saveWeeklyGoal(goalId: WeeklyGoalId, text: string): void {
-    if (weeklyStore === null) {
-      return;
-    }
-
-    const value = encodeWeeklyGoalUpdate(weeklyStore, goalId, text);
-    setWeeklyGoalsOverride(value);
-    try {
-      window.localStorage.setItem(WEEKLY_GOALS_STORAGE_KEY, value);
-    } catch {
-      // Server persistence still works when browser storage is unavailable.
-    }
-    void putPlannerStoreValue(WEEKLY_GOALS_STORAGE_KEY, value).catch(() => undefined);
-  }
-
   function openJournalDate(boundary: FramePortalBoundary, date: string): void {
     const frameDocument = boundary.frame.contentDocument;
     if (frameDocument === null) {
@@ -602,12 +556,6 @@ function LegacyPlannerApp() {
         src={legacyUrl}
         title="Yuan's Planner"
       />
-      {weeklyStore !== null && weeklyGoalsMount !== null && (
-        createPortal(
-          <WeeklyGoalsCard goals={decodeWeeklyGoals(weeklyStore)} onGoalChange={saveWeeklyGoal} />,
-          weeklyGoalsMount
-        )
-      )}
       {loadedStore !== null && dayStateBoundary !== null && (
         createPortal(
           <DayStateOptions
@@ -660,16 +608,6 @@ function LegacyPlannerApp() {
         createPortal(
           <TodayIntention model={buildTodayIntentionModel(loadedStore, today)} />,
           todayIntentionMount
-        )
-      )}
-      {loadedStore !== null && lifePieBoundary !== null && (
-        createPortal(
-          <LifePieCard
-            initialNowMs={lifePieBoundary.initialNowMs}
-            store={loadedStore}
-            today={today}
-          />,
-          lifePieBoundary.mount
         )
       )}
       {dashboardStore !== null && dashboardInsightBoundary !== null && (
