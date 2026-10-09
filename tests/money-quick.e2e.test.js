@@ -10,9 +10,9 @@ const TRANSACTIONS_KEY = "hivePlanner.money.transactions";
 const VENDOR_RULES_KEY = "hivePlanner.money.vendorRules";
 const ACTIVITY_LOG_KEY = "hivePlanner.activityLog";
 
-function moneyQuickState(documentExpression) {
+function moneyQuickState() {
   return `(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const amount = documentRoot.getElementById("moneyQuickAmount");
     const category = documentRoot.getElementById("moneyQuickCategory");
     const vendor = documentRoot.getElementById("moneyQuickVendor");
@@ -48,9 +48,9 @@ function moneyQuickState(documentExpression) {
   })()`;
 }
 
-function moneyQuickVisualContract(documentExpression) {
+function moneyQuickVisualContract() {
   return `(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const view = documentRoot.defaultView;
     const panel = documentRoot.querySelector(".money-quick-card");
     const pick = (element) => {
@@ -84,30 +84,21 @@ function moneyQuickVisualContract(documentExpression) {
       note: { text: panel.querySelector(".small-note").textContent.trim(), visual: pick(panel.querySelector(".small-note")) },
       panel: pick(panel),
       shortcuts: [...panel.querySelectorAll(".money-shortcut")].map((item) => ({ text: item.textContent.trim(), visual: pick(item) })),
-      state: ${moneyQuickState(documentExpression)},
+      state: ${moneyQuickState()},
       summary: [...panel.querySelectorAll(".money-mini-stat")].map((item) => ({ text: item.textContent.trim(), visual: pick(item) }))
     };
   })()`;
 }
 
-const LEGACY_CLIP = `(() => {
+const MONEY_QUICK_CLIP = `(() => {
   const rect = document.querySelector(".money-quick-card").getBoundingClientRect();
   return { x: rect.x + scrollX, y: rect.y + scrollY, width: rect.width, height: rect.height };
 })()`;
 
-const PREVIEW_CLIP = `(() => {
-  const frame = document.querySelector("iframe");
-  const rect = frame.contentDocument.querySelector(".money-quick-card").getBoundingClientRect();
-  const frameRect = frame.getBoundingClientRect();
-  return { x: frameRect.x + rect.x, y: frameRect.y + rect.y, width: rect.width, height: rect.height };
-})()`;
-
-async function scrollToMoneyQuick(browser, documentExpression) {
-  await browser.waitForExpression(
-    `(${documentExpression}).documentElement.dataset.plannerReady === "true"`
-  );
+async function scrollToMoneyQuick(browser) {
+  await browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
   await browser.evaluate(`(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const card = documentRoot.querySelector(".money-quick-card");
     const mascot = documentRoot.querySelector(".mascot-card");
     documentRoot.documentElement.style.scrollBehavior = "auto";
@@ -117,13 +108,12 @@ async function scrollToMoneyQuick(browser, documentExpression) {
     card.scrollIntoView({ block: "start" });
   })()`);
   await browser.waitForExpression(`(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const rect = documentRoot.querySelector(".money-quick-card").getBoundingClientRect();
     return rect.top < documentRoot.defaultView.innerHeight && rect.bottom > 0;
   })()`);
   await browser.evaluate(`new Promise((resolve) => {
-    const view = (${documentExpression}).defaultView;
-    view.requestAnimationFrame(() => view.requestAnimationFrame(resolve));
+    requestAnimationFrame(() => requestAnimationFrame(resolve));
   })`);
 }
 
@@ -220,7 +210,7 @@ async function exerciseLegacyForm(planner) {
     );
   })()`);
   await planner.browser.waitForExpression('document.querySelector("#moneyQuickSummary .money-mini-stat strong").textContent === "€102.34"');
-  const state = await planner.browser.evaluate(moneyQuickState("document"));
+  const state = await planner.browser.evaluate(moneyQuickState());
   assert.equal(state.amount.value, "");
   assert.equal(state.vendor.value, "");
   assert.equal(state.badge, "On pace");
@@ -258,72 +248,60 @@ async function assertLegacyWrites(planner) {
 
 async function exerciseReactForm(planner) {
   await planner.browser.evaluate(`(() => {
-    const frame = document.querySelector("iframe");
-    const documentRoot = frame.contentDocument;
-    const input = documentRoot.getElementById("moneyQuickAmount");
-    const setValue = Object.getOwnPropertyDescriptor(frame.contentWindow.HTMLInputElement.prototype, "value").set;
+    const input = document.getElementById("moneyQuickAmount");
+    const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
     setValue.call(input, "bad");
-    input.dispatchEvent(new frame.contentWindow.Event("input", { bubbles: true }));
-    documentRoot.getElementById("moneyQuickForm").dispatchEvent(
-      new frame.contentWindow.Event("submit", { bubbles: true, cancelable: true })
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    document.getElementById("moneyQuickForm").dispatchEvent(
+      new Event("submit", { bubbles: true, cancelable: true })
     );
   })()`);
-  await planner.browser.waitForExpression(`document.querySelector("iframe").contentDocument.getElementById("moneyQuickImpact").textContent === "Add a valid amount before saving."`);
-  assert.equal(await planner.browser.evaluate(
-    'document.querySelector("iframe").contentDocument.activeElement.id'
-  ), "moneyQuickAmount");
+  await planner.browser.waitForExpression('document.getElementById("moneyQuickImpact").textContent === "Add a valid amount before saving."');
+  assert.equal(await planner.browser.evaluate('document.activeElement.id'), "moneyQuickAmount");
 
   await planner.browser.evaluate(`(() => {
-    const frame = document.querySelector("iframe");
-    const documentRoot = frame.contentDocument;
-    const select = documentRoot.getElementById("moneyQuickCategory");
-    const vendor = documentRoot.getElementById("moneyQuickVendor");
-    const setSelect = Object.getOwnPropertyDescriptor(frame.contentWindow.HTMLSelectElement.prototype, "value").set;
-    const setInput = Object.getOwnPropertyDescriptor(frame.contentWindow.HTMLInputElement.prototype, "value").set;
+    const select = document.getElementById("moneyQuickCategory");
+    const vendor = document.getElementById("moneyQuickVendor");
+    const setSelect = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set;
+    const setInput = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
     setSelect.call(select, "fun");
-    select.dispatchEvent(new frame.contentWindow.Event("change", { bubbles: true }));
+    select.dispatchEvent(new Event("change", { bubbles: true }));
     setInput.call(vendor, "Apple Services");
-    vendor.dispatchEvent(new frame.contentWindow.Event("input", { bubbles: true }));
+    vendor.dispatchEvent(new Event("input", { bubbles: true }));
     vendor.focus();
     vendor.blur();
   })()`);
-  await planner.browser.waitForExpression(`document.querySelector("iframe").contentDocument.getElementById("moneyQuickCategory").value === "subscriptions"`);
+  await planner.browser.waitForExpression('document.getElementById("moneyQuickCategory").value === "subscriptions"');
 
   await planner.browser.evaluate(`(() => {
-    const documentRoot = document.querySelector("iframe").contentDocument;
-    [...documentRoot.querySelectorAll(".money-shortcut")]
+    [...document.querySelectorAll(".money-shortcut")]
       .find((button) => button.textContent.includes("Therapy")).click();
   })()`);
   assert.deepEqual(await planner.browser.evaluate(`(() => {
-    const documentRoot = document.querySelector("iframe").contentDocument;
     return {
-      activeId: documentRoot.activeElement.id,
-      category: documentRoot.getElementById("moneyQuickCategory").value
+      activeId: document.activeElement.id,
+      category: document.getElementById("moneyQuickCategory").value
     };
   })()`), { activeId: "moneyQuickAmount", category: "therapy" });
 
   await planner.browser.evaluate(`(() => {
-    const frame = document.querySelector("iframe");
-    const documentRoot = frame.contentDocument;
-    const setInput = Object.getOwnPropertyDescriptor(frame.contentWindow.HTMLInputElement.prototype, "value").set;
-    const setSelect = Object.getOwnPropertyDescriptor(frame.contentWindow.HTMLSelectElement.prototype, "value").set;
-    const amount = documentRoot.getElementById("moneyQuickAmount");
-    const category = documentRoot.getElementById("moneyQuickCategory");
-    const vendor = documentRoot.getElementById("moneyQuickVendor");
+    const setInput = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
+    const setSelect = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set;
+    const amount = document.getElementById("moneyQuickAmount");
+    const category = document.getElementById("moneyQuickCategory");
+    const vendor = document.getElementById("moneyQuickVendor");
     setInput.call(amount, "7.25");
-    amount.dispatchEvent(new frame.contentWindow.Event("input", { bubbles: true }));
+    amount.dispatchEvent(new Event("input", { bubbles: true }));
     setSelect.call(category, "eating-out");
-    category.dispatchEvent(new frame.contentWindow.Event("change", { bubbles: true }));
+    category.dispatchEvent(new Event("change", { bubbles: true }));
     setInput.call(vendor, "Cafe Test");
-    vendor.dispatchEvent(new frame.contentWindow.Event("input", { bubbles: true }));
-    documentRoot.getElementById("moneyQuickForm").dispatchEvent(
-      new frame.contentWindow.Event("submit", { bubbles: true, cancelable: true })
+    vendor.dispatchEvent(new Event("input", { bubbles: true }));
+    document.getElementById("moneyQuickForm").dispatchEvent(
+      new Event("submit", { bubbles: true, cancelable: true })
     );
   })()`);
-  await planner.browser.waitForExpression(`document.querySelector("iframe").contentDocument.querySelector("#moneyQuickSummary .money-mini-stat strong").textContent === "€99.33"`);
-  const state = await planner.browser.evaluate(
-    moneyQuickState('document.querySelector("iframe").contentDocument')
-  );
+  await planner.browser.waitForExpression('document.querySelector("#moneyQuickSummary .money-mini-stat strong").textContent === "€99.33"');
+  const state = await planner.browser.evaluate(moneyQuickState());
   assert.deepEqual(state.summary.map((item) => item.text), [
     "Remaining this week€99.33",
     "Remaining this month€241.36"
@@ -349,19 +327,14 @@ async function exerciseReactForm(planner) {
   });
 }
 
-async function updateLegacyGroceriesBudget(planner) {
+async function updateDirectGroceriesBudget(planner) {
+  await planner.browser.evaluate('document.querySelector(\'[data-view-target="moneyView"]\').click()');
+  await planner.browser.waitForExpression('document.querySelector("#moneyRecentActivity .money-vendor-row")?.textContent.includes("Cafe Test")');
   await planner.browser.evaluate(`(() => {
-    const documentRoot = document.querySelector("iframe").contentDocument;
-    documentRoot.querySelector('[data-view-target="moneyView"]').click();
-  })()`);
-  await planner.browser.waitForExpression(`document.querySelector("iframe").contentDocument.querySelector("#moneyRecentActivity .money-vendor-row")?.textContent.includes("Cafe Test")`);
-  await planner.browser.evaluate(`(() => {
-    const frame = document.querySelector("iframe");
-    const input = frame.contentDocument.querySelector('input[aria-label="Groceries month"]');
+    const input = document.querySelector('input[aria-label="Groceries month"]');
     input.value = "130";
-    input.dispatchEvent(new frame.contentWindow.Event("change", { bubbles: true }));
+    input.dispatchEvent(new Event("change", { bubbles: true }));
   })()`);
-  await planner.browser.waitForExpression(`document.querySelector("iframe").contentDocument.querySelector("#moneyQuickSummary .money-mini-stat strong").textContent === "€103.46"`);
   await planner.server.waitFor(async function () {
     const stored = await planner.server.readPlannerData();
     const settings = JSON.parse(stored["hivePlanner.money.settings"] || "{}");
@@ -369,6 +342,8 @@ async function updateLegacyGroceriesBudget(planner) {
       && category.budgetCents === 13_000
       && category.weeklyBudgetCents === 2_600);
   });
+  await planner.browser.evaluate('document.querySelector(\'[data-view-target="todayView"]\').click()');
+  await planner.browser.waitForExpression('document.querySelector("#moneyQuickSummary .money-mini-stat strong").textContent === "€103.46"');
 }
 
 test("Money quick log preserves entry, persistence, and visual behavior", { timeout: 60_000 }, async function (context) {
@@ -388,7 +363,7 @@ test("Money quick log preserves entry, persistence, and visual behavior", { time
   await planner.browser.setViewport(1280, 720);
   await planner.browser.open(`${planner.server.url}/?date=${TEST_DATE}`);
   await planner.browser.waitForExpression('document.querySelectorAll("#moneyQuickSummary .money-mini-stat").length === 2');
-  assertInitialState(await planner.browser.evaluate(moneyQuickState("document")));
+  assertInitialState(await planner.browser.evaluate(moneyQuickState()));
   await exerciseLegacyForm(planner);
   await assertLegacyWrites(planner);
 
@@ -402,42 +377,36 @@ test("Money quick log preserves entry, persistence, and visual behavior", { time
   await planner.browser.open(`${planner.server.url}/?date=${TEST_DATE}`);
   await planner.browser.waitForExpression('document.querySelector("#moneyQuickSummary .money-mini-stat strong").textContent === "€102.34"');
   assert.equal(
-    (await planner.browser.evaluate(moneyQuickState("document"))).impact,
+    (await planner.browser.evaluate(moneyQuickState())).impact,
     "Saving a transaction will update the rest of the week and month immediately."
   );
-  await scrollToMoneyQuick(planner.browser, "document");
-  const legacyDesktop = await planner.browser.evaluate(moneyQuickVisualContract("document"));
-  const legacyDesktopScreenshot = await planner.browser.captureScreenshot(LEGACY_CLIP);
+  await scrollToMoneyQuick(planner.browser);
+  const legacyDesktop = await planner.browser.evaluate(moneyQuickVisualContract());
+  const legacyDesktopScreenshot = await planner.browser.captureScreenshot(MONEY_QUICK_CLIP);
 
-  await planner.browser.open(`${preview.url}/?view=legacyShell&date=${TEST_DATE}`);
-  await planner.browser.waitForExpression('document.querySelector("iframe")?.contentDocument?.querySelector("#moneyQuickSummary .money-mini-stat strong")?.textContent === "€102.34"');
-  await scrollToMoneyQuick(planner.browser, 'document.querySelector("iframe").contentDocument');
-  const previewDesktop = await planner.browser.evaluate(
-    moneyQuickVisualContract('document.querySelector("iframe").contentDocument')
-  );
-  const previewDesktopScreenshot = await planner.browser.captureScreenshot(PREVIEW_CLIP);
-  assert.equal(await planner.browser.evaluate(
-    'document.querySelector("iframe").contentDocument.querySelector(".money-quick-card").dataset.reactOwned'
-  ), "true");
+  await planner.browser.open(`${preview.url}/?view=todayView&date=${TEST_DATE}`);
+  await planner.browser.waitForExpression('document.querySelector("#moneyQuickSummary .money-mini-stat strong")?.textContent === "€102.34"');
+  await scrollToMoneyQuick(planner.browser);
+  const previewDesktop = await planner.browser.evaluate(moneyQuickVisualContract());
+  const previewDesktopScreenshot = await planner.browser.captureScreenshot(MONEY_QUICK_CLIP);
+  assert.equal(await planner.browser.evaluate('document.querySelector("iframe")'), null);
   assert.deepEqual(previewDesktop, legacyDesktop);
   assertSameScreenshot(previewDesktopScreenshot, legacyDesktopScreenshot, "desktop Money quick screenshot");
   await exerciseReactForm(planner);
-  await updateLegacyGroceriesBudget(planner);
+  await updateDirectGroceriesBudget(planner);
 
   await planner.browser.setViewport(390, 844, true);
   await planner.browser.open(`${planner.server.url}/?date=${TEST_DATE}`);
   await planner.browser.waitForExpression('document.querySelector("#moneyQuickSummary .money-mini-stat strong").textContent === "€103.46"');
-  await scrollToMoneyQuick(planner.browser, "document");
-  const legacyMobile = await planner.browser.evaluate(moneyQuickVisualContract("document"));
-  const legacyMobileScreenshot = await planner.browser.captureScreenshot(LEGACY_CLIP);
+  await scrollToMoneyQuick(planner.browser);
+  const legacyMobile = await planner.browser.evaluate(moneyQuickVisualContract());
+  const legacyMobileScreenshot = await planner.browser.captureScreenshot(MONEY_QUICK_CLIP);
 
-  await planner.browser.open(`${preview.url}/?view=legacyShell&date=${TEST_DATE}`);
-  await planner.browser.waitForExpression('document.querySelector("iframe")?.contentDocument?.querySelector("#moneyQuickSummary .money-mini-stat strong")?.textContent === "€103.46"');
-  await scrollToMoneyQuick(planner.browser, 'document.querySelector("iframe").contentDocument');
-  const previewMobile = await planner.browser.evaluate(
-    moneyQuickVisualContract('document.querySelector("iframe").contentDocument')
-  );
-  const previewMobileScreenshot = await planner.browser.captureScreenshot(PREVIEW_CLIP);
+  await planner.browser.open(`${preview.url}/?view=todayView&date=${TEST_DATE}`);
+  await planner.browser.waitForExpression('document.querySelector("#moneyQuickSummary .money-mini-stat strong")?.textContent === "€103.46"');
+  await scrollToMoneyQuick(planner.browser);
+  const previewMobile = await planner.browser.evaluate(moneyQuickVisualContract());
+  const previewMobileScreenshot = await planner.browser.captureScreenshot(MONEY_QUICK_CLIP);
   assert.deepEqual(previewMobile, legacyMobile);
   assert.equal(previewMobile.panel.width, 370);
   assert.equal(previewMobile.form.gridTemplateColumns, "84px 112.75px 121.25px");

@@ -10,7 +10,6 @@ import { MoneyActivityCard } from "../features/money-activity/MoneyActivityCard"
 import { MoneyBudgetsCard } from "../features/money-budgets/MoneyBudgetsCard";
 import { MoneyOverviewCard } from "../features/money-overview/MoneyOverviewCard";
 import { MoneyPacingCard } from "../features/money-pacing/MoneyPacingCard";
-import { MoneyQuickCard } from "../features/money-quick/MoneyQuickCard";
 import { MoneyVendorsCard } from "../features/money-vendors/MoneyVendorsCard";
 import { MoneyPage } from "../features/money-page/MoneyPage";
 import { SkatePage } from "../features/skate/SkatePage";
@@ -24,21 +23,11 @@ function LegacyPlannerApp() {
   const [moneyBudgetsMount, setMoneyBudgetsMount] = useState<HTMLElement | null>(null);
   const [moneyOverviewMount, setMoneyOverviewMount] = useState<HTMLElement | null>(null);
   const [moneyPacingMount, setMoneyPacingMount] = useState<HTMLElement | null>(null);
-  const [moneyQuickMount, setMoneyQuickMount] = useState<HTMLElement | null>(null);
   const [moneyVendorsMount, setMoneyVendorsMount] = useState<HTMLElement | null>(null);
   const legacyUrl = `/legacy/${window.location.search}`;
   const loadedStore = plannerStore.status === "ready" ? plannerStore.store : null;
   function claimReactMounts(frame: HTMLIFrameElement): void {
     const document = frame.contentDocument;
-    const moneyQuickCard = document?.querySelector<HTMLElement>(".money-quick-card");
-    const moneyQuickPanel = moneyQuickCard?.querySelector<HTMLElement>(".panel-inner");
-    if (moneyQuickCard !== null && moneyQuickCard !== undefined
-      && moneyQuickPanel !== null && moneyQuickPanel !== undefined) {
-      moneyQuickCard.dataset.reactOwned = "true";
-      moneyQuickPanel.replaceChildren();
-      setMoneyQuickMount(moneyQuickPanel);
-    }
-
     const moneyOverviewCard = document?.querySelector<HTMLElement>(".money-overview-card");
     const moneyOverviewPanel = moneyOverviewCard?.querySelector<HTMLElement>(".panel-inner");
     if (moneyOverviewCard !== null && moneyOverviewCard !== undefined
@@ -94,12 +83,6 @@ function LegacyPlannerApp() {
         src={legacyUrl}
         title="Yuan's Planner"
       />
-      {loadedStore !== null && moneyQuickMount !== null && (
-        createPortal(
-          <MoneyQuickCard onPersist={persistPlannerWrites} store={loadedStore} today={today} />,
-          moneyQuickMount
-        )
-      )}
       {loadedStore !== null && moneyOverviewMount !== null && (
         createPortal(
           <MoneyOverviewCard store={loadedStore} today={today} />,
