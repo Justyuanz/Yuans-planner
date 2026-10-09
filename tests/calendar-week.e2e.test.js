@@ -36,7 +36,10 @@ async function seedWeek(serverUrl) {
 
 async function openCalendar(browser, url, documentExpression) {
   await browser.open(url);
-  await browser.waitForExpression(`(${documentExpression}).documentElement.dataset.plannerReady === "true"`);
+  await browser.waitForExpression(`(() => {
+    const documentRoot = ${documentExpression};
+    return documentRoot?.documentElement.dataset.plannerReady === "true";
+  })()`);
   await browser.evaluate(`(() => {
     const documentRoot = ${documentExpression};
     if (!documentRoot.getElementById("calendarView").classList.contains("active")) {
@@ -163,7 +166,7 @@ test("Calendar weekly planner preserves legacy visuals, setup rules, navigation,
 
   const legacyUrl = `${planner.server.url}/?view=calendarView&date=${TEST_DATE}`;
   const previewUrl = `${preview.url}/?view=legacyShell&date=${TEST_DATE}`;
-  const previewDocument = 'document.querySelector("iframe").contentDocument';
+  const previewDocument = 'document.querySelector("iframe")?.contentDocument';
 
   for (const [width, height] of [[1280, 720], [390, 844]]) {
     await planner.browser.setViewport(width, height, width < 500);

@@ -167,13 +167,23 @@ async function startChromeSession(executable) {
       },
       async waitForExpression(expression, timeoutMs = DEFAULT_TIMEOUT_MS) {
         const deadline = Date.now() + timeoutMs;
+        let lastError = null;
         while (Date.now() < deadline) {
-          if (await evaluate(expression)) {
-            return;
+          try {
+            if (await evaluate(expression)) {
+              return;
+            }
+            lastError = null;
+          } catch (error) {
+            // Navigation can briefly detach an iframe document while it reloads.
+            lastError = error;
           }
           await delay(50);
         }
-        throw new Error(`Browser expression was not true within ${timeoutMs}ms: ${expression}`);
+        const errorDetail = lastError ? ` Last evaluation error: ${lastError.message}` : "";
+        throw new Error(
+          `Browser expression was not true within ${timeoutMs}ms: ${expression}.${errorDetail}`
+        );
       },
       async close() {
         socket.close();

@@ -1,21 +1,23 @@
 # React frontend
 
-This folder contains the new React + TypeScript frontend beside the legacy `frontend/` application. The Python server still serves the working application. The Vite preview now renders `?view=moneyView` directly in React; the other five routes continue using the temporary legacy migration shell.
+This folder contains the production React + strict TypeScript frontend. The Python server serves the compiled `dist/` bundle at the application root, and Vite provides the local frontend-development server.
 
-The migrated boundaries are weekly goals, the dashboard day-state selector, the dashboard task-progress banner, Today's intention, Life Pie, Planned vs actual, Energy trail, Pattern noticed, Pattern history, Money quick log, Money overview, Money pace and projection, Money vendors, Money recent activity, Money budgets and categories, the Journal meditation card, and the Journal archive. React fetches the existing `/api/kv` response and validates its string-valued key/value contract. The components preserve the legacy markup, CSS, wording, interactions, persistence, desktop appearance, and responsive behavior. Same-origin storage events keep React summaries current while the task list/editor and journal editor stay legacy-owned. A shared strict-TypeScript activity model accepts the retired IDs, combines them with current planned-hour values, preserves unrelated fields, and exposes the production Transcendence, Mobile Development, Portfolio / Job Prep, Skate, Gym, and Guitar contract. The direct Money route composes all five Money-page cards inside a typed React shell with navigation and compatibility-safe backup controls; it contains no iframe. Other routes retain the legacy shell while their remaining features are migrated.
+Dashboard, Money, Journal, Calendar, Skate, and Guitar render directly in React without an iframe. React validates the existing `/api/kv` string-valued key/value contract and preserves the legacy markup, CSS, wording, interactions, persistence, desktop appearance, and responsive behavior. Unknown or explicitly compatibility-only views use the isolated legacy shell at `/legacy/` while migration cleanup continues.
 
-## Run the preview
+## Run locally
 
-Use Node.js 20.19 or newer. Start the existing Python backend from the repository root:
+Use Node.js 20.19 or newer. Install dependencies and create the production bundle:
 
 ```sh
-./scripts/start.sh
+npm ci
+npm run build
 ```
 
-Then start Vite from this folder:
+Then start the Python server from the repository root with `./scripts/start.sh`.
+
+For frontend development, start the Python backend and run:
 
 ```sh
-npm install
 npm run dev
 ```
 
@@ -23,7 +25,7 @@ Open the local address printed by Vite. Development `/api` requests are proxied 
 
 Set `VITE_PLANNER_API_TARGET` before starting Vite when the Python backend uses another local port.
 
-The root test suite compares all seventeen migrated boundaries and the direct Money route with the legacy UI in Chrome at desktop and mobile viewports. Install this folder's dependencies before running those visual regression tests.
+The root test suite compares migrated React behavior and layout with the legacy visual reference in Chrome at desktop and mobile viewports. It also opens the compiled bundle through the Python server to protect the production path, assets, API access, responsive overflow, and explicit legacy fallback.
 
 ## Quality checks
 

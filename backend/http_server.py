@@ -8,6 +8,7 @@ from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
+from config import planner_frontend_mode
 from openai_mascot import ask_mascot, openai_enabled
 from planner_api import (
     ApiRequestError,
@@ -21,7 +22,8 @@ from telegram_notifier import send_telegram_message, telegram_status
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-FRONTEND_DIR = PROJECT_ROOT / "frontend"
+LEGACY_FRONTEND_DIR = PROJECT_ROOT / "frontend"
+REACT_FRONTEND_DIR = PROJECT_ROOT / "frontend-react" / "dist"
 
 
 class PlannerHandler(BaseHTTPRequestHandler):
@@ -54,6 +56,9 @@ class PlannerHandler(BaseHTTPRequestHandler):
         if path == "/favicon.ico":
             self.send_response(204)
             self.end_headers()
+            return
+        if path == "/api" or path.startswith("/api/"):
+            self.send_error(404)
             return
         self.serve_static(path, include_body=include_body)
 
@@ -135,17 +140,59 @@ class PlannerHandler(BaseHTTPRequestHandler):
         self.send_json(response)
 
     def serve_static(self, path: str, include_body: bool = True) -> None:
-        if path == "/":
-            path = "/index.html"
-        relative = Path(unquote(path.lstrip("/")))
-        target = (FRONTEND_DIR / relative).resolve()
-        if FRONTEND_DIR not in target.parents and target != FRONTEND_DIR:
-            self.send_error(403)
+        if path == "/legacy" or path.startswith("/legacy/"):
+            legacy_path = path[len("/legacy"):]
+            self.serve_legacy_static(legacy_path or "/", include_body)
+            return
+        if path.startswith("/css/") or path.startswith("/js/"):
+            self.serve_legacy_static(path, include_body)
+            return
+        if planner_frontend_mode() == "legacy":
+            self.serve_legacy_static(path, include_body)
+            return
+        self.serve_react_static(path, include_body)
+
+    def serve_legacy_static(self, path: str, include_body: bool) -> None:
+        target = self.resolve_static_target(
+            LEGACY_FRONTEND_DIR,
+            "/index.html" if path == "/" else path,
+        )
+        if target is None:
             return
         if not target.is_file():
             self.send_error(404)
             return
+        self.send_static_file(target, include_body)
 
+    def serve_react_static(self, path: str, include_body: bool) -> None:
+        index_path = REACT_FRONTEND_DIR / "index.html"
+        if not index_path.is_file():
+            self.send_error(503, "React frontend build is missing")
+            return
+
+        requested_path = "/index.html" if path == "/" else path
+        target = self.resolve_static_target(REACT_FRONTEND_DIR, requested_path)
+        if target is None:
+            return
+        if target.is_file():
+            self.send_static_file(target, include_body)
+            return
+
+        if Path(unquote(path)).suffix:
+            self.send_error(404)
+            return
+        self.send_static_file(index_path, include_body)
+
+    def resolve_static_target(self, root: Path, path: str) -> Path | None:
+        relative = Path(unquote(path.lstrip("/")))
+        resolved_root = root.resolve()
+        target = (resolved_root / relative).resolve()
+        if resolved_root not in target.parents and target != resolved_root:
+            self.send_error(403)
+            return None
+        return target
+
+    def send_static_file(self, target: Path, include_body: bool) -> None:
         content_type = mimetypes.guess_type(str(target))[0] or "application/octet-stream"
         body = target.read_bytes()
         self.send_response(200)

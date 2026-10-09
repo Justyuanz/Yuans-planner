@@ -11,10 +11,7 @@ export default defineConfig({
       "/css": apiTarget,
       "/favicon.ico": apiTarget,
       "/js": apiTarget,
-      "/legacy": {
-        target: apiTarget,
-        rewrite: (path) => path.replace(/^\/legacy\/?/, "/")
-      }
+      "/legacy": apiTarget
     }
   }
 });

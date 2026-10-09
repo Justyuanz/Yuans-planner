@@ -1,3 +1,13 @@
+FROM node:24-alpine AS react-builder
+
+WORKDIR /build
+
+COPY frontend-react/package.json frontend-react/package-lock.json ./
+RUN npm ci
+
+COPY frontend-react ./
+RUN npm run build
+
 FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -15,6 +25,7 @@ RUN apt-get update \
 
 COPY backend ./backend
 COPY frontend ./frontend
+COPY --from=react-builder /build/dist ./frontend-react/dist
 
 RUN mkdir -p /app/persist
 

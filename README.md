@@ -1,6 +1,6 @@
 # Yuan's Planner
 
-A hobby vibe coding project: a personal planner built with AI assistance for everyday planning, journaling, and tracking progress. It uses a Python backend, SQLite, and plain HTML, CSS, and JavaScript.
+A hobby vibe coding project: a personal planner built with AI assistance for everyday planning, journaling, and tracking progress. It uses a React + TypeScript frontend, a Python backend, and SQLite.
 
 ## What it does
 
@@ -14,15 +14,21 @@ A hobby vibe coding project: a personal planner built with AI assistance for eve
 
 ## Run locally
 
-You need Python 3.10 or newer. No Python packages, npm install, or frontend build step are required.
+You need Python 3.10 or newer and Node.js 20.19 or newer.
 
 ```sh
 git clone https://github.com/Justyuanz/Yuans-planner.git YuanPlanner
 cd YuanPlanner
+cd frontend-react
+npm ci
+npm run build
+cd ..
 ./scripts/start.sh
 ```
 
 Open [localhost:8765](http://127.0.0.1:8765). You can also start the server with `python3 backend/app.py`. On macOS, `./scripts/open-ui.sh` starts the server if needed and opens the app.
+
+For frontend development, run `npm run dev` from `frontend-react/` while the Python backend is running. Vite proxies API and legacy compatibility requests to port 8765 by default.
 
 To use a different port:
 
@@ -34,14 +40,15 @@ YUAN_PLANNER_PORT=8876 ./scripts/start.sh
 
 ```text
 backend/       HTTP server, SQLite storage, configuration, and integrations
-frontend/      HTML, CSS, and JavaScript (served directly)
+frontend-react/ React + strict TypeScript application and production build
+frontend/       Legacy compatibility shell and shared CSS/JavaScript assets
 scripts/       Start, open, and test commands
-tests/         Python backend and JavaScript logic tests
+tests/         Backend, browser, compatibility, and end-to-end tests
 docs/          Design notes and future plans
 data/          Local database and runtime files (ignored by Git)
 ```
 
-`backend/app.py` is the server entry point; `config.py` handles settings and `db.py` handles persistence. In the frontend, `app.js` connects the UI to storage and the smaller modules contain feature logic. Scripts load in the order listed in `frontend/index.html`.
+`backend/app.py` is the server entry point; `config.py` handles settings and `db.py` handles persistence. The server serves `frontend-react/dist` at the application root. All six primary views render directly in React. The legacy frontend remains available at `/legacy/` for the explicit compatibility shell and as the visual reference during migration.
 
 Design notes: [agent roadmap](docs/agent-intelligence-roadmap.md) and [planner load model](docs/planner-load-model/design.md). These describe design intent and plans, rather than a complete inventory of shipped features.
 
@@ -54,6 +61,7 @@ The backend reads an optional `.env` file in the project root. Existing shell en
 | `YUAN_PLANNER_HOST` | `0.0.0.0` (all interfaces); use `127.0.0.1` for local-only access |
 | `YUAN_PLANNER_PORT` | `8765` |
 | `YUAN_PLANNER_DB_PATH` | `data/planner.db`; relative paths resolve from the project root |
+| `YUAN_PLANNER_FRONTEND_MODE` | `react`; set to `legacy` only for compatibility or visual-reference testing |
 | `YUAN_PLANNER_TIMEZONE` | `Europe/Helsinki` |
 | `OPENAI_API_KEY` | Optional key for mascot chat |
 | `YUAN_PLANNER_OPENAI_MODEL` | `gpt-5-mini` |
@@ -78,7 +86,13 @@ Server imports merge valid planner keys into existing data, replacing matching k
 
 ## Tests
 
-With Python and Node.js 18 or newer installed, run both suites:
+Install the React dependencies once, then run the complete suite:
+
+```sh
+cd frontend-react
+npm ci
+cd ..
+```
 
 ```sh
 sh scripts/test.sh
@@ -88,10 +102,16 @@ Or run them separately:
 
 ```sh
 python3 -m unittest discover -s tests -p '*_test.py'
+cd frontend-react
+npm test
+npm run lint
+npm run typecheck
+npm run build
+cd ..
 node --test tests/*.test.js
 ```
 
-Tests cover frontend feature logic, backend reminders and mascot helpers, SQLite persistence, HTTP storage/backup endpoints, static asset delivery, the main task and activity-session lifecycles, and all six primary views in a real browser. Browser smoke tests run when Chrome or Chromium and a Node.js runtime with WebSocket support are available; otherwise they are skipped. All persistence tests use temporary databases, so they do not modify your planner data or call external services.
+Tests cover React feature logic, backend reminders and mascot helpers, SQLite persistence, HTTP storage/backup endpoints, production and legacy static delivery, the main task and activity-session lifecycles, and all six primary views in a real browser. Browser tests run when Chrome or Chromium and a Node.js runtime with WebSocket support are available; otherwise they are skipped. All persistence tests use temporary databases, so they do not modify your planner data or call external services.
 
 ## Docker
 
@@ -100,5 +120,7 @@ docker compose up --build
 ```
 
 Open [localhost:8765](http://127.0.0.1:8765). Compose mounts `./data` for persistent storage. Stop it with `docker compose down`.
+
+The Docker image builds the React production bundle in a Node stage, then copies only the compiled files into the Python runtime image.
 
 The default Compose configuration does not forward optional integration settings or copy your `.env` into the image. To use integrations in Docker, explicitly add the desired variables to the service's `environment` configuration.

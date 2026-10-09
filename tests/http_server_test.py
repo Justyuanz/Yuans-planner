@@ -37,7 +37,8 @@ class HttpTests(unittest.TestCase):
     def setUp(self):
         directory = tempfile.TemporaryDirectory()
         self.addCleanup(directory.cleanup)
-        patch = mock.patch.object(db, "DB_PATH", Path(directory.name) / "planner.db")
+        self.temporary_path = Path(directory.name)
+        patch = mock.patch.object(db, "DB_PATH", self.temporary_path / "planner.db")
         patch.start()
         self.addCleanup(patch.stop)
         quiet = mock.patch.object(http_server.PlannerHandler, "log_message")
@@ -206,40 +207,106 @@ class HttpTests(unittest.TestCase):
         self.assertEqual(json.loads(body), {"ok": False, "error": "not configured"})
 
     def test_unknown_api_routes_return_not_found(self):
-        for method in ["GET", "HEAD", "POST", "PUT", "DELETE"]:
-            with self.subTest(method=method):
-                status, _, _ = self.request(method, "/api/missing", {})
-                self.assertEqual(status, 404)
+        for path in ["/api", "/api/missing"]:
+            for method in ["GET", "HEAD", "POST", "PUT", "DELETE"]:
+                with self.subTest(method=method, path=path):
+                    status, _, _ = self.request(method, path, {})
+                    self.assertEqual(status, 404)
 
-    def test_static_assets_head_and_missing_paths(self):
-        status, headers, body = self.request("GET", "/")
-        self.assertEqual(status, 200)
-        self.assertEqual(body, (http_server.FRONTEND_DIR / "index.html").read_bytes())
-        parser = AssetParser()
-        parser.feed(body.decode())
-        self.assertTrue(parser.urls)
-        storage_script = next(
-            url for url in parser.urls if url.startswith("/js/storage-core.js")
-        )
-        activity_categories_script = next(
-            url for url in parser.urls if url.startswith("/js/activity-categories.js")
-        )
-        calendar_task_script = next(
-            url for url in parser.urls if url.startswith("/js/calendar-task-sync.js")
-        )
-        app_script = next(url for url in parser.urls if url.startswith("/js/app.js"))
-        self.assertLess(parser.urls.index(storage_script), parser.urls.index(app_script))
-        self.assertLess(parser.urls.index(activity_categories_script), parser.urls.index(app_script))
-        self.assertLess(parser.urls.index(calendar_task_script), parser.urls.index(app_script))
-        for url in ["/"] + parser.urls:
-            with self.subTest(url=url):
-                status, headers, body = self.request("GET", url)
-                self.assertEqual(status, 200)
-                head_status, head_headers, head_body = self.request("HEAD", url)
-                self.assertEqual(head_status, 200)
-                self.assertEqual(head_body, b"")
-                self.assertEqual(head_headers["Content-Length"], str(len(body)))
-                self.assertEqual(head_headers["Content-Type"], headers["Content-Type"])
-        self.assertEqual(self.request("GET", "/favicon.ico")[0], 204)
-        self.assertEqual(self.request("GET", "/missing-file")[0], 404)
-        self.assertEqual(self.request("GET", "/%2e%2e/backend/config.py")[0], 403)
+    def test_legacy_mode_preserves_static_assets_head_and_missing_paths(self):
+        with mock.patch.object(http_server, "planner_frontend_mode", return_value="legacy"):
+            status, headers, body = self.request("GET", "/")
+            self.assertEqual(status, 200)
+            self.assertEqual(
+                body,
+                (http_server.LEGACY_FRONTEND_DIR / "index.html").read_bytes(),
+            )
+            parser = AssetParser()
+            parser.feed(body.decode())
+            self.assertTrue(parser.urls)
+            storage_script = next(
+                url for url in parser.urls if url.startswith("/js/storage-core.js")
+            )
+            activity_categories_script = next(
+                url for url in parser.urls if url.startswith("/js/activity-categories.js")
+            )
+            calendar_task_script = next(
+                url for url in parser.urls if url.startswith("/js/calendar-task-sync.js")
+            )
+            app_script = next(url for url in parser.urls if url.startswith("/js/app.js"))
+            self.assertLess(parser.urls.index(storage_script), parser.urls.index(app_script))
+            self.assertLess(
+                parser.urls.index(activity_categories_script),
+                parser.urls.index(app_script),
+            )
+            self.assertLess(
+                parser.urls.index(calendar_task_script),
+                parser.urls.index(app_script),
+            )
+            for url in ["/"] + parser.urls:
+                with self.subTest(url=url):
+                    status, headers, body = self.request("GET", url)
+                    self.assertEqual(status, 200)
+                    head_status, head_headers, head_body = self.request("HEAD", url)
+                    self.assertEqual(head_status, 200)
+                    self.assertEqual(head_body, b"")
+                    self.assertEqual(head_headers["Content-Length"], str(len(body)))
+                    self.assertEqual(head_headers["Content-Type"], headers["Content-Type"])
+            self.assertEqual(self.request("GET", "/favicon.ico")[0], 204)
+            self.assertEqual(self.request("GET", "/missing-file")[0], 404)
+            self.assertEqual(
+                self.request("GET", "/%2e%2e/backend/config.py")[0],
+                403,
+            )
+
+    def test_react_build_serves_root_assets_routes_and_legacy_compatibility(self):
+        react_dir = self.temporary_path / "react-dist"
+        assets_dir = react_dir / "assets"
+        assets_dir.mkdir(parents=True)
+        react_index = b"<!doctype html><div id='root'>React production shell</div>"
+        react_script = b"console.log('react production asset');"
+        (react_dir / "index.html").write_bytes(react_index)
+        (assets_dir / "app.js").write_bytes(react_script)
+
+        with (
+            mock.patch.object(http_server, "REACT_FRONTEND_DIR", react_dir),
+            mock.patch.object(http_server, "planner_frontend_mode", return_value="react"),
+        ):
+            self.assertEqual(self.request("GET", "/"), (
+                200,
+                mock.ANY,
+                react_index,
+            ))
+            self.assertEqual(self.request("GET", "/calendar/today")[2], react_index)
+            asset_status, asset_headers, asset_body = self.request("GET", "/assets/app.js")
+            self.assertEqual(asset_status, 200)
+            self.assertEqual(asset_headers["Content-Type"], "text/javascript")
+            self.assertEqual(asset_body, react_script)
+            head_status, head_headers, head_body = self.request("HEAD", "/assets/app.js")
+            self.assertEqual(head_status, 200)
+            self.assertEqual(head_headers["Content-Length"], str(len(react_script)))
+            self.assertEqual(head_body, b"")
+            self.assertEqual(self.request("GET", "/missing.js")[0], 404)
+            self.assertEqual(
+                self.request("GET", "/css/styles.css")[2],
+                (http_server.LEGACY_FRONTEND_DIR / "css" / "styles.css").read_bytes(),
+            )
+            self.assertEqual(
+                self.request("GET", "/legacy/")[2],
+                (http_server.LEGACY_FRONTEND_DIR / "index.html").read_bytes(),
+            )
+            self.assertEqual(
+                self.request("GET", "/legacy/%2e%2e/backend/config.py")[0],
+                403,
+            )
+
+    def test_react_mode_reports_a_missing_build(self):
+        missing_build = self.temporary_path / "missing-react-dist"
+        with (
+            mock.patch.object(http_server, "REACT_FRONTEND_DIR", missing_build),
+            mock.patch.object(http_server, "planner_frontend_mode", return_value="react"),
+        ):
+            status, _, body = self.request("GET", "/")
+
+        self.assertEqual(status, 503)
+        self.assertIn(b"React frontend build is missing", body)

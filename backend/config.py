@@ -56,6 +56,11 @@ def planner_db_path() -> Path:
     return path
 
 
+def planner_frontend_mode() -> str:
+    mode = os.environ.get("YUAN_PLANNER_FRONTEND_MODE", "react").strip().lower()
+    return mode if mode in {"react", "legacy"} else "react"
+
+
 def planner_timezone_name() -> str:
     return os.environ.get("YUAN_PLANNER_TIMEZONE", "Europe/Helsinki").strip() or "Europe/Helsinki"
 

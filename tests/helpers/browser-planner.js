@@ -1,7 +1,7 @@
 const { findChromeExecutable, startChromeSession } = require("./chrome-cdp");
 const { startPlannerServer } = require("./planner-server");
 
-async function startBrowserPlanner(context) {
+async function startBrowserPlanner(context, options = {}) {
   const chromeExecutable = await findChromeExecutable();
   if (!chromeExecutable) {
     context.skip("Chrome or Chromium is required for browser smoke tests.");
@@ -12,7 +12,7 @@ async function startBrowserPlanner(context) {
     return null;
   }
 
-  const server = await startPlannerServer();
+  const server = await startPlannerServer(options);
   context.after(async function () {
     await server.close();
   });
