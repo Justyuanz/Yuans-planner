@@ -170,7 +170,6 @@ test("today intention records the legacy desktop and mobile visual contract", { 
     await preview.close();
   });
 
-  const previewDocument = 'document.querySelector("iframe").contentDocument';
   await planner.browser.setViewport(1280, 720);
   await openPlanner(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
   const legacyDesktopState = await planner.browser.evaluate(intentionState());
@@ -189,17 +188,11 @@ test("today intention records the legacy desktop and mobile visual contract", { 
     badgeHeight: 37.1875
   });
 
-  await openPlanner(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, previewDocument);
-  assert.equal(await planner.browser.evaluate(
-    'document.querySelector("iframe").contentDocument.querySelector(".intention-block").dataset.reactOwned'
-  ), "true");
-  const previewDesktopState = await planner.browser.evaluate(intentionState(previewDocument));
-  const previewDesktop = await planner.browser.evaluate(intentionVisualContract(previewDocument));
-  await scrollToIntention(planner.browser, previewDocument);
-  const previewDesktopScreenshot = await planner.browser.captureScreenshot(blockClip(
-    previewDocument,
-    'document.querySelector("iframe")'
-  ));
+  await openPlanner(planner.browser, `${preview.url}/?view=todayView&date=${TEST_DATE}`);
+  const previewDesktopState = await planner.browser.evaluate(intentionState());
+  const previewDesktop = await planner.browser.evaluate(intentionVisualContract());
+  await scrollToIntention(planner.browser);
+  const previewDesktopScreenshot = await planner.browser.captureScreenshot(blockClip());
   assert.deepEqual(previewDesktopState, legacyDesktopState);
   assert.deepEqual(previewDesktop, legacyDesktop);
   assertSameScreenshot(previewDesktopScreenshot, legacyDesktopScreenshot, "desktop intention screenshot");
@@ -222,14 +215,11 @@ test("today intention records the legacy desktop and mobile visual contract", { 
     badgeHeight: 37.1875
   });
 
-  await openPlanner(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, previewDocument);
-  const previewMobileState = await planner.browser.evaluate(intentionState(previewDocument));
-  const previewMobile = await planner.browser.evaluate(intentionVisualContract(previewDocument));
-  await scrollToIntention(planner.browser, previewDocument);
-  const previewMobileScreenshot = await planner.browser.captureScreenshot(blockClip(
-    previewDocument,
-    'document.querySelector("iframe")'
-  ));
+  await openPlanner(planner.browser, `${preview.url}/?view=todayView&date=${TEST_DATE}`);
+  const previewMobileState = await planner.browser.evaluate(intentionState());
+  const previewMobile = await planner.browser.evaluate(intentionVisualContract());
+  await scrollToIntention(planner.browser);
+  const previewMobileScreenshot = await planner.browser.captureScreenshot(blockClip());
   assert.deepEqual(previewMobileState, legacyMobileState);
   assert.deepEqual(previewMobile, legacyMobile);
   assertSameScreenshot(previewMobileScreenshot, legacyMobileScreenshot, "mobile intention screenshot");
@@ -241,18 +231,14 @@ test("today intention records the legacy desktop and mobile visual contract", { 
     newValue: ${JSON.stringify(recoveryRoutine)}
   }))`);
   await planner.browser.waitForExpression(`(() => {
-    const documentRoot = ${previewDocument};
-    const badge = documentRoot.getElementById("todayThemeBadge");
+    const badge = document.getElementById("todayThemeBadge");
     return badge?.textContent === "Recovery Day" && badge.classList.contains("recovery-day");
   })()`);
 
   await planner.browser.reload();
   await planner.browser.waitForExpression(`(() => {
-    const documentRoot = ${previewDocument};
-    const block = documentRoot.querySelector(".intention-block");
-    const badge = documentRoot.getElementById("todayThemeBadge");
-    return block?.dataset.reactOwned === "true"
-      && badge?.textContent === "Recovery Day"
+    const badge = document.getElementById("todayThemeBadge");
+    return badge?.textContent === "Recovery Day"
       && badge.classList.contains("recovery-day");
   })()`);
   assert.deepEqual(planner.browser.errors(), []);

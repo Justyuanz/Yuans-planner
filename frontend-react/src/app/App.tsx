@@ -76,15 +76,11 @@ import {
 } from "../features/skate/skate-training-plan";
 import type { SkateHeroSettingsAction } from "../features/skate/skate-settings";
 import { useSkateFeedbackController } from "../features/skate/use-skate-feedback-controller";
-import { TaskProgressBanner } from "../features/task-progress/TaskProgressBanner";
-import { buildTaskProgressModel } from "../features/task-progress/task-progress";
 import { TaskForm } from "../features/tasks/TaskForm";
 import { TaskList } from "../features/tasks/TaskList";
 import { buildAgentUndoWrites } from "../features/tasks/agent-undo";
 import { buildCalendarTaskReconciliation } from "../features/tasks/calendar-task-reconciliation";
 import { makeTaskRelatedId } from "../features/tasks/task-options";
-import { TodayIntention } from "../features/today-intention/TodayIntention";
-import { buildTodayIntentionModel } from "../features/today-intention/today-intention";
 import { usePlannerStore } from "./use-planner-store";
 import { persistPlannerWrites } from "./planner-persistence";
 
@@ -116,10 +112,8 @@ function LegacyPlannerApp() {
   const today = useMemo(() => plannerDateFromSearch(window.location.search, new Date()), []);
   const todayKey = formatPlannerDate(today);
   const [dayStateBoundary, setDayStateBoundary] = useState<FramePortalBoundary | null>(null);
-  const [taskProgressMount, setTaskProgressMount] = useState<HTMLElement | null>(null);
   const [taskListMount, setTaskListMount] = useState<HTMLElement | null>(null);
   const [taskFormMount, setTaskFormMount] = useState<HTMLFormElement | null>(null);
-  const [todayIntentionMount, setTodayIntentionMount] = useState<HTMLElement | null>(null);
   const [dashboardInsightBoundary, setDashboardInsightBoundary] = useState<FramePortalBoundary | null>(null);
   const [dashboardInsightModel, setDashboardInsightModel] = useState<DashboardInsightModel>(
     buildDashboardInsightModel(null)
@@ -213,13 +207,6 @@ function LegacyPlannerApp() {
       setDayStateBoundary({ frame, mount: dayStateMount });
     }
 
-    const taskProgressMount = document?.querySelector<HTMLElement>(".day-banner");
-    if (taskProgressMount !== null && taskProgressMount !== undefined) {
-      taskProgressMount.dataset.reactOwned = "true";
-      taskProgressMount.replaceChildren();
-      setTaskProgressMount(taskProgressMount);
-    }
-
     const taskListMount = document?.getElementById("tasksMount");
     if (taskListMount !== null && taskListMount !== undefined) {
       taskListMount.dataset.reactOwned = "true";
@@ -232,13 +219,6 @@ function LegacyPlannerApp() {
       taskFormMount.dataset.reactOwned = "true";
       taskFormMount.replaceChildren();
       setTaskFormMount(taskFormMount);
-    }
-
-    const todayIntentionMount = document?.querySelector<HTMLElement>(".intention-block");
-    if (todayIntentionMount !== null && todayIntentionMount !== undefined) {
-      todayIntentionMount.dataset.reactOwned = "true";
-      todayIntentionMount.replaceChildren();
-      setTodayIntentionMount(todayIntentionMount);
     }
 
     const dashboardInsightCard = document?.getElementById("dashboardInsightCard");
@@ -571,12 +551,6 @@ function LegacyPlannerApp() {
           dayStateBoundary.mount
         )
       )}
-      {dashboardStore !== null && taskProgressMount !== null && (
-        createPortal(
-          <TaskProgressBanner model={buildTaskProgressModel(dashboardStore, todayKey)} />,
-          taskProgressMount
-        )
-      )}
       {dashboardStore !== null && taskListMount !== null && (
         createPortal(
           <TaskList
@@ -602,12 +576,6 @@ function LegacyPlannerApp() {
             store={dashboardStore}
           />,
           taskFormMount
-        )
-      )}
-      {loadedStore !== null && todayIntentionMount !== null && (
-        createPortal(
-          <TodayIntention model={buildTodayIntentionModel(loadedStore, today)} />,
-          todayIntentionMount
         )
       )}
       {dashboardStore !== null && dashboardInsightBoundary !== null && (
