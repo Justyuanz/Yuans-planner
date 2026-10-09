@@ -37,6 +37,7 @@ import {
 } from "../features/dashboard-insight/dashboard-insight";
 import { EnergyTrailCard } from "../features/energy-trail/EnergyTrailCard";
 import { GuitarGoalCard } from "../features/guitar/GuitarGoalCard";
+import { GuitarPage } from "../features/guitar/GuitarPage";
 import { GuitarSessionCard } from "../features/guitar/GuitarSessionCard";
 import { GuitarSessionDialog } from "../features/guitar/GuitarSessionDialog";
 import { buildGuitarGoalModel, buildGuitarGoalWrite } from "../features/guitar/guitar-goal";
@@ -949,6 +950,7 @@ export function App() {
   if (requestedView === "journalView") return <JournalPage today={today} />;
   if (requestedView === "calendarView") return <CalendarPage today={today} />;
   if (requestedView === "skateView") return <SkatePage today={today} />;
+  if (requestedView === "guitarView") return <GuitarPage today={today} />;
   if (requestedView === null || requestedView === "todayView") return <DashboardPage today={today} />;
   return <LegacyPlannerApp />;
 }

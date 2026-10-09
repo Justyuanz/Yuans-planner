@@ -92,7 +92,9 @@ function guitarContract(documentExpression) {
         height: rect.height,
         lineHeight: style.lineHeight,
         padding: style.padding,
-        width: rect.width
+        width: rect.width,
+        x: rect.x,
+        y: rect.y
       };
     };
     return {
@@ -107,6 +109,8 @@ function guitarContract(documentExpression) {
         title: row.getAttribute("title")
       })),
       nextStep: documentRoot.getElementById("guitarNextStepInput")?.value,
+      iframeCount: documentRoot.querySelectorAll("iframe").length,
+      overflow: documentRoot.documentElement.scrollWidth > documentRoot.documentElement.clientWidth,
       plan: documentRoot.getElementById("guitarSessionPlan")?.textContent.trim(),
       sessionCard: pick(sessionCard),
       sessionHint: documentRoot.getElementById("guitarSessionHint")?.textContent.trim(),
@@ -159,28 +163,23 @@ async function waitForLegacyGuitar(browser) {
 
 async function waitForReactGuitar(browser, expectedFocus = "Clean chord changes") {
   await browser.waitForExpression(`(() => {
-    const frame = document.querySelector("iframe");
-    const frameDocument = frame?.contentDocument;
-    return frameDocument?.documentElement.dataset.plannerReady === "true"
-      && frameDocument.querySelector(".guitar-goal-card")?.dataset.reactOwned === "true"
-      && frameDocument.querySelector(".guitar-session-card")?.dataset.reactOwned === "true"
-      && frameDocument.getElementById("guitarSessionDialog")?.dataset.reactOwned === "true"
-      && frameDocument.getElementById("guitarFocusInput")?.value === ${JSON.stringify(expectedFocus)}
-      && frameDocument.querySelectorAll("#guitarSessionSummary .guitar-summary-card").length === 4;
+    return document.documentElement.dataset.plannerReady === "true"
+      && document.querySelectorAll("iframe").length === 0
+      && document.getElementById("guitarFocusInput")?.value === ${JSON.stringify(expectedFocus)}
+      && document.querySelectorAll("#guitarSessionSummary .guitar-summary-card").length === 4;
   })()`);
 }
 
-async function setFrameField(browser, id, value) {
+async function setField(browser, id, value) {
   await browser.evaluate(`(() => {
-    const frame = document.querySelector("iframe");
-    const field = frame.contentDocument.getElementById(${JSON.stringify(id)});
-    const setter = Object.getOwnPropertyDescriptor(frame.contentWindow.HTMLInputElement.prototype, "value").set;
+    const field = document.getElementById(${JSON.stringify(id)});
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
     setter.call(field, ${JSON.stringify(value)});
-    field.dispatchEvent(new frame.contentWindow.Event("input", { bubbles: true }));
+    field.dispatchEvent(new Event("input", { bubbles: true }));
   })()`);
 }
 
-test("React owns the complete Guitar fallback page and preserves the shipped flow", { timeout: 90_000 }, async function (context) {
+test("Guitar is a direct React page with complete legacy parity and persistence", { timeout: 90_000 }, async function (context) {
   const planner = await startBrowserPlanner(context);
   if (!planner) return;
   const preview = await startReactPreviewServer(planner.server.url);
@@ -213,19 +212,16 @@ test("React owns the complete Guitar fallback page and preserves the shipped flo
 
     await planner.browser.open(previewUrl);
     await waitForReactGuitar(planner.browser);
-    const frameDocument = 'document.querySelector("iframe").contentDocument';
-    const reactState = await planner.browser.evaluate(guitarContract(frameDocument));
-    await prepareCardScreenshot(planner.browser, frameDocument, ".guitar-goal-card");
+    const reactState = await planner.browser.evaluate(guitarContract("document"));
+    await prepareCardScreenshot(planner.browser, "document", ".guitar-goal-card");
     const reactGoalScreenshot = await planner.browser.captureScreenshot(cardClip(
-      frameDocument,
-      ".guitar-goal-card",
-      'document.querySelector("iframe")'
+      "document",
+      ".guitar-goal-card"
     ));
-    await prepareCardScreenshot(planner.browser, frameDocument, ".guitar-session-card");
+    await prepareCardScreenshot(planner.browser, "document", ".guitar-session-card");
     const reactSessionScreenshot = await planner.browser.captureScreenshot(cardClip(
-      frameDocument,
-      ".guitar-session-card",
-      'document.querySelector("iframe")'
+      "document",
+      ".guitar-session-card"
     ));
 
     assert.deepEqual(reactState, legacyState);
@@ -236,6 +232,8 @@ test("React owns the complete Guitar fallback page and preserves the shipped flo
       "Average session38 min"
     ]);
     assert.equal(reactState.plan, "This week: 75 / 120 min. 2 more sessions and about 45 min to hit the target. Practice next: Play the bridge slowly. Current focus: Clean chord changes.");
+    assert.equal(reactState.iframeCount, 0);
+    assert.equal(reactState.overflow, false);
     assertSameScreenshot(reactGoalScreenshot, legacyGoalScreenshot, `${width}px Guitar goal card`);
     assertSameScreenshot(
       reactSessionScreenshot,
@@ -247,23 +245,23 @@ test("React owns the complete Guitar fallback page and preserves the shipped flo
   await planner.browser.setViewport(1280, 900);
   await planner.browser.open(previewUrl);
   await waitForReactGuitar(planner.browser);
-  await setFrameField(planner.browser, "guitarFocusInput", "Arpeggios");
-  await setFrameField(planner.browser, "guitarNextStepInput", "Play bar 8 slowly");
+  await setField(planner.browser, "guitarFocusInput", "Arpeggios");
+  await setField(planner.browser, "guitarNextStepInput", "Play bar 8 slowly");
   await planner.server.waitFor(async function () {
     const data = await planner.server.readPlannerData();
     return data[FOCUS_KEY] === "Arpeggios" && data[NEXT_STEP_KEY] === "Play bar 8 slowly";
   });
 
-  await planner.browser.evaluate('document.querySelector("iframe").contentDocument.getElementById("startGuitarSession").click()');
-  await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.getElementById("finishGuitarSession").disabled === false');
-  await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.getElementById("guitarSessionStatus").textContent.includes("Guitar session running")');
+  await planner.browser.evaluate('document.getElementById("startGuitarSession").click()');
+  await planner.browser.waitForExpression('document.getElementById("finishGuitarSession").disabled === false');
+  await planner.browser.waitForExpression('document.getElementById("guitarSessionStatus").textContent.includes("Guitar session running")');
   assert.equal(await planner.browser.evaluate(
-    'document.querySelector("iframe").contentDocument.getElementById("guitarSessionPlan").textContent.trim()'
+    'document.getElementById("guitarSessionPlan").textContent.trim()'
   ), "Session is live. Stay with Arpeggios and save the real result after.");
   await planner.browser.reload();
   await waitForReactGuitar(planner.browser, "Arpeggios");
   assert.deepEqual(await planner.browser.evaluate(`(() => {
-    const documentRoot = document.querySelector("iframe").contentDocument;
+    const documentRoot = document;
     return {
       finishDisabled: documentRoot.getElementById("finishGuitarSession").disabled,
       focus: documentRoot.getElementById("guitarFocusInput").value,
@@ -279,17 +277,16 @@ test("React owns the complete Guitar fallback page and preserves the shipped flo
     status: "No active Guitar session."
   });
 
-  await planner.browser.evaluate('document.querySelector("iframe").contentDocument.getElementById("startGuitarSession").click()');
-  await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.getElementById("finishGuitarSession").disabled === false');
-  await planner.browser.evaluate('document.querySelector("iframe").contentDocument.getElementById("finishGuitarSession").click()');
-  await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.getElementById("guitarSessionDialog").open');
+  await planner.browser.evaluate('document.getElementById("startGuitarSession").click()');
+  await planner.browser.waitForExpression('document.getElementById("finishGuitarSession").disabled === false');
+  await planner.browser.evaluate('document.getElementById("finishGuitarSession").click()');
+  await planner.browser.waitForExpression('document.getElementById("guitarSessionDialog").open');
   await planner.browser.evaluate(`(() => {
-    const frame = document.querySelector("iframe");
-    const documentRoot = frame.contentDocument;
+    const documentRoot = document;
     const duration = documentRoot.getElementById("guitarDurationMinutes");
     const note = documentRoot.getElementById("guitarSessionNote");
-    Object.getOwnPropertyDescriptor(frame.contentWindow.HTMLInputElement.prototype, "value").set.call(duration, "30");
-    Object.getOwnPropertyDescriptor(frame.contentWindow.HTMLTextAreaElement.prototype, "value").set.call(note, "Cleaner transition");
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(duration, "30");
+    Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value").set.call(note, "Cleaner transition");
     documentRoot.getElementById("guitarSessionForm").requestSubmit();
   })()`);
   const saved = await planner.server.waitFor(async function () {
@@ -308,19 +305,19 @@ test("React owns the complete Guitar fallback page and preserves the shipped flo
   assert.equal(saved.tasks[0].done, true);
   assert.equal(saved.tasks[0].label, "Guitar practice");
   assert.deepEqual(saved.tasks[0].futureField, { preserve: true });
-  await planner.browser.waitForExpression(`document.querySelector("iframe").contentDocument.getElementById("guitarSessionHint").textContent.includes("Guitar practice")`);
+  await planner.browser.waitForExpression(`document.getElementById("guitarSessionHint").textContent.includes("Guitar practice")`);
 
   await putRaw(planner.server.url, TARGET_KEY, "not-a-number");
   await putRaw(planner.server.url, SESSIONS_KEY, "not-json");
   await planner.browser.evaluate(`localStorage.removeItem(${JSON.stringify(TARGET_KEY)}); localStorage.removeItem(${JSON.stringify(SESSIONS_KEY)});`);
   await planner.browser.reload();
   await planner.browser.waitForExpression(`(() => {
-    const documentRoot = document.querySelector("iframe")?.contentDocument;
-    return documentRoot?.documentElement.dataset.plannerReady === "true"
+    const documentRoot = document;
+    return documentRoot.documentElement.dataset.plannerReady === "true"
       && documentRoot.querySelector("#guitarSessionSummary .guitar-summary-card strong")?.textContent === "0 / 4";
   })()`);
   assert.deepEqual(await planner.browser.evaluate(`(() => {
-    const documentRoot = document.querySelector("iframe").contentDocument;
+    const documentRoot = document;
     return {
       emptyHistory: documentRoot.getElementById("guitarRecentSessions").textContent.trim(),
       plan: documentRoot.getElementById("guitarSessionPlan").textContent.trim(),
@@ -332,5 +329,9 @@ test("React owns the complete Guitar fallback page and preserves the shipped flo
     plan: "This week: 0 / 120 min. 4 more sessions and about 120 min to hit the target. Practice next: Play bar 8 slowly. Current focus: Arpeggios.",
     summary: ["0 / 4", "4", "0 min", "Not yet"]
   });
+  await planner.browser.evaluate('document.querySelector("[data-view-target=todayView]").click()');
+  await planner.browser.waitForExpression('location.search.includes("view=todayView")');
+  await planner.browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
+  assert.equal(await planner.browser.evaluate('document.querySelectorAll("iframe").length'), 0);
   assert.deepEqual(planner.browser.errors(), []);
 });

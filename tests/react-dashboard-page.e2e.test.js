@@ -206,17 +206,14 @@ test("Dashboard is a direct React page with legacy layout and Pattern behavior",
   );
 
   await planner.browser.open(`${preview.url}/?view=guitarView&date=${TEST_DATE}`);
-  await planner.browser.waitForExpression(`document.querySelector("iframe")?.contentDocument
-    ?.documentElement?.dataset.plannerReady === "true"`);
+  await planner.browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
+  await planner.browser.waitForExpression('document.getElementById("guitarSessionSummary") !== null');
   assert.deepEqual(
-    await planner.browser.evaluate(`(() => {
-      const frame = document.querySelector("iframe");
-      return {
-        active: frame.contentDocument.getElementById("guitarView").classList.contains("active"),
-        iframeCount: document.querySelectorAll("iframe").length
-      };
-    })()`),
-    { active: true, iframeCount: 1 }
+    await planner.browser.evaluate(`({
+      active: document.getElementById("guitarView").classList.contains("active"),
+      iframeCount: document.querySelectorAll("iframe").length
+    })`),
+    { active: true, iframeCount: 0 }
   );
 
   await openReady(planner.browser, previewUrl);
