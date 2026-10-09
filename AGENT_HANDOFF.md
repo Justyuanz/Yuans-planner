@@ -181,13 +181,13 @@ For each feature:
 - [ ] remove legacy implementation only after tests pass
 
 ## Current Task
-All six primary routes now render directly in React + strict TypeScript with no iframe. The next rewrite boundary is Phase 3's clean Python API structure. First characterize the existing server entry points, `/api/kv` behavior, SQLite persistence, static legacy-app serving, and Vite proxy contracts, then add regression coverage before moving the smallest coherent backend responsibility.
+All six primary routes render directly in React + strict TypeScript with no iframe. Phase 3's clean Python API structure is now in progress: Planner KV/backup validation and response documents have moved into a tested application boundary, while the HTTP handler, static serving, integrations, reminder scheduling, and process startup remain together in `backend/app.py`.
 
 ## Last Completed Task
-Completed the Guitar migration and direct route. The Progress planner, weekly session model, recent history, transient timer, finish dialog, and compatibility-safe task/session persistence are React/TypeScript-owned. The route has zero iframes and matches the legacy page at desktop and mobile sizes while preserving malformed-data fallbacks, reload behavior, unknown fields, and cross-feature task synchronization. Commits: `a114073 feat(react): migrate guitar session tracker` and `d90970f feat(react): compose direct guitar page`.
+Extracted the Planner KV and version-2 backup contract into `backend/planner_api.py`. The focused boundary owns key/payload validation and response documents; `backend/db.py` still owns SQLite transactions and `PlannerHandler` still owns HTTP mechanics. New disposable-database tests protect raw Unicode/string data, export shape, import filtering/merge behavior, deletion, and invalid inputs. Commit: `eae54bd refactor(api): isolate planner storage boundary`.
 
 ## Next Task
-Inspect the current Python server and its tests, document the live route/storage/static-serving boundaries, and add regression tests for behavior that the first backend refactor could disturb. Then extract one small, readable API boundary without changing `/api/kv`, SQLite data, legacy static-app behavior, or the Vite development proxy contract.
+Characterize reminder delivery more thoroughly before moving it: malformed event/task values, due and non-due records, grouped per-key persistence, already-sent reminders, and send failures. Then extract reminder delivery and worker scheduling into a focused backend module without changing the 30-second interval, timestamp format, Telegram text, storage keys, or process-start behavior.
 
 ## Upstream Legacy Change — Activity Categories (2026-10-05)
 
@@ -265,6 +265,7 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Guitar session/task synchronization is shared with Skate through a focused strict-TypeScript compatibility module. It retains every raw existing session entry and unknown task field, chooses ready then unfinished then any matching activity task, and creates the legacy-compatible `Saved session` task only when no Guitar task exists.
 - Guitar session start remains transient across reload. Completing a session writes its task update before appending the completion marker, preserves the Monday-Sunday target rules and newest-four history contract, and uses the exact legacy duration rounding and copy.
 - The root/no-view entry path plus explicit Dashboard, Money, Journal, Calendar, Skate, and Guitar routes bypass the iframe and compose all six primary pages directly inside the focused React shell.
+- `backend/planner_api.py` owns the Planner KV/backup application contract: `hivePlanner.*` key validation, string-value validation, import-object validation, version-2 export documents, and success response shapes. SQLite connection/transaction behavior remains in `backend/db.py`, while HTTP status/header/body mechanics remain in `PlannerHandler`.
 - A missing `view` maps to the direct React Dashboard, while unknown explicit values continue through `LegacyPlannerApp`. Migration-boundary browser fixtures use `view=legacyShell`, which the parent intentionally treats as fallback and the legacy app safely normalizes to its Dashboard.
 - The direct route loads the legacy stylesheet only while mounted. Loading it globally changes the parent body's padding and narrows every iframe preview, which the complete Money regression suite caught.
 - Direct-shell navigation writes the requested `view` and deterministic planner `date` into the URL. Dashboard, Money, Journal, Calendar, Skate, and Guitar all navigate directly.
@@ -315,6 +316,7 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Some files contain thousands of lines.
 - Duplicate/redundant functions likely exist.
 - Current architecture is difficult to understand.
+- `backend/app.py` still combines HTTP routing, static-file delivery, mascot and Telegram endpoints, reminder scheduling, and process startup. The Planner storage API is the first extracted backend application boundary; the remaining responsibilities still need small compatibility-protected migrations.
 - `frontend/js/app.js` is 8,731 lines and still owns much of the standalone legacy application's storage, normalization, rendering, event handling, and cross-feature orchestration; only the extracted boundaries have direct coverage.
 - `frontend/css/styles.css` is 5,667 lines with several accumulated responsive sections.
 - Time/date parsing and normalization are duplicated across frontend modules and backend integrations.
@@ -332,13 +334,6 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 
 ## Session Log
 
-### Session 55
-
-- Re-read `AGENTS.md`, this handoff, branch state, recent history, current diff, and the implementation/browser-verification/commit workflows; traced the direct-page composition pattern plus the legacy Skate hero plan, settings, intensity, weekly session count, board-hour total, transient timer, feedback, and navigation contracts.
-- Added focused strict-TypeScript Skate settings and hero models, centralized intensity metadata, and refactored the feedback controller so transient timer/dialog state layers over either direct or fallback hero data. Settings writes retain unknown fields and synchronize selected intensity to the current-session compatibility record.
-- Composed `view=skateView` directly in `PlannerShell` from the existing React hero, roadmap, Body support, Training plan, and feedback boundaries. Added unit coverage for malformed/default settings, normalization, unknown-field retention, plan/rest-day copy, weekly session counts, and task/session board hours. Added a route-level browser regression for exact desktop/mobile state, geometry, hero screenshots, zero iframes, settings, timer/dialog, session and Body-support persistence, reload, and navigation; updated the Dashboard route-boundary regression for direct Skate.
-- Verification: 236 React tests, React lint, strict type-checking, the Vite production build, all seven focused Skate/navigation browser regressions, and 18 Python tests pass. The complete root suite ran 148 tests: 147 passed, and the known Calendar editor combined-run mount-timing failure passed immediately in isolation. Commit: `15a8895 feat(react): compose direct skate page`.
-
 ### Session 56
 
 - Re-read `AGENTS.md`, this handoff, branch state, recent history, current diff, and the implementation/browser-verification/commit workflows; traced the Guitar goal strings, weekly target math, current-week filtering, duration rounding, recent-session ordering, transient timer, finish dialog, task synchronization, reload, and malformed root fallbacks before implementation.
@@ -352,6 +347,13 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Added a pure strict-TypeScript Guitar session model, compatibility-safe persistence, focused React session card/dialog/controller, and a shared session-to-task synchronization module used by Guitar and Skate. Existing raw session entries and unknown task fields survive writes, task selection follows the shipped priority, the timer remains transient, and task state is stored before the completed session becomes observable.
 - Verified the tracker first through the legacy-shell portal, then composed the complete Guitar page directly in `PlannerShell` with zero iframes. The route regression protects exact desktop/mobile content, styles, geometry, screenshots, goal/session persistence, reload behavior, malformed inputs, task synchronization, unknown-field retention, navigation, and console cleanliness.
 - Final verification: 247 React tests, React lint, strict type-checking, the Vite production build, focused Guitar/Skate/session/navigation browser regressions, 18 Python tests, and all 149 root JavaScript/browser tests pass. Commits: `a114073 feat(react): migrate guitar session tracker` and `d90970f feat(react): compose direct guitar page`.
+
+### Session 58
+
+- Re-read the repository instructions and handoff, confirmed the clean rewrite branch and recent history, and mapped the Python entry point, HTTP routes, SQLite boundary, static serving, Vite proxy, integration endpoints, reminder worker, and existing tests before changing code.
+- Added a focused `planner_api.py` application boundary for Planner KV and backup operations, then rewired the existing HTTP handler to it without changing route, status, header, payload, SQLite, static-app, or proxy behavior. The module uses explicit request errors and keeps persistence transactions in `db.py`.
+- Added four disposable-database regression tests covering the complete value lifecycle, raw Unicode/string preservation, version-2 export shape, invalid keys and values, import-object validation, merge/filter semantics, and no-change behavior after invalid deletes.
+- Verification: all 22 Python tests and all 149 root JavaScript/browser tests pass. Commit: `eae54bd refactor(api): isolate planner storage boundary`.
 
 ---
 
