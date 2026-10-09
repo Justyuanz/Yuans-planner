@@ -72,11 +72,6 @@ import {
 } from "../features/skate/skate-training-plan";
 import type { SkateHeroSettingsAction } from "../features/skate/skate-settings";
 import { useSkateFeedbackController } from "../features/skate/use-skate-feedback-controller";
-import { TaskForm } from "../features/tasks/TaskForm";
-import { TaskList } from "../features/tasks/TaskList";
-import { buildAgentUndoWrites } from "../features/tasks/agent-undo";
-import { buildCalendarTaskReconciliation } from "../features/tasks/calendar-task-reconciliation";
-import { makeTaskRelatedId } from "../features/tasks/task-options";
 import { usePlannerStore } from "./use-planner-store";
 import { persistPlannerWrites } from "./planner-persistence";
 
@@ -107,8 +102,6 @@ function LegacyPlannerApp() {
   const plannerStore = usePlannerStore();
   const today = useMemo(() => plannerDateFromSearch(window.location.search, new Date()), []);
   const todayKey = formatPlannerDate(today);
-  const [taskListMount, setTaskListMount] = useState<HTMLElement | null>(null);
-  const [taskFormMount, setTaskFormMount] = useState<HTMLFormElement | null>(null);
   const [dashboardInsightBoundary, setDashboardInsightBoundary] = useState<FramePortalBoundary | null>(null);
   const [dashboardInsightModel, setDashboardInsightModel] = useState<DashboardInsightModel>(
     buildDashboardInsightModel(null)
@@ -156,17 +149,6 @@ function LegacyPlannerApp() {
     [loadedStore, today]
   );
   const plannedKey = plannedStorageKey(today);
-  const calendarTaskReconciliation = useMemo(() => loadedStore === null ? null
-    : buildCalendarTaskReconciliation(loadedStore, todayKey, () => ({
-      createdAt: new Date().toISOString(),
-      id: makeTaskRelatedId("calendar-task")
-    })), [loadedStore, todayKey]);
-  const dashboardStore = useMemo(() => calendarTaskReconciliation === null || loadedStore === null
-    ? loadedStore
-    : ({
-      ...loadedStore,
-      [`hivePlanner.dailyTasks.${todayKey}`]: JSON.stringify(calendarTaskReconciliation.tasks)
-    }), [calendarTaskReconciliation, loadedStore, todayKey]);
   const dispatchLegacySkateSetting = useCallback((action: SkateHeroSettingsAction) => {
     if (skateHeroBoundary !== null) dispatchSkateHeroAction(skateHeroBoundary.frame, action);
   }, [skateHeroBoundary]);
@@ -184,31 +166,11 @@ function LegacyPlannerApp() {
     todayKey
   });
 
-  useEffect(() => {
-    if (calendarTaskReconciliation?.write !== null && calendarTaskReconciliation?.write !== undefined) {
-      persistPlannerWrites([calendarTaskReconciliation.write]);
-    }
-  }, [calendarTaskReconciliation]);
-
   function claimReactMounts(frame: HTMLIFrameElement): void {
     const document = frame.contentDocument;
     const journalDate = document?.querySelector<HTMLInputElement>("#journalDate");
     setLegacyFrame(frame);
     setSelectedJournalDateKey(selectedJournalDate(journalDate, formatPlannerDate(today)));
-    const taskListMount = document?.getElementById("tasksMount");
-    if (taskListMount !== null && taskListMount !== undefined) {
-      taskListMount.dataset.reactOwned = "true";
-      taskListMount.replaceChildren();
-      setTaskListMount(taskListMount);
-    }
-
-    const taskFormMount = document?.querySelector<HTMLFormElement>("#taskForm");
-    if (taskFormMount !== null && taskFormMount !== undefined) {
-      taskFormMount.dataset.reactOwned = "true";
-      taskFormMount.replaceChildren();
-      setTaskFormMount(taskFormMount);
-    }
-
     const dashboardInsightCard = document?.getElementById("dashboardInsightCard");
     const dashboardInsightMount = dashboardInsightCard?.querySelector<HTMLElement>(".panel-inner");
     if (dashboardInsightCard !== null && dashboardInsightCard !== undefined
@@ -413,10 +375,10 @@ function LegacyPlannerApp() {
   }
 
   useEffect(() => {
-    if (dashboardInsightBoundary === null || dashboardStore === null) {
+    if (dashboardInsightBoundary === null || loadedStore === null) {
       return;
     }
-    const insightStore = dashboardStore;
+    const insightStore = loadedStore;
     const frame = dashboardInsightBoundary.frame;
     const frameWindow = frame.contentWindow;
     function syncDashboardInsight(): void {
@@ -432,7 +394,7 @@ function LegacyPlannerApp() {
     return () => {
       frameWindow?.removeEventListener(DASHBOARD_INSIGHT_UPDATED_EVENT, syncDashboardInsight);
     };
-  }, [dashboardInsightBoundary, dashboardStore, today, todayKey]);
+  }, [dashboardInsightBoundary, loadedStore, today, todayKey]);
 
   useEffect(() => {
     if (legacyFrame === null) {
@@ -524,34 +486,7 @@ function LegacyPlannerApp() {
         src={legacyUrl}
         title="Yuan's Planner"
       />
-      {dashboardStore !== null && taskListMount !== null && (
-        createPortal(
-          <TaskList
-            dateKey={todayKey}
-            onPersist={persistPlannerWrites}
-            onUndoAgentAction={() => {
-              const result = buildAgentUndoWrites(dashboardStore, {
-                activityId: makeTaskRelatedId("activity"),
-                timestamp: new Date().toISOString()
-              });
-              persistPlannerWrites(result.writes);
-            }}
-            store={dashboardStore}
-          />,
-          taskListMount
-        )
-      )}
-      {dashboardStore !== null && taskFormMount !== null && (
-        createPortal(
-          <TaskForm
-            dateKey={todayKey}
-            onPersist={persistPlannerWrites}
-            store={dashboardStore}
-          />,
-          taskFormMount
-        )
-      )}
-      {dashboardStore !== null && dashboardInsightBoundary !== null && (
+      {loadedStore !== null && dashboardInsightBoundary !== null && (
         createPortal(
           <DashboardInsightCard
             model={dashboardInsightModel}
@@ -562,7 +497,7 @@ function LegacyPlannerApp() {
               );
             }}
             onOpenHistory={() => {
-              setPatternHistoryModel(buildDashboardInsightHistoryFromStore(dashboardStore, today));
+              setPatternHistoryModel(buildDashboardInsightHistoryFromStore(loadedStore, today));
               setPatternHistoryRevision((revision) => revision + 1);
               openDashboardInsightHistory(dashboardInsightBoundary.frame);
             }}

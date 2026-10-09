@@ -44,24 +44,18 @@ const TASKS = [
   }
 ];
 
-const REACT_READY = `(() => {
-  const frame = document.querySelector("iframe");
-  const root = frame && frame.contentDocument;
-  return root
-    && root.getElementById("tasksMount")?.dataset.reactOwned === "true"
-    && root.getElementById("taskForm")?.dataset.reactOwned === "true"
-    && root.querySelectorAll(".task").length === 2;
-})()`;
+function directReady(taskCount) {
+  return `document.documentElement.dataset.plannerReady === "true"
+    && document.querySelector("iframe") === null
+    && document.querySelectorAll(".task").length === ${taskCount}`;
+}
 
-function clipExpression(react) {
+function clipExpression() {
   return `(() => {
-    const frame = ${react ? "document.querySelector('iframe')" : "null"};
-    const root = frame ? frame.contentDocument : document;
-    const rect = root.querySelector(".tasks-card").getBoundingClientRect();
-    const frameRect = frame ? frame.getBoundingClientRect() : { x: 0, y: 0 };
+    const rect = document.querySelector(".tasks-card").getBoundingClientRect();
     return {
-      x: frameRect.x + rect.x + (frame ? 0 : root.defaultView.scrollX),
-      y: frameRect.y + rect.y + (frame ? 0 : root.defaultView.scrollY),
+      x: rect.x + window.scrollX,
+      y: rect.y + window.scrollY,
       width: rect.width,
       height: Math.min(rect.height, 680)
     };
@@ -143,26 +137,23 @@ test("React tasks preserve the legacy design and task lifecycle", { timeout: 60_
     await preview.close();
   });
   await putTasks(planner.server.url);
+  const legacyUrl = `${planner.server.url}/?view=todayView&date=${TEST_DATE}`;
+  const previewUrl = `${preview.url}/?view=todayView&date=${TEST_DATE}`;
 
   for (const [width, height] of [[1280, 720], [390, 844]]) {
     await planner.browser.setViewport(width, height);
-    await planner.browser.open(`${planner.server.url}/?date=${TEST_DATE}`);
+    await planner.browser.open(legacyUrl);
     await planner.browser.waitForExpression('document.querySelectorAll(".task").length === 2');
     await planner.browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
     await scrollToTasks(planner.browser, "document");
     const legacyContract = await planner.browser.evaluate(taskContract("document"));
-    const legacyScreenshot = await planner.browser.captureScreenshot(clipExpression(false));
+    const legacyScreenshot = await planner.browser.captureScreenshot(clipExpression());
 
-    await planner.browser.open(`${preview.url}/?view=legacyShell&date=${TEST_DATE}`);
-    await planner.browser.waitForExpression(REACT_READY);
-    await planner.browser.waitForExpression(
-      'document.querySelector("iframe").contentDocument.documentElement.dataset.plannerReady === "true"'
-    );
-    await scrollToTasks(planner.browser, 'document.querySelector("iframe").contentDocument');
-    const reactContract = await planner.browser.evaluate(
-      taskContract('document.querySelector("iframe").contentDocument')
-    );
-    const reactScreenshot = await planner.browser.captureScreenshot(clipExpression(true));
+    await planner.browser.open(previewUrl);
+    await planner.browser.waitForExpression(directReady(2));
+    await scrollToTasks(planner.browser, "document");
+    const reactContract = await planner.browser.evaluate(taskContract("document"));
+    const reactScreenshot = await planner.browser.captureScreenshot(clipExpression());
 
     assert.deepEqual(reactContract, legacyContract);
     const comparison = compareScreenshots(reactScreenshot, legacyScreenshot);
@@ -170,16 +161,14 @@ test("React tasks preserve the legacy design and task lifecycle", { timeout: 60_
   }
 
   await planner.browser.setViewport(1280, 720);
-  await planner.browser.open(`${preview.url}/?view=legacyShell&date=${TEST_DATE}`);
-  await planner.browser.waitForExpression(REACT_READY);
+  await planner.browser.open(previewUrl);
+  await planner.browser.waitForExpression(directReady(2));
   await planner.browser.evaluate(`(() => {
-    const frame = document.querySelector("iframe");
-    const root = frame.contentDocument;
-    const input = root.getElementById("taskTitle");
-    const setter = Object.getOwnPropertyDescriptor(frame.contentWindow.HTMLInputElement.prototype, "value").set;
+    const input = document.getElementById("taskTitle");
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
     setter.call(input, "React TypeScript task");
     input.dispatchEvent(new Event("input", { bubbles: true }));
-    root.querySelector(".task-form-add").click();
+    document.querySelector(".task-form-add").click();
   })()`);
   await planner.server.waitFor(async function () {
     const data = await planner.server.readPlannerData();
@@ -189,28 +178,22 @@ test("React tasks preserve the legacy design and task lifecycle", { timeout: 60_
 
   await planner.browser.reload();
   await planner.browser.waitForExpression(`(() => {
-    const root = document.querySelector("iframe")?.contentDocument;
-    return [...(root?.querySelectorAll(".task-title") || [])]
+    return [...document.querySelectorAll(".task-title")]
       .some((node) => node.textContent.includes("React TypeScript task"));
   })()`);
 
   await planner.browser.evaluate(`(() => {
-    const root = document.querySelector("iframe").contentDocument;
-    const title = [...root.querySelectorAll(".task-title")]
+    const title = [...document.querySelectorAll(".task-title")]
       .find((node) => node.textContent.includes("React TypeScript task"));
     title.closest("button").click();
   })()`);
-  await planner.browser.waitForExpression(
-    'document.querySelector("iframe").contentDocument.querySelector(".task-title-input") !== null'
-  );
+  await planner.browser.waitForExpression('document.querySelector(".task-title-input") !== null');
   await planner.browser.evaluate(`(() => {
-    const frame = document.querySelector("iframe");
-    const root = frame.contentDocument;
-    const input = root.querySelector(".task-title-input");
-    const setter = Object.getOwnPropertyDescriptor(frame.contentWindow.HTMLInputElement.prototype, "value").set;
+    const input = document.querySelector(".task-title-input");
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
     setter.call(input, "Edited React task");
     input.dispatchEvent(new Event("input", { bubbles: true }));
-    input.dispatchEvent(new frame.contentWindow.KeyboardEvent("keydown", {
+    input.dispatchEvent(new KeyboardEvent("keydown", {
       key: "Enter",
       bubbles: true,
       cancelable: true
@@ -223,8 +206,7 @@ test("React tasks preserve the legacy design and task lifecycle", { timeout: 60_
   });
 
   await planner.browser.evaluate(`(() => {
-    const root = document.querySelector("iframe").contentDocument;
-    const title = [...root.querySelectorAll(".task-title")]
+    const title = [...document.querySelectorAll(".task-title")]
       .find((node) => node.textContent.includes("Edited React task"));
     title.closest(".task-card").querySelector(".task-check").click();
   })()`);
@@ -235,8 +217,7 @@ test("React tasks preserve the legacy design and task lifecycle", { timeout: 60_
   });
 
   await planner.browser.evaluate(`(() => {
-    const root = document.querySelector("iframe").contentDocument;
-    root.querySelector('[aria-label="Delete Edited React task"]').click();
+    document.querySelector('[aria-label="Delete Edited React task"]').click();
   })()`);
   await planner.server.waitFor(async function () {
     const data = await planner.server.readPlannerData();
@@ -258,34 +239,18 @@ test("React owns calendar-linked task reconciliation", { timeout: 60_000 }, asyn
     await preview.close();
   });
   await putTasks(planner.server.url);
-  await putStoredValue(planner.server.url, EVENTS_KEY, "[]");
-  await planner.browser.open(`${preview.url}/?view=legacyShell&date=${TEST_DATE}`);
-  await planner.browser.waitForExpression(REACT_READY);
-  await planner.browser.waitForExpression(
-    'document.querySelector("iframe")?.contentDocument?.documentElement?.dataset.plannerReady === "true"'
-  );
-
-  await planner.browser.evaluate(`(() => {
-    const frame = document.querySelector("iframe");
-    const root = frame.contentDocument;
-    const setInput = (id, value) => {
-      const input = root.getElementById(id);
-      const setter = Object.getOwnPropertyDescriptor(frame.contentWindow.HTMLInputElement.prototype, "value").set;
-      setter.call(input, value);
-      input.dispatchEvent(new frame.contentWindow.Event("input", { bubbles: true }));
-    };
-    frame.contentWindow.YuanCalendarTaskSync.mergeLinkedTasks = () => {
-      throw new Error("React tasks must not use legacy calendar reconciliation");
-    };
-    setInput("eventDate", "${TEST_DATE}");
-    setInput("eventTitle", "Calendar React task");
-    setInput("eventStartTime", "10:15");
-    setInput("eventEndTime", "11:00");
-    root.getElementById("eventForm").dispatchEvent(new frame.contentWindow.Event("submit", {
-      bubbles: true,
-      cancelable: true
-    }));
-  })()`);
+  const calendarEvent = {
+    category: "Transcendence",
+    date: TEST_DATE,
+    endTime: "11:00",
+    id: "calendar-react-event",
+    reminderMinutes: 0,
+    startTime: "10:15",
+    title: "Calendar React task"
+  };
+  await putStoredValue(planner.server.url, EVENTS_KEY, JSON.stringify([calendarEvent]));
+  await planner.browser.open(`${preview.url}/?view=todayView&date=${TEST_DATE}`);
+  await planner.browser.waitForExpression(directReady(3));
   const linkedTask = await planner.server.waitFor(async function () {
     const data = await planner.server.readPlannerData();
     const events = JSON.parse(data[EVENTS_KEY] || "[]");
@@ -311,19 +276,23 @@ test("React owns calendar-linked task reconciliation", { timeout: 60_000 }, asyn
   assert.deepEqual(planner.browser.errors(), []);
 
   await planner.browser.reload();
-  await planner.browser.waitForExpression(REACT_READY.replace("=== 2", "=== 3"));
+  await planner.browser.waitForExpression(directReady(3));
   const reloadedData = await planner.server.readPlannerData();
   const reloadedTasks = JSON.parse(reloadedData[TASK_KEY] || "[]");
   assert.equal(reloadedTasks.filter(({ sourceEventId }) => sourceEventId === linkedTask.sourceEventId).length, 1);
 
   await planner.browser.evaluate(`(async () => {
-    const frameWindow = document.querySelector("iframe").contentWindow;
-    await frameWindow.fetch("/api/kv", {
+    const value = "[]";
+    await fetch("/api/kv", {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ key: "${EVENTS_KEY}", value: "[]" })
+      body: JSON.stringify({ key: "${EVENTS_KEY}", value })
     });
-    frameWindow.localStorage.setItem("${EVENTS_KEY}", "[]");
+    localStorage.setItem("${EVENTS_KEY}", value);
+    window.dispatchEvent(new StorageEvent("storage", {
+      key: "${EVENTS_KEY}",
+      newValue: value
+    }));
   })()`);
   await planner.server.waitFor(async function () {
     const data = await planner.server.readPlannerData();
@@ -386,20 +355,12 @@ test("React owns agent undo persistence without the legacy bridge", { timeout: 6
   await putStoredValue(planner.server.url, AGENT_UI_STATE_KEY, JSON.stringify(agentAfter));
   await putStoredValue(planner.server.url, AGENT_UNDO_KEY, JSON.stringify([undoEntry]));
 
-  await planner.browser.open(`${preview.url}/?view=legacyShell&date=${TEST_DATE}`);
-  await planner.browser.waitForExpression(REACT_READY.replace("=== 2", "=== 1"));
-  await planner.browser.waitForExpression(`(() => {
-    const root = document.querySelector("iframe")?.contentDocument;
-    return root?.documentElement?.dataset.plannerReady === "true"
-      && root.querySelector(".agent-focus-banner") !== null;
-  })()`);
-  await planner.browser.evaluate(`(() => {
-    const frame = document.querySelector("iframe");
-    frame.contentWindow.YuanPlannerDashboardInsightBridge.undoAgentAction = () => {
-      throw new Error("React tasks must not use the legacy agent undo bridge");
-    };
-    frame.contentDocument.querySelector(".agent-focus-actions button:last-child").click();
-  })()`);
+  await planner.browser.open(`${preview.url}/?view=todayView&date=${TEST_DATE}`);
+  await planner.browser.waitForExpression(directReady(1));
+  await planner.browser.waitForExpression('document.querySelector(".agent-focus-banner") !== null');
+  await planner.browser.evaluate(
+    'document.querySelector(".agent-focus-actions button:last-child").click()'
+  );
 
   const persisted = await planner.server.waitFor(async function () {
     const data = await planner.server.readPlannerData();
@@ -436,11 +397,7 @@ test("React owns agent undo persistence without the legacy bridge", { timeout: 6
   assert.deepEqual(planner.browser.errors(), []);
 
   await planner.browser.reload();
-  await planner.browser.waitForExpression(REACT_READY);
-  await planner.browser.waitForExpression(`(() => {
-    const root = document.querySelector("iframe")?.contentDocument;
-    return root?.documentElement?.dataset.plannerReady === "true"
-      && root.querySelector(".agent-focus-banner") === null;
-  })()`);
+  await planner.browser.waitForExpression(directReady(2));
+  await planner.browser.waitForExpression('document.querySelector(".agent-focus-banner") === null');
   assert.deepEqual(planner.browser.errors(), []);
 });

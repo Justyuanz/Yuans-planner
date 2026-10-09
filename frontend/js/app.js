@@ -2155,9 +2155,6 @@
 
       function mergedTodayTasks(tasks) {
         const normalizedTasks = normalizeTasks(tasks);
-        if (elements.tasksMount && elements.tasksMount.dataset.reactOwned === "true") {
-          return { tasks: normalizedTasks, changed: false };
-        }
         const events = plannerEventsForDate(formatDate(today));
         const result = calendarTaskSync.mergeLinkedTasks(normalizedTasks, events, createCalendarTask);
         return {
@@ -4082,8 +4079,7 @@
       }
 
       function renderActivities() {
-        if (!elements.taskActivity
-          || (elements.taskForm && elements.taskForm.dataset.reactOwned === "true")) {
+        if (!elements.taskActivity) {
           return;
         }
         elements.taskActivity.innerHTML = "";
@@ -4130,10 +4126,6 @@
         }
         elements.weekKeyLabel.textContent = "Live plan for " + todayKey;
         renderTaskProgress(doneCount, tasks.length);
-        if (elements.tasksMount.dataset.reactOwned === "true") {
-          renderDashboardInsight();
-          return;
-        }
         elements.tasksMount.innerHTML = "";
 
         if (tasks.length === 0) {
@@ -8469,7 +8461,7 @@
             renderPlannerActivityPicker();
           });
         }
-        if (elements.taskForm && elements.taskForm.dataset.reactOwned !== "true") {
+        if (elements.taskForm) {
           elements.taskForm.addEventListener("submit", addTask);
         }
         if (elements.dayStateOptions) {
