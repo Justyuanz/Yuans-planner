@@ -25,11 +25,11 @@ async function putMeditationState(serverUrl, state) {
   assert.equal(response.ok, true);
 }
 
-async function openJournal(browser, pageUrl, documentExpression = "document") {
+async function openJournal(browser, pageUrl) {
   await browser.open(pageUrl);
-  await browser.waitForExpression(`(${documentExpression}).querySelector('[data-view-target="journalView"]')`);
+  await browser.waitForExpression('document.querySelector(\'[data-view-target="journalView"]\') !== null');
   await browser.waitForExpression(`(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const journalView = documentRoot.getElementById("journalView");
     if (!journalView.classList.contains("active")) {
       documentRoot.querySelector('[data-view-target="journalView"]').click();
@@ -38,9 +38,9 @@ async function openJournal(browser, pageUrl, documentExpression = "document") {
   })()`);
 }
 
-function meditationState(documentExpression) {
+function meditationState() {
   return `(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const input = documentRoot.getElementById("meditationMinutes");
     const start = documentRoot.getElementById("startMeditation");
     const cancel = documentRoot.getElementById("cancelMeditation");
@@ -68,9 +68,9 @@ function meditationState(documentExpression) {
   })()`;
 }
 
-function meditationVisualContract(documentExpression) {
+function meditationVisualContract() {
   return `(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const view = documentRoot.defaultView;
     const card = documentRoot.querySelector(".meditation-card");
     const pick = (element) => {
@@ -103,34 +103,25 @@ function meditationVisualContract(documentExpression) {
       input: pick(documentRoot.getElementById("meditationMinutes")),
       note: { text: card.querySelector(".small-note").textContent.trim(), visual: pick(card.querySelector(".small-note")) },
       start: pick(documentRoot.getElementById("startMeditation")),
-      state: ${meditationState(documentExpression)},
+      state: ${meditationState()},
       status: pick(documentRoot.getElementById("meditationStatus"))
     };
   })()`;
 }
 
-const LEGACY_CLIP = `(() => {
+const MEDITATION_CLIP = `(() => {
   const rect = document.querySelector(".meditation-card").getBoundingClientRect();
   return { x: rect.x + scrollX, y: rect.y + scrollY, width: rect.width, height: rect.height };
 })()`;
 
-const PREVIEW_CLIP = `(() => {
-  const frame = document.querySelector("iframe");
-  const rect = frame.contentDocument.querySelector(".meditation-card").getBoundingClientRect();
-  const frameRect = frame.getBoundingClientRect();
-  return { x: frameRect.x + rect.x, y: frameRect.y + rect.y, width: rect.width, height: rect.height };
-})()`;
-
-async function scrollToMeditation(browser, documentExpression) {
-  await browser.waitForExpression(
-    `(${documentExpression}).documentElement.dataset.plannerReady === "true"`
-  );
+async function scrollToMeditation(browser) {
+  await browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
   await browser.evaluate(`(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     documentRoot.documentElement.style.scrollBehavior = "auto";
     documentRoot.querySelector(".meditation-card").scrollIntoView({ block: "start" });
   })()`);
-  await browser.waitForExpression(`(${documentExpression}).querySelector(".meditation-card").getBoundingClientRect().top >= 0`);
+  await browser.waitForExpression('document.querySelector(".meditation-card").getBoundingClientRect().top >= 0');
 }
 
 function assertSameScreenshot(actual, expected, label) {
@@ -175,7 +166,7 @@ async function exerciseLegacyTimer(planner) {
     );
   })()`);
   await planner.browser.waitForExpression('document.getElementById("cancelMeditation").hidden === false');
-  const activeUi = await planner.browser.evaluate(meditationState("document"));
+  const activeUi = await planner.browser.evaluate(meditationState());
   assert.equal(activeUi.input.disabled, true);
   assert.equal(activeUi.start.disabled, true);
   assert.equal(activeUi.cancel.hidden, false);
@@ -233,9 +224,9 @@ async function seedExpiredMeditation(planner) {
   });
 }
 
-async function assertExpiredMeditationFinishesOnce(planner, pageUrl, documentExpression) {
-  await openJournal(planner.browser, pageUrl, documentExpression);
-  await planner.browser.waitForExpression(`(${documentExpression}).getElementById("meditationStatus").textContent.includes("30 min saved")`);
+async function assertExpiredMeditationFinishesOnce(planner, pageUrl) {
+  await openJournal(planner.browser, pageUrl);
+  await planner.browser.waitForExpression('document.getElementById("meditationStatus").textContent.includes("30 min saved")');
   await planner.server.waitFor(async function () {
     const stored = await planner.server.readPlannerData();
     const state = JSON.parse(stored[MEDITATION_KEY] || "{}");
@@ -247,29 +238,28 @@ async function assertExpiredMeditationFinishesOnce(planner, pageUrl, documentExp
 
 async function exerciseReactTimer(planner, previewUrl) {
   await planner.browser.setViewport(1280, 720);
-  await openJournal(planner.browser, `${previewUrl}/?view=legacyShell&date=${TEST_DATE}`, 'document.querySelector("iframe").contentDocument');
-  await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.querySelector(".meditation-card").dataset.reactOwned === "true"');
+  await openJournal(planner.browser, `${previewUrl}/?view=journalView&date=${TEST_DATE}`);
+  assert.equal(await planner.browser.evaluate('document.querySelector("iframe")'), null);
   await planner.browser.evaluate(`(() => {
-    const frame = document.querySelector("iframe");
-    const input = frame.contentDocument.getElementById("meditationMinutes");
-    const setter = Object.getOwnPropertyDescriptor(frame.contentWindow.HTMLInputElement.prototype, "value").set;
+    const input = document.getElementById("meditationMinutes");
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
     setter.call(input, "1");
-    input.dispatchEvent(new frame.contentWindow.Event("input", { bubbles: true }));
-    frame.contentDocument.getElementById("meditationForm").dispatchEvent(
-      new frame.contentWindow.Event("submit", { bubbles: true, cancelable: true })
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    document.getElementById("meditationForm").dispatchEvent(
+      new Event("submit", { bubbles: true, cancelable: true })
     );
   })()`);
-  await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.getElementById("cancelMeditation").hidden === false');
+  await planner.browser.waitForExpression('document.getElementById("cancelMeditation").hidden === false');
   await planner.server.waitFor(async function () {
     const stored = await planner.server.readPlannerData();
     const state = JSON.parse(stored[MEDITATION_KEY] || "{}");
     return state.active?.minutes === 1;
   });
 
-  await openJournal(planner.browser, `${previewUrl}/?view=legacyShell&date=${TEST_DATE}`, 'document.querySelector("iframe").contentDocument');
-  await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.getElementById("cancelMeditation").hidden === false');
-  await planner.browser.evaluate('document.querySelector("iframe").contentDocument.getElementById("cancelMeditation").click()');
-  await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.getElementById("meditationCountdown").textContent === "Ready"');
+  await openJournal(planner.browser, `${previewUrl}/?view=journalView&date=${TEST_DATE}`);
+  await planner.browser.waitForExpression('document.getElementById("cancelMeditation").hidden === false');
+  await planner.browser.evaluate('document.getElementById("cancelMeditation").click()');
+  await planner.browser.waitForExpression('document.getElementById("meditationCountdown").textContent === "Ready"');
   await planner.server.waitFor(async function () {
     const stored = await planner.server.readPlannerData();
     const state = JSON.parse(stored[MEDITATION_KEY] || "{}");
@@ -277,14 +267,13 @@ async function exerciseReactTimer(planner, previewUrl) {
   });
 
   await planner.browser.evaluate(`(() => {
-    const frame = document.querySelector("iframe");
-    const input = frame.contentDocument.getElementById("journalDate");
-    input.value = "2026-09-13";
-    input.dispatchEvent(new frame.contentWindow.Event("change", { bubbles: true }));
+    const input = document.getElementById("journalDate");
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(input, "2026-09-13");
+    input.dispatchEvent(new Event("input", { bubbles: true }));
   })()`);
-  await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.getElementById("meditationStatus").textContent === "30 min saved for Sun Sep 13."');
-  await planner.browser.evaluate('document.querySelector("iframe").contentDocument.getElementById("journalTodayButton").click()');
-  await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.getElementById("meditationStatus").textContent === "30 min saved for Mon Sep 14."');
+  await planner.browser.waitForExpression('document.getElementById("meditationStatus").textContent === "30 min saved for Sun Sep 13."');
+  await planner.browser.evaluate('document.getElementById("journalTodayButton").click()');
+  await planner.browser.waitForExpression('document.getElementById("meditationStatus").textContent === "30 min saved for Mon Sep 14."');
 
   const stored = await planner.server.readPlannerData();
   const state = JSON.parse(stored[MEDITATION_KEY] || "{}");
@@ -298,29 +287,31 @@ async function exerciseReactTimer(planner, previewUrl) {
   };
   const externalValue = JSON.stringify(state);
   await planner.browser.evaluate(`(() => {
-    const frame = document.querySelector("iframe");
-    frame.contentWindow.localStorage.setItem(${JSON.stringify(MEDITATION_KEY)}, ${JSON.stringify(externalValue)});
+    localStorage.setItem(${JSON.stringify(MEDITATION_KEY)}, ${JSON.stringify(externalValue)});
+    window.dispatchEvent(new StorageEvent("storage", {
+      key: ${JSON.stringify(MEDITATION_KEY)},
+      newValue: ${JSON.stringify(externalValue)}
+    }));
   })()`);
-  await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.getElementById("meditationStatus").textContent === "Meditation complete. Saved to Mind."');
+  await planner.browser.waitForExpression('document.getElementById("meditationStatus").textContent === "Meditation complete. Saved to Mind."');
   await planner.server.waitFor(async function () {
     const latest = await planner.server.readPlannerData();
     const nextState = JSON.parse(latest[MEDITATION_KEY] || "{}");
     return nextState.active === null
       && nextState.sessions?.filter((entry) => entry.id === "react-expired").length === 1;
   });
-  await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.getElementById("meditationStatus").textContent === "45 min saved for Mon Sep 14."');
+  await planner.browser.waitForExpression('document.getElementById("meditationStatus").textContent === "45 min saved for Mon Sep 14."');
 
-  await openJournal(planner.browser, `${previewUrl}/?view=legacyShell&date=${TEST_DATE}`, 'document.querySelector("iframe").contentDocument');
-  await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.getElementById("meditationStatus").textContent === "45 min saved for Mon Sep 14."');
+  await openJournal(planner.browser, `${previewUrl}/?view=journalView&date=${TEST_DATE}`);
+  await planner.browser.waitForExpression('document.getElementById("meditationStatus").textContent === "45 min saved for Mon Sep 14."');
   const persisted = await planner.server.readPlannerData();
   const persistedState = JSON.parse(persisted[MEDITATION_KEY] || "{}");
   assert.equal(persistedState.sessions.filter((entry) => entry.id === "react-expired").length, 1);
 
-  await planner.browser.evaluate('document.querySelector("iframe").contentDocument.querySelector(\'[data-view-target="todayView"]\').click()');
-  await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.querySelectorAll("#lifeBreakdown .breakdown-row").length === 6');
+  await planner.browser.evaluate('document.querySelector(\'[data-view-target="todayView"]\').click()');
+  await planner.browser.waitForExpression('document.querySelectorAll("#lifeBreakdown .breakdown-row").length === 6');
   assert.equal(await planner.browser.evaluate(`(() => {
-    const documentRoot = document.querySelector("iframe").contentDocument;
-    return [...documentRoot.querySelectorAll("#lifeBreakdown .breakdown-row")]
+    return [...document.querySelectorAll("#lifeBreakdown .breakdown-row")]
       .some((row) => /Meditation|Journal/.test(row.textContent));
   })()`), false);
 }
@@ -341,12 +332,12 @@ test("Meditation preserves timer, persistence, standalone totals, and visual beh
 
   await planner.browser.setViewport(1280, 720);
   await openJournal(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
-  assertReadyState(await planner.browser.evaluate(meditationState("document")), 0, "Mon Sep 14");
+  assertReadyState(await planner.browser.evaluate(meditationState()), 0, "Mon Sep 14");
   await exerciseLegacyTimer(planner);
 
   await seedExpiredMeditation(planner);
-  await assertExpiredMeditationFinishesOnce(planner, `${planner.server.url}/?date=${TEST_DATE}`, "document");
-  assertReadyState(await planner.browser.evaluate(meditationState("document")), 30, "Mon Sep 14");
+  await assertExpiredMeditationFinishesOnce(planner, `${planner.server.url}/?date=${TEST_DATE}`);
+  assertReadyState(await planner.browser.evaluate(meditationState()), 30, "Mon Sep 14");
 
   await planner.browser.evaluate(`(() => {
     const input = document.getElementById("journalDate");
@@ -366,40 +357,32 @@ test("Meditation preserves timer, persistence, standalone totals, and visual beh
   }))()`), { hasRetiredRows: false, total: "0h" });
 
   await planner.browser.evaluate('document.querySelector(\'[data-view-target="journalView"]\').click()');
-  await scrollToMeditation(planner.browser, "document");
-  const legacyDesktop = await planner.browser.evaluate(meditationVisualContract("document"));
-  const legacyDesktopScreenshot = await planner.browser.captureScreenshot(LEGACY_CLIP);
+  await scrollToMeditation(planner.browser);
+  const legacyDesktop = await planner.browser.evaluate(meditationVisualContract());
+  const legacyDesktopScreenshot = await planner.browser.captureScreenshot(MEDITATION_CLIP);
 
-  await openJournal(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, 'document.querySelector("iframe").contentDocument');
-  await planner.browser.waitForExpression('document.querySelector("iframe")?.contentDocument?.getElementById("meditationStatus")?.textContent');
-  assert.equal(await planner.browser.evaluate(
-    'document.querySelector("iframe").contentDocument.getElementById("meditationStatus").textContent'
-  ), "30 min saved for Mon Sep 14.");
-  await scrollToMeditation(planner.browser, 'document.querySelector("iframe").contentDocument');
-  const previewDesktop = await planner.browser.evaluate(
-    meditationVisualContract('document.querySelector("iframe").contentDocument')
-  );
-  const previewDesktopScreenshot = await planner.browser.captureScreenshot(PREVIEW_CLIP);
-  assert.equal(await planner.browser.evaluate(
-    'document.querySelector("iframe").contentDocument.querySelector(".meditation-card").dataset.reactOwned'
-  ), "true");
+  await openJournal(planner.browser, `${preview.url}/?view=journalView&date=${TEST_DATE}`);
+  await planner.browser.waitForExpression('document.getElementById("meditationStatus")?.textContent');
+  assert.equal(await planner.browser.evaluate('document.getElementById("meditationStatus").textContent'), "30 min saved for Mon Sep 14.");
+  await scrollToMeditation(planner.browser);
+  const previewDesktop = await planner.browser.evaluate(meditationVisualContract());
+  const previewDesktopScreenshot = await planner.browser.captureScreenshot(MEDITATION_CLIP);
+  assert.equal(await planner.browser.evaluate('document.querySelector("iframe")'), null);
   assert.deepEqual(previewDesktop, legacyDesktop);
   assertSameScreenshot(previewDesktopScreenshot, legacyDesktopScreenshot, "desktop Meditation screenshot");
 
   await planner.browser.setViewport(390, 844, true);
   await openJournal(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
   await planner.browser.waitForExpression('document.getElementById("meditationStatus").textContent === "30 min saved for Mon Sep 14."');
-  await scrollToMeditation(planner.browser, "document");
-  const legacyMobile = await planner.browser.evaluate(meditationVisualContract("document"));
-  const legacyMobileScreenshot = await planner.browser.captureScreenshot(LEGACY_CLIP);
+  await scrollToMeditation(planner.browser);
+  const legacyMobile = await planner.browser.evaluate(meditationVisualContract());
+  const legacyMobileScreenshot = await planner.browser.captureScreenshot(MEDITATION_CLIP);
 
-  await openJournal(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, 'document.querySelector("iframe").contentDocument');
-  await planner.browser.waitForExpression('document.querySelector("iframe")?.contentDocument?.getElementById("meditationStatus")?.textContent === "30 min saved for Mon Sep 14."');
-  await scrollToMeditation(planner.browser, 'document.querySelector("iframe").contentDocument');
-  const previewMobile = await planner.browser.evaluate(
-    meditationVisualContract('document.querySelector("iframe").contentDocument')
-  );
-  const previewMobileScreenshot = await planner.browser.captureScreenshot(PREVIEW_CLIP);
+  await openJournal(planner.browser, `${preview.url}/?view=journalView&date=${TEST_DATE}`);
+  await planner.browser.waitForExpression('document.getElementById("meditationStatus")?.textContent === "30 min saved for Mon Sep 14."');
+  await scrollToMeditation(planner.browser);
+  const previewMobile = await planner.browser.evaluate(meditationVisualContract());
+  const previewMobileScreenshot = await planner.browser.captureScreenshot(MEDITATION_CLIP);
   assert.deepEqual(previewMobile, legacyMobile);
   assert.equal(previewMobile.card.width, 338);
   assertSameScreenshot(previewMobileScreenshot, legacyMobileScreenshot, "mobile Meditation screenshot");

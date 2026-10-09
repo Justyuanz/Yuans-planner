@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { CalendarPage } from "../features/calendar/CalendarPage";
@@ -6,8 +6,6 @@ import { DashboardPage } from "../features/dashboard-page/DashboardPage";
 import { GuitarPage } from "../features/guitar/GuitarPage";
 import { JournalPage } from "../features/journal-page/JournalPage";
 import { plannerDateFromSearch } from "../features/life-pie/life-pie";
-import { formatPlannerDate } from "../features/life-pie/life-pie-store";
-import { MeditationCard } from "../features/meditation/MeditationCard";
 import { MoneyActivityCard } from "../features/money-activity/MoneyActivityCard";
 import { MoneyBudgetsCard } from "../features/money-budgets/MoneyBudgetsCard";
 import { MoneyOverviewCard } from "../features/money-overview/MoneyOverviewCard";
@@ -19,38 +17,19 @@ import { SkatePage } from "../features/skate/SkatePage";
 import { usePlannerStore } from "./use-planner-store";
 import { persistPlannerWrites } from "./planner-persistence";
 
-interface ReactPanelBoundary {
-  initialNowMs: number;
-  mount: HTMLElement;
-}
-
-function selectedJournalDate(input: HTMLInputElement | null | undefined, fallback: string): string {
-  const value = input?.value.trim();
-  if (!value) {
-    return fallback;
-  }
-  return value;
-}
-
 function LegacyPlannerApp() {
   const plannerStore = usePlannerStore();
   const today = useMemo(() => plannerDateFromSearch(window.location.search, new Date()), []);
-  const [legacyFrame, setLegacyFrame] = useState<HTMLIFrameElement | null>(null);
-  const [meditationBoundary, setMeditationBoundary] = useState<ReactPanelBoundary | null>(null);
   const [moneyActivityMount, setMoneyActivityMount] = useState<HTMLElement | null>(null);
   const [moneyBudgetsMount, setMoneyBudgetsMount] = useState<HTMLElement | null>(null);
   const [moneyOverviewMount, setMoneyOverviewMount] = useState<HTMLElement | null>(null);
   const [moneyPacingMount, setMoneyPacingMount] = useState<HTMLElement | null>(null);
   const [moneyQuickMount, setMoneyQuickMount] = useState<HTMLElement | null>(null);
   const [moneyVendorsMount, setMoneyVendorsMount] = useState<HTMLElement | null>(null);
-  const [selectedJournalDateKey, setSelectedJournalDateKey] = useState(formatPlannerDate(today));
   const legacyUrl = `/legacy/${window.location.search}`;
   const loadedStore = plannerStore.status === "ready" ? plannerStore.store : null;
   function claimReactMounts(frame: HTMLIFrameElement): void {
     const document = frame.contentDocument;
-    const journalDate = document?.querySelector<HTMLInputElement>("#journalDate");
-    setLegacyFrame(frame);
-    setSelectedJournalDateKey(selectedJournalDate(journalDate, formatPlannerDate(today)));
     const moneyQuickCard = document?.querySelector<HTMLElement>(".money-quick-card");
     const moneyQuickPanel = moneyQuickCard?.querySelector<HTMLElement>(".panel-inner");
     if (moneyQuickCard !== null && moneyQuickCard !== undefined
@@ -105,36 +84,7 @@ function LegacyPlannerApp() {
       setMoneyBudgetsMount(moneyBudgetsPanel);
     }
 
-    const meditationCard = document?.querySelector<HTMLElement>(".meditation-card");
-    if (meditationCard !== null && meditationCard !== undefined) {
-      meditationCard.dataset.reactOwned = "true";
-      meditationCard.replaceChildren();
-      setMeditationBoundary({
-        initialNowMs: Date.now(),
-        mount: meditationCard
-      });
-    }
   }
-
-  useEffect(() => {
-    if (legacyFrame === null) {
-      return;
-    }
-    const frame = legacyFrame;
-    const frameWindow = frame.contentWindow;
-    function syncSelectedDate(): void {
-      const input = frame.contentDocument?.querySelector<HTMLInputElement>("#journalDate");
-      if (input?.value) {
-        setSelectedJournalDateKey(input.value);
-      }
-    }
-    frameWindow?.addEventListener("change", syncSelectedDate);
-    frameWindow?.addEventListener("click", syncSelectedDate);
-    return () => {
-      frameWindow?.removeEventListener("change", syncSelectedDate);
-      frameWindow?.removeEventListener("click", syncSelectedDate);
-    };
-  }, [legacyFrame]);
 
   return (
     <>
@@ -178,17 +128,6 @@ function LegacyPlannerApp() {
         createPortal(
           <MoneyBudgetsCard onPersist={persistPlannerWrites} store={loadedStore} today={today} />,
           moneyBudgetsMount
-        )
-      )}
-      {loadedStore !== null && meditationBoundary !== null && (
-        createPortal(
-          <MeditationCard
-            initialNowMs={meditationBoundary.initialNowMs}
-            onPersist={persistPlannerWrites}
-            selectedDate={selectedJournalDateKey}
-            store={loadedStore}
-          />,
-          meditationBoundary.mount
         )
       )}
     </>

@@ -4706,10 +4706,6 @@
       }
 
       function renderMeditation() {
-        var meditationCard = document.querySelector(".meditation-card");
-        if (meditationCard && meditationCard.dataset.reactOwned === "true") {
-          return;
-        }
         var state = readJson(STORAGE.meditation, { active: null, sessions: [] });
         var next = YuanMindCore.finishMeditation(state, Date.now());
         if (next !== state) {
