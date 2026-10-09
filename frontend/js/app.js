@@ -6758,6 +6758,10 @@
           elements.guitarFocusInput.value = focus;
           elements.guitarNextStepInput.value = nextStep;
         }
+        const guitarSessionCard = document.querySelector(".guitar-session-card");
+        if (guitarSessionCard && guitarSessionCard.dataset.reactOwned === "true") {
+          return;
+        }
         elements.guitarSessionStatus.textContent = sessionStatusText("Guitar", session.startedAt);
         elements.guitarSessionHint.textContent = session.startedAt
           ? "Finish when you stop. If a Guitar task exists today, the time can land there."
@@ -7717,7 +7721,9 @@
             elements.skateSessionHint.textContent = "Skate session running · " + formatTimer(startedSessionSeconds(skateSession.startedAt));
           }
         }
-        if (elements.guitarSessionStatus) {
+        const guitarSessionCard = document.querySelector(".guitar-session-card");
+        if (elements.guitarSessionStatus
+          && (!guitarSessionCard || guitarSessionCard.dataset.reactOwned !== "true")) {
           var guitarSession = getCurrentGuitarSession();
           elements.guitarSessionStatus.textContent = sessionStatusText("Guitar", guitarSession.startedAt);
         }

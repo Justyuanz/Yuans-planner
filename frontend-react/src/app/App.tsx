@@ -37,7 +37,10 @@ import {
 } from "../features/dashboard-insight/dashboard-insight";
 import { EnergyTrailCard } from "../features/energy-trail/EnergyTrailCard";
 import { GuitarGoalCard } from "../features/guitar/GuitarGoalCard";
+import { GuitarSessionCard } from "../features/guitar/GuitarSessionCard";
+import { GuitarSessionDialog } from "../features/guitar/GuitarSessionDialog";
 import { buildGuitarGoalModel, buildGuitarGoalWrite } from "../features/guitar/guitar-goal";
+import { useGuitarSessionController } from "../features/guitar/use-guitar-session-controller";
 import { JournalArchiveCard } from "../features/journal-archive/JournalArchiveCard";
 import { JournalPage } from "../features/journal-page/JournalPage";
 import { LifePieCard } from "../features/life-pie/LifePieCard";
@@ -139,6 +142,7 @@ function LegacyPlannerApp() {
   const [plannedBoundary, setPlannedBoundary] = useState<ReactPanelBoundary | null>(null);
   const [energyTrailBoundary, setEnergyTrailBoundary] = useState<FramePortalBoundary | null>(null);
   const [guitarGoalMount, setGuitarGoalMount] = useState<HTMLElement | null>(null);
+  const [guitarSessionMount, setGuitarSessionMount] = useState<HTMLElement | null>(null);
   const [journalArchiveBoundary, setJournalArchiveBoundary] = useState<FramePortalBoundary | null>(null);
   const [monthlyCalendarBoundary, setMonthlyCalendarBoundary] = useState<FramePortalBoundary | null>(null);
   const [weeklyPlannerBoundary, setWeeklyPlannerBoundary] = useState<WeeklyPlannerBoundary | null>(null);
@@ -196,6 +200,12 @@ function LegacyPlannerApp() {
     onPersist: persistPlannerWrites,
     onSettingsAction: dispatchLegacySkateSetting,
     store: loadedStore,
+    todayKey
+  });
+  const guitarSession = useGuitarSessionController({
+    onPersist: persistPlannerWrites,
+    store: loadedStore,
+    today,
     todayKey
   });
 
@@ -383,6 +393,20 @@ function LegacyPlannerApp() {
       guitarGoalCard.dataset.reactOwned = "true";
       guitarGoalMount.replaceChildren();
       setGuitarGoalMount(guitarGoalMount);
+    }
+
+    const guitarSessionCard = document?.querySelector<HTMLElement>(".guitar-session-card");
+    const guitarSessionMount = guitarSessionCard?.querySelector<HTMLElement>(".panel-inner");
+    if (guitarSessionCard !== null && guitarSessionCard !== undefined
+      && guitarSessionMount !== null && guitarSessionMount !== undefined) {
+      guitarSessionCard.dataset.reactOwned = "true";
+      guitarSessionMount.replaceChildren();
+      setGuitarSessionMount(guitarSessionMount);
+    }
+
+    const guitarSessionDialog = document?.querySelector<HTMLDialogElement>("#guitarSessionDialog");
+    if (guitarSessionDialog !== null && guitarSessionDialog !== undefined) {
+      guitarSession.claimDialog(guitarSessionDialog);
     }
 
     const moneyQuickCard = document?.querySelector<HTMLElement>(".money-quick-card");
@@ -843,6 +867,28 @@ function LegacyPlannerApp() {
             ])}
           />,
           guitarGoalMount
+        )
+      )}
+      {guitarSession.model !== null && guitarSessionMount !== null && (
+        createPortal(
+          <GuitarSessionCard
+            model={guitarSession.model}
+            onFinish={guitarSession.finishSession}
+            onStart={guitarSession.startSession}
+          />,
+          guitarSessionMount
+        )
+      )}
+      {guitarSession.dialog !== null && guitarSession.request !== null && (
+        createPortal(
+          <GuitarSessionDialog
+            dialog={guitarSession.dialog}
+            key={guitarSession.request.revision}
+            onCancel={guitarSession.cancelSession}
+            onSave={guitarSession.saveSession}
+            request={guitarSession.request}
+          />,
+          guitarSession.dialog
         )
       )}
       {loadedStore !== null && moneyQuickMount !== null && (
