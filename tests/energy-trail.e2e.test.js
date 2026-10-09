@@ -113,13 +113,6 @@ const LEGACY_CLIP = `(() => {
   return { x: rect.x + scrollX, y: rect.y + scrollY, width: rect.width, height: rect.height };
 })()`;
 
-const PREVIEW_CLIP = `(() => {
-  const frame = document.querySelector("iframe");
-  const rect = frame.contentDocument.querySelector(".state-history-card").getBoundingClientRect();
-  const frameRect = frame.getBoundingClientRect();
-  return { x: frameRect.x + rect.x, y: frameRect.y + rect.y, width: rect.width, height: rect.height };
-})()`;
-
 async function scrollToEnergyTrail(browser, documentExpression) {
   await browser.waitForExpression(
     `(${documentExpression}).documentElement.dataset.plannerReady === "true"`
@@ -181,9 +174,11 @@ test("Energy trail preserves history, pattern, navigation, and visual parity", {
   context.after(async function () {
     await preview.close();
   });
+  const legacyUrl = `${planner.server.url}/?view=todayView&date=${TEST_DATE}`;
+  const previewUrl = `${preview.url}/?view=todayView&date=${TEST_DATE}`;
 
   await planner.browser.setViewport(1280, 720);
-  await planner.browser.open(`${planner.server.url}/?date=${TEST_DATE}`);
+  await planner.browser.open(legacyUrl);
   await planner.browser.waitForExpression('document.querySelector("#energyTrailList .pattern-history-empty")');
   assert.deepEqual(await planner.browser.evaluate(energyTrailState("document")), {
     ariaLive: "polite",
@@ -205,61 +200,52 @@ test("Energy trail preserves history, pattern, navigation, and visual parity", {
     view: document.querySelector(".view.active").id
   })`), { date: "2026-09-12", title: "", view: "journalView" });
 
-  await planner.browser.open(`${planner.server.url}/?date=${TEST_DATE}`);
+  await planner.browser.open(legacyUrl);
   await planner.browser.waitForExpression('document.querySelectorAll("#energyTrailList .state-trail-item").length === 7');
   await scrollToEnergyTrail(planner.browser, "document");
   const legacyDesktop = await planner.browser.evaluate(energyTrailVisualContract("document"));
   const legacyDesktopScreenshot = await planner.browser.captureScreenshot(LEGACY_CLIP);
 
-  await planner.browser.open(`${preview.url}/?view=legacyShell&date=${TEST_DATE}`);
-  await planner.browser.waitForExpression('document.querySelector("iframe")?.contentDocument?.querySelectorAll("#energyTrailList .state-trail-item").length === 7');
-  await scrollToEnergyTrail(planner.browser, 'document.querySelector("iframe").contentDocument');
-  const previewDesktop = await planner.browser.evaluate(
-    energyTrailVisualContract('document.querySelector("iframe").contentDocument')
-  );
-  const previewDesktopScreenshot = await planner.browser.captureScreenshot(PREVIEW_CLIP);
-  assert.equal(await planner.browser.evaluate(
-    'document.querySelector("iframe").contentDocument.querySelector(".state-history-card").dataset.reactOwned'
-  ), "true");
+  await planner.browser.open(previewUrl);
+  await planner.browser.waitForExpression('document.querySelectorAll("#energyTrailList .state-trail-item").length === 7');
+  await scrollToEnergyTrail(planner.browser, "document");
+  const previewDesktop = await planner.browser.evaluate(energyTrailVisualContract("document"));
+  const previewDesktopScreenshot = await planner.browser.captureScreenshot(LEGACY_CLIP);
   assert.deepEqual(previewDesktop, legacyDesktop);
   assertSameScreenshot(previewDesktopScreenshot, legacyDesktopScreenshot, "desktop Energy trail screenshot");
 
-  await planner.browser.evaluate(`(() => {
-    const documentRoot = document.querySelector("iframe").contentDocument;
-    documentRoot.querySelector("#energyTrailList .state-trail-item").click();
-  })()`);
-  await planner.browser.waitForExpression(`document.querySelector("iframe").contentDocument.getElementById("journalView").classList.contains("active")`);
-  assert.equal(await planner.browser.evaluate(
-    'document.querySelector("iframe").contentDocument.getElementById("journalDate").value'
-  ), "2026-09-12");
+  await planner.browser.evaluate('document.querySelector("#energyTrailList .state-trail-item").click()');
+  await planner.browser.waitForExpression('document.getElementById("journalView")?.classList.contains("active")');
+  assert.equal(await planner.browser.evaluate('document.getElementById("journalDate").value'), "2026-09-12");
 
   await planner.browser.evaluate(`(() => {
-    const frame = document.querySelector("iframe");
-    const input = frame.contentDocument.getElementById("journalStateContext");
-    input.value = "Updated from Journal.";
-    input.dispatchEvent(new frame.contentWindow.Event("input", { bubbles: true }));
+    const input = document.getElementById("journalStateContext");
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
+    setter.call(input, "Updated from Journal.");
+    input.dispatchEvent(new Event("input", { bubbles: true }));
   })()`);
-  await planner.browser.waitForExpression(`document.querySelector("iframe").contentDocument.querySelector("#energyTrailList .state-trail-context").textContent === "Updated from Journal."`);
   await planner.server.waitFor(async function () {
     const stored = await planner.server.readPlannerData();
     const entries = JSON.parse(stored[JOURNAL_KEY] || "[]");
     return entries.some((entry) => entry.id === "good" && entry.tracker?.context === "Updated from Journal.");
   });
+  await planner.browser.open(previewUrl);
+  await planner.browser.waitForExpression(
+    'document.querySelector("#energyTrailList .state-trail-context").textContent === "Updated from Journal."'
+  );
 
   await planner.browser.setViewport(390, 844, true);
-  await planner.browser.open(`${planner.server.url}/?date=${TEST_DATE}`);
+  await planner.browser.open(legacyUrl);
   await planner.browser.waitForExpression('document.querySelectorAll("#energyTrailList .state-trail-item").length === 7');
   await scrollToEnergyTrail(planner.browser, "document");
   const legacyMobile = await planner.browser.evaluate(energyTrailVisualContract("document"));
   const legacyMobileScreenshot = await planner.browser.captureScreenshot(LEGACY_CLIP);
 
-  await planner.browser.open(`${preview.url}/?view=legacyShell&date=${TEST_DATE}`);
-  await planner.browser.waitForExpression('document.querySelector("iframe")?.contentDocument?.querySelectorAll("#energyTrailList .state-trail-item").length === 7');
-  await scrollToEnergyTrail(planner.browser, 'document.querySelector("iframe").contentDocument');
-  const previewMobile = await planner.browser.evaluate(
-    energyTrailVisualContract('document.querySelector("iframe").contentDocument')
-  );
-  const previewMobileScreenshot = await planner.browser.captureScreenshot(PREVIEW_CLIP);
+  await planner.browser.open(previewUrl);
+  await planner.browser.waitForExpression('document.querySelectorAll("#energyTrailList .state-trail-item").length === 7');
+  await scrollToEnergyTrail(planner.browser, "document");
+  const previewMobile = await planner.browser.evaluate(energyTrailVisualContract("document"));
+  const previewMobileScreenshot = await planner.browser.captureScreenshot(LEGACY_CLIP);
   assert.deepEqual(previewMobile, legacyMobile);
   assert.equal(previewMobile.panel.width, 370);
   assertSameScreenshot(previewMobileScreenshot, legacyMobileScreenshot, "mobile Energy trail screenshot");

@@ -132,13 +132,6 @@ const LEGACY_CLIP = `(() => {
   return { x: rect.x + scrollX, y: rect.y + scrollY, width: rect.width, height: rect.height };
 })()`;
 
-const REACT_CLIP = `(() => {
-  const frame = document.querySelector("iframe");
-  const rect = frame.contentDocument.querySelector(".planned-card").getBoundingClientRect();
-  const frameRect = frame.getBoundingClientRect();
-  return { x: frameRect.x + rect.x, y: frameRect.y + rect.y, width: rect.width, height: rect.height };
-})()`;
-
 async function scrollToPlannedCard(browser, documentExpression) {
   await browser.waitForExpression(
     `(${documentExpression}).documentElement.dataset.plannerReady === "true"`
@@ -225,11 +218,10 @@ async function editTranscendencePlan(planner) {
 
 async function editReactTranscendencePlan(planner) {
   const titleBeforeChange = await planner.browser.evaluate(`(() => {
-    const documentRoot = document.querySelector("iframe").contentDocument;
-    const input = documentRoot.getElementById("planned-transcendence");
+    const input = document.getElementById("planned-transcendence");
     input.value = "4.5";
     input.dispatchEvent(new Event("input", { bubbles: true }));
-    return documentRoot.querySelector("#plannedMount .planned-title").textContent.trim();
+    return document.querySelector("#plannedMount .planned-title").textContent.trim();
   })()`);
   assert.equal(titleBeforeChange, "StudyPlanned 8.25h · Actual 3h");
   await planner.server.waitFor(async function () {
@@ -245,27 +237,28 @@ async function editReactTranscendencePlan(planner) {
       && latest.meta?.group === "study";
   });
   await planner.browser.evaluate(`(() => {
-    const input = document.querySelector("iframe").contentDocument.getElementById("planned-transcendence");
+    const input = document.getElementById("planned-transcendence");
     input.dispatchEvent(new Event("change", { bubbles: true }));
   })()`);
-  await planner.browser.waitForExpression(`document.querySelector("iframe").contentDocument.querySelector("#plannedMount .planned-title").textContent.includes("7.5h")`);
+  await planner.browser.waitForExpression('document.querySelector("#plannedMount .planned-title").textContent.includes("7.5h")');
 }
 
-async function assertReactLogSurvivesLegacyWrite(planner) {
+async function assertReactLogSurvivesLegacyWrite(planner, legacyUrl) {
+  await planner.browser.open(legacyUrl);
+  await planner.browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
   await planner.browser.evaluate(`(() => {
-    const frame = document.querySelector("iframe");
-    const documentRoot = frame.contentDocument;
-    const setInput = Object.getOwnPropertyDescriptor(frame.contentWindow.HTMLInputElement.prototype, "value").set;
-    const setSelect = Object.getOwnPropertyDescriptor(frame.contentWindow.HTMLSelectElement.prototype, "value").set;
-    setInput.call(documentRoot.getElementById("taskTitle"), "Storage bridge check");
-    documentRoot.getElementById("taskTitle").dispatchEvent(new frame.contentWindow.Event("input", { bubbles: true }));
-    setInput.call(documentRoot.getElementById("taskTime"), "0");
-    documentRoot.getElementById("taskTime").dispatchEvent(new frame.contentWindow.Event("input", { bubbles: true }));
-    setSelect.call(documentRoot.getElementById("taskActivity"), "other");
-    documentRoot.getElementById("taskActivity").dispatchEvent(new frame.contentWindow.Event("change", { bubbles: true }));
-    documentRoot.getElementById("taskForm").dispatchEvent(
-      new frame.contentWindow.Event("submit", { bubbles: true, cancelable: true })
-    );
+    const setInput = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
+    const setSelect = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set;
+    setInput.call(document.getElementById("taskTitle"), "Storage bridge check");
+    document.getElementById("taskTitle").dispatchEvent(new Event("input", { bubbles: true }));
+    setInput.call(document.getElementById("taskTime"), "0");
+    document.getElementById("taskTime").dispatchEvent(new Event("input", { bubbles: true }));
+    setSelect.call(document.getElementById("taskActivity"), "other");
+    document.getElementById("taskActivity").dispatchEvent(new Event("change", { bubbles: true }));
+    document.getElementById("taskForm").dispatchEvent(new Event("submit", {
+      bubbles: true,
+      cancelable: true
+    }));
   })()`);
   await planner.server.waitFor(async function () {
     const stored = await planner.server.readPlannerData();
@@ -290,9 +283,11 @@ test("Planned vs actual preserves totals, editing, logging, and visual parity", 
   context.after(async function () {
     await preview.close();
   });
+  const legacyUrl = `${planner.server.url}/?view=todayView&date=${TEST_DATE}`;
+  const previewUrl = `${preview.url}/?view=todayView&date=${TEST_DATE}`;
 
   await planner.browser.setViewport(1280, 720);
-  await planner.browser.open(`${planner.server.url}/?date=${TEST_DATE}`);
+  await planner.browser.open(legacyUrl);
   await planner.browser.waitForExpression('document.querySelectorAll("#plannedMount .planned-row").length === 6');
 
   assertEmptyState(await planner.browser.evaluate(plannedActualState("document")));
@@ -308,33 +303,28 @@ test("Planned vs actual preserves totals, editing, logging, and visual parity", 
   const legacyDesktop = await planner.browser.evaluate(plannedActualVisualContract("document"));
   const legacyDesktopScreenshot = await planner.browser.captureScreenshot(LEGACY_CLIP);
 
-  await planner.browser.open(`${preview.url}/?view=legacyShell&date=${TEST_DATE}`);
-  await planner.browser.waitForExpression(`document.querySelector("iframe")?.contentDocument?.querySelectorAll("#plannedMount .planned-row").length === 6`);
-  assert.equal(await planner.browser.evaluate(`document.querySelector("iframe").contentDocument.querySelector(".planned-card").dataset.reactOwned`), "true");
-  await scrollToPlannedCard(planner.browser, 'document.querySelector("iframe").contentDocument');
-  const reactDesktop = await planner.browser.evaluate(
-    plannedActualVisualContract('document.querySelector("iframe").contentDocument')
-  );
-  const reactDesktopScreenshot = await planner.browser.captureScreenshot(REACT_CLIP);
+  await planner.browser.open(previewUrl);
+  await planner.browser.waitForExpression('document.querySelectorAll("#plannedMount .planned-row").length === 6');
+  await scrollToPlannedCard(planner.browser, "document");
+  const reactDesktop = await planner.browser.evaluate(plannedActualVisualContract("document"));
+  const reactDesktopScreenshot = await planner.browser.captureScreenshot(LEGACY_CLIP);
   assert.deepEqual(reactDesktop, legacyDesktop);
   assertSameScreenshot(reactDesktopScreenshot, legacyDesktopScreenshot, "desktop Planned vs actual screenshot");
   await editReactTranscendencePlan(planner);
-  await assertReactLogSurvivesLegacyWrite(planner);
+  await assertReactLogSurvivesLegacyWrite(planner, legacyUrl);
 
   await planner.browser.setViewport(390, 844, true);
-  await planner.browser.open(`${planner.server.url}/?date=${TEST_DATE}`);
+  await planner.browser.open(legacyUrl);
   await planner.browser.waitForExpression('document.getElementById("planned-transcendence")?.value === "4.5"');
   await scrollToPlannedCard(planner.browser, "document");
   const legacyMobile = await planner.browser.evaluate(plannedActualVisualContract("document"));
   const legacyMobileScreenshot = await planner.browser.captureScreenshot(LEGACY_CLIP);
 
-  await planner.browser.open(`${preview.url}/?view=legacyShell&date=${TEST_DATE}`);
-  await planner.browser.waitForExpression(`document.querySelector("iframe")?.contentDocument?.getElementById("planned-transcendence")?.value === "4.5"`);
-  await scrollToPlannedCard(planner.browser, 'document.querySelector("iframe").contentDocument');
-  const reactMobile = await planner.browser.evaluate(
-    plannedActualVisualContract('document.querySelector("iframe").contentDocument')
-  );
-  const reactMobileScreenshot = await planner.browser.captureScreenshot(REACT_CLIP);
+  await planner.browser.open(previewUrl);
+  await planner.browser.waitForExpression('document.getElementById("planned-transcendence")?.value === "4.5"');
+  await scrollToPlannedCard(planner.browser, "document");
+  const reactMobile = await planner.browser.evaluate(plannedActualVisualContract("document"));
+  const reactMobileScreenshot = await planner.browser.captureScreenshot(LEGACY_CLIP);
   assert.deepEqual(reactMobile, legacyMobile);
   assert.equal(reactMobile.panel.width, 370);
   assert.equal(reactMobile.rows[0].visual.gridTemplateColumns, "135px 68px 52px");

@@ -30,7 +30,6 @@ import {
   buildDashboardInsightModel,
   type DashboardInsightModel
 } from "../features/dashboard-insight/dashboard-insight";
-import { EnergyTrailCard } from "../features/energy-trail/EnergyTrailCard";
 import { GuitarGoalCard } from "../features/guitar/GuitarGoalCard";
 import { GuitarPage } from "../features/guitar/GuitarPage";
 import { GuitarSessionCard } from "../features/guitar/GuitarSessionCard";
@@ -49,8 +48,6 @@ import { MoneyPacingCard } from "../features/money-pacing/MoneyPacingCard";
 import { MoneyQuickCard } from "../features/money-quick/MoneyQuickCard";
 import { MoneyVendorsCard } from "../features/money-vendors/MoneyVendorsCard";
 import { MoneyPage } from "../features/money-page/MoneyPage";
-import { PlannedActualCard } from "../features/planned-actual/PlannedActualCard";
-import { plannedStorageKey } from "../features/planned-actual/planned-actual";
 import { PatternHistoryDialog } from "../features/pattern-history/PatternHistoryDialog";
 import { emptyPatternHistoryModel } from "../features/pattern-history/pattern-history";
 import { SkateFeedbackDialog } from "../features/skate/SkateFeedbackDialog";
@@ -111,8 +108,6 @@ function LegacyPlannerApp() {
     emptyPatternHistoryModel(todayKey)
   );
   const [patternHistoryRevision, setPatternHistoryRevision] = useState(0);
-  const [plannedBoundary, setPlannedBoundary] = useState<ReactPanelBoundary | null>(null);
-  const [energyTrailBoundary, setEnergyTrailBoundary] = useState<FramePortalBoundary | null>(null);
   const [guitarGoalMount, setGuitarGoalMount] = useState<HTMLElement | null>(null);
   const [guitarSessionMount, setGuitarSessionMount] = useState<HTMLElement | null>(null);
   const [journalArchiveBoundary, setJournalArchiveBoundary] = useState<FramePortalBoundary | null>(null);
@@ -148,7 +143,6 @@ function LegacyPlannerApp() {
     () => loadedStore === null ? null : buildSkateTrainingPlanState(loadedStore, today),
     [loadedStore, today]
   );
-  const plannedKey = plannedStorageKey(today);
   const dispatchLegacySkateSetting = useCallback((action: SkateHeroSettingsAction) => {
     if (skateHeroBoundary !== null) dispatchSkateHeroAction(skateHeroBoundary.frame, action);
   }, [skateHeroBoundary]);
@@ -186,24 +180,6 @@ function LegacyPlannerApp() {
       patternHistoryDialog.dataset.reactOwned = "true";
       patternHistoryDialog.replaceChildren();
       setPatternHistoryBoundary({ frame, mount: patternHistoryDialog });
-    }
-
-    const plannedCard = document?.querySelector<HTMLElement>(".planned-card");
-    const plannedMount = plannedCard?.querySelector<HTMLElement>(".panel-inner");
-    if (plannedCard !== null && plannedCard !== undefined
-      && plannedMount !== null && plannedMount !== undefined) {
-      plannedCard.dataset.reactOwned = "true";
-      plannedMount.replaceChildren();
-      setPlannedBoundary({ initialNowMs: Date.now(), mount: plannedMount });
-    }
-
-    const energyTrailCard = document?.querySelector<HTMLElement>(".state-history-card");
-    const energyTrailMount = energyTrailCard?.querySelector<HTMLElement>(".panel-inner");
-    if (energyTrailCard !== null && energyTrailCard !== undefined
-      && energyTrailMount !== null && energyTrailMount !== undefined) {
-      energyTrailCard.dataset.reactOwned = "true";
-      energyTrailMount.replaceChildren();
-      setEnergyTrailBoundary({ frame, mount: energyTrailMount });
     }
 
     const journalArchiveCard = document?.querySelector<HTMLElement>(".journal-archive-card");
@@ -518,28 +494,6 @@ function LegacyPlannerApp() {
             }}
           />,
           patternHistoryBoundary.mount
-        )
-      )}
-      {loadedStore !== null && plannedBoundary !== null && (
-        createPortal(
-          <PlannedActualCard
-            initialNowMs={plannedBoundary.initialNowMs}
-            key={`${plannedKey}:${loadedStore[plannedKey] ?? ""}`}
-            onPersist={persistPlannerWrites}
-            store={loadedStore}
-            today={today}
-          />,
-          plannedBoundary.mount
-        )
-      )}
-      {loadedStore !== null && energyTrailBoundary !== null && (
-        createPortal(
-          <EnergyTrailCard
-            onOpenJournalDate={(date) => openJournalDate(energyTrailBoundary, date)}
-            store={loadedStore}
-            today={today}
-          />,
-          energyTrailBoundary.mount
         )
       )}
       {loadedStore !== null && journalArchiveBoundary !== null && (
