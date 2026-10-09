@@ -1,4 +1,4 @@
-import type { SkateTrainingPlanState } from "./skate-training-plan-bridge";
+import type { SkateTrainingPlanState } from "./skate-training-plan";
 
 interface SkateTrainingPlanCardProps {
   state: SkateTrainingPlanState;

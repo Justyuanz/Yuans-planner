@@ -65,9 +65,9 @@ import {
   type SkateHeroState
 } from "../features/skate/skate-hero-bridge";
 import {
-  skateTrainingPlanStateFromRoot,
+  buildSkateTrainingPlanState,
   type SkateTrainingPlanState
-} from "../features/skate/skate-training-plan-bridge";
+} from "../features/skate/skate-training-plan";
 import { useSkateFeedbackController } from "../features/skate/use-skate-feedback-controller";
 import { TaskProgressBanner } from "../features/task-progress/TaskProgressBanner";
 import { buildTaskProgressModel } from "../features/task-progress/task-progress";
@@ -141,7 +141,6 @@ function LegacyPlannerApp() {
   const [skateBodySupportMount, setSkateBodySupportMount] = useState<HTMLElement | null>(null);
   const [skateRoadmapBoundary, setSkateRoadmapBoundary] = useState<FramePortalBoundary | null>(null);
   const [skateTrainingPlanBoundary, setSkateTrainingPlanBoundary] = useState<FramePortalBoundary | null>(null);
-  const [skateTrainingPlanState, setSkateTrainingPlanState] = useState<SkateTrainingPlanState | null>(null);
   const [legacyFrame, setLegacyFrame] = useState<HTMLIFrameElement | null>(null);
   const [meditationBoundary, setMeditationBoundary] = useState<ReactPanelBoundary | null>(null);
   const [moneyActivityMount, setMoneyActivityMount] = useState<HTMLElement | null>(null);
@@ -164,6 +163,10 @@ function LegacyPlannerApp() {
   });
   const legacyUrl = `/legacy/${window.location.search}`;
   const loadedStore = plannerStore.status === "ready" ? plannerStore.store : null;
+  const skateTrainingPlanState: SkateTrainingPlanState | null = useMemo(
+    () => loadedStore === null ? null : buildSkateTrainingPlanState(loadedStore, today),
+    [loadedStore, today]
+  );
   const plannedKey = plannedStorageKey(today);
   const weeklyStore = loadedStore === null || weeklyGoalsOverride === null
     ? loadedStore
@@ -497,8 +500,6 @@ function LegacyPlannerApp() {
   useEffect(() => {
     if (legacyFrame === null) return;
     const frame = legacyFrame;
-    const frameWindow = frame.contentWindow;
-    if (frameWindow === null) return;
     const frameDocument = frame.contentDocument;
     if (frameDocument === null) return;
     const card = frameDocument.querySelector<HTMLElement>(".skate-session-card");
@@ -506,26 +507,16 @@ function LegacyPlannerApp() {
     const legacyFlow = card?.querySelector<HTMLElement>("#skateCoachFlow") ?? null;
     if (card === null || mount === null || legacyFlow === null) return;
 
-    function syncTrainingPlan(): void {
-      const state = skateTrainingPlanStateFromRoot(legacyFlow);
-      if (state !== null) setSkateTrainingPlanState(state);
-    }
-    const observer = new MutationObserver(syncTrainingPlan);
-    observer.observe(legacyFlow, { childList: true, subtree: true });
-
-    // Legacy can keep deriving the plan in its detached mount until the Skate model is migrated.
+    // Legacy keeps its stale element reference, while React becomes the only visible renderer.
     legacyFlow.remove();
     card.dataset.reactOwned = "true";
     mount.replaceChildren();
     let disposed = false;
     queueMicrotask(() => {
-      if (disposed) return;
-      syncTrainingPlan();
-      setSkateTrainingPlanBoundary({ frame, mount });
+      if (!disposed) setSkateTrainingPlanBoundary({ frame, mount });
     });
     return () => {
       disposed = true;
-      observer.disconnect();
     };
   }, [legacyFrame]);
 

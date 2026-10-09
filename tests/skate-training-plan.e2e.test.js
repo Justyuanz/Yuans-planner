@@ -240,5 +240,25 @@ test("Skate training plan preserves current-week content, live settings, and vis
   assert.equal(reactPreSeason.today.kicker, "Day 1");
   assert.equal(reactPreSeason.week.description, "Previewing the program before Saturday, August 29, 2026.");
   assert.deepEqual(reactPreSeason.week.rows, []);
+
+  await putPlannerValue(planner.server.url, SKATE_SETTINGS_KEY, {
+    currentProgramDay: 60,
+    extraRestDayOfWeek: 6,
+    intensityByDate: {},
+    restDayOfWeek: 0
+  });
+  const postStreakLegacyUrl = `${planner.server.url}/?view=skateView&date=2026-11-16`;
+  const postStreakPreviewUrl = `${preview.url}/?view=legacyShell&date=2026-11-16`;
+  await openSkate(planner.browser, postStreakLegacyUrl, "document");
+  const legacyPostStreak = await planner.browser.evaluate(trainingPlanState("document"));
+  await openSkate(planner.browser, postStreakPreviewUrl, previewDocument);
+  const reactPostStreak = await planner.browser.evaluate(trainingPlanState(previewDocument));
+  assert.deepEqual(reactPostStreak, legacyPostStreak);
+  assert.equal(reactPostStreak.today.kicker, "Day 60");
+  assert.equal(reactPostStreak.week.kicker, "Week 9 / 21");
+  assert.equal(reactPostStreak.week.rows.length, 4);
+  assert.match(reactPostStreak.week.description, /Rest days: Sunday and Saturday\./);
+  assert.equal(reactPostStreak.week.rows.at(-1).label, "Day 60");
+  assert.match(reactPostStreak.week.rows.at(-1).className, /is-current/);
   assert.deepEqual(planner.browser.errors(), []);
 });
