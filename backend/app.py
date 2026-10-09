@@ -16,15 +16,12 @@ from __future__ import annotations
 import json
 import mimetypes
 import socket
-import threading
-import time
-from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
-from config import planner_db_path, planner_host, planner_port, planner_timezone
-from db import init_database, put_value, read_all_values
+from config import planner_db_path, planner_host, planner_port
+from db import init_database
 from openai_mascot import ask_mascot, openai_enabled
 from planner_api import (
     ApiRequestError,
@@ -34,10 +31,8 @@ from planner_api import (
     put_value_from_payload,
     read_values_document,
 )
+from reminder_service import start_reminder_worker
 from telegram_notifier import (
-    DAILY_TASKS_PREFIX,
-    EVENTS_KEY,
-    build_due_reminders,
     send_telegram_message,
     telegram_status,
 )
@@ -47,7 +42,6 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 FRONTEND_DIR = PROJECT_ROOT / "frontend"
 HOST = planner_host()
 PORT = planner_port()
-REMINDER_POLL_SECONDS = 30
 
 
 def local_network_ip() -> str:
@@ -213,86 +207,6 @@ class PlannerHandler(BaseHTTPRequestHandler):
 
     def log_message(self, format: str, *args: object) -> None:
         print("[%s] %s" % (self.log_date_time_string(), format % args))
-
-
-def datetime_now_local() -> datetime:
-    return datetime.now(planner_timezone())
-
-
-def datetime_now_utc() -> str:
-    return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-
-
-def deliver_due_telegram_reminders() -> int:
-    values = read_all_values()
-    date_now = datetime_now_local()
-    tracked_lists: dict[str, list] = {}
-    reminders = []
-
-    raw_events = values.get(EVENTS_KEY, "[]")
-    try:
-        events = json.loads(raw_events)
-    except json.JSONDecodeError:
-        events = []
-    if isinstance(events, list):
-        tracked_lists[EVENTS_KEY] = events
-        reminders.extend(build_due_reminders(events, now=date_now, storage_key=EVENTS_KEY, date_text="", kind_label="Event"))
-
-    for key, raw_value in values.items():
-        if not key.startswith(DAILY_TASKS_PREFIX):
-            continue
-        date_key = key[len(DAILY_TASKS_PREFIX):]
-        try:
-            tasks = json.loads(raw_value)
-        except json.JSONDecodeError:
-            continue
-        if not isinstance(tasks, list):
-            continue
-        tracked_lists[key] = tasks
-        reminders.extend(build_due_reminders(tasks, now=date_now, storage_key=key, date_text=date_key, kind_label="Task"))
-
-    if not reminders:
-        return 0
-
-    reminders_by_storage = {}
-    for reminder in reminders:
-        if reminder.storage_key not in reminders_by_storage:
-            reminders_by_storage[reminder.storage_key] = {}
-        reminders_by_storage[reminder.storage_key][reminder.event_id] = reminder
-
-    sent_count = 0
-    for storage_key, entries in tracked_lists.items():
-        by_id = reminders_by_storage.get(storage_key, {})
-        changed = False
-        for entry in entries:
-            reminder = by_id.get(str(entry.get("id") or ""))
-            if not reminder:
-                continue
-            send_telegram_message(reminder.text)
-            entry["reminderSentAt"] = datetime_now_utc()
-            entry["reminderSentFor"] = reminder.reminder_key
-            changed = True
-            sent_count += 1
-        if changed:
-            put_value(storage_key, json.dumps(entries))
-
-    return sent_count
-
-
-def reminder_worker() -> None:
-    while True:
-        try:
-            sent = deliver_due_telegram_reminders()
-            if sent:
-                print(f"[telegram] sent {sent} reminder(s)")
-        except Exception as error:
-            print(f"[telegram] error {error}")
-        time.sleep(REMINDER_POLL_SECONDS)
-
-
-def start_reminder_worker() -> None:
-    worker = threading.Thread(target=reminder_worker, name="telegram-reminders", daemon=True)
-    worker.start()
 
 
 def main() -> None:
