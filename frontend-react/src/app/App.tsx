@@ -21,7 +21,6 @@ import { GuitarSessionCard } from "../features/guitar/GuitarSessionCard";
 import { GuitarSessionDialog } from "../features/guitar/GuitarSessionDialog";
 import { buildGuitarGoalModel, buildGuitarGoalWrite } from "../features/guitar/guitar-goal";
 import { useGuitarSessionController } from "../features/guitar/use-guitar-session-controller";
-import { JournalArchiveCard } from "../features/journal-archive/JournalArchiveCard";
 import { JournalPage } from "../features/journal-page/JournalPage";
 import { plannerDateFromSearch } from "../features/life-pie/life-pie";
 import { formatPlannerDate } from "../features/life-pie/life-pie-store";
@@ -84,7 +83,6 @@ function LegacyPlannerApp() {
   const todayKey = formatPlannerDate(today);
   const [guitarGoalMount, setGuitarGoalMount] = useState<HTMLElement | null>(null);
   const [guitarSessionMount, setGuitarSessionMount] = useState<HTMLElement | null>(null);
-  const [journalArchiveBoundary, setJournalArchiveBoundary] = useState<FramePortalBoundary | null>(null);
   const [monthlyCalendarBoundary, setMonthlyCalendarBoundary] = useState<FramePortalBoundary | null>(null);
   const [weeklyPlannerBoundary, setWeeklyPlannerBoundary] = useState<WeeklyPlannerBoundary | null>(null);
   const [skateHeroBoundary, setSkateHeroBoundary] = useState<FramePortalBoundary | null>(null);
@@ -139,15 +137,6 @@ function LegacyPlannerApp() {
     const journalDate = document?.querySelector<HTMLInputElement>("#journalDate");
     setLegacyFrame(frame);
     setSelectedJournalDateKey(selectedJournalDate(journalDate, formatPlannerDate(today)));
-    const journalArchiveCard = document?.querySelector<HTMLElement>(".journal-archive-card");
-    const journalArchiveMount = journalArchiveCard?.querySelector<HTMLElement>(".panel-inner");
-    if (journalArchiveCard !== null && journalArchiveCard !== undefined
-      && journalArchiveMount !== null && journalArchiveMount !== undefined) {
-      journalArchiveCard.dataset.reactOwned = "true";
-      journalArchiveMount.replaceChildren();
-      setJournalArchiveBoundary({ frame, mount: journalArchiveMount });
-    }
-
     const monthlyCalendarCard = document?.querySelector<HTMLElement>(".monthly-calendar-card");
     const monthlyCalendarMount = monthlyCalendarCard?.querySelector<HTMLElement>(".panel-inner");
     const legacyCalendarGrid = document?.getElementById("calendarGrid");
@@ -372,23 +361,6 @@ function LegacyPlannerApp() {
     };
   }, [legacyFrame]);
 
-  function openJournalDate(boundary: FramePortalBoundary, date: string): void {
-    const frameDocument = boundary.frame.contentDocument;
-    if (frameDocument === null) {
-      return;
-    }
-    const journalTab = frameDocument.querySelector<HTMLButtonElement>('[data-view-target="journalView"]');
-    const journalDate = frameDocument.querySelector<HTMLInputElement>("#journalDate");
-    if (journalTab === null || journalDate === null) {
-      return;
-    }
-    journalTab.click();
-    journalDate.value = date;
-    const changeEvent = frameDocument.createEvent("Event");
-    changeEvent.initEvent("change", true, false);
-    journalDate.dispatchEvent(changeEvent);
-  }
-
   return (
     <>
       <iframe
@@ -397,16 +369,6 @@ function LegacyPlannerApp() {
         src={legacyUrl}
         title="Yuan's Planner"
       />
-      {loadedStore !== null && journalArchiveBoundary !== null && (
-        createPortal(
-          <JournalArchiveCard
-            onOpenJournalDate={(date) => openJournalDate(journalArchiveBoundary, date)}
-            selectedDate={selectedJournalDateKey}
-            store={loadedStore}
-          />,
-          journalArchiveBoundary.mount
-        )
-      )}
       {loadedStore !== null && monthlyCalendarBoundary !== null && (
         createPortal(
           <MonthlyCalendarCard

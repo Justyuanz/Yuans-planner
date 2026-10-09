@@ -48,34 +48,15 @@ async function putJournalEntries(serverUrl, entries) {
   assert.equal(response.ok, true);
 }
 
-async function openJournal(browser, pageUrl, documentExpression = "document") {
+async function openJournal(browser, pageUrl) {
   await browser.open(pageUrl);
-  await browser.waitForExpression(`(${documentExpression}).querySelector('[data-view-target="journalView"]')`);
-  try {
-    await browser.waitForExpression(`(() => {
-      const documentRoot = ${documentExpression};
-      const journalView = documentRoot.getElementById("journalView");
-      if (!journalView.classList.contains("active")) {
-        documentRoot.querySelector('[data-view-target="journalView"]').click();
-      }
-      return journalView.classList.contains("active");
-    })()`);
-  } catch (error) {
-    const state = await browser.evaluate(`(() => {
-      const documentRoot = ${documentExpression};
-      return {
-        activeView: documentRoot.querySelector(".view.active")?.id || "",
-        journalClasses: documentRoot.getElementById("journalView")?.className || "",
-        readyState: documentRoot.readyState
-      };
-    })()`);
-    throw new Error(`${error.message}; state=${JSON.stringify(state)}; browserErrors=${JSON.stringify(browser.errors())}`);
-  }
+  await browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
+  await browser.waitForExpression('document.getElementById("journalView").classList.contains("active")');
 }
 
-function archiveState(documentExpression) {
+function archiveState() {
   return `(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const search = documentRoot.getElementById("journalSearch");
     return {
       cards: [...documentRoot.querySelectorAll("#journalArchiveList .journal-entry-card")].map((card) => ({
@@ -98,9 +79,9 @@ function archiveState(documentExpression) {
   })()`;
 }
 
-function archiveVisualContract(documentExpression) {
+function archiveVisualContract() {
   return `(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const view = documentRoot.defaultView;
     const panel = documentRoot.querySelector(".journal-archive-card");
     const pick = (element) => {
@@ -138,34 +119,25 @@ function archiveVisualContract(documentExpression) {
       panel: pick(panel),
       panelInner: pick(panel.querySelector(".panel-inner")),
       search: pick(documentRoot.getElementById("journalSearch")),
-      state: ${archiveState(documentExpression)}
+      state: ${archiveState()}
     };
   })()`;
 }
 
-const LEGACY_CLIP = `(() => {
+const ARCHIVE_CLIP = `(() => {
   const rect = document.querySelector(".journal-archive-card").getBoundingClientRect();
   return { x: rect.x + scrollX, y: rect.y + scrollY, width: rect.width, height: rect.height };
 })()`;
 
-const PREVIEW_CLIP = `(() => {
-  const frame = document.querySelector("iframe");
-  const rect = frame.contentDocument.querySelector(".journal-archive-card").getBoundingClientRect();
-  const frameRect = frame.getBoundingClientRect();
-  return { x: frameRect.x + rect.x, y: frameRect.y + rect.y, width: rect.width, height: rect.height };
-})()`;
-
-async function scrollToArchive(browser, documentExpression) {
-  await browser.waitForExpression(
-    `(${documentExpression}).documentElement.dataset.plannerReady === "true"`
-  );
+async function scrollToArchive(browser) {
+  await browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
   await browser.evaluate(`(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     documentRoot.documentElement.style.scrollBehavior = "auto";
     documentRoot.querySelector(".journal-archive-card").scrollIntoView({ block: "start" });
   })()`);
   await browser.waitForExpression(`(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const rect = documentRoot.querySelector(".journal-archive-card").getBoundingClientRect();
     return rect.top < documentRoot.defaultView.innerHeight && rect.bottom > 0;
   })()`);
@@ -229,9 +201,9 @@ function assertPopulatedState(state) {
   ]);
 }
 
-async function searchArchive(browser, documentExpression, query) {
+async function searchArchive(browser, query) {
   await browser.evaluate(`(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const view = documentRoot.defaultView;
     const input = documentRoot.getElementById("journalSearch");
     const valueSetter = Object.getOwnPropertyDescriptor(view.HTMLInputElement.prototype, "value").set;
@@ -253,10 +225,12 @@ test("Journal archive preserves filtering, navigation, and visual behavior", { t
   context.after(async function () {
     await preview.close();
   });
+  const legacyUrl = `${planner.server.url}/?view=journalView&date=${TEST_DATE}`;
+  const previewUrl = `${preview.url}/?view=journalView&date=${TEST_DATE}`;
 
   await planner.browser.setViewport(1280, 720);
-  await openJournal(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
-  assert.deepEqual(await planner.browser.evaluate(archiveState("document")), {
+  await openJournal(planner.browser, legacyUrl);
+  assert.deepEqual(await planner.browser.evaluate(archiveState()), {
     cards: [],
     empty: "Your old journals will stack here as soon as you write one.",
     listAriaLive: "polite",
@@ -268,23 +242,23 @@ test("Journal archive preserves filtering, navigation, and visual behavior", { t
     }
   });
 
-  await searchArchive(planner.browser, "document", "missing");
+  await searchArchive(planner.browser, "missing");
   await planner.browser.waitForExpression('document.querySelector("#journalArchiveList .journal-empty-state").textContent.includes("No journal entry")');
-  assert.equal((await planner.browser.evaluate(archiveState("document"))).empty, "No journal entry matches that search yet.");
+  assert.equal((await planner.browser.evaluate(archiveState())).empty, "No journal entry matches that search yet.");
 
   await putJournalEntries(planner.server.url, JOURNAL_ENTRIES);
-  await openJournal(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
+  await openJournal(planner.browser, legacyUrl);
   await planner.browser.waitForExpression('document.querySelectorAll("#journalArchiveList .journal-entry-card").length === 5');
-  assertPopulatedState(await planner.browser.evaluate(archiveState("document")));
+  assertPopulatedState(await planner.browser.evaluate(archiveState()));
 
-  await searchArchive(planner.browser, "document", "late night");
+  await searchArchive(planner.browser, "late night");
   await planner.browser.waitForExpression('document.querySelectorAll("#journalArchiveList .journal-entry-card").length === 1');
-  assert.equal((await planner.browser.evaluate(archiveState("document"))).cards[0].title, "Sat Sep 12");
-  await searchArchive(planner.browser, "document", "not here");
+  assert.equal((await planner.browser.evaluate(archiveState())).cards[0].title, "Sat Sep 12");
+  await searchArchive(planner.browser, "not here");
   await planner.browser.waitForExpression('document.querySelector("#journalArchiveList .journal-empty-state")');
-  assert.equal((await planner.browser.evaluate(archiveState("document"))).empty, "No journal entry matches that search yet.");
+  assert.equal((await planner.browser.evaluate(archiveState())).empty, "No journal entry matches that search yet.");
 
-  await openJournal(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
+  await openJournal(planner.browser, legacyUrl);
   await planner.browser.waitForExpression('document.querySelectorAll("#journalArchiveList .journal-entry-card").length === 5');
   await planner.browser.evaluate('document.querySelectorAll("#journalArchiveList .journal-entry-card")[1].click()');
   await planner.browser.waitForExpression('document.getElementById("journalDate").value === "2026-09-13"');
@@ -296,63 +270,56 @@ test("Journal archive preserves filtering, navigation, and visual behavior", { t
   })`), { activeIndex: 1, content: "Cafe notes after class.", date: "2026-09-13", title: "" });
   await planner.browser.evaluate('document.getElementById("journalTodayButton").click()');
 
-  await scrollToArchive(planner.browser, "document");
-  const legacyDesktop = await planner.browser.evaluate(archiveVisualContract("document"));
-  const legacyDesktopScreenshot = await planner.browser.captureScreenshot(LEGACY_CLIP);
+  await scrollToArchive(planner.browser);
+  const legacyDesktop = await planner.browser.evaluate(archiveVisualContract());
+  const legacyDesktopScreenshot = await planner.browser.captureScreenshot(ARCHIVE_CLIP);
 
-  await openJournal(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, 'document.querySelector("iframe").contentDocument');
-  await planner.browser.waitForExpression('document.querySelector("iframe")?.contentDocument?.querySelectorAll("#journalArchiveList .journal-entry-card").length === 5');
-  await scrollToArchive(planner.browser, 'document.querySelector("iframe").contentDocument');
-  const previewDesktop = await planner.browser.evaluate(
-    archiveVisualContract('document.querySelector("iframe").contentDocument')
-  );
-  const previewDesktopScreenshot = await planner.browser.captureScreenshot(PREVIEW_CLIP);
-  assert.equal(await planner.browser.evaluate(
-    'document.querySelector("iframe").contentDocument.querySelector(".journal-archive-card").dataset.reactOwned'
-  ), "true");
+  await openJournal(planner.browser, previewUrl);
+  await planner.browser.waitForExpression('document.querySelectorAll("#journalArchiveList .journal-entry-card").length === 5');
+  assert.equal(await planner.browser.evaluate('document.querySelector("iframe")'), null);
+  await scrollToArchive(planner.browser);
+  const previewDesktop = await planner.browser.evaluate(archiveVisualContract());
+  const previewDesktopScreenshot = await planner.browser.captureScreenshot(ARCHIVE_CLIP);
   assert.deepEqual(previewDesktop, legacyDesktop);
   assertSameScreenshot(previewDesktopScreenshot, legacyDesktopScreenshot, "desktop Journal archive screenshot");
 
   await planner.browser.setViewport(390, 844, true);
-  await openJournal(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
+  await openJournal(planner.browser, legacyUrl);
   await planner.browser.waitForExpression('document.querySelectorAll("#journalArchiveList .journal-entry-card").length === 5');
-  await scrollToArchive(planner.browser, "document");
-  const legacyMobile = await planner.browser.evaluate(archiveVisualContract("document"));
+  await scrollToArchive(planner.browser);
+  const legacyMobile = await planner.browser.evaluate(archiveVisualContract());
 
-  await openJournal(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, 'document.querySelector("iframe").contentDocument');
-  await planner.browser.waitForExpression('document.querySelector("iframe")?.contentDocument?.querySelectorAll("#journalArchiveList .journal-entry-card").length === 5');
-  await scrollToArchive(planner.browser, 'document.querySelector("iframe").contentDocument');
-  const previewMobile = await planner.browser.evaluate(
-    archiveVisualContract('document.querySelector("iframe").contentDocument')
-  );
+  await openJournal(planner.browser, previewUrl);
+  await planner.browser.waitForExpression('document.querySelectorAll("#journalArchiveList .journal-entry-card").length === 5');
+  await scrollToArchive(planner.browser);
+  const previewMobile = await planner.browser.evaluate(archiveVisualContract());
   assert.deepEqual(previewMobile, legacyMobile);
   assert.equal(previewMobile.panel.width, 1020.609375);
 
-  const previewDocument = 'document.querySelector("iframe").contentDocument';
-  await searchArchive(planner.browser, previewDocument, "late night");
-  await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.querySelectorAll("#journalArchiveList .journal-entry-card").length === 1');
-  assert.equal((await planner.browser.evaluate(archiveState(previewDocument))).cards[0].title, "Sat Sep 12");
-  await searchArchive(planner.browser, previewDocument, "");
-  await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.querySelectorAll("#journalArchiveList .journal-entry-card").length === 5');
+  await searchArchive(planner.browser, "late night");
+  await planner.browser.waitForExpression('document.querySelectorAll("#journalArchiveList .journal-entry-card").length === 1');
+  assert.equal((await planner.browser.evaluate(archiveState())).cards[0].title, "Sat Sep 12");
+  await searchArchive(planner.browser, "");
+  await planner.browser.waitForExpression('document.querySelectorAll("#journalArchiveList .journal-entry-card").length === 5');
 
-  await planner.browser.evaluate('document.querySelector("iframe").contentDocument.querySelectorAll("#journalArchiveList .journal-entry-card")[1].click()');
-  await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.getElementById("journalDate").value === "2026-09-13"');
-  await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.querySelectorAll("#journalArchiveList .journal-entry-card")[1].classList.contains("active")');
-  await planner.browser.evaluate('document.querySelector("iframe").contentDocument.getElementById("journalTodayButton").click()');
-  await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.getElementById("journalDate").value === "2026-09-14"');
+  await planner.browser.evaluate('document.querySelectorAll("#journalArchiveList .journal-entry-card")[1].click()');
+  await planner.browser.waitForExpression('document.getElementById("journalDate").value === "2026-09-13"');
+  await planner.browser.waitForExpression('document.querySelectorAll("#journalArchiveList .journal-entry-card")[1].classList.contains("active")');
+  await planner.browser.evaluate('document.getElementById("journalTodayButton").click()');
+  await planner.browser.waitForExpression('document.getElementById("journalDate").value === "2026-09-14"');
 
   await planner.browser.evaluate(`(() => {
-    const frame = document.querySelector("iframe");
-    const input = frame.contentDocument.getElementById("journalTitle");
-    input.value = "Updated from the legacy editor";
-    input.dispatchEvent(new frame.contentWindow.Event("input", { bubbles: true }));
+    const input = document.getElementById("journalTitle");
+    const valueSetter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
+    valueSetter.call(input, "Updated from the React editor");
+    input.dispatchEvent(new Event("input", { bubbles: true }));
   })()`);
-  await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.querySelector("#journalArchiveList .journal-entry-card strong").textContent === "Updated from the legacy editor"');
+  await planner.browser.waitForExpression('document.querySelector("#journalArchiveList .journal-entry-card strong").textContent === "Updated from the React editor"');
 
-  await openJournal(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, previewDocument);
-  await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.querySelectorAll("#journalArchiveList .journal-entry-card").length === 5');
-  const reloadedState = await planner.browser.evaluate(archiveState(previewDocument));
+  await openJournal(planner.browser, previewUrl);
+  await planner.browser.waitForExpression('document.querySelectorAll("#journalArchiveList .journal-entry-card").length === 5');
+  const reloadedState = await planner.browser.evaluate(archiveState());
   assert.equal(reloadedState.search.value, "");
-  assert.equal(reloadedState.cards[0].title, "Updated from the legacy editor");
+  assert.equal(reloadedState.cards[0].title, "Updated from the React editor");
   assert.deepEqual(planner.browser.errors(), []);
 });

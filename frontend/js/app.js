@@ -2031,11 +2031,6 @@
         if (!elements.journalArchiveList) {
           return;
         }
-        var archiveCard = elements.journalArchiveList.closest(".journal-archive-card");
-        if (archiveCard && archiveCard.dataset.reactOwned === "true") {
-          return;
-        }
-
         var entries = getJournalEntries();
         var query = elements.journalSearch ? elements.journalSearch.value : "";
         if (journalCore && typeof journalCore.filterEntries === "function") {
