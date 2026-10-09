@@ -53,22 +53,22 @@ import { PlannedActualCard } from "../features/planned-actual/PlannedActualCard"
 import { plannedStorageKey } from "../features/planned-actual/planned-actual";
 import { PatternHistoryDialog } from "../features/pattern-history/PatternHistoryDialog";
 import { emptyPatternHistoryModel } from "../features/pattern-history/pattern-history";
+import { SkateFeedbackDialog } from "../features/skate/SkateFeedbackDialog";
 import { SkateHeroCard } from "../features/skate/SkateHeroCard";
 import { SkateBodySupportCard } from "../features/skate/SkateBodySupportCard";
 import { SkateRoadmapCard } from "../features/skate/SkateRoadmapCard";
 import { SkateTrainingPlanCard } from "../features/skate/SkateTrainingPlanCard";
 import {
   SKATE_HERO_STATE_EVENT,
-  dispatchSkateHeroAction,
   skateHeroStateFromDocument,
   skateHeroStateFromEvent,
   type SkateHeroState
 } from "../features/skate/skate-hero-bridge";
-import { dispatchSkateRoadmapLog } from "../features/skate/skate-roadmap-bridge";
 import {
   skateTrainingPlanStateFromRoot,
   type SkateTrainingPlanState
 } from "../features/skate/skate-training-plan-bridge";
+import { useSkateFeedbackController } from "../features/skate/use-skate-feedback-controller";
 import { TaskProgressBanner } from "../features/task-progress/TaskProgressBanner";
 import { buildTaskProgressModel } from "../features/task-progress/task-progress";
 import { TaskForm } from "../features/tasks/TaskForm";
@@ -179,6 +179,14 @@ function LegacyPlannerApp() {
       ...loadedStore,
       [`hivePlanner.dailyTasks.${todayKey}`]: JSON.stringify(calendarTaskReconciliation.tasks)
     }), [calendarTaskReconciliation, loadedStore, todayKey]);
+  const skateFeedback = useSkateFeedbackController({
+    heroState: skateHeroState,
+    onHeroStateChange: setSkateHeroState,
+    onPersist: persistPlannerWrites,
+    store: loadedStore,
+    todayKey
+  });
+  const applySkateHeroState = skateFeedback.syncHeroState;
 
   useEffect(() => {
     if (calendarTaskReconciliation?.write !== null && calendarTaskReconciliation?.write !== undefined) {
@@ -334,6 +342,11 @@ function LegacyPlannerApp() {
       setSkateHeroBoundary({ frame, mount: skateHeroMount });
     }
 
+    const feedbackDialog = document?.querySelector<HTMLDialogElement>("#skateFeedbackDialog");
+    if (feedbackDialog !== null && feedbackDialog !== undefined) {
+      skateFeedback.claimDialog(feedbackDialog);
+    }
+
     const skateRoadmapCard = document?.querySelector<HTMLElement>(".skate-trends-card");
     const skateRoadmapMount = skateRoadmapCard?.querySelector<HTMLElement>(".panel-inner");
     if (skateRoadmapCard !== null && skateRoadmapCard !== undefined
@@ -475,11 +488,11 @@ function LegacyPlannerApp() {
     if (frameWindow === null || frameWindow === undefined) return;
     function syncSkateHeroState(event: Event): void {
       const state = skateHeroStateFromEvent(event);
-      if (state !== null) setSkateHeroState(state);
+      if (state !== null) applySkateHeroState(state);
     }
     frameWindow.addEventListener(SKATE_HERO_STATE_EVENT, syncSkateHeroState);
     return () => frameWindow.removeEventListener(SKATE_HERO_STATE_EVENT, syncSkateHeroState);
-  }, [skateHeroBoundary]);
+  }, [applySkateHeroState, skateHeroBoundary]);
 
   useEffect(() => {
     if (legacyFrame === null) return;
@@ -768,16 +781,29 @@ function LegacyPlannerApp() {
       {skateHeroBoundary !== null && skateHeroState !== null && (
         createPortal(
           <SkateHeroCard
-            onAction={(action) => dispatchSkateHeroAction(skateHeroBoundary.frame, action)}
+            onAction={(action) => skateFeedback.handleHeroAction(action, skateHeroBoundary.frame)}
             state={skateHeroState}
           />,
           skateHeroBoundary.mount
         )
       )}
+      {loadedStore !== null && skateFeedback.dialog !== null && skateFeedback.request !== null && (
+        createPortal(
+          <SkateFeedbackDialog
+            dialog={skateFeedback.dialog}
+            intensityForDate={skateFeedback.intensityForDate}
+            key={skateFeedback.request.revision}
+            request={skateFeedback.request}
+            onCancel={skateFeedback.cancelFeedback}
+            onSave={skateFeedback.saveFeedback}
+          />,
+          skateFeedback.dialog
+        )
+      )}
       {loadedStore !== null && skateRoadmapBoundary !== null && (
         createPortal(
           <SkateRoadmapCard
-            onLogDate={(request) => dispatchSkateRoadmapLog(skateRoadmapBoundary.frame, request)}
+            onLogDate={skateFeedback.openRoadmapLog}
             store={loadedStore}
             today={today}
           />,
