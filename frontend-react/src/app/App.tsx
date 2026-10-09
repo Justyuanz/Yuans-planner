@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { putPlannerStoreValue } from "../api/planner-store";
@@ -55,19 +55,22 @@ import { PatternHistoryDialog } from "../features/pattern-history/PatternHistory
 import { emptyPatternHistoryModel } from "../features/pattern-history/pattern-history";
 import { SkateFeedbackDialog } from "../features/skate/SkateFeedbackDialog";
 import { SkateHeroCard } from "../features/skate/SkateHeroCard";
+import { SkatePage } from "../features/skate/SkatePage";
 import { SkateBodySupportCard } from "../features/skate/SkateBodySupportCard";
 import { SkateRoadmapCard } from "../features/skate/SkateRoadmapCard";
 import { SkateTrainingPlanCard } from "../features/skate/SkateTrainingPlanCard";
 import {
+  dispatchSkateHeroAction,
   SKATE_HERO_STATE_EVENT,
   skateHeroStateFromDocument,
-  skateHeroStateFromEvent,
-  type SkateHeroState
+  skateHeroStateFromEvent
 } from "../features/skate/skate-hero-bridge";
+import type { SkateHeroState } from "../features/skate/skate-hero";
 import {
   buildSkateTrainingPlanState,
   type SkateTrainingPlanState
 } from "../features/skate/skate-training-plan";
+import type { SkateHeroSettingsAction } from "../features/skate/skate-settings";
 import { useSkateFeedbackController } from "../features/skate/use-skate-feedback-controller";
 import { TaskProgressBanner } from "../features/task-progress/TaskProgressBanner";
 import { buildTaskProgressModel } from "../features/task-progress/task-progress";
@@ -182,14 +185,16 @@ function LegacyPlannerApp() {
       ...loadedStore,
       [`hivePlanner.dailyTasks.${todayKey}`]: JSON.stringify(calendarTaskReconciliation.tasks)
     }), [calendarTaskReconciliation, loadedStore, todayKey]);
+  const dispatchLegacySkateSetting = useCallback((action: SkateHeroSettingsAction) => {
+    if (skateHeroBoundary !== null) dispatchSkateHeroAction(skateHeroBoundary.frame, action);
+  }, [skateHeroBoundary]);
   const skateFeedback = useSkateFeedbackController({
     heroState: skateHeroState,
-    onHeroStateChange: setSkateHeroState,
     onPersist: persistPlannerWrites,
+    onSettingsAction: dispatchLegacySkateSetting,
     store: loadedStore,
     todayKey
   });
-  const applySkateHeroState = skateFeedback.syncHeroState;
 
   useEffect(() => {
     if (calendarTaskReconciliation?.write !== null && calendarTaskReconciliation?.write !== undefined) {
@@ -491,11 +496,11 @@ function LegacyPlannerApp() {
     if (frameWindow === null || frameWindow === undefined) return;
     function syncSkateHeroState(event: Event): void {
       const state = skateHeroStateFromEvent(event);
-      if (state !== null) applySkateHeroState(state);
+      if (state !== null) setSkateHeroState(state);
     }
     frameWindow.addEventListener(SKATE_HERO_STATE_EVENT, syncSkateHeroState);
     return () => frameWindow.removeEventListener(SKATE_HERO_STATE_EVENT, syncSkateHeroState);
-  }, [applySkateHeroState, skateHeroBoundary]);
+  }, [skateHeroBoundary]);
 
   useEffect(() => {
     if (legacyFrame === null) return;
@@ -769,11 +774,11 @@ function LegacyPlannerApp() {
           weeklyPlannerBoundary.editorMount
         )
       )}
-      {skateHeroBoundary !== null && skateHeroState !== null && (
+      {skateHeroBoundary !== null && skateFeedback.heroState !== null && (
         createPortal(
           <SkateHeroCard
-            onAction={(action) => skateFeedback.handleHeroAction(action, skateHeroBoundary.frame)}
-            state={skateHeroState}
+            onAction={skateFeedback.handleHeroAction}
+            state={skateFeedback.heroState}
           />,
           skateHeroBoundary.mount
         )
@@ -874,6 +879,7 @@ export function App() {
   if (requestedView === "moneyView") return <MoneyPage today={today} />;
   if (requestedView === "journalView") return <JournalPage today={today} />;
   if (requestedView === "calendarView") return <CalendarPage today={today} />;
+  if (requestedView === "skateView") return <SkatePage today={today} />;
   if (requestedView === null || requestedView === "todayView") return <DashboardPage today={today} />;
   return <LegacyPlannerApp />;
 }

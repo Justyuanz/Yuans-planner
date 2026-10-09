@@ -1,9 +1,17 @@
 import type { PlannerStore } from "../../api/planner-store";
-import { isRecord } from "../../shared/is-record";
-import { isSkateIntensity, type SkateIntensity } from "./skate-intensity";
+import {
+  isSkateIntensity,
+  SKATE_INTENSITY_META,
+  type SkateIntensity
+} from "./skate-intensity";
 import { SKATE_PROGRAM } from "./skate-program-data";
+import {
+  decodeSkateSettings,
+  SKATE_SETTINGS_STORAGE_KEY,
+  type SkateSettings
+} from "./skate-settings";
 
-export const SKATE_SETTINGS_STORAGE_KEY = "hivePlanner.skate.settings";
+export { SKATE_SETTINGS_STORAGE_KEY } from "./skate-settings";
 
 const SKATE_TOTAL_WEEKS = 21;
 const SKATE_SEASON_START = new Date(2026, 7, 29);
@@ -17,18 +25,6 @@ const WEEKDAY_NAMES = [
   "Friday",
   "Saturday"
 ] as const;
-
-const INTENSITY_META = {
-  blue: { attempts: "0-5 focused attempts", label: "Blue" },
-  green: { attempts: "20-30 focused attempts", label: "Green" },
-  yellow: { attempts: "10-20 focused attempts", label: "Yellow" }
-} satisfies Record<SkateIntensity, { attempts: string; label: string }>;
-
-interface SkateSettings {
-  currentProgramDay: number;
-  extraRestDayOfWeek: number | null;
-  restDayOfWeek: number;
-}
 
 export interface SkateTrainingPlanBlock {
   label: string;
@@ -66,42 +62,6 @@ export interface SkateTrainingPlanState {
 
 type SkateProgramDay = typeof SKATE_PROGRAM.days[number];
 
-function storedRecord(rawValue: string | undefined): Record<string, unknown> {
-  try {
-    const parsed: unknown = rawValue === undefined ? null : JSON.parse(rawValue);
-    return isRecord(parsed) ? parsed : {};
-  } catch {
-    return {};
-  }
-}
-
-function programDay(value: unknown): number {
-  const rounded = Math.round(Number(value) || 1);
-  return Math.max(1, Math.min(SKATE_PROGRAM.days.length, rounded));
-}
-
-function restDay(value: unknown): number {
-  const rounded = Math.round(Number(value));
-  return Number.isFinite(rounded) && rounded >= 0 && rounded <= 6 ? rounded : 0;
-}
-
-function extraRestDay(value: unknown, primaryDay: number): number | null {
-  if (value === "" || value === null || value === undefined) return null;
-  const rounded = Math.round(Number(value));
-  return Number.isFinite(rounded) && rounded >= 0 && rounded <= 6 && rounded !== primaryDay
-    ? rounded : null;
-}
-
-function decodeSkateSettings(store: PlannerStore): SkateSettings {
-  const value = storedRecord(store[SKATE_SETTINGS_STORAGE_KEY]);
-  const primaryDay = restDay(value.restDayOfWeek);
-  return {
-    currentProgramDay: programDay(value.currentProgramDay),
-    extraRestDayOfWeek: extraRestDay(value.extraRestDayOfWeek, primaryDay),
-    restDayOfWeek: primaryDay
-  };
-}
-
 function localDay(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate());
 }
@@ -130,7 +90,7 @@ function planRow(day: SkateProgramDay, currentDay: number): SkateTrainingPlanRow
     current: day.dayNumber === currentDay,
     detail: day.flow,
     intensity,
-    intensityLabel: INTENSITY_META[intensity].label,
+    intensityLabel: SKATE_INTENSITY_META[intensity].label,
     label: `Day ${day.dayNumber}`,
     preview: false,
     subtitle: day.skateiq,
@@ -142,7 +102,7 @@ export function buildSkateTrainingPlanState(
   store: PlannerStore,
   referenceDate: Date
 ): SkateTrainingPlanState {
-  const settings = decodeSkateSettings(store);
+  const settings = decodeSkateSettings(store[SKATE_SETTINGS_STORAGE_KEY]);
   const preview = isBeforeSeason(referenceDate);
   const selectedDay = preview ? 1 : settings.currentProgramDay;
   const selectedPlan = dayPlan(selectedDay);
@@ -160,7 +120,7 @@ export function buildSkateTrainingPlanState(
         { label: "Flow / fun", value: selectedPlan.flow },
         {
           label: "Default intensity",
-          value: `${INTENSITY_META[intensity].label} · ${INTENSITY_META[intensity].attempts}`
+          value: `${SKATE_INTENSITY_META[intensity].label} · ${SKATE_INTENSITY_META[intensity].attempts}`
         }
       ],
       description: `${selectedPlan.phase} · Week ${selectedPlan.weekNumber}`,

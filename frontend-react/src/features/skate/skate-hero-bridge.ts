@@ -1,42 +1,10 @@
+import { type SkateHeroAction, type SkateHeroState } from "./skate-hero";
 import { isSkateIntensity, type SkateIntensity } from "./skate-intensity";
 
 export const SKATE_HERO_ACTION_EVENT = "hive-planner-skate-hero-action";
 export const SKATE_HERO_STATE_EVENT = "hive-planner-skate-hero-state";
 
-export type { SkateIntensity } from "./skate-intensity";
-
-export interface SkateHeroState {
-  attemptBudget: string;
-  benchmarkLabel: string;
-  benchmarkVisible: boolean;
-  blockLabel: string;
-  boardHours: string;
-  currentDay: string;
-  dayCount: string;
-  extraRestDay: string;
-  finishDisabled: boolean;
-  flowFocus: string;
-  heroSubtitle: string;
-  intensity: SkateIntensity;
-  intensityDescription: string;
-  intensityEffort: string;
-  mainFocus: string;
-  phaseBadge: string;
-  restDay: string;
-  sessionDaysCount: string;
-  sessionHint: string;
-  skateiqBlock: string;
-  settingsNote: string;
-  startDisabled: boolean;
-  weekCount: string;
-}
-
-export type SkateHeroAction =
-  | { action: "finish-session" | "log-session" | "start-session" }
-  | { action: "set-current-day"; value: string }
-  | { action: "set-extra-rest-day"; value: string }
-  | { action: "set-intensity"; value: SkateIntensity }
-  | { action: "set-rest-day"; value: string };
+export type { SkateHeroAction, SkateHeroState } from "./skate-hero";
 
 const TEXT_IDS = {
   attemptBudget: "skateAttemptBudget",

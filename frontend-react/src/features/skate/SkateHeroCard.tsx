@@ -1,4 +1,4 @@
-import type { SkateHeroAction, SkateHeroState } from "./skate-hero-bridge";
+import type { SkateHeroAction, SkateHeroState } from "./skate-hero";
 import { SKATE_INTENSITIES } from "./skate-intensity";
 
 interface SkateHeroCardProps {
@@ -13,7 +13,7 @@ const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Frida
 function SkateProgramDayInput({ onAction, state }: SkateHeroSectionProps) {
   function commitProgramDay(input: HTMLInputElement): void {
     const draftDay = input.value;
-    // Keep the last rendered value visible until the legacy rules return a normalized day.
+    // Keep the last rendered value visible until the normalized setting is published.
     input.value = state.currentDay;
     onAction({ action: "set-current-day", value: draftDay });
   }

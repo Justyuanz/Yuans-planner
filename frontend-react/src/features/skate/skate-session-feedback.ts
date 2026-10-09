@@ -8,10 +8,13 @@ import {
   type SkateCoachTemplate,
   type SkateWarmupItem
 } from "./skate-session-template";
+import {
+  SKATE_CURRENT_SESSION_STORAGE_KEY,
+  SKATE_SETTINGS_STORAGE_KEY
+} from "./skate-settings";
 
 export const SKATE_COACH_TEMPLATE_STORAGE_KEY = "hivePlanner.skate.coachTemplate";
-export const SKATE_CURRENT_SESSION_STORAGE_KEY = "hivePlanner.skate.currentSession";
-export const SKATE_SETTINGS_STORAGE_KEY = "hivePlanner.skate.settings";
+export { SKATE_CURRENT_SESSION_STORAGE_KEY, SKATE_SETTINGS_STORAGE_KEY } from "./skate-settings";
 
 interface FocusCardState {
   goals: [boolean, boolean, boolean];

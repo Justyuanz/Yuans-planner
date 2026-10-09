@@ -195,21 +195,29 @@ test("Dashboard is a direct React page with legacy layout and Pattern behavior",
     { active: true, iframeCount: 0 }
   );
 
-  for (const viewId of ["skateView", "guitarView"]) {
-    await planner.browser.open(`${preview.url}/?view=${viewId}&date=${TEST_DATE}`);
-    await planner.browser.waitForExpression(`document.querySelector("iframe")?.contentDocument
-      ?.documentElement?.dataset.plannerReady === "true"`);
-    assert.deepEqual(
-      await planner.browser.evaluate(`(() => {
-        const frame = document.querySelector("iframe");
-        return {
-          active: frame.contentDocument.getElementById("${viewId}").classList.contains("active"),
-          iframeCount: document.querySelectorAll("iframe").length
-        };
-      })()`),
-      { active: true, iframeCount: 1 }
-    );
-  }
+  await openReady(planner.browser, `${preview.url}/?view=skateView&date=${TEST_DATE}`);
+  await planner.browser.waitForExpression('document.getElementById("skateCurrentDay") !== null');
+  assert.deepEqual(
+    await planner.browser.evaluate(`({
+      active: document.getElementById("skateView").classList.contains("active"),
+      iframeCount: document.querySelectorAll("iframe").length
+    })`),
+    { active: true, iframeCount: 0 }
+  );
+
+  await planner.browser.open(`${preview.url}/?view=guitarView&date=${TEST_DATE}`);
+  await planner.browser.waitForExpression(`document.querySelector("iframe")?.contentDocument
+    ?.documentElement?.dataset.plannerReady === "true"`);
+  assert.deepEqual(
+    await planner.browser.evaluate(`(() => {
+      const frame = document.querySelector("iframe");
+      return {
+        active: frame.contentDocument.getElementById("guitarView").classList.contains("active"),
+        iframeCount: document.querySelectorAll("iframe").length
+      };
+    })()`),
+    { active: true, iframeCount: 1 }
+  );
 
   await openReady(planner.browser, previewUrl);
   await planner.browser.evaluate('document.querySelector("#dashboardInsightActions .insight-action").click()');

@@ -1,11 +1,7 @@
-import { useCallback, useEffect, useState, type Dispatch, type SetStateAction } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { PlannerStore, PlannerStoreWrite } from "../../api/planner-store";
-import {
-  dispatchSkateHeroAction,
-  type SkateHeroAction,
-  type SkateHeroState
-} from "./skate-hero-bridge";
+import type { SkateHeroAction, SkateHeroState } from "./skate-hero";
 import type { SkateRoadmapLogRequest } from "./skate-roadmap";
 import {
   buildSkateSessionSave,
@@ -15,11 +11,12 @@ import {
   type SkateFeedbackValue,
   type SkateSessionHeroSnapshot
 } from "./skate-session-feedback";
+import type { SkateHeroSettingsAction } from "./skate-settings";
 
 interface SkateFeedbackControllerOptions {
   heroState: SkateHeroState | null;
-  onHeroStateChange: Dispatch<SetStateAction<SkateHeroState | null>>;
   onPersist: (writes: readonly PlannerStoreWrite[]) => void;
+  onSettingsAction: (action: SkateHeroSettingsAction) => void;
   store: PlannerStore | null;
   todayKey: string;
 }
@@ -42,15 +39,6 @@ function timerLabel(seconds: number): string {
     : `${minutes}:${String(remainder).padStart(2, "0")}`;
 }
 
-function runningState(state: SkateHeroState, startedAt: string): SkateHeroState {
-  return {
-    ...state,
-    finishDisabled: false,
-    sessionHint: `Skate session running · ${timerLabel(elapsedSessionSeconds(startedAt))}`,
-    startDisabled: true
-  };
-}
-
 function heroSnapshot(state: SkateHeroState): SkateSessionHeroSnapshot {
   return {
     attemptBudget: state.attemptBudget,
@@ -64,32 +52,36 @@ function heroSnapshot(state: SkateHeroState): SkateSessionHeroSnapshot {
 
 export function useSkateFeedbackController({
   heroState,
-  onHeroStateChange,
   onPersist,
+  onSettingsAction,
   store,
   todayKey
 }: SkateFeedbackControllerOptions) {
   const [dialog, setDialog] = useState<HTMLDialogElement | null>(null);
   const [request, setRequest] = useState<SkateFeedbackRequest | null>(null);
   const [sessionStartedAt, setSessionStartedAt] = useState<string | null>(null);
+  const [sessionHint, setSessionHint] = useState<string | null>(null);
 
   useEffect(() => {
     if (sessionStartedAt === null) return;
     const timer = window.setInterval(() => {
-      onHeroStateChange((state) => state === null ? null : runningState(state, sessionStartedAt));
+      setSessionHint(`Skate session running · ${timerLabel(elapsedSessionSeconds(sessionStartedAt))}`);
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [onHeroStateChange, sessionStartedAt]);
+  }, [sessionStartedAt]);
+
+  const displayedHeroState = useMemo(() => heroState === null ? null : {
+    ...heroState,
+    finishDisabled: sessionStartedAt === null,
+    sessionHint: sessionHint ?? heroState.sessionHint,
+    startDisabled: sessionStartedAt !== null
+  }, [heroState, sessionHint, sessionStartedAt]);
 
   const claimDialog = useCallback((mount: HTMLDialogElement) => {
     mount.dataset.reactOwned = "true";
     mount.replaceChildren();
     setDialog(mount);
   }, []);
-
-  const syncHeroState = useCallback((state: SkateHeroState) => {
-    onHeroStateChange(sessionStartedAt === null ? state : runningState(state, sessionStartedAt));
-  }, [onHeroStateChange, sessionStartedAt]);
 
   const openFeedback = useCallback((next: Omit<SkateFeedbackRequest, "intensity" | "revision"> & {
     intensity?: SkateRoadmapLogRequest["intensity"];
@@ -106,27 +98,21 @@ export function useSkateFeedbackController({
       intensity,
       revision: (current?.revision ?? 0) + 1
     }));
-    onHeroStateChange((state) => state === null ? null : { ...state, sessionHint: next.hint });
-  }, [dialog, heroState, onHeroStateChange, store, todayKey]);
+    setSessionHint(next.hint);
+  }, [dialog, heroState, store, todayKey]);
 
-  const handleHeroAction = useCallback((action: SkateHeroAction, frame: HTMLIFrameElement) => {
+  const handleHeroAction = useCallback((action: SkateHeroAction) => {
     if (action.action === "start-session") {
       const startedAt = new Date().toISOString();
       setSessionStartedAt(startedAt);
-      onHeroStateChange((state) => state === null ? null : {
-        ...state,
-        finishDisabled: false,
-        sessionHint: "Skate session started. Go get the reps.",
-        startDisabled: true
-      });
+      setSessionHint("Skate session started. Go get the reps.");
       return;
     }
     if (action.action === "finish-session") {
       if (sessionStartedAt === null) {
-        onHeroStateChange((state) => state === null ? null : {
-          ...state,
-          sessionHint: "No session is running yet. Use \"Log past session\" if you just want to save missed skate time."
-        });
+        setSessionHint(
+          "No session is running yet. Use \"Log past session\" if you just want to save missed skate time."
+        );
         return;
       }
       openFeedback({
@@ -144,8 +130,8 @@ export function useSkateFeedbackController({
       });
       return;
     }
-    dispatchSkateHeroAction(frame, action);
-  }, [onHeroStateChange, openFeedback, sessionStartedAt, todayKey]);
+    onSettingsAction(action);
+  }, [onSettingsAction, openFeedback, sessionStartedAt, todayKey]);
 
   const openRoadmapLog = useCallback((roadmapRequest: SkateRoadmapLogRequest) => {
     openFeedback({
@@ -170,13 +156,8 @@ export function useSkateFeedbackController({
     setSessionStartedAt(null);
     setRequest(null);
     dialog.close();
-    onHeroStateChange((state) => state === null ? null : {
-      ...state,
-      finishDisabled: true,
-      sessionHint: result.message,
-      startDisabled: false
-    });
-  }, [dialog, heroState, onHeroStateChange, onPersist, sessionStartedAt, store, todayKey]);
+    setSessionHint(result.message);
+  }, [dialog, heroState, onPersist, sessionStartedAt, store, todayKey]);
 
   const intensityForDate = useCallback((dateKey: string) => feedbackIntensityForDate(
     store ?? {},
@@ -190,10 +171,10 @@ export function useSkateFeedbackController({
     claimDialog,
     dialog,
     handleHeroAction,
+    heroState: displayedHeroState,
     intensityForDate,
     openRoadmapLog,
     request,
-    saveFeedback,
-    syncHeroState
+    saveFeedback
   };
 }
