@@ -323,9 +323,10 @@ test("Skate Body support preserves weekly metrics, persistence, totals, and visu
       && documentRoot.getElementById("bodyWorkoutName").value === "";
   })()`);
 
-  await planner.browser.evaluate(`(${previewDocument}).querySelector('[data-view-target="todayView"]').click()`);
-  await planner.browser.waitForExpression(`(${previewDocument}).querySelectorAll("#lifeBreakdown .breakdown-row").length === 6`);
-  assert.equal(await planner.browser.evaluate(gymLifePieSummary(previewDocument)), "100% · 1.42h");
+  await planner.browser.open(`${preview.url}/?view=todayView&date=${TEST_DATE}`);
+  await planner.browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
+  await planner.browser.waitForExpression('document.querySelectorAll("#lifeBreakdown .breakdown-row").length === 6');
+  assert.equal(await planner.browser.evaluate(gymLifePieSummary("document")), "100% · 1.42h");
 
   await openSkate(planner.browser, previewUrl, previewDocument);
   const reloaded = await planner.browser.evaluate(bodySupportState(previewDocument));
