@@ -181,13 +181,13 @@ For each feature:
 - [ ] remove legacy implementation only after tests pass
 
 ## Current Task
-All six primary routes render directly in React + strict TypeScript with no iframe, and Phase 3's clean Python structure is complete. Planner KV/backup behavior, reminder orchestration, HTTP/static transport, integrations, configuration, SQLite, and process bootstrap now have focused responsibilities. The next milestone is the production React-serving cutover.
+Phase 3 and the production-serving cutover are complete. The Python server now serves the compiled React + strict TypeScript application at the root by default, all six primary routes render directly without an iframe, and the legacy application is isolated under `/legacy/` or an explicit compatibility mode. Phase 4 is now in migration-infrastructure cleanup: retire the migration-only React portal shell and narrow legacy runtime dependencies without losing visual-reference coverage.
 
 ## Last Completed Task
-Moved `PlannerHandler`, JSON transport, API routing, integration endpoints, and legacy static-file delivery into `backend/http_server.py`, leaving `backend/app.py` as a 58-line process bootstrap. Expanded real-HTTP tests protect malformed JSON/UTF-8, mascot and Telegram status/success/validation/failure contracts, unknown routes, KV/import/export, HEAD/static behavior, and traversal blocking. Commit: `ef46737 refactor(backend): isolate http transport`.
+Switched the Python root to the compiled React build while preserving `/api` routing, client-route fallback, built assets, HEAD/MIME behavior, traversal blocking, legacy `/css` and `/js` assets, and the explicit `/legacy/` compatibility application. Added a documented `react`/`legacy` frontend mode, a multi-stage Docker build, complete React gates in `scripts/test.sh`, and a real-browser production regression at desktop and mobile sizes. Hardened shared browser waits against transient iframe detachment. Commit: `8d05076 feat(server): serve production react build`.
 
 ## Next Task
-Define and test the production static-serving contract for the React build. Preserve `/api/*`, expose the built React application at the root with correct asset and client-route behavior, and retain the legacy frontend under an explicit compatibility path for `view=legacyShell`/unknown-view verification until final cleanup. Build and test the React assets before switching the Python server's root.
+Inventory every remaining `LegacyPlannerApp` portal, compatibility bridge, and `view=legacyShell` browser fixture. Convert fixtures that still compare a React portal boundary to use the direct React route plus the standalone legacy reference, then remove migration-only portal ownership code in small verified slices. Keep `/legacy/` and the shared legacy stylesheet/assets until no direct React page or regression depends on them.
 
 ## Upstream Legacy Change — Activity Categories (2026-10-05)
 
@@ -268,6 +268,11 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - `backend/planner_api.py` owns the Planner KV/backup application contract: `hivePlanner.*` key validation, string-value validation, import-object validation, version-2 export documents, and success response shapes. SQLite connection/transaction behavior remains in `backend/db.py`, while HTTP status/header/body mechanics remain in `PlannerHandler`.
 - `backend/reminder_service.py` owns stored event/task loading, due-reminder collection, Telegram delivery, sent-marker persistence, the 30-second polling loop, and daemon-thread startup. It writes each changed storage key once, leaves a partially delivered key unwritten so the poll can retry it, and keeps malformed raw list records while excluding them from reminder evaluation.
 - `backend/http_server.py` owns the complete HTTP transport: route dispatch, JSON parsing/responses, Planner/integration endpoint wiring, static MIME/cache headers, HEAD behavior, and traversal protection. Malformed JSON or UTF-8 returns one `400 Invalid JSON` response and stops endpoint processing. `backend/app.py` only initializes SQLite, constructs the threaded server, starts reminders, prints addresses, and owns process lifetime.
+- The Python server serves `frontend-react/dist` at the root by default. `YUAN_PLANNER_FRONTEND_MODE=legacy` is an explicit compatibility/visual-reference override; invalid values safely fall back to React.
+- `/legacy/` serves the standalone legacy application, while `/css/*` and `/js/*` remain legacy asset routes because direct React pages still load the established stylesheet and compatibility code. React build files are served exactly, extensionless client paths fall back to `index.html`, missing file-like paths return `404`, unknown `/api` routes never enter the SPA fallback, and a missing build returns a clear `503`.
+- React production assets remain ignored build output. Local runs require `npm run build`; Docker uses a Node 24 builder stage and copies only `dist` into the Python image.
+- Existing browser visual-reference fixtures start the Python server in explicit legacy mode. A separate production regression starts it in React mode and verifies compiled assets, direct Dashboard and Money rendering, API access, desktop/mobile overflow, console cleanliness, and the isolated legacy fallback.
+- Chrome polling tolerates transient expression errors while an iframe document is detached during navigation, then reports the last evaluation error if the readiness condition times out. This removes combined-suite timing flakes without hiding persistent failures.
 - A missing `view` maps to the direct React Dashboard, while unknown explicit values continue through `LegacyPlannerApp`. Migration-boundary browser fixtures use `view=legacyShell`, which the parent intentionally treats as fallback and the legacy app safely normalizes to its Dashboard.
 - The direct route loads the legacy stylesheet only while mounted. Loading it globally changes the parent body's padding and narrows every iframe preview, which the complete Money regression suite caught.
 - Direct-shell navigation writes the requested `view` and deterministic planner `date` into the URL. Dashboard, Money, Journal, Calendar, Skate, and Guitar all navigate directly.
@@ -296,7 +301,7 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Preserve server-first hydration with local-storage backfill unless a separately documented migration changes it.
 - Keep task timers persistent, but keep current Skate and Guitar session start times transient across refresh.
 - The first React boundary should be read-only and use typed compatibility decoders against the existing `/api/kv` response.
-- Keep the new frontend in `frontend-react/` while the Python server continues serving the legacy `frontend/` application; use Vite only as the separate migration preview for now.
+- Keep React source in `frontend-react/`; the Python server owns production delivery from `frontend-react/dist`, while Vite remains only the development and migration-regression server.
 - Fetch `/api/kv` without caching, reject malformed non-string API values, and keep weekly-goal decoding pure so compatibility behavior can be tested without a browser.
 - Weekly-goal decoding mirrors legacy behavior for missing, invalid JSON, array, and non-string values by rendering empty tracks while leaving stored data untouched.
 - Weekly-goal edits save on blur to match the legacy `change` interaction, trim the value, retain unknown fields in the stored object, update browser storage optimistically, and persist through the existing `/api/kv` endpoint.
@@ -318,7 +323,7 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Some files contain thousands of lines.
 - Duplicate/redundant functions likely exist.
 - Current architecture is difficult to understand.
-- `backend/app.py` is now a 58-line process bootstrap, and the clean Python structure milestone is complete. `http_server.py` still serves the legacy `frontend/` directory at the root until the production React build cutover is implemented and verified.
+- `backend/app.py` is now a 58-line process bootstrap, the clean Python structure milestone is complete, and `http_server.py` serves the compiled React application at the root. The legacy directory remains reachable only through explicit compatibility and shared-asset routes.
 - `frontend/js/app.js` is 8,731 lines and still owns much of the standalone legacy application's storage, normalization, rendering, event handling, and cross-feature orchestration; only the extracted boundaries have direct coverage.
 - `frontend/css/styles.css` is 5,667 lines with several accumulated responsive sections.
 - Time/date parsing and normalization are duplicated across frontend modules and backend integrations.
@@ -328,20 +333,15 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Most remaining cross-feature flows in the standalone legacy `app.js` still lack DOM or end-to-end tests; browser coverage now protects task and activity-session lifecycles, all six direct primary pages, and the other migrated React boundaries.
 - Weekly goals, dashboard day state, task progress, Today's intention, the task list/editor/form, Life Pie, Planned vs actual, Energy trail, Pattern noticed/history, all six Money boundaries, Journal editor, Meditation, Journal archive, Calendar, Skate, and Guitar are React-owned and verified. The root/no-view Dashboard plus every explicit primary route is directly composed; the temporary iframe shell remains only for explicit `view=legacyShell` regression fixtures and unknown-view compatibility.
 - Browser smoke tests skip when Chrome/Chromium or Node WebSocket support is unavailable; they run with the documented Node 24 runtime on the inspected machine.
-- The React application is not yet served directly by the Python backend. Vite development proxies remain migration infrastructure and are not the final production integration architecture.
+- A local Python start returns `503` at the UI root when `frontend-react/dist` has not been built. This is intentional and documented; Docker always builds the bundle.
+- `LegacyPlannerApp` and its many portal ownership bridges still occupy a large section of `frontend-react/src/app/App.tsx`. Production primary routes bypass it, but explicit `view=legacyShell`, unknown-view compatibility, and many migration visual fixtures still depend on it.
+- Direct React pages still load the 5,667-line legacy stylesheet, and explicit legacy `/css` and `/js` routes remain runtime dependencies. These cannot be removed until focused styling and compatibility migrations replace them.
 - The direct shell's Sprouty surface now sends grounded task, insight, journal, planning, activity, day-state, Money, and Skate context; restores state-aware quick prompts; handles server failure with evidence-based local answers; appends question-aware action suggestions; and preserves pointer-follow, drag persistence, click suppression, and mobile motion behavior. Shared-shell Sprouty parity is complete.
 - The React visual regression test skips when Chrome or `frontend-react` dependencies are unavailable, matching the existing browser-test prerequisite policy.
 - Browser-capable root Node test files run serially to avoid Chrome/Vite startup timeouts under parallel process saturation.
-- Long combined browser runs can intermittently expose the pre-existing Skate hero hydration race, a roughly 2.3% mobile roadmap screenshot variance, or a Calendar editor mount-timing null lookup. These pass when rerun in isolation; treat a repeated isolated failure as actionable rather than accepting the combined-run flake.
+- The final complete browser run passed all 150 root JavaScript/browser tests after the shared Chrome waiter was hardened against transient detached iframe documents. Treat any repeated failure as actionable rather than accepting it as a combined-run flake.
 
 ## Session Log
-
-### Session 58
-
-- Re-read the repository instructions and handoff, confirmed the clean rewrite branch and recent history, and mapped the Python entry point, HTTP routes, SQLite boundary, static serving, Vite proxy, integration endpoints, reminder worker, and existing tests before changing code.
-- Added a focused `planner_api.py` application boundary for Planner KV and backup operations, then rewired the existing HTTP handler to it without changing route, status, header, payload, SQLite, static-app, or proxy behavior. The module uses explicit request errors and keeps persistence transactions in `db.py`.
-- Added four disposable-database regression tests covering the complete value lifecycle, raw Unicode/string preservation, version-2 export shape, invalid keys and values, import-object validation, merge/filter semantics, and no-change behavior after invalid deletes.
-- Verification: all 22 Python tests and all 149 root JavaScript/browser tests pass. Commit: `eae54bd refactor(api): isolate planner storage boundary`.
 
 ### Session 59
 
@@ -356,6 +356,13 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Added real-HTTP coverage for malformed JSON and UTF-8, mascot/Telegram status endpoints, mascot payload validation and question trimming, integration success and `503` failures, Telegram test delivery, and unknown routes. The parser now returns immediately after one malformed-body response instead of continuing endpoint validation.
 - Moved `PlannerHandler` and static delivery into `backend/http_server.py`. The 58-line `backend/app.py` now owns only configuration, SQLite initialization, threaded-server construction, reminder startup, address logging, and process lifetime, completing the clean Python structure milestone.
 - Verification: all 37 Python tests and all 149 root JavaScript/browser tests pass. Commit: `ef46737 refactor(backend): isolate http transport`.
+
+### Session 61
+
+- Re-read the repository instructions and full handoff, confirmed the clean rewrite branch/history/diff, and traced Python static delivery, Vite proxying, React build output, Docker packaging, start/test scripts, direct-route assets, and the explicit legacy fallback before changing code.
+- Added regression coverage first for React root and asset serving, extensionless client routes, missing builds, HEAD/MIME behavior, legacy assets/application, traversal blocking, bare and nested unknown API routes, and frontend-mode defaults/normalization. The Python server now serves the compiled React app at the root by default and isolates the legacy app at `/legacy/` or explicit legacy mode.
+- Added a real-browser production regression against the Python-served build at 1280×720 and 390×844, retained explicit legacy mode for existing visual-reference fixtures, built React in a Node 24 Docker stage, included all React quality gates in `scripts/test.sh`, and updated both READMEs for the production architecture.
+- Hardened the shared Chrome readiness poll and three affected iframe helpers after the full run exposed transient detached-document races. Verification: 42 Python tests, 247 React tests, lint, strict typecheck, production build, Docker Compose validation, and all 150 root JavaScript/browser tests pass. Commit: `8d05076 feat(server): serve production react build`.
 
 ---
 
