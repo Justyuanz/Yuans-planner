@@ -90,7 +90,6 @@
       var weeklyPlannerCore = globalThis.YuanWeeklyPlannerCore;
       const storageCore = globalThis.YuanStorageCore;
       const calendarTaskSync = globalThis.YuanCalendarTaskSync;
-      const DAY_STATE_EFFECTS_EVENT = "hive-planner-day-state-effects";
       const CALENDAR_NAVIGATE_EVENT = "hive-planner-calendar-navigate";
       const CALENDAR_STATE_EVENT = "hive-planner-calendar-state";
       const SKATE_HERO_ACTION_EVENT = "hive-planner-skate-hero-action";
@@ -2725,7 +2724,7 @@
       }
 
       function renderDayStateOptions() {
-        if (!elements.dayStateOptions || elements.dayStateOptions.dataset.reactOwned === "true") {
+        if (!elements.dayStateOptions) {
           return;
         }
         var activeState = getDayState(formatDate(today));
@@ -2738,21 +2737,6 @@
         saveDayState(formatDate(today), value);
         renderDayStateOptions();
         renderMascotQuickAsks();
-        renderDashboardInsight();
-        syncMascotBubble();
-      }
-
-      function refreshDayStateEffects(event) {
-        const eventState = event && event.detail ? event.detail.state : null;
-        const eventDateKey = event && event.detail ? event.detail.dateKey : null;
-        const state = typeof eventState === "string" ? eventState : getDayState(formatDate(today));
-        if (typeof eventDateKey === "string" && typeof eventState === "string") {
-          const stateMap = getDayStateMap();
-          stateMap[eventDateKey] = eventState;
-          // Keep effect calculations current before the browser delivers its native storage event.
-          memoryStore[STORAGE.dayState] = JSON.stringify(stateMap);
-        }
-        renderMascotQuickAsks(state);
         renderDashboardInsight();
         syncMascotBubble();
       }
@@ -8488,7 +8472,7 @@
         if (elements.taskForm && elements.taskForm.dataset.reactOwned !== "true") {
           elements.taskForm.addEventListener("submit", addTask);
         }
-        if (elements.dayStateOptions && elements.dayStateOptions.dataset.reactOwned !== "true") {
+        if (elements.dayStateOptions) {
           Array.prototype.forEach.call(elements.dayStateOptions.querySelectorAll("[data-day-state]"), function (button) {
             button.addEventListener("click", function () {
               selectDayState(button.dataset.dayState);
@@ -8699,7 +8683,6 @@
         await hydrateStore();
         dashboardInsightBridgeReady = true;
         window.addEventListener("storage", syncExternalPlannerStorage);
-        window.addEventListener(DAY_STATE_EFFECTS_EVENT, refreshDayStateEffects);
         bindNavigation();
         runUiSafely("activity choices", renderActivities);
         runUiSafely("workout options", renderWorkoutOptions);

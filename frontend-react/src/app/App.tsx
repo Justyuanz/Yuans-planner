@@ -14,10 +14,6 @@ import {
   dispatchCalendarNavigation,
   type CalendarBridgeState
 } from "../features/calendar/calendar-bridge";
-import { DayStateOptions } from "../features/day-state/DayStateOptions";
-import { decodeDayState } from "../features/day-state/day-state";
-import { refreshLegacyDayStateEffects } from "../features/day-state/day-state-effects";
-import { buildDayStateWrites } from "../features/day-state/day-state-persistence";
 import { DashboardInsightCard } from "../features/dashboard-insight/DashboardInsightCard";
 import { DashboardPage } from "../features/dashboard-page/DashboardPage";
 import { DASHBOARD_INSIGHT_UPDATED_EVENT } from "../features/dashboard-insight/dashboard-insight-bridge";
@@ -111,7 +107,6 @@ function LegacyPlannerApp() {
   const plannerStore = usePlannerStore();
   const today = useMemo(() => plannerDateFromSearch(window.location.search, new Date()), []);
   const todayKey = formatPlannerDate(today);
-  const [dayStateBoundary, setDayStateBoundary] = useState<FramePortalBoundary | null>(null);
   const [taskListMount, setTaskListMount] = useState<HTMLElement | null>(null);
   const [taskFormMount, setTaskFormMount] = useState<HTMLFormElement | null>(null);
   const [dashboardInsightBoundary, setDashboardInsightBoundary] = useState<FramePortalBoundary | null>(null);
@@ -200,13 +195,6 @@ function LegacyPlannerApp() {
     const journalDate = document?.querySelector<HTMLInputElement>("#journalDate");
     setLegacyFrame(frame);
     setSelectedJournalDateKey(selectedJournalDate(journalDate, formatPlannerDate(today)));
-    const dayStateMount = document?.getElementById("dayStateOptions");
-    if (dayStateMount !== null && dayStateMount !== undefined) {
-      dayStateMount.dataset.reactOwned = "true";
-      dayStateMount.replaceChildren();
-      setDayStateBoundary({ frame, mount: dayStateMount });
-    }
-
     const taskListMount = document?.getElementById("tasksMount");
     if (taskListMount !== null && taskListMount !== undefined) {
       taskListMount.dataset.reactOwned = "true";
@@ -536,21 +524,6 @@ function LegacyPlannerApp() {
         src={legacyUrl}
         title="Yuan's Planner"
       />
-      {loadedStore !== null && dayStateBoundary !== null && (
-        createPortal(
-          <DayStateOptions
-            activeState={decodeDayState(loadedStore, todayKey)}
-            onSelect={(state) => {
-              persistPlannerWrites(buildDayStateWrites(loadedStore, todayKey, state, {
-                activityId: `activity-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 8)}`,
-                timestamp: new Date().toISOString()
-              }));
-              refreshLegacyDayStateEffects(dayStateBoundary.frame, todayKey, state);
-            }}
-          />,
-          dayStateBoundary.mount
-        )
-      )}
       {dashboardStore !== null && taskListMount !== null && (
         createPortal(
           <TaskList

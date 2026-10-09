@@ -37,7 +37,7 @@ function dayState(documentExpression = "document") {
         label: button.textContent.trim(),
         active: button.classList.contains("is-active")
       })),
-      firstMascotPrompt: documentRoot.querySelector("#mascotQuickAsks .mascot-quick-ask")?.textContent.trim() || ""
+      firstMascotPrompt: documentRoot.querySelector(".mascot-quick-asks .mascot-quick-ask")?.textContent.trim() || ""
     };
   })()`;
 }
@@ -230,7 +230,6 @@ test("day state records the legacy desktop and mobile visual contract", { timeou
     await preview.close();
   });
 
-  const previewDocument = 'document.querySelector("iframe").contentDocument';
   await planner.browser.setViewport(1280, 720);
   await openPlanner(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
   const legacyDesktopState = await planner.browser.evaluate(dayState());
@@ -249,18 +248,11 @@ test("day state records the legacy desktop and mobile visual contract", { timeou
     optionsHeight: 30
   });
 
-  await openPlanner(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, previewDocument);
-  assert.equal(
-    await planner.browser.evaluate(`${previewDocument}.getElementById("dayStateOptions").dataset.reactOwned`),
-    "true"
-  );
-  const previewDesktopState = await planner.browser.evaluate(dayState(previewDocument));
-  const previewDesktop = await planner.browser.evaluate(dayStateVisualContract(previewDocument));
-  await scrollToDayState(planner.browser, previewDocument);
-  const previewDesktopScreenshot = await planner.browser.captureScreenshot(stripClip(
-    previewDocument,
-    'document.querySelector("iframe")'
-  ));
+  await openPlanner(planner.browser, `${preview.url}/?view=todayView&date=${TEST_DATE}`);
+  const previewDesktopState = await planner.browser.evaluate(dayState());
+  const previewDesktop = await planner.browser.evaluate(dayStateVisualContract());
+  await scrollToDayState(planner.browser);
+  const previewDesktopScreenshot = await planner.browser.captureScreenshot(stripClip());
   assert.deepEqual(previewDesktopState, legacyDesktopState);
   assert.deepEqual(previewDesktop, legacyDesktop);
   assertSameScreenshot(previewDesktopScreenshot, legacyDesktopScreenshot, "desktop day-state screenshot");
@@ -283,28 +275,24 @@ test("day state records the legacy desktop and mobile visual contract", { timeou
     optionsHeight: 68
   });
 
-  await openPlanner(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, previewDocument);
-  const previewMobileState = await planner.browser.evaluate(dayState(previewDocument));
-  const previewMobile = await planner.browser.evaluate(dayStateVisualContract(previewDocument));
-  await scrollToDayState(planner.browser, previewDocument);
-  const previewMobileScreenshot = await planner.browser.captureScreenshot(stripClip(
-    previewDocument,
-    'document.querySelector("iframe")'
-  ));
+  await openPlanner(planner.browser, `${preview.url}/?view=todayView&date=${TEST_DATE}`);
+  const previewMobileState = await planner.browser.evaluate(dayState());
+  const previewMobile = await planner.browser.evaluate(dayStateVisualContract());
+  await scrollToDayState(planner.browser);
+  const previewMobileScreenshot = await planner.browser.captureScreenshot(stripClip());
   assert.deepEqual(previewMobileState, legacyMobileState);
   assert.deepEqual(previewMobile, legacyMobile);
   assertSameScreenshot(previewMobileScreenshot, legacyMobileScreenshot, "mobile day-state screenshot");
 
   await planner.browser.evaluate(`(() => {
-    const frameWindow = document.querySelector("iframe").contentWindow;
-    frameWindow.YuanPlannerDayStateBridge = Object.freeze({
+    window.YuanPlannerDayStateBridge = Object.freeze({
       select() {
         throw new Error("React day state must not use the legacy write bridge");
       }
     });
   })()`);
   await planner.browser.evaluate(
-    `${previewDocument}.querySelector("#dayStateOptions [data-day-state=tired]").click()`
+    `document.querySelector("#dayStateOptions [data-day-state=tired]").click()`
   );
   const stored = await planner.server.waitFor(async function () {
     const data = await planner.server.readPlannerData();
@@ -332,17 +320,14 @@ test("day state records the legacy desktop and mobile visual contract", { timeou
     after: "tired"
   });
   await planner.browser.waitForExpression(`(() => {
-    const documentRoot = ${previewDocument};
-    return documentRoot.querySelector("#dayStateOptions [data-day-state=tired]").classList.contains("is-active")
-      && documentRoot.querySelector("#mascotQuickAsks .mascot-quick-ask").textContent.trim()
+    return document.querySelector("#dayStateOptions [data-day-state=tired]").classList.contains("is-active")
+      && document.querySelector(".mascot-quick-asks .mascot-quick-ask").textContent.trim()
         === "I'm tired. Can you cut today down?";
   })()`);
 
   await planner.browser.reload();
   await planner.browser.waitForExpression(`(() => {
-    const documentRoot = ${previewDocument};
-    return documentRoot.getElementById("dayStateOptions")?.dataset.reactOwned === "true"
-      && documentRoot.querySelector("#dayStateOptions [data-day-state=tired]")?.classList.contains("is-active");
+    return document.querySelector("#dayStateOptions [data-day-state=tired]")?.classList.contains("is-active");
   })()`);
   assert.deepEqual(planner.browser.errors(), []);
 });
