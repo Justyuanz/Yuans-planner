@@ -181,13 +181,13 @@ For each feature:
 - [ ] remove legacy implementation only after tests pass
 
 ## Current Task
-The root/no-view entry path plus explicit Dashboard, Money, Journal, and Calendar routes render directly in React + strict TypeScript with no iframe. Skate and Guitar remain on the temporary legacy-shell fallback, but Skate's hero, intensity roadmap, Body support, visible Training plan, and session-feedback flow are now React-owned and verified there. Continue by replacing the detached legacy Training-plan derivation with the existing typed Skate plan data, then compose the direct Skate route.
+The root/no-view entry path plus explicit Dashboard, Money, Journal, and Calendar routes render directly in React + strict TypeScript with no iframe. Skate and Guitar remain on the temporary legacy-shell fallback, but Skate's hero, intensity roadmap, Body support, Training plan, and session-feedback flow are now React-owned and verified there. The Training plan now derives directly from the checked-in typed SkateIQ data with no legacy DOM parser or observer. Continue by composing the complete direct Skate route and replacing the remaining hero settings/action bridge with direct strict-TypeScript ownership.
 
 ## Last Completed Task
-Migrated Skate's feedback dialog, transient timer actions, and session persistence to React + strict TypeScript. Focused modules separately own the exact legacy form, controller state, coach-template/current-session compatibility, task synchronization, and ordered persistence. Today saves finish or create the Skate task without double-counting; retroactive saves use dated UTC windows and never alter past tasks. Existing unknown session, setting, and task fields survive. Browser coverage proves exact desktop/mobile state, computed styles, geometry, and pixel parity; defaults, scales, intensity, notes, current and retro saves, task/roadmap synchronization, cancellation, reload behavior, and console cleanliness. Commit: `8119c42 feat(react): migrate skate session feedback`.
+Replaced Skate's detached legacy Training-plan renderer/parser with a pure strict-TypeScript model derived directly from the checked-in 60-day SkateIQ data and compatible settings. The model preserves malformed/default settings, pre-season Day 1 preview, selected Day 1–60 week rows and benchmarks, rest-day labels, live program-day updates, and the shipped manual Day 60 behavior after the streak ends. Removed the `MutationObserver` and DOM parser while keeping exact desktop/mobile state, geometry, and screenshot parity. Commit: `f9a4cc1 refactor(react): derive skate training plan directly`.
 
 ## Next Task
-Replace the detached legacy Training-plan renderer/parser with a direct strict-TypeScript model built from the checked-in SkateIQ plan and compatible settings/session data. Preserve pre-season, Day 1–60, post-streak weeks, rest days, benchmarks, live program-day changes, and exact desktop/mobile visuals. Then compose the complete direct Skate route and retain `view=legacyShell` for Guitar and portal fixtures until their replacements are verified.
+Compose the complete direct Skate route inside `PlannerShell`, using the existing React hero, roadmap, feedback, Body support, and Training-plan boundaries. Replace the hero's remaining legacy settings/action bridge with focused strict-TypeScript state and persistence while preserving timer behavior, program-day/rest-day/intensity settings, exact layout, navigation, reload behavior, and cross-feature synchronization. Retain `view=legacyShell` for Guitar and portal fixtures until their replacements are verified.
 
 ## Upstream Legacy Change — Activity Categories (2026-10-05)
 
@@ -259,7 +259,7 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Skate Body support derives from `hivePlanner.physical.logs` through one pure typed compatibility decoder shared by the React card and Sprouty's Skate context. It preserves the legacy Monday-Sunday window, done/modified/skipped rules, label grouping, count-first sorting, and zero-minute `Logged` display.
 - Body-support saves append the normalized new record while retaining every existing raw array entry and unknown field. This is intentionally safer than the legacy save path, which normalizes the complete array and can discard compatibility data. React claims only `.body-log-card .panel-inner`; the standalone legacy application remains unchanged, and same-window storage events immediately refresh Life Pie and Sprouty context.
 - The shipped Skate Training plan is currently read-only. Older warm-up, focus, and skill-editing functions remain orphaned in the legacy source with no live call sites, so the migration preserves the visible checked-in plan instead of reviving dead editor behavior.
-- React owns `.skate-session-card .panel-inner` on fallback routes. Until the immutable Skate plan model is moved into TypeScript, the legacy renderer derives plan state in its detached `#skateCoachFlow` and a typed `MutationObserver` parser synchronizes the React card; this boundary adds no new JavaScript bridge or mutable application logic.
+- React owns `.skate-session-card .panel-inner` on fallback routes and derives its state directly from the immutable typed SkateIQ data plus compatible settings. The shipped manual-progression rule remains exact: pre-season previews Day 1, then `currentProgramDay` selects Day 1–60 even on post-streak calendar dates. No detached legacy renderer, DOM parser, or `MutationObserver` remains.
 - The root/no-view entry path plus explicit Dashboard, Money, Journal, and Calendar routes bypass the iframe and compose their pages directly inside the focused React shell. Skate and Guitar still instantiate `LegacyPlannerApp`, preserving a verification fallback during incremental cutover.
 - A missing `view` maps to the direct React Dashboard, while unknown explicit values continue through `LegacyPlannerApp`. Migration-boundary browser fixtures use `view=legacyShell`, which the parent intentionally treats as fallback and the legacy app safely normalizes to its Dashboard.
 - The direct route loads the legacy stylesheet only while mounted. Loading it globally changes the parent body's padding and narrows every iframe preview, which the complete Money regression suite caught.
@@ -328,13 +328,6 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 
 ## Session Log
 
-### Session 51
-
-- Re-read `AGENTS.md`, this handoff, branch state, recent history, current diff, and the implementation/browser-verification/commit workflows; traced the legacy Body support form, weekly aggregation, status rules, storage contract, Sprouty context, and Life Pie side effect before implementation.
-- Added a focused pure strict-TypeScript Body support model, a small controlled React card, and a shared decoder used by Sprouty's Skate context. React now owns the fallback card while saving normalized new records without rewriting or dropping unknown legacy array entries and fields.
-- Added unit coverage for current-week aggregation, sorting, modified/skipped and malformed records, invalid types/dates/minutes, missing storage, normalized writes, and compatibility preservation. Added a real-browser regression for exact legacy/React state, computed geometry, and pixel parity at 1280×720 and 390×844; form save/reset; current-week and empty-week rendering; persistence/reload; unknown-field retention; immediate Life Pie synchronization; and console cleanliness.
-- Final verification: 221 React tests, React lint, strict type-checking, the Vite production build, 18 Python tests, and all 145 root JavaScript/browser tests pass. Commit: `c9942ff feat(react): migrate skate body support`.
-
 ### Session 52
 
 - Re-read `AGENTS.md`, this handoff, branch state, recent history, current diff, and the implementation/browser-verification/commit workflows; traced the live Training-plan renderer and confirmed that the old warm-up, focus, and skill editors have no shipped call sites before limiting this boundary to visible behavior.
@@ -348,6 +341,13 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Added a React-owned feedback dialog and focused controller hook, plus separate strict-TypeScript modules for session compatibility, coach-template normalization, and task synchronization. Current sessions finish or create the Skate task, retro logs do not touch historical tasks, unknown stored fields survive, and the obsolete roadmap-to-legacy feedback bridge is removed.
 - Added five pure behavior tests plus a real-browser regression for exact legacy/React state, computed styles, geometry, and pixel parity at 1280×900 and 390×844; form defaults and attributes; scores, notes, duration, date and intensity; task/roadmap synchronization; ordered persistence; cancellation; retroactive logging; reload behavior; and console cleanliness.
 - Verification: 226 React tests, React lint, strict type-checking, the Vite production build, all six focused Skate/navigation browser regressions, and the new feedback regression pass. The full suite ran 18 Python tests and 147 root tests; 145 root tests passed, while the known Skate hero hydration race and an unrelated Calendar editor timing check failed only in that long run and both passed immediately together in isolation. Commit: `8119c42 feat(react): migrate skate session feedback`.
+
+### Session 54
+
+- Re-read `AGENTS.md`, this handoff, branch state, recent history, current diff, and the implementation/browser-verification/commit workflows; traced the legacy Training-plan renderer, manual program-day behavior, settings normalization, pre-season preview, rest-day labels, benchmark rows, and post-streak calendar behavior before implementation.
+- Added a focused pure strict-TypeScript Training-plan model derived directly from the checked-in 60-day SkateIQ data. Removed the detached legacy DOM parser and `MutationObserver`; the fallback card now reacts to Planner-store settings without consuming legacy-rendered plan markup.
+- Added unit coverage for Day 15 content, pre-season preview, malformed/default settings, clamped boundaries, duplicate rest-day normalization, and the shipped manual Day 60 behavior after the streak. Extended the browser regression with post-streak parity while retaining exact desktop/mobile content, computed geometry, screenshots, live Day 15 → Day 30 persistence, reload, and console checks.
+- Final verification: 230 React tests, React lint, strict type-checking, the Vite production build, all six focused Skate/navigation browser regressions, 18 Python tests, and all 147 root JavaScript/browser tests pass. Commit: `f9a4cc1 refactor(react): derive skate training plan directly`.
 
 ---
 
