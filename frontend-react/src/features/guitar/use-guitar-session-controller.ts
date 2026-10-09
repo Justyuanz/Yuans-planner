@@ -45,8 +45,6 @@ export function useGuitarSessionController({
   ), [hint, nowMs, sessionStartedAt, store, today]);
 
   const claimDialog = useCallback((mount: HTMLDialogElement) => {
-    mount.dataset.reactOwned = "true";
-    mount.replaceChildren();
     setDialog(mount);
   }, []);
 

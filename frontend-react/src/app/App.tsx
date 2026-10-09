@@ -3,12 +3,7 @@ import { createPortal } from "react-dom";
 
 import { CalendarPage } from "../features/calendar/CalendarPage";
 import { DashboardPage } from "../features/dashboard-page/DashboardPage";
-import { GuitarGoalCard } from "../features/guitar/GuitarGoalCard";
 import { GuitarPage } from "../features/guitar/GuitarPage";
-import { GuitarSessionCard } from "../features/guitar/GuitarSessionCard";
-import { GuitarSessionDialog } from "../features/guitar/GuitarSessionDialog";
-import { buildGuitarGoalModel, buildGuitarGoalWrite } from "../features/guitar/guitar-goal";
-import { useGuitarSessionController } from "../features/guitar/use-guitar-session-controller";
 import { JournalPage } from "../features/journal-page/JournalPage";
 import { plannerDateFromSearch } from "../features/life-pie/life-pie";
 import { formatPlannerDate } from "../features/life-pie/life-pie-store";
@@ -40,9 +35,6 @@ function selectedJournalDate(input: HTMLInputElement | null | undefined, fallbac
 function LegacyPlannerApp() {
   const plannerStore = usePlannerStore();
   const today = useMemo(() => plannerDateFromSearch(window.location.search, new Date()), []);
-  const todayKey = formatPlannerDate(today);
-  const [guitarGoalMount, setGuitarGoalMount] = useState<HTMLElement | null>(null);
-  const [guitarSessionMount, setGuitarSessionMount] = useState<HTMLElement | null>(null);
   const [legacyFrame, setLegacyFrame] = useState<HTMLIFrameElement | null>(null);
   const [meditationBoundary, setMeditationBoundary] = useState<ReactPanelBoundary | null>(null);
   const [moneyActivityMount, setMoneyActivityMount] = useState<HTMLElement | null>(null);
@@ -54,41 +46,11 @@ function LegacyPlannerApp() {
   const [selectedJournalDateKey, setSelectedJournalDateKey] = useState(formatPlannerDate(today));
   const legacyUrl = `/legacy/${window.location.search}`;
   const loadedStore = plannerStore.status === "ready" ? plannerStore.store : null;
-  const guitarSession = useGuitarSessionController({
-    onPersist: persistPlannerWrites,
-    store: loadedStore,
-    today,
-    todayKey
-  });
-
   function claimReactMounts(frame: HTMLIFrameElement): void {
     const document = frame.contentDocument;
     const journalDate = document?.querySelector<HTMLInputElement>("#journalDate");
     setLegacyFrame(frame);
     setSelectedJournalDateKey(selectedJournalDate(journalDate, formatPlannerDate(today)));
-    const guitarGoalCard = document?.querySelector<HTMLElement>(".guitar-goal-card");
-    const guitarGoalMount = guitarGoalCard?.querySelector<HTMLElement>(".panel-inner");
-    if (guitarGoalCard !== null && guitarGoalCard !== undefined
-      && guitarGoalMount !== null && guitarGoalMount !== undefined) {
-      guitarGoalCard.dataset.reactOwned = "true";
-      guitarGoalMount.replaceChildren();
-      setGuitarGoalMount(guitarGoalMount);
-    }
-
-    const guitarSessionCard = document?.querySelector<HTMLElement>(".guitar-session-card");
-    const guitarSessionMount = guitarSessionCard?.querySelector<HTMLElement>(".panel-inner");
-    if (guitarSessionCard !== null && guitarSessionCard !== undefined
-      && guitarSessionMount !== null && guitarSessionMount !== undefined) {
-      guitarSessionCard.dataset.reactOwned = "true";
-      guitarSessionMount.replaceChildren();
-      setGuitarSessionMount(guitarSessionMount);
-    }
-
-    const guitarSessionDialog = document?.querySelector<HTMLDialogElement>("#guitarSessionDialog");
-    if (guitarSessionDialog !== null && guitarSessionDialog !== undefined) {
-      guitarSession.claimDialog(guitarSessionDialog);
-    }
-
     const moneyQuickCard = document?.querySelector<HTMLElement>(".money-quick-card");
     const moneyQuickPanel = moneyQuickCard?.querySelector<HTMLElement>(".panel-inner");
     if (moneyQuickCard !== null && moneyQuickCard !== undefined
@@ -182,39 +144,6 @@ function LegacyPlannerApp() {
         src={legacyUrl}
         title="Yuan's Planner"
       />
-      {loadedStore !== null && guitarGoalMount !== null && (
-        createPortal(
-          <GuitarGoalCard
-            model={buildGuitarGoalModel(loadedStore)}
-            onChange={(field, value) => persistPlannerWrites([
-              buildGuitarGoalWrite(field, value)
-            ])}
-          />,
-          guitarGoalMount
-        )
-      )}
-      {guitarSession.model !== null && guitarSessionMount !== null && (
-        createPortal(
-          <GuitarSessionCard
-            model={guitarSession.model}
-            onFinish={guitarSession.finishSession}
-            onStart={guitarSession.startSession}
-          />,
-          guitarSessionMount
-        )
-      )}
-      {guitarSession.dialog !== null && guitarSession.request !== null && (
-        createPortal(
-          <GuitarSessionDialog
-            dialog={guitarSession.dialog}
-            key={guitarSession.request.revision}
-            onCancel={guitarSession.cancelSession}
-            onSave={guitarSession.saveSession}
-            request={guitarSession.request}
-          />,
-          guitarSession.dialog
-        )
-      )}
       {loadedStore !== null && moneyQuickMount !== null && (
         createPortal(
           <MoneyQuickCard onPersist={persistPlannerWrites} store={loadedStore} today={today} />,
