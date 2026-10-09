@@ -181,13 +181,13 @@ For each feature:
 - [ ] remove legacy implementation only after tests pass
 
 ## Current Task
-Phase 3 and the production-serving cutover are complete. Phase 4 is now in migration-infrastructure cleanup: retire the migration-only React portal shell and narrow legacy runtime dependencies without losing visual-reference coverage. Every Dashboard, Journal archive, Calendar, Skate, and Guitar boundary now runs only on its direct React production page; explicit fallback and standalone `/legacy/` routes keep their complete legacy renderers. Continue removing the remaining Meditation and Money portal ownership one verified feature at a time.
+Phase 3 and the production-serving cutover are complete. Phase 4 is now in migration-infrastructure cleanup: retire the migration-only React portal shell and narrow legacy runtime dependencies without losing visual-reference coverage. Every Dashboard, Journal, Meditation, Calendar, Skate, and Guitar boundary now runs only on its direct React production page; explicit fallback and standalone `/legacy/` routes keep their complete legacy renderers. Continue removing the six remaining Money portal boundaries one verified feature at a time.
 
 ## Last Completed Task
-Retired the Guitar goal, session, and finish-dialog fallback portals after confirming that the dedicated direct React regression already protects standalone legacy parity, settings, weekly totals, transient timer reset, session/task synchronization, malformed data, persistence/reload, and desktop/mobile visuals. Removed both mount claims, the fallback controller instance, three portals, dialog ownership mutation, and all corresponding legacy render/timer guards in `56d46e3`. `frontend-react/src/app/App.tsx` fell from 279 to 208 lines, `frontend/js/app.js` fell from 8,436 to 8,427 lines, and the complete repository workflow passes.
+Retired the Meditation fallback portal after moving its dedicated regression to the direct React Journal route plus standalone legacy reference. The direct regression protects start/cancel/expiry, single completion across reload or suspension, selected Journal-date synchronization, standalone totals, compatibility fields, persistence/reload, and exact desktop/mobile visuals. Removed the mount claim/portal, shared iframe Journal-date observer, and legacy ownership guard in `58e8431`. `frontend-react/src/app/App.tsx` fell from 208 to 147 lines, `frontend/js/app.js` fell from 8,427 to 8,423 lines, and the complete repository workflow passes.
 
 ## Next Task
-Move the dedicated Meditation fixture from `view=legacyShell` to the direct React Journal route plus standalone legacy reference. Preserve timer start/cancel/expiry, single completion across reload or suspension, selected Journal-date synchronization, standalone totals, compatibility fields, persistence/reload, and identical desktop/mobile visuals. Then remove the Meditation mount claim/portal, the shared iframe Journal-date observer that exists only for it, and the legacy ownership guard. Continue with the six Money portals afterward. Keep `/legacy/` and the shared legacy stylesheet/assets until no direct React page or regression depends on them.
+Move the dedicated Money fixtures from `view=legacyShell` to the direct React Money route plus standalone legacy references, beginning with Money quick log and continuing one verified boundary at a time through overview, pacing, recent activity, vendors, and budgets/categories. Preserve entry/edit flows, disclosure state, cross-card synchronization, compatibility fields, persistence/reload, and identical desktop/mobile visuals before removing each mount claim/portal and corresponding legacy ownership guard. Keep `/legacy/` and the shared legacy stylesheet/assets until no direct React page or regression depends on them.
 
 ## Upstream Legacy Change — Activity Categories (2026-10-05)
 
@@ -228,7 +228,7 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Money Budgets and categories uses the shared typed Money decoder and claims only `.money-budget-card .panel-inner`. Its focused persistence module normalizes known legacy fields while retaining unknown root, category, transfer, and notes data; monthly edits derive the weekly guide from the active month, and every write publishes through the existing bridge so all six React Money boundaries stay synchronized.
 - Budget inputs use the browser's native `change` event because the legacy editor commits only when editing finishes, not on every typed character. Invalid values restore the rendered amount; any edit collapses the outer settings disclosure while nested section and transfer disclosure state remains mounted until reload.
 - Meditation uses the existing `hivePlanner.meditation` `{active, sessions}` document. Start and cancel preserve compatible unknown root/session fields; expiry mirrors the legacy compact completion shape and appends one standalone session using the timer's persisted end timestamp.
-- The fallback React app observes the legacy frame's Journal-date change and click events only to keep its remaining Meditation portal on the selected date. The direct Journal page owns the same selection as local React state, so Archive, Today, and date-input navigation update the editor, meditation, and archive together without iframe listeners.
+- Meditation is composed only by the direct React Journal page, where Archive, Today, and date-input navigation share one local selected-date state with the editor and archive. Explicit fallback and standalone legacy routes use their complete original renderer without a React ownership flag or iframe date observer.
 - The React Journal archive keeps its search text as local transient state and derives cards from `hivePlanner.journal.entries`. It is composed only by the direct React Journal page; explicit fallback and standalone legacy routes use their complete original archive renderer without an ownership guard.
 - Direct Journal editor persistence mirrors the legacy contract: title and tracker context are trimmed in storage, content stays raw, minutes clamp to 0–1440, blank entries delete, IDs and creation timestamps survive edits, every create/update/delete appends a normalized `journal_entry_*` audit record, and optimistic per-key values keep editor and archive synchronized while server writes settle.
 - Pattern noticed and Pattern history are fully React/TypeScript-owned. Both derive from the same strict Planner-store metric bundle, so the card and history evidence cannot drift between legacy and React calculation paths.
@@ -319,7 +319,7 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Duplicate/redundant functions likely exist.
 - Current architecture is difficult to understand.
 - `backend/app.py` is now a 58-line process bootstrap, the clean Python structure milestone is complete, and `http_server.py` serves the compiled React application at the root. The legacy directory remains reachable only through explicit compatibility and shared-asset routes.
-- `frontend/js/app.js` is 8,427 lines and still owns much of the standalone legacy application's storage, normalization, rendering, event handling, and cross-feature orchestration; only the extracted boundaries have direct coverage.
+- `frontend/js/app.js` is 8,423 lines and still owns much of the standalone legacy application's storage, normalization, rendering, event handling, and cross-feature orchestration; only the extracted boundaries have direct coverage.
 - `frontend/css/styles.css` is 5,663 lines with several accumulated responsive sections.
 - Time/date parsing and normalization are duplicated across frontend modules and backend integrations.
 - Several declared storage keys and an older Study/Body weekly-overview path are inactive, while the real database still contains legacy-only keys that backups must preserve.
@@ -329,7 +329,7 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Weekly goals, dashboard day state, task progress, Today's intention, the task list/editor/form, Life Pie, Planned vs actual, Energy trail, Pattern noticed/history, all six Money boundaries, Journal editor, Meditation, Journal archive, Calendar, Skate, and Guitar are React-owned and verified on direct production routes. No Dashboard feature retains a fallback portal. The temporary iframe shell remains only for explicit `view=legacyShell` regression fixtures and unknown-view compatibility.
 - Browser smoke tests skip when Chrome/Chromium or Node WebSocket support is unavailable; they run with the documented Node 24 runtime on the inspected machine.
 - A local Python start returns `503` at the UI root when `frontend-react/dist` has not been built. This is intentional and documented; Docker always builds the bundle.
-- `LegacyPlannerApp` and its remaining portal ownership bridges still occupy most of the 208-line `frontend-react/src/app/App.tsx`. Production primary routes bypass it, but Meditation and Money fallback paths still depend on it.
+- `LegacyPlannerApp` and its remaining Money portal ownership bridges still occupy most of the 147-line `frontend-react/src/app/App.tsx`. Production primary routes bypass it, but six Money fallback boundaries still depend on it.
 - Direct React pages still load the 5,663-line legacy stylesheet, and explicit legacy `/css` and `/js` routes remain runtime dependencies. These cannot be removed until focused styling and compatibility migrations replace them.
 - The direct shell's Sprouty surface now sends grounded task, insight, journal, planning, activity, day-state, Money, and Skate context; restores state-aware quick prompts; handles server failure with evidence-based local answers; appends question-aware action suggestions; and preserves pointer-follow, drag persistence, click suppression, and mobile motion behavior. Shared-shell Sprouty parity is complete.
 - The React visual regression test skips when Chrome or `frontend-react` dependencies are unavailable, matching the existing browser-test prerequisite policy.
@@ -337,13 +337,6 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - The final complete browser run passed all 150 root JavaScript/browser tests after the shared Chrome waiter was hardened against transient detached iframe documents. Treat any repeated failure as actionable rather than accepting it as a combined-run flake.
 
 ## Session Log
-
-### Session 66
-
-- Re-read the repository instructions and full handoff, confirmed the clean rewrite branch/history/diff, and traced the Calendar month, week, event-editor, bridge, portal, and legacy ownership contracts before changing code.
-- Moved the three dedicated Calendar browser fixtures from `view=legacyShell` to the direct React Calendar route while retaining the standalone legacy reference. The direct regressions protect desktop/mobile state and visuals, month/week navigation, keyboard selection, week setup rules, event validation/CRUD, calendar-to-task synchronization, compatibility data, persistence/reload, and clean console behavior.
-- Removed the Calendar portal state and mount claims, all three fallback portals, the state/navigation bridge module and legacy events, Calendar ownership guards, weekly editor DOM relocation, and its orphaned CSS. Explicit fallback and `/legacy/` routes now use the complete legacy Calendar renderer. Commit: `64410fc`.
-- Verification: 42 Python tests, 247 React tests, lint, strict typecheck, production build, and all 150 root JavaScript/browser tests pass. All four focused Calendar browser suites also pass.
 
 ### Session 67
 
@@ -358,6 +351,13 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Confirmed the existing Guitar migration regression already compares the direct React page with the standalone legacy reference at desktop/mobile sizes and protects raw goal inputs, weekly calculations, transient timer reset, finish-dialog persistence, task synchronization, malformed compatibility data, navigation, reload behavior, and clean console output.
 - Removed the two Guitar mount claims, fallback session-controller instance, three portals, dialog ownership mutation, and legacy render/timer ownership guards. Explicit fallback and `/legacy/` routes now use the complete legacy Guitar renderer. Commit: `56d46e3`.
 - Verification: 42 Python tests, 245 React tests, lint, strict typecheck, production build, and all 150 root JavaScript/browser tests pass. Focused Guitar parity, cross-feature session/task synchronization, and production-serving/fallback browser suites also pass.
+
+### Session 69
+
+- Re-read the repository instructions and full handoff, confirmed the clean rewrite branch/history/diff, and traced the Meditation portal, iframe selected-date observer, direct Journal composition, timer persistence, external-store completion, and standalone legacy renderer before changing code.
+- Moved the dedicated Meditation browser fixture from `view=legacyShell` to the direct React Journal route while retaining the standalone legacy reference. The direct regression protects start/cancel, reload persistence, expired-session completion exactly once, Journal date-input and Today synchronization, standalone totals, external storage updates, compatibility fields, clean console output, and exact desktop/mobile geometry and screenshots.
+- Removed the Meditation mount claim/portal, the shared iframe Journal-date observer and related state/helpers/imports, and the legacy renderer ownership guard. Explicit fallback and `/legacy/` routes now use the complete legacy Meditation renderer. Commit: `58e8431`.
+- Verification: 42 Python tests, 245 React tests, lint, strict typecheck, production build, and all 150 root JavaScript/browser tests pass. Focused Meditation, direct Journal, and production-serving/fallback browser suites also pass.
 
 ---
 
