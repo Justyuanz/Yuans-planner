@@ -273,7 +273,7 @@ test("Pattern history records the legacy desktop and mobile visual contract", { 
     await preview.close();
   });
 
-  const previewDocument = 'document.querySelector("iframe").contentDocument';
+  const previewUrl = `${preview.url}/?view=todayView&date=${TEST_DATE}`;
   await planner.browser.setViewport(1280, 720);
   await openPlanner(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
   await openHistory(planner.browser);
@@ -291,28 +291,13 @@ test("Pattern history records the legacy desktop and mobile visual contract", { 
     bodyOverflow: "auto"
   });
 
-  await openPlanner(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, previewDocument);
-  await planner.browser.evaluate(`(() => {
-    const frameWindow = document.querySelector("iframe").contentWindow;
-    const bridge = frameWindow.YuanPlannerDashboardInsightBridge;
-    frameWindow.YuanPlannerDashboardInsightBridge = {
-      ...bridge,
-      currentHistory() {
-        throw new Error("React Pattern history must not use the legacy bridge");
-      }
-    };
-  })()`);
-  await openHistory(planner.browser, previewDocument);
-  assert.equal(await planner.browser.evaluate(
-    `(${previewDocument}).getElementById("patternHistoryDialog").dataset.reactOwned`
-  ), "true");
-  await planner.browser.evaluate(`(${previewDocument}).querySelector('.pattern-history-evidence summary').click()`);
-  const previewDesktopState = await planner.browser.evaluate(historyState(previewDocument));
-  const previewDesktop = await planner.browser.evaluate(historyVisualContract(previewDocument));
-  const previewDesktopScreenshot = await planner.browser.captureScreenshot(dialogClip(
-    previewDocument,
-    'document.querySelector("iframe")'
-  ));
+  await openPlanner(planner.browser, previewUrl);
+  assert.equal(await planner.browser.evaluate('document.querySelector("iframe")'), null);
+  await openHistory(planner.browser);
+  await planner.browser.evaluate("document.querySelector('.pattern-history-evidence summary').click()");
+  const previewDesktopState = await planner.browser.evaluate(historyState());
+  const previewDesktop = await planner.browser.evaluate(historyVisualContract());
+  const previewDesktopScreenshot = await planner.browser.captureScreenshot(dialogClip());
   assert.deepEqual(previewDesktopState, legacyDesktopState);
   assert.deepEqual(previewDesktop, legacyDesktop);
   assertSameScreenshot(previewDesktopScreenshot, legacyDesktopScreenshot, "desktop Pattern history screenshot");
@@ -334,58 +319,54 @@ test("Pattern history records the legacy desktop and mobile visual contract", { 
     bodyOverflow: "auto"
   });
 
-  await openPlanner(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, previewDocument);
-  await openHistory(planner.browser, previewDocument);
-  await planner.browser.evaluate(`(${previewDocument}).querySelector('.pattern-history-evidence summary').click()`);
-  const previewMobileState = await planner.browser.evaluate(historyState(previewDocument));
-  const previewMobile = await planner.browser.evaluate(historyVisualContract(previewDocument));
-  const previewMobileScreenshot = await planner.browser.captureScreenshot(dialogClip(
-    previewDocument,
-    'document.querySelector("iframe")'
-  ));
+  await openPlanner(planner.browser, previewUrl);
+  await openHistory(planner.browser);
+  await planner.browser.evaluate("document.querySelector('.pattern-history-evidence summary').click()");
+  const previewMobileState = await planner.browser.evaluate(historyState());
+  const previewMobile = await planner.browser.evaluate(historyVisualContract());
+  const previewMobileScreenshot = await planner.browser.captureScreenshot(dialogClip());
   assert.deepEqual(previewMobileState, legacyMobileState);
   assert.deepEqual(previewMobile, legacyMobile);
   assertSameScreenshot(previewMobileScreenshot, legacyMobileScreenshot, "mobile Pattern history screenshot");
 
   await planner.browser.evaluate(`(() => {
-    const documentRoot = ${previewDocument};
-    const planned = documentRoot.getElementById("plannedMount");
-    documentRoot.defaultView.Element.prototype.scrollIntoView = function (options) {
+    const planned = document.getElementById("plannedMount");
+    Element.prototype.scrollIntoView = function (options) {
       if (this === planned) {
         planned.dataset.testScroll = JSON.stringify(options);
       }
     };
-    documentRoot.querySelectorAll(".pattern-history-item")[1].querySelector(".insight-action").click();
+    document.querySelectorAll(".pattern-history-item")[1].querySelector(".insight-action").click();
   })()`);
   assert.equal(
-    await planner.browser.evaluate(`(${previewDocument}).getElementById("plannedMount").dataset.testScroll`),
+    await planner.browser.evaluate('document.getElementById("plannedMount").dataset.testScroll'),
     JSON.stringify({ behavior: "smooth", block: "center" })
   );
   assert.equal(
-    await planner.browser.evaluate(`(${previewDocument}).getElementById("patternHistoryDialog").open`),
+    await planner.browser.evaluate('document.getElementById("patternHistoryDialog").open'),
     true
   );
 
-  await planner.browser.evaluate(`(${previewDocument}).getElementById("closePatternHistory").click()`);
-  await planner.browser.waitForExpression(`!(${previewDocument}).getElementById("patternHistoryDialog").open`);
-  await openHistory(planner.browser, previewDocument);
+  await planner.browser.evaluate('document.getElementById("closePatternHistory").click()');
+  await planner.browser.waitForExpression('!document.getElementById("patternHistoryDialog").open');
+  await openHistory(planner.browser);
   assert.equal(
-    (await planner.browser.evaluate(historyState(previewDocument))).groups[0].items[0].evidence.open,
+    (await planner.browser.evaluate(historyState())).groups[0].items[0].evidence.open,
     false
   );
-  await planner.browser.evaluate(`(${previewDocument}).getElementById("closePatternHistory").click()`);
+  await planner.browser.evaluate('document.getElementById("closePatternHistory").click()');
 
   for (let remaining = 3; remaining >= 0; remaining -= 1) {
-    await planner.browser.evaluate(`(${previewDocument}).querySelector(".task-delete").click()`);
+    await planner.browser.evaluate('document.querySelector(".task-delete").click()');
     await planner.browser.waitForExpression(
-      `(${previewDocument}).querySelectorAll(".task-delete").length === ${remaining}`
+      `document.querySelectorAll(".task-delete").length === ${remaining}`
     );
   }
-  await openHistory(planner.browser, previewDocument);
+  await openHistory(planner.browser);
   await planner.browser.waitForExpression(
-    `(${previewDocument}).querySelectorAll(".pattern-history-group").length === 1`
+    'document.querySelectorAll(".pattern-history-group").length === 1'
   );
-  const refreshedHistory = await planner.browser.evaluate(historyState(previewDocument));
+  const refreshedHistory = await planner.browser.evaluate(historyState());
   assert.equal(refreshedHistory.groups[0].title, "Focus friction");
   assert.equal(
     refreshedHistory.groups[0].items[0].summary,

@@ -96,7 +96,6 @@
       const SKATE_HERO_STATE_EVENT = "hive-planner-skate-hero-state";
       const SKATE_ROADMAP_ACTION_EVENT = "hive-planner-skate-roadmap-action";
       var currentInsightBundleState = null;
-      let dashboardInsightBridgeReady = false;
       var expandedHiddenTaskDates = {};
       var weeklyPlannerUiState = {
         weekSetupOpen: false,
@@ -929,16 +928,12 @@
         }
         if (event.newValue === null) {
           delete memoryStore[event.key];
-          if (dashboardInsightIsReactOwned()) {
-            renderDashboardInsight();
-          }
+          renderDashboardInsight();
           return;
         }
         // React-owned mounts write from the parent document; keep legacy actions from overwriting them.
         memoryStore[event.key] = event.newValue;
-        if (dashboardInsightIsReactOwned()) {
-          renderDashboardInsight();
-        }
+        renderDashboardInsight();
       }
 
       function readText(key, fallback) {
@@ -2452,54 +2447,6 @@
         }
       }
 
-      function dashboardInsightIsReactOwned() {
-        return Boolean(elements.dashboardInsightCard
-          && elements.dashboardInsightCard.dataset.reactOwned === "true");
-      }
-
-      function patternHistoryIsReactOwned() {
-        return Boolean(elements.patternHistoryDialog
-          && elements.patternHistoryDialog.dataset.reactOwned === "true");
-      }
-
-      function notifyDashboardInsightUpdated() {
-        window.dispatchEvent(new CustomEvent("hive-planner-dashboard-insight-updated"));
-      }
-
-      function exposeDashboardInsightBridge() {
-        globalThis.YuanPlannerDashboardInsightBridge = Object.freeze({
-          applyAction: function (actionId) {
-            if (dashboardInsightBridgeReady) {
-              applyInsightAction(actionId);
-            }
-          },
-          currentInsight: function () {
-            if (!dashboardInsightBridgeReady) {
-              return null;
-            }
-            const bundle = currentInsightBundle();
-            return bundle ? bundle.topInsight : null;
-          },
-          currentMetrics: function () {
-            if (!dashboardInsightBridgeReady) {
-              return null;
-            }
-            return currentInsightMetrics();
-          },
-          currentHistory: function () {
-            if (!dashboardInsightBridgeReady) {
-              return null;
-            }
-            return currentPatternHistoryModel();
-          },
-          openHistory: function () {
-            if (dashboardInsightBridgeReady) {
-              openPatternHistoryDialog();
-            }
-          }
-        });
-      }
-
       function defaultMascotBubbleText() {
         var bundle = currentInsightBundleState || currentInsightBundle();
         if (mascotState.bubbleOverride) {
@@ -3071,18 +3018,6 @@
         var bundle = currentInsightBundle();
         var topInsight = bundle ? bundle.topInsight : null;
 
-        if (dashboardInsightIsReactOwned()) {
-          if (!topInsight) {
-            syncMascotBubble();
-          } else if (!mascotState.chatOpen) {
-            mascotState.bubbleOverride = "";
-            syncMascotBubble();
-          }
-          notifyDashboardInsightUpdated();
-          renderEnergyTrail();
-          return;
-        }
-
         if (!topInsight) {
           clearDashboardInsightCard();
           syncMascotBubble();
@@ -3179,9 +3114,6 @@
       }
 
       function renderPatternHistoryDialog() {
-        if (patternHistoryIsReactOwned()) {
-          return;
-        }
         if (!patternHistory || !elements.patternHistoryBody || !elements.patternHistoryRange) {
           return;
         }
@@ -8668,7 +8600,6 @@
 
       async function init() {
         await hydrateStore();
-        dashboardInsightBridgeReady = true;
         window.addEventListener("storage", syncExternalPlannerStorage);
         bindNavigation();
         runUiSafely("activity choices", renderActivities);
@@ -8696,6 +8627,5 @@
         window.setInterval(updateLiveTimers, 1000);
       }
 
-      exposeDashboardInsightBridge();
       init();
     }());

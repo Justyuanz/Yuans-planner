@@ -280,19 +280,14 @@ test("Pattern noticed records the legacy desktop and mobile visual contract", { 
   });
   assert.ok(legacyDesktopScreenshot.length > 1_000);
 
-  const previewDocument = 'document.querySelector("iframe").contentDocument';
-  await openDashboard(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, previewDocument);
-  await waitForTaskOverpacking(planner.browser, previewDocument);
-  assert.equal(await planner.browser.evaluate(
-    'document.querySelector("iframe").contentDocument.getElementById("dashboardInsightCard").dataset.reactOwned'
-  ), "true");
-  const previewDesktopState = await planner.browser.evaluate(insightState(previewDocument));
-  const previewDesktop = await planner.browser.evaluate(insightVisualContract(previewDocument));
-  await scrollToInsight(planner.browser, previewDocument);
-  const previewDesktopScreenshot = await planner.browser.captureScreenshot(cardClip(
-    previewDocument,
-    'document.querySelector("iframe")'
-  ));
+  const previewUrl = `${preview.url}/?view=todayView&date=${TEST_DATE}`;
+  await openDashboard(planner.browser, previewUrl);
+  await waitForTaskOverpacking(planner.browser);
+  assert.equal(await planner.browser.evaluate('document.querySelector("iframe")'), null);
+  const previewDesktopState = await planner.browser.evaluate(insightState());
+  const previewDesktop = await planner.browser.evaluate(insightVisualContract());
+  await scrollToInsight(planner.browser);
+  const previewDesktopScreenshot = await planner.browser.captureScreenshot(cardClip());
   assert.deepEqual(previewDesktopState, legacyDesktopState);
   assert.deepEqual(previewDesktop, legacyDesktop);
   assertSameScreenshot(previewDesktopScreenshot, legacyDesktopScreenshot, "desktop Pattern noticed screenshot");
@@ -314,22 +309,19 @@ test("Pattern noticed records the legacy desktop and mobile visual contract", { 
   });
   assert.ok(legacyMobileScreenshot.length > 1_000);
 
-  await openDashboard(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, previewDocument);
-  await waitForTaskOverpacking(planner.browser, previewDocument);
-  const previewMobileState = await planner.browser.evaluate(insightState(previewDocument));
-  const previewMobile = await planner.browser.evaluate(insightVisualContract(previewDocument));
-  await scrollToInsight(planner.browser, previewDocument);
-  const previewMobileScreenshot = await planner.browser.captureScreenshot(cardClip(
-    previewDocument,
-    'document.querySelector("iframe")'
-  ));
+  await openDashboard(planner.browser, previewUrl);
+  await waitForTaskOverpacking(planner.browser);
+  const previewMobileState = await planner.browser.evaluate(insightState());
+  const previewMobile = await planner.browser.evaluate(insightVisualContract());
+  await scrollToInsight(planner.browser);
+  const previewMobileScreenshot = await planner.browser.captureScreenshot(cardClip());
   assert.deepEqual(previewMobileState, legacyMobileState);
   assert.deepEqual(previewMobile, legacyMobile);
   assertSameScreenshot(previewMobileScreenshot, legacyMobileScreenshot, "mobile Pattern noticed screenshot");
   assert.deepEqual(planner.browser.errors(), []);
 });
 
-test("React Pattern noticed delegates actions and follows legacy task changes", { timeout: 60_000 }, async function (context) {
+test("React Pattern noticed routes actions and follows direct task changes", { timeout: 60_000 }, async function (context) {
   const planner = await startBrowserPlanner(context);
   if (!planner) {
     return;
@@ -344,75 +336,47 @@ test("React Pattern noticed delegates actions and follows legacy task changes", 
     await preview.close();
   });
 
-  const previewDocument = 'document.querySelector("iframe").contentDocument';
   await planner.browser.setViewport(1280, 720);
-  await openDashboard(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, previewDocument);
-  await waitForTaskOverpacking(planner.browser, previewDocument);
-  assert.equal(await planner.browser.evaluate(
-    'document.querySelector("iframe").contentDocument.getElementById("dashboardInsightCard").dataset.reactOwned'
-  ), "true");
+  await openDashboard(planner.browser, `${preview.url}/?view=todayView&date=${TEST_DATE}`);
+  await waitForTaskOverpacking(planner.browser);
+  assert.equal(await planner.browser.evaluate('document.querySelector("iframe")'), null);
 
   await planner.browser.evaluate(`(() => {
-    const frameWindow = document.querySelector("iframe").contentWindow;
-    const bridge = frameWindow.YuanPlannerDashboardInsightBridge;
-    frameWindow.YuanPlannerDashboardInsightBridge = {
-      ...bridge,
-      applyAction() {
-        throw new Error("React Pattern actions must not use the legacy bridge");
-      },
-      currentInsight() {
-        throw new Error("React Pattern rules must not use the legacy bridge");
-      },
-      currentMetrics() {
-        throw new Error("React Pattern metrics must not use the legacy bridge");
-      },
-      currentHistory() {
-        throw new Error("React Pattern history must not use the legacy bridge");
-      },
-      openHistory() {
-        throw new Error("React Pattern history must not use the legacy bridge");
-      }
-    };
-  })()`);
-
-  await planner.browser.evaluate(`(() => {
-    const documentRoot = ${previewDocument};
-    documentRoot.querySelector("#dashboardInsightActions .insight-action").click();
+    document.querySelector("#dashboardInsightActions .insight-action").click();
   })()`);
   assert.equal(await planner.browser.evaluate(
-    `(${previewDocument}).activeElement === (${previewDocument}).getElementById("taskTitle")`
+    'document.activeElement === document.getElementById("taskTitle")'
   ), true);
 
   await planner.browser.evaluate(`(() => {
-    const documentRoot = ${previewDocument};
-    const planned = documentRoot.getElementById("plannedMount");
-    documentRoot.defaultView.Element.prototype.scrollIntoView = function (options) {
+    const planned = document.getElementById("plannedMount");
+    Element.prototype.scrollIntoView = function (options) {
       if (this === planned) {
         planned.dataset.testScroll = JSON.stringify(options);
       }
     };
-    documentRoot.querySelectorAll("#dashboardInsightActions .insight-action")[1].click();
+    document.querySelectorAll("#dashboardInsightActions .insight-action")[1].click();
   })()`);
   assert.equal(
-    await planner.browser.evaluate(`(${previewDocument}).getElementById("plannedMount").dataset.testScroll`),
+    await planner.browser.evaluate('document.getElementById("plannedMount").dataset.testScroll'),
     JSON.stringify({ behavior: "smooth", block: "center" })
   );
 
-  await planner.browser.evaluate(`(${previewDocument}).getElementById("openPatternHistory").click()`);
-  await planner.browser.waitForExpression(`(${previewDocument}).getElementById("patternHistoryDialog").open`);
+  await planner.browser.evaluate('document.getElementById("openPatternHistory").click()');
+  await planner.browser.waitForExpression('document.getElementById("patternHistoryDialog").open');
   assert.equal(
-    await planner.browser.evaluate(`(${previewDocument}).getElementById("patternHistoryRange").textContent.trim()`),
+    await planner.browser.evaluate('document.getElementById("patternHistoryRange").textContent.trim()'),
     "Last 14 days through 2026-09-14"
   );
-  await planner.browser.evaluate(`(${previewDocument}).getElementById("patternHistoryDialog").close()`);
+  await planner.browser.evaluate('document.getElementById("patternHistoryDialog").close()');
 
   for (let remaining = 3; remaining >= 0; remaining -= 1) {
-    await planner.browser.evaluate(`(${previewDocument}).querySelector(".task-delete").click()`);
-    await planner.browser.waitForExpression(`(${previewDocument}).querySelectorAll(".task-delete").length === ${remaining}`);
+    await planner.browser.evaluate('document.querySelector(".task-delete").click()');
+    await planner.browser.waitForExpression(`document.querySelectorAll(".task-delete").length === ${remaining}`);
   }
-  await planner.browser.waitForExpression(`(${previewDocument}).getElementById("dashboardInsightTitle").textContent.trim()
+  await planner.browser.waitForExpression(`document.getElementById("dashboardInsightTitle").textContent.trim()
     === "A few open tasks still look too vague to start cleanly."`);
-  assert.deepEqual(await planner.browser.evaluate(insightState(previewDocument)), {
+  assert.deepEqual(await planner.browser.evaluate(insightState()), {
     hidden: false,
     heading: "Pattern noticed",
     mode: "focus · 5 days",
