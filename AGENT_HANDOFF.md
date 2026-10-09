@@ -181,13 +181,13 @@ For each feature:
 - [ ] remove legacy implementation only after tests pass
 
 ## Current Task
-All six primary routes render directly in React + strict TypeScript with no iframe. Phase 3's clean Python API structure is now in progress: Planner KV/backup validation and response documents have moved into a tested application boundary, while the HTTP handler, static serving, integrations, reminder scheduling, and process startup remain together in `backend/app.py`.
+All six primary routes render directly in React + strict TypeScript with no iframe. Phase 3's clean Python API structure is in progress: Planner KV/backup behavior and reminder orchestration now have focused tested modules, while HTTP routing, static serving, mascot/Telegram endpoints, and process startup remain together in `backend/app.py`.
 
 ## Last Completed Task
-Extracted the Planner KV and version-2 backup contract into `backend/planner_api.py`. The focused boundary owns key/payload validation and response documents; `backend/db.py` still owns SQLite transactions and `PlannerHandler` still owns HTTP mechanics. New disposable-database tests protect raw Unicode/string data, export shape, import filtering/merge behavior, deletion, and invalid inputs. Commit: `eae54bd refactor(api): isolate planner storage boundary`.
+Extracted reminder loading, delivery, persistence, polling, and thread startup into `backend/reminder_service.py`. Expanded regression coverage protects malformed roots and records, due/future/already-sent behavior, raw-field preservation, one write per storage key, full and partial send failures, 30-second polling, worker recovery, and named daemon startup. Malformed list records are ignored for scheduling but retained in persisted arrays. Commit: `f5fb367 refactor(backend): isolate reminder service`.
 
 ## Next Task
-Characterize reminder delivery more thoroughly before moving it: malformed event/task values, due and non-due records, grouped per-key persistence, already-sent reminders, and send failures. Then extract reminder delivery and worker scheduling into a focused backend module without changing the 30-second interval, timestamp format, Telegram text, storage keys, or process-start behavior.
+Add HTTP regression coverage for malformed JSON and the mascot/Telegram status, chat, test-success, validation, and external-failure responses. Then move `PlannerHandler` and static-file delivery into a focused HTTP transport module, leaving `backend/app.py` responsible for configuration, database initialization, server construction, reminder startup, logging, and process lifetime.
 
 ## Upstream Legacy Change — Activity Categories (2026-10-05)
 
@@ -266,6 +266,7 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Guitar session start remains transient across reload. Completing a session writes its task update before appending the completion marker, preserves the Monday-Sunday target rules and newest-four history contract, and uses the exact legacy duration rounding and copy.
 - The root/no-view entry path plus explicit Dashboard, Money, Journal, Calendar, Skate, and Guitar routes bypass the iframe and compose all six primary pages directly inside the focused React shell.
 - `backend/planner_api.py` owns the Planner KV/backup application contract: `hivePlanner.*` key validation, string-value validation, import-object validation, version-2 export documents, and success response shapes. SQLite connection/transaction behavior remains in `backend/db.py`, while HTTP status/header/body mechanics remain in `PlannerHandler`.
+- `backend/reminder_service.py` owns stored event/task loading, due-reminder collection, Telegram delivery, sent-marker persistence, the 30-second polling loop, and daemon-thread startup. It writes each changed storage key once, leaves a partially delivered key unwritten so the poll can retry it, and keeps malformed raw list records while excluding them from reminder evaluation.
 - A missing `view` maps to the direct React Dashboard, while unknown explicit values continue through `LegacyPlannerApp`. Migration-boundary browser fixtures use `view=legacyShell`, which the parent intentionally treats as fallback and the legacy app safely normalizes to its Dashboard.
 - The direct route loads the legacy stylesheet only while mounted. Loading it globally changes the parent body's padding and narrows every iframe preview, which the complete Money regression suite caught.
 - Direct-shell navigation writes the requested `view` and deterministic planner `date` into the URL. Dashboard, Money, Journal, Calendar, Skate, and Guitar all navigate directly.
@@ -316,7 +317,7 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Some files contain thousands of lines.
 - Duplicate/redundant functions likely exist.
 - Current architecture is difficult to understand.
-- `backend/app.py` still combines HTTP routing, static-file delivery, mascot and Telegram endpoints, reminder scheduling, and process startup. The Planner storage API is the first extracted backend application boundary; the remaining responsibilities still need small compatibility-protected migrations.
+- `backend/app.py` is now 232 lines but still combines HTTP routing, static-file delivery, mascot and Telegram endpoints, and process startup. Planner storage and reminder orchestration are extracted; the remaining responsibilities still need small compatibility-protected migrations.
 - `frontend/js/app.js` is 8,731 lines and still owns much of the standalone legacy application's storage, normalization, rendering, event handling, and cross-feature orchestration; only the extracted boundaries have direct coverage.
 - `frontend/css/styles.css` is 5,667 lines with several accumulated responsive sections.
 - Time/date parsing and normalization are duplicated across frontend modules and backend integrations.
@@ -334,13 +335,6 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 
 ## Session Log
 
-### Session 56
-
-- Re-read `AGENTS.md`, this handoff, branch state, recent history, current diff, and the implementation/browser-verification/commit workflows; traced the Guitar goal strings, weekly target math, current-week filtering, duration rounding, recent-session ordering, transient timer, finish dialog, task synchronization, reload, and malformed root fallbacks before implementation.
-- Added a focused React Progress planner card and strict-TypeScript Guitar goal model. Focus and next-step values preserve the legacy raw-string contract, persist on every input through the shared Planner store, and remain isolated from the detached legacy renderer through a narrow ownership guard using `const`, with no new `var` or untyped React code.
-- Added unit coverage for legacy values, missing keys, exact compatibility keys, and whitespace preservation. Added a real-browser regression comparing legacy and React state, computed styles, geometry, and screenshots at 1280×900 and 390×844 while also protecting weekly summary/plan behavior, recent sessions, timer reset, dialog save, task sync, reload persistence, malformed target/session fallback, and console cleanliness.
-- Verification: 239 React tests, React lint, strict type-checking, the Vite production build, four focused Guitar/navigation/session browser regressions, 18 Python tests, and all 149 root JavaScript/browser tests pass. Commit: `e3a2c65 feat(react): migrate guitar goal card`.
-
 ### Session 57
 
 - Re-read `AGENTS.md`, this handoff, branch state, recent history, current diff, and the implementation/browser-verification/commit workflows; traced the Guitar weekly target, history, timer, finish-dialog, persistence, task-matching, unknown-field, navigation, and visual contracts before implementation.
@@ -354,6 +348,13 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Added a focused `planner_api.py` application boundary for Planner KV and backup operations, then rewired the existing HTTP handler to it without changing route, status, header, payload, SQLite, static-app, or proxy behavior. The module uses explicit request errors and keeps persistence transactions in `db.py`.
 - Added four disposable-database regression tests covering the complete value lifecycle, raw Unicode/string preservation, version-2 export shape, invalid keys and values, import-object validation, merge/filter semantics, and no-change behavior after invalid deletes.
 - Verification: all 22 Python tests and all 149 root JavaScript/browser tests pass. Commit: `eae54bd refactor(api): isolate planner storage boundary`.
+
+### Session 59
+
+- Re-read the full handoff, checked the clean rewrite branch, history, and diff, and traced reminder parsing, collection, Telegram delivery, sent markers, per-key writes, polling, daemon startup, and existing notifier tests before changing code.
+- Added comprehensive orchestration tests before extraction for malformed roots, due/future/already-sent records, raw-field retention, per-storage batching, full and partial delivery failures, the 30-second interval, worker recovery, and named daemon startup. Added an explicit compatibility test and small hardening change so non-object list records are skipped during evaluation but retained during persistence.
+- Moved reminder orchestration from `backend/app.py` into the focused `backend/reminder_service.py`; `app.py` now imports only worker startup, and Telegram message construction/configuration remains in `telegram_notifier.py`.
+- Verification: all 31 Python tests and all 149 root JavaScript/browser tests pass. Commit: `f5fb367 refactor(backend): isolate reminder service`.
 
 ---
 
