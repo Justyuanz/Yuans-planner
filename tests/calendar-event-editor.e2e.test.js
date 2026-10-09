@@ -51,23 +51,17 @@ async function seedEditor(serverUrl) {
   ]);
 }
 
-async function openExpandedEditor(browser, url, documentExpression) {
+async function openExpandedEditor(browser, url) {
   await browser.open(url);
-  await browser.waitForExpression(`(${documentExpression}).documentElement.dataset.plannerReady === "true"`);
-  await browser.evaluate(`(() => {
-    const documentRoot = ${documentExpression};
-    if (!documentRoot.getElementById("calendarView").classList.contains("active")) {
-      documentRoot.querySelector('[data-view-target="calendarView"]').click();
-    }
-  })()`);
-  await browser.waitForExpression(`(${documentExpression}).querySelectorAll("#weeklyPlannerMount .week-day-panel").length === 7`);
-  await browser.evaluate(`(${documentExpression}).querySelector("#weeklyPlannerMount .week-day-panel").click()`);
-  await browser.waitForExpression(`(${documentExpression}).getElementById("eventEditorCard").hidden === false`);
+  await browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
+  await browser.waitForExpression('document.querySelectorAll("#weeklyPlannerMount .week-day-panel").length === 7');
+  await browser.evaluate('document.querySelector("#weeklyPlannerMount .week-day-panel").click()');
+  await browser.waitForExpression('document.getElementById("eventEditorCard")?.hidden === false');
 }
 
-function editorState(documentExpression) {
+function editorState() {
   return `(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const value = (id) => documentRoot.getElementById(id).value;
     return {
       category: value("eventCategory"),
@@ -96,9 +90,9 @@ function editorState(documentExpression) {
   })()`;
 }
 
-function editorVisualContract(documentExpression) {
+function editorVisualContract() {
   return `(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const view = documentRoot.defaultView;
     const pick = (element) => {
       const style = view.getComputedStyle(element);
@@ -132,9 +126,9 @@ function editorVisualContract(documentExpression) {
   })()`;
 }
 
-async function prepareScreenshot(browser, documentExpression) {
+async function prepareScreenshot(browser) {
   await browser.evaluate(`(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     documentRoot.documentElement.style.scrollBehavior = "auto";
     const mascot = documentRoot.querySelector(".mascot-card");
     if (mascot) mascot.style.visibility = "hidden";
@@ -143,15 +137,13 @@ async function prepareScreenshot(browser, documentExpression) {
   await browser.evaluate("new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))");
 }
 
-function editorClip(documentExpression, frameExpression = "null") {
+function editorClip() {
   return `(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const rect = documentRoot.getElementById("eventEditorCard").getBoundingClientRect();
-    const frame = ${frameExpression};
-    const frameRect = frame ? frame.getBoundingClientRect() : { x: 0, y: 0 };
     return {
-      x: frame ? frameRect.x + rect.x : rect.x + documentRoot.defaultView.scrollX,
-      y: frame ? frameRect.y + rect.y : rect.y + documentRoot.defaultView.scrollY,
+      x: rect.x + documentRoot.defaultView.scrollX,
+      y: rect.y + documentRoot.defaultView.scrollY,
       width: rect.width,
       height: Math.min(rect.height, 620)
     };
@@ -163,9 +155,9 @@ function assertSameScreenshot(actual, expected, label) {
   assert.equal(comparison.matches, true, `${label}: ${JSON.stringify(comparison)}`);
 }
 
-async function setInput(browser, documentExpression, id, value, prototypeName = "HTMLInputElement") {
+async function setInput(browser, id, value, prototypeName = "HTMLInputElement") {
   await browser.evaluate(`(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const input = documentRoot.getElementById(${JSON.stringify(id)});
     Object.getOwnPropertyDescriptor(documentRoot.defaultView[${JSON.stringify(prototypeName)}].prototype, "value").set.call(input, ${JSON.stringify(value)});
     input.dispatchEvent(new documentRoot.defaultView.Event("input", { bubbles: true }));
@@ -187,49 +179,43 @@ test("Calendar event editor preserves legacy visuals, validation, CRUD, task syn
   await seedEditor(planner.server.url);
 
   const legacyUrl = `${planner.server.url}/?view=calendarView&date=${TEST_DATE}`;
-  const previewUrl = `${preview.url}/?view=legacyShell&date=${TEST_DATE}`;
-  const previewDocument = 'document.querySelector("iframe").contentDocument';
+  const previewUrl = `${preview.url}/?view=calendarView&date=${TEST_DATE}`;
 
   for (const [width, height] of [[1280, 720], [390, 844]]) {
     await planner.browser.setViewport(width, height, width < 500);
-    await openExpandedEditor(planner.browser, legacyUrl, "document");
-    const legacyState = await planner.browser.evaluate(editorState("document"));
-    const legacyVisual = await planner.browser.evaluate(editorVisualContract("document"));
-    await prepareScreenshot(planner.browser, "document");
+    await openExpandedEditor(planner.browser, legacyUrl);
+    const legacyState = await planner.browser.evaluate(editorState());
+    const legacyVisual = await planner.browser.evaluate(editorVisualContract());
+    await prepareScreenshot(planner.browser);
     const legacyScreenshot = width >= 500
-      ? await planner.browser.captureScreenshot(editorClip("document"))
+      ? await planner.browser.captureScreenshot(editorClip())
       : null;
 
-    await openExpandedEditor(planner.browser, previewUrl, previewDocument);
-    assert.equal(await planner.browser.evaluate(
-      'document.querySelector("iframe").contentDocument.getElementById("eventEditorCard").dataset.reactOwned'
-    ), "true");
-    const reactState = await planner.browser.evaluate(editorState(previewDocument));
-    const reactVisual = await planner.browser.evaluate(editorVisualContract(previewDocument));
-    await prepareScreenshot(planner.browser, previewDocument);
+    await openExpandedEditor(planner.browser, previewUrl);
+    assert.equal(await planner.browser.evaluate('document.querySelector("iframe")'), null);
+    const reactState = await planner.browser.evaluate(editorState());
+    const reactVisual = await planner.browser.evaluate(editorVisualContract());
+    await prepareScreenshot(planner.browser);
     assert.deepEqual(reactState, legacyState);
     assert.deepEqual(reactVisual, legacyVisual);
     if (legacyScreenshot !== null) {
-      const reactScreenshot = await planner.browser.captureScreenshot(editorClip(
-        previewDocument,
-        'document.querySelector("iframe")'
-      ));
+      const reactScreenshot = await planner.browser.captureScreenshot(editorClip());
       assertSameScreenshot(reactScreenshot, legacyScreenshot, `${width}px Calendar event editor`);
     }
   }
 
   await planner.browser.setViewport(1280, 720);
-  await openExpandedEditor(planner.browser, previewUrl, previewDocument);
-  await planner.browser.evaluate(`(${previewDocument}).getElementById("plannerAddActivityButton").click()`);
-  await planner.browser.waitForExpression(`(${previewDocument}).querySelectorAll("#plannerActivityOptions .planner-activity-option").length === 12`);
+  await openExpandedEditor(planner.browser, previewUrl);
+  await planner.browser.evaluate('document.getElementById("plannerAddActivityButton").click()');
+  await planner.browser.waitForExpression('document.querySelectorAll("#plannerActivityOptions .planner-activity-option").length === 12');
   await planner.browser.evaluate(`(() => {
-    const documentRoot = ${previewDocument};
+    const documentRoot = document;
     [...documentRoot.querySelectorAll("#plannerActivityOptions .planner-activity-option")]
       .find((button) => button.textContent.trim() === "Gym").click();
   })()`);
-  await planner.browser.waitForExpression(`(${previewDocument}).getElementById("eventCategory").value === "Gym"`);
+  await planner.browser.waitForExpression('document.getElementById("eventCategory").value === "Gym"');
   assert.deepEqual(await planner.browser.evaluate(`(() => {
-    const documentRoot = ${previewDocument};
+    const documentRoot = document;
     return {
       effort: documentRoot.getElementById("eventEffort").value,
       end: documentRoot.getElementById("eventEndTime").value,
@@ -244,21 +230,21 @@ test("Calendar event editor preserves legacy visuals, validation, CRUD, task syn
     hint: "Add a time block for Gym.",
     start: "10:00"
   });
-  await setInput(planner.browser, previewDocument, "eventCategory", "Study/school", "HTMLSelectElement");
-  await setInput(planner.browser, previewDocument, "eventStartTime", "");
-  await setInput(planner.browser, previewDocument, "eventEndTime", "");
-  await setInput(planner.browser, previewDocument, "eventTitle", "Reminder validation");
-  await setInput(planner.browser, previewDocument, "eventReminder", "10", "HTMLSelectElement");
-  await planner.browser.evaluate(`(${previewDocument}).getElementById("eventForm").requestSubmit()`);
-  await planner.browser.waitForExpression(`(${previewDocument}).getElementById("formHint").textContent === "Pick a start time to send a Telegram reminder."`);
+  await setInput(planner.browser, "eventCategory", "Study/school", "HTMLSelectElement");
+  await setInput(planner.browser, "eventStartTime", "");
+  await setInput(planner.browser, "eventEndTime", "");
+  await setInput(planner.browser, "eventTitle", "Reminder validation");
+  await setInput(planner.browser, "eventReminder", "10", "HTMLSelectElement");
+  await planner.browser.evaluate('document.getElementById("eventForm").requestSubmit()');
+  await planner.browser.waitForExpression('document.getElementById("formHint").textContent === "Pick a start time to send a Telegram reminder."');
   assert.equal(JSON.parse((await planner.server.readPlannerData())[EVENTS_KEY]).length, 2);
 
-  await setInput(planner.browser, previewDocument, "eventStartTime", "13:00");
-  await setInput(planner.browser, previewDocument, "eventEndTime", "14:00");
-  await setInput(planner.browser, previewDocument, "eventDate", "");
-  await setInput(planner.browser, previewDocument, "eventNote", "Created in React", "HTMLTextAreaElement");
-  await planner.browser.evaluate(`(${previewDocument}).getElementById("eventForm").requestSubmit()`);
-  await planner.browser.waitForExpression(`(${previewDocument}).querySelectorAll("#selectedDateEvents .selected-event").length === 3`);
+  await setInput(planner.browser, "eventStartTime", "13:00");
+  await setInput(planner.browser, "eventEndTime", "14:00");
+  await setInput(planner.browser, "eventDate", "");
+  await setInput(planner.browser, "eventNote", "Created in React", "HTMLTextAreaElement");
+  await planner.browser.evaluate('document.getElementById("eventForm").requestSubmit()');
+  await planner.browser.waitForExpression('document.querySelectorAll("#selectedDateEvents .selected-event").length === 3');
   await planner.server.waitFor(async function () {
     const stored = await planner.server.readPlannerData();
     const events = JSON.parse(stored[EVENTS_KEY] || "[]");
@@ -271,19 +257,19 @@ test("Calendar event editor preserves legacy visuals, validation, CRUD, task syn
   });
 
   await planner.browser.reload();
-  await planner.browser.waitForExpression(`(${previewDocument}).documentElement.dataset.plannerReady === "true"`);
-  await planner.browser.waitForExpression(`(${previewDocument}).querySelectorAll("#weeklyPlannerMount .week-day-panel").length === 7`);
-  await planner.browser.evaluate(`(${previewDocument}).querySelector("#weeklyPlannerMount .week-day-panel").click()`);
-  await planner.browser.waitForExpression(`(${previewDocument}).querySelectorAll("#selectedDateEvents .selected-event").length === 3`);
+  await planner.browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
+  await planner.browser.waitForExpression('document.querySelectorAll("#weeklyPlannerMount .week-day-panel").length === 7');
+  await planner.browser.evaluate('document.querySelector("#weeklyPlannerMount .week-day-panel").click()');
+  await planner.browser.waitForExpression('document.querySelectorAll("#selectedDateEvents .selected-event").length === 3');
 
   await planner.browser.evaluate(`(() => {
-    const documentRoot = ${previewDocument};
+    const documentRoot = document;
     window.confirm = () => true;
     const item = [...documentRoot.querySelectorAll("#selectedDateEvents .selected-event")]
       .find((event) => event.textContent.includes("Reminder validation"));
     item.querySelector(".quiet-danger").click();
   })()`);
-  await planner.browser.waitForExpression(`(${previewDocument}).querySelectorAll("#selectedDateEvents .selected-event").length === 2`);
+  await planner.browser.waitForExpression('document.querySelectorAll("#selectedDateEvents .selected-event").length === 2');
   await planner.server.waitFor(async function () {
     const stored = await planner.server.readPlannerData();
     return !JSON.parse(stored[EVENTS_KEY] || "[]").some((event) => event.title === "Reminder validation");

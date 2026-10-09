@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState, type MouseEvent, type ReactNode } from "react";
+import { useState, type MouseEvent, type ReactNode } from "react";
 
 import type { PlannerStore, PlannerStoreWrite } from "../../api/planner-store";
 import { dateFromKey } from "./calendar-month";
@@ -14,8 +14,7 @@ import {
 } from "./calendar-week-store";
 
 interface WeeklyPlannerCardProps {
-  editorCard?: HTMLElement;
-  editorContent?: ReactNode;
+  editorContent: ReactNode;
   expandedDate: string;
   onCollapseDay: () => void;
   onNavigateWeek: (amount: -1 | 1) => void;
@@ -25,31 +24,6 @@ interface WeeklyPlannerCardProps {
   store: PlannerStore;
 }
 
-interface LegacyEditorMountProps {
-  editorCard: HTMLElement;
-}
-
-function LegacyEditorMount({ editorCard }: LegacyEditorMountProps) {
-  const mountRef = useRef<HTMLDivElement>(null);
-  const editorRef = useRef<HTMLElement | null>(null);
-  useLayoutEffect(() => {
-    const mount = mountRef.current;
-    editorRef.current = editorCard;
-    const editor = editorRef.current;
-    const originalParent = editor.parentElement;
-    if (mount === null || originalParent === null) return;
-    editor.hidden = false;
-    editor.classList.add("inline-day-editor");
-    mount.appendChild(editor);
-    return () => {
-      editor.hidden = true;
-      editor.classList.remove("inline-day-editor");
-      originalParent.appendChild(editor);
-    };
-  }, [editorCard]);
-  return <div className="legacy-event-editor-mount" ref={mountRef} />;
-}
-
 function clickedInteractiveElement(event: MouseEvent<HTMLElement>): boolean {
   const target = event.target as { closest?: (selector: string) => Element | null };
   return typeof target.closest === "function"
@@ -57,7 +31,6 @@ function clickedInteractiveElement(event: MouseEvent<HTMLElement>): boolean {
 }
 
 export function WeeklyPlannerCard({
-  editorCard,
   editorContent,
   expandedDate,
   onCollapseDay,
@@ -140,9 +113,7 @@ export function WeeklyPlannerCard({
                   </span>
                 ))}
             </div>
-            {day.expanded && (editorCard === undefined
-              ? editorContent
-              : <LegacyEditorMount editorCard={editorCard} />)}
+            {day.expanded && editorContent}
           </section>
         )) : (
           <section className="week-setup-card">

@@ -85,21 +85,15 @@ async function seedCalendar(serverUrl) {
   });
 }
 
-async function openCalendar(browser, url, documentExpression) {
+async function openCalendar(browser, url) {
   await browser.open(url);
-  await browser.waitForExpression(`(${documentExpression}).documentElement.dataset.plannerReady === "true"`);
-  await browser.evaluate(`(() => {
-    const documentRoot = ${documentExpression};
-    if (!documentRoot.getElementById("calendarView").classList.contains("active")) {
-      documentRoot.querySelector('[data-view-target="calendarView"]').click();
-    }
-  })()`);
-  await browser.waitForExpression(`(${documentExpression}).querySelectorAll("#calendarGrid .day-cell").length === 42`);
+  await browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
+  await browser.waitForExpression('document.querySelectorAll("#calendarGrid .day-cell").length === 42');
 }
 
-function calendarState(documentExpression) {
+function calendarState() {
   return `(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     return {
       activeView: documentRoot.querySelector(".view.active")?.id,
       cells: [...documentRoot.querySelectorAll("#calendarGrid .day-cell")].map((cell) => ({
@@ -118,9 +112,9 @@ function calendarState(documentExpression) {
   })()`;
 }
 
-function calendarVisualContract(documentExpression) {
+function calendarVisualContract() {
   return `(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const view = documentRoot.defaultView;
     const pick = (element) => {
       const style = view.getComputedStyle(element);
@@ -158,9 +152,9 @@ function calendarVisualContract(documentExpression) {
   })()`;
 }
 
-async function prepareCalendarScreenshot(browser, documentExpression) {
+async function prepareCalendarScreenshot(browser) {
   await browser.evaluate(`(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     documentRoot.documentElement.style.scrollBehavior = "auto";
     const style = documentRoot.createElement("style");
     style.textContent = ".day-cell,.event-pill{transition:none!important}";
@@ -172,15 +166,13 @@ async function prepareCalendarScreenshot(browser, documentExpression) {
   await browser.evaluate("new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))");
 }
 
-function calendarClip(documentExpression, frameExpression = "null") {
+function calendarClip() {
   return `(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const rect = documentRoot.querySelector(".monthly-calendar-card").getBoundingClientRect();
-    const frame = ${frameExpression};
-    const frameRect = frame ? frame.getBoundingClientRect() : { x: 0, y: 0 };
     return {
-      x: frame ? frameRect.x + rect.x : rect.x + documentRoot.defaultView.scrollX,
-      y: frame ? frameRect.y + rect.y : rect.y + documentRoot.defaultView.scrollY,
+      x: rect.x + documentRoot.defaultView.scrollX,
+      y: rect.y + documentRoot.defaultView.scrollY,
       width: rect.width,
       height: Math.min(rect.height, 620)
     };
@@ -206,48 +198,42 @@ test("Calendar month grid preserves legacy visuals, navigation, editing, and rel
   await seedCalendar(planner.server.url);
 
   const legacyUrl = `${planner.server.url}/?view=calendarView&date=${TEST_DATE}`;
-  const previewUrl = `${preview.url}/?view=legacyShell&date=${TEST_DATE}`;
-  const previewDocument = 'document.querySelector("iframe").contentDocument';
+  const previewUrl = `${preview.url}/?view=calendarView&date=${TEST_DATE}`;
 
   for (const [width, height] of [[1280, 720], [390, 844]]) {
     await planner.browser.setViewport(width, height, width < 500);
-    await openCalendar(planner.browser, legacyUrl, "document");
-    const legacyState = await planner.browser.evaluate(calendarState("document"));
-    const legacyVisual = await planner.browser.evaluate(calendarVisualContract("document"));
-    await prepareCalendarScreenshot(planner.browser, "document");
+    await openCalendar(planner.browser, legacyUrl);
+    const legacyState = await planner.browser.evaluate(calendarState());
+    const legacyVisual = await planner.browser.evaluate(calendarVisualContract());
+    await prepareCalendarScreenshot(planner.browser);
     const legacyScreenshot = width >= 500
-      ? await planner.browser.captureScreenshot(calendarClip("document"))
+      ? await planner.browser.captureScreenshot(calendarClip())
       : null;
 
-    await openCalendar(planner.browser, previewUrl, previewDocument);
-    assert.equal(await planner.browser.evaluate(
-      'document.querySelector("iframe").contentDocument.querySelector(".monthly-calendar-card").dataset.reactOwned'
-    ), "true");
-    const reactState = await planner.browser.evaluate(calendarState(previewDocument));
-    const reactVisual = await planner.browser.evaluate(calendarVisualContract(previewDocument));
-    await prepareCalendarScreenshot(planner.browser, previewDocument);
+    await openCalendar(planner.browser, previewUrl);
+    assert.equal(await planner.browser.evaluate('document.querySelector("iframe")'), null);
+    const reactState = await planner.browser.evaluate(calendarState());
+    const reactVisual = await planner.browser.evaluate(calendarVisualContract());
+    await prepareCalendarScreenshot(planner.browser);
 
     assert.deepEqual(reactState, legacyState);
     assert.deepEqual(reactVisual, legacyVisual);
     if (legacyScreenshot !== null) {
-      const reactScreenshot = await planner.browser.captureScreenshot(calendarClip(
-        previewDocument,
-        'document.querySelector("iframe")'
-      ));
+      const reactScreenshot = await planner.browser.captureScreenshot(calendarClip());
       assertSameScreenshot(reactScreenshot, legacyScreenshot, `${width}px Calendar month grid`);
     }
   }
 
   await planner.browser.setViewport(1280, 720);
-  await openCalendar(planner.browser, previewUrl, previewDocument);
+  await openCalendar(planner.browser, previewUrl);
   await planner.browser.evaluate(`(() => {
-    const documentRoot = ${previewDocument};
+    const documentRoot = document;
     documentRoot.querySelector('.day-cell[aria-label="Select Tue Sep 15"]')
       .dispatchEvent(new documentRoot.defaultView.KeyboardEvent("keydown", { bubbles: true, key: "Enter" }));
   })()`);
-  await planner.browser.waitForExpression(`(${previewDocument}).querySelector('.day-cell[aria-label="Select Tue Sep 15"]').classList.contains("selected")`);
+  await planner.browser.waitForExpression('document.querySelector(\'.day-cell[aria-label="Select Tue Sep 15"]\').classList.contains("selected")');
   assert.deepEqual(await planner.browser.evaluate(`(() => {
-    const documentRoot = ${previewDocument};
+    const documentRoot = document;
     return {
       date: documentRoot.getElementById("eventDate").value,
       focused: documentRoot.activeElement?.id,
@@ -255,10 +241,10 @@ test("Calendar month grid preserves legacy visuals, navigation, editing, and rel
     };
   })()`), { date: "2026-09-15", focused: "eventStartTime", heading: "Tue Sep 15" });
 
-  await planner.browser.evaluate(`(${previewDocument}).querySelector('.day-cell[aria-label="Select Mon Sep 14"] .event-pill').click()`);
-  await planner.browser.waitForExpression(`(${previewDocument}).getElementById("eventSaveButton").textContent === "Update activity"`);
+  await planner.browser.evaluate('document.querySelector(\'.day-cell[aria-label="Select Mon Sep 14"] .event-pill\').click()');
+  await planner.browser.waitForExpression('document.getElementById("eventSaveButton").textContent === "Update activity"');
   assert.deepEqual(await planner.browser.evaluate(`(() => {
-    const documentRoot = ${previewDocument};
+    const documentRoot = document;
     return {
       date: documentRoot.getElementById("eventDate").value,
       focused: documentRoot.activeElement?.id,
@@ -268,13 +254,13 @@ test("Calendar month grid preserves legacy visuals, navigation, editing, and rel
   })()`), { date: TEST_DATE, focused: "eventTitle", start: "09:00", title: "Deep work" });
 
   await planner.browser.evaluate(`(() => {
-    const documentRoot = ${previewDocument};
+    const documentRoot = document;
     const input = documentRoot.getElementById("eventTitle");
     Object.getOwnPropertyDescriptor(documentRoot.defaultView.HTMLInputElement.prototype, "value").set.call(input, "Focused rewrite");
     input.dispatchEvent(new documentRoot.defaultView.Event("input", { bubbles: true }));
     documentRoot.getElementById("eventForm").requestSubmit();
   })()`);
-  await planner.browser.waitForExpression(`(${previewDocument}).querySelector('.day-cell[aria-label="Select Mon Sep 14"] .event-pill-name').textContent === "Focused rewrite"`);
+  await planner.browser.waitForExpression('document.querySelector(\'.day-cell[aria-label="Select Mon Sep 14"] .event-pill-name\').textContent === "Focused rewrite"');
   await planner.server.waitFor(async function () {
     const stored = await planner.server.readPlannerData();
     const events = JSON.parse(stored[EVENTS_KEY] || "[]");
@@ -282,12 +268,12 @@ test("Calendar month grid preserves legacy visuals, navigation, editing, and rel
   });
 
   await planner.browser.reload();
-  await planner.browser.waitForExpression(`(${previewDocument}).documentElement.dataset.plannerReady === "true"`);
-  await planner.browser.waitForExpression(`(${previewDocument}).querySelector('.day-cell[aria-label="Select Mon Sep 14"] .event-pill-name')?.textContent === "Focused rewrite"`);
-  await planner.browser.evaluate(`(${previewDocument}).getElementById("nextMonth").click()`);
-  await planner.browser.waitForExpression(`(${previewDocument}).getElementById("currentMonthLabel").textContent === "October 2026"`);
-  await planner.browser.evaluate(`(${previewDocument}).getElementById("prevMonth").click()`);
-  await planner.browser.waitForExpression(`(${previewDocument}).getElementById("currentMonthLabel").textContent === "September 2026"`);
+  await planner.browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
+  await planner.browser.waitForExpression('document.querySelector(\'.day-cell[aria-label="Select Mon Sep 14"] .event-pill-name\')?.textContent === "Focused rewrite"');
+  await planner.browser.evaluate('document.getElementById("nextMonth").click()');
+  await planner.browser.waitForExpression('document.getElementById("currentMonthLabel").textContent === "October 2026"');
+  await planner.browser.evaluate('document.getElementById("prevMonth").click()');
+  await planner.browser.waitForExpression('document.getElementById("currentMonthLabel").textContent === "September 2026"');
 
   assert.deepEqual(planner.browser.errors(), []);
 });

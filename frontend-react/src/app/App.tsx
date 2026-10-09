@@ -1,19 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
-import { MonthlyCalendarCard } from "../features/calendar/MonthlyCalendarCard";
-import {
-  CalendarEventEditor,
-  type CalendarEditorRequest
-} from "../features/calendar/CalendarEventEditor";
 import { CalendarPage } from "../features/calendar/CalendarPage";
-import { WeeklyPlannerCard } from "../features/calendar/WeeklyPlannerCard";
-import {
-  CALENDAR_STATE_EVENT,
-  calendarBridgeStateFromEvent,
-  dispatchCalendarNavigation,
-  type CalendarBridgeState
-} from "../features/calendar/calendar-bridge";
 import { DashboardPage } from "../features/dashboard-page/DashboardPage";
 import { GuitarGoalCard } from "../features/guitar/GuitarGoalCard";
 import { GuitarPage } from "../features/guitar/GuitarPage";
@@ -64,11 +52,6 @@ interface FramePortalBoundary {
   mount: HTMLElement;
 }
 
-interface WeeklyPlannerBoundary extends FramePortalBoundary {
-  editorCard: HTMLElement;
-  editorMount: HTMLElement;
-}
-
 function selectedJournalDate(input: HTMLInputElement | null | undefined, fallback: string): string {
   const value = input?.value.trim();
   if (!value) {
@@ -83,8 +66,6 @@ function LegacyPlannerApp() {
   const todayKey = formatPlannerDate(today);
   const [guitarGoalMount, setGuitarGoalMount] = useState<HTMLElement | null>(null);
   const [guitarSessionMount, setGuitarSessionMount] = useState<HTMLElement | null>(null);
-  const [monthlyCalendarBoundary, setMonthlyCalendarBoundary] = useState<FramePortalBoundary | null>(null);
-  const [weeklyPlannerBoundary, setWeeklyPlannerBoundary] = useState<WeeklyPlannerBoundary | null>(null);
   const [skateHeroBoundary, setSkateHeroBoundary] = useState<FramePortalBoundary | null>(null);
   const [skateHeroState, setSkateHeroState] = useState<SkateHeroState | null>(null);
   const [skateBodySupportMount, setSkateBodySupportMount] = useState<HTMLElement | null>(null);
@@ -99,16 +80,6 @@ function LegacyPlannerApp() {
   const [moneyQuickMount, setMoneyQuickMount] = useState<HTMLElement | null>(null);
   const [moneyVendorsMount, setMoneyVendorsMount] = useState<HTMLElement | null>(null);
   const [selectedJournalDateKey, setSelectedJournalDateKey] = useState(formatPlannerDate(today));
-  const [calendarState, setCalendarState] = useState<CalendarBridgeState>({
-    cursorDate: formatPlannerDate(new Date(today.getFullYear(), today.getMonth(), 1)),
-    expandedDate: "",
-    selectedDate: formatPlannerDate(today)
-  });
-  const [calendarEditorRequest, setCalendarEditorRequest] = useState<CalendarEditorRequest>({
-    eventId: null,
-    focus: "start",
-    revision: 0
-  });
   const legacyUrl = `/legacy/${window.location.search}`;
   const loadedStore = plannerStore.status === "ready" ? plannerStore.store : null;
   const skateTrainingPlanState: SkateTrainingPlanState | null = useMemo(
@@ -137,41 +108,6 @@ function LegacyPlannerApp() {
     const journalDate = document?.querySelector<HTMLInputElement>("#journalDate");
     setLegacyFrame(frame);
     setSelectedJournalDateKey(selectedJournalDate(journalDate, formatPlannerDate(today)));
-    const monthlyCalendarCard = document?.querySelector<HTMLElement>(".monthly-calendar-card");
-    const monthlyCalendarMount = monthlyCalendarCard?.querySelector<HTMLElement>(".panel-inner");
-    const legacyCalendarGrid = document?.getElementById("calendarGrid");
-    if (monthlyCalendarCard !== null && monthlyCalendarCard !== undefined
-      && monthlyCalendarMount !== null && monthlyCalendarMount !== undefined
-      && legacyCalendarGrid !== null && legacyCalendarGrid !== undefined) {
-      monthlyCalendarCard.dataset.reactOwned = "true";
-      legacyCalendarGrid.dataset.reactOwned = "true";
-      monthlyCalendarMount.replaceChildren();
-      setMonthlyCalendarBoundary({ frame, mount: monthlyCalendarMount });
-    }
-
-    const weeklyPlannerCard = document?.querySelector<HTMLElement>(".weekly-planner-card");
-    const weeklyPlannerMount = weeklyPlannerCard?.querySelector<HTMLElement>(".panel-inner");
-    const legacyWeeklyPlannerMount = document?.getElementById("weeklyPlannerMount");
-    const eventEditorCard = document?.getElementById("eventEditorCard");
-    const eventEditorMount = eventEditorCard?.querySelector<HTMLElement>(".panel-inner");
-    if (weeklyPlannerCard !== null && weeklyPlannerCard !== undefined
-      && weeklyPlannerMount !== null && weeklyPlannerMount !== undefined
-      && legacyWeeklyPlannerMount !== null && legacyWeeklyPlannerMount !== undefined
-      && eventEditorCard !== null && eventEditorCard !== undefined
-      && eventEditorMount !== null && eventEditorMount !== undefined) {
-      weeklyPlannerCard.dataset.reactOwned = "true";
-      legacyWeeklyPlannerMount.dataset.reactOwned = "true";
-      eventEditorCard.dataset.reactOwned = "true";
-      weeklyPlannerMount.replaceChildren();
-      eventEditorMount.replaceChildren();
-      setWeeklyPlannerBoundary({
-        editorCard: eventEditorCard,
-        editorMount: eventEditorMount,
-        frame,
-        mount: weeklyPlannerMount
-      });
-    }
-
     const skateHeroCard = document?.querySelector<HTMLElement>(".skate-hero-card");
     const skateHeroMount = skateHeroCard?.querySelector<HTMLElement>(".panel-inner");
     const initialSkateHeroState = document === null ? null : skateHeroStateFromDocument(document);
@@ -317,17 +253,6 @@ function LegacyPlannerApp() {
   }, [legacyFrame]);
 
   useEffect(() => {
-    const frameWindow = legacyFrame?.contentWindow;
-    if (frameWindow === null || frameWindow === undefined) return;
-    function syncCalendarState(event: Event): void {
-      const state = calendarBridgeStateFromEvent(event);
-      if (state !== null) setCalendarState(state);
-    }
-    frameWindow.addEventListener(CALENDAR_STATE_EVENT, syncCalendarState);
-    return () => frameWindow.removeEventListener(CALENDAR_STATE_EVENT, syncCalendarState);
-  }, [legacyFrame]);
-
-  useEffect(() => {
     const frameWindow = skateHeroBoundary?.frame.contentWindow;
     if (frameWindow === null || frameWindow === undefined) return;
     function syncSkateHeroState(event: Event): void {
@@ -369,79 +294,6 @@ function LegacyPlannerApp() {
         src={legacyUrl}
         title="Yuan's Planner"
       />
-      {loadedStore !== null && monthlyCalendarBoundary !== null && (
-        createPortal(
-          <MonthlyCalendarCard
-            cursorDate={calendarState.cursorDate}
-            onEditEvent={(eventId, date) => {
-              setCalendarState((current) => ({ ...current, selectedDate: date }));
-              setCalendarEditorRequest((current) => ({
-                eventId,
-                focus: "title",
-                revision: current.revision + 1
-              }));
-              dispatchCalendarNavigation(monthlyCalendarBoundary.frame, { action: "select-date", date });
-            }}
-            onSelectDate={(date) => {
-              setCalendarState((current) => ({ ...current, selectedDate: date }));
-              setCalendarEditorRequest((current) => ({
-                eventId: null,
-                focus: "start",
-                revision: current.revision + 1
-              }));
-              dispatchCalendarNavigation(monthlyCalendarBoundary.frame, { action: "select-date", date });
-            }}
-            onShiftMonth={(amount) => dispatchCalendarNavigation(monthlyCalendarBoundary.frame, {
-              action: "shift-month",
-              amount: amount < 0 ? -1 : 1
-            })}
-            selectedDate={calendarState.selectedDate}
-            store={loadedStore}
-            today={today}
-          />,
-          monthlyCalendarBoundary.mount
-        )
-      )}
-      {loadedStore !== null && weeklyPlannerBoundary !== null && (
-        createPortal(
-          <WeeklyPlannerCard
-            editorCard={weeklyPlannerBoundary.editorCard}
-            expandedDate={calendarState.expandedDate}
-            onCollapseDay={() => dispatchCalendarNavigation(weeklyPlannerBoundary.frame, {
-              action: "collapse-day"
-            })}
-            onNavigateWeek={(amount) => dispatchCalendarNavigation(weeklyPlannerBoundary.frame, {
-              action: "shift-week",
-              amount
-            })}
-            onPersist={persistPlannerWrites}
-            onSelectDay={(date, expanded) => dispatchCalendarNavigation(weeklyPlannerBoundary.frame, {
-              action: "select-week-day",
-              date,
-              expanded
-            })}
-            selectedDate={calendarState.selectedDate}
-            store={loadedStore}
-          />,
-          weeklyPlannerBoundary.mount
-        )
-      )}
-      {loadedStore !== null && weeklyPlannerBoundary !== null && (
-        createPortal(
-          <CalendarEventEditor
-            editRequest={calendarEditorRequest}
-            key={`${calendarState.selectedDate}:${calendarEditorRequest.revision}`}
-            onPersist={persistPlannerWrites}
-            onSavedDate={(date) => {
-              setCalendarState((current) => ({ ...current, selectedDate: date }));
-              dispatchCalendarNavigation(weeklyPlannerBoundary.frame, { action: "select-date", date });
-            }}
-            selectedDate={calendarState.selectedDate}
-            store={loadedStore}
-          />,
-          weeklyPlannerBoundary.editorMount
-        )
-      )}
       {skateHeroBoundary !== null && skateFeedback.heroState !== null && (
         createPortal(
           <SkateHeroCard

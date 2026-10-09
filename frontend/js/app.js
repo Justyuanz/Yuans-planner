@@ -90,8 +90,6 @@
       var weeklyPlannerCore = globalThis.YuanWeeklyPlannerCore;
       const storageCore = globalThis.YuanStorageCore;
       const calendarTaskSync = globalThis.YuanCalendarTaskSync;
-      const CALENDAR_NAVIGATE_EVENT = "hive-planner-calendar-navigate";
-      const CALENDAR_STATE_EVENT = "hive-planner-calendar-state";
       const SKATE_HERO_ACTION_EVENT = "hive-planner-skate-hero-action";
       const SKATE_HERO_STATE_EVENT = "hive-planner-skate-hero-state";
       const SKATE_ROADMAP_ACTION_EVENT = "hive-planner-skate-roadmap-action";
@@ -5124,11 +5122,7 @@
             elements.eventStartTime.focus();
           }
         };
-        if (elements.weeklyPlannerMount.dataset.reactOwned === "true") {
-          window.requestAnimationFrame(focusEventEditor);
-        } else {
-          focusEventEditor();
-        }
+        focusEventEditor();
       }
 
       function groupedEventsForDate(dateKey) {
@@ -5335,16 +5329,6 @@
 
       function renderWeeklyPlanner() {
         if (!elements.weeklyPlannerMount) {
-          return;
-        }
-        window.dispatchEvent(new CustomEvent(CALENDAR_STATE_EVENT, {
-          detail: {
-            cursorDate: formatDate(calendarCursor),
-            expandedDate: weeklyPlannerUiState.expandedDateKey,
-            selectedDate: selectedDate
-          }
-        }));
-        if (elements.weeklyPlannerMount.dataset.reactOwned === "true") {
           return;
         }
         var referenceDate = parseDate(selectedDate);
@@ -7629,16 +7613,6 @@
 
       // Calendar events are simple date pills saved with the rest of the planner data.
       function renderCalendar() {
-        window.dispatchEvent(new CustomEvent(CALENDAR_STATE_EVENT, {
-          detail: {
-            cursorDate: formatDate(calendarCursor),
-            expandedDate: weeklyPlannerUiState.expandedDateKey,
-            selectedDate: selectedDate
-          }
-        }));
-        if (elements.calendarGrid && elements.calendarGrid.dataset.reactOwned === "true") {
-          return;
-        }
         var year = calendarCursor.getFullYear();
         var month = calendarCursor.getMonth();
         var firstOfMonth = new Date(year, month, 1);
@@ -7747,9 +7721,6 @@
 
       function renderSelectedDate() {
         if (!elements.eventEditorCard) {
-          return;
-        }
-        if (elements.eventEditorCard.dataset.reactOwned === "true") {
           return;
         }
         var events = plannerEventsForDate(selectedDate);
@@ -7951,11 +7922,7 @@
             elements.eventStartTime.focus();
           }
         };
-        if (elements.weeklyPlannerMount.dataset.reactOwned === "true") {
-          window.requestAnimationFrame(focusEditedEvent);
-        } else {
-          focusEditedEvent();
-        }
+        focusEditedEvent();
       }
 
       function deleteEvent(id) {
@@ -8210,57 +8177,6 @@
       }
 
       function bindEvents() {
-        window.addEventListener(CALENDAR_NAVIGATE_EVENT, function (event) {
-          const detail = event && event.detail && typeof event.detail === "object" ? event.detail : {};
-          if (detail.action === "shift-month") {
-            const amount = Number(detail.amount) < 0 ? -1 : 1;
-            calendarCursor = new Date(calendarCursor.getFullYear(), calendarCursor.getMonth() + amount, 1);
-            renderCalendar();
-            return;
-          }
-          if (detail.action === "shift-week") {
-            shiftSelectedWeek(Number(detail.amount) < 0 ? -1 : 1);
-            return;
-          }
-          if (detail.action === "collapse-day") {
-            weeklyPlannerUiState.expandedDateKey = "";
-            weeklyPlannerUiState.activityPickerOpen = false;
-            renderWeeklyPlannerSection();
-            return;
-          }
-          if (detail.action === "select-week-day" && typeof detail.date === "string") {
-            const day = parseDate(detail.date);
-            selectedDate = detail.date;
-            calendarCursor = new Date(day.getFullYear(), day.getMonth(), 1);
-            weeklyPlannerUiState.expandedDateKey = detail.expanded ? detail.date : "";
-            if (!weeklyPlannerUiState.expandedDateKey) {
-              weeklyPlannerUiState.activityPickerOpen = false;
-            }
-            renderWeeklyPlannerSection();
-            renderCalendar();
-            renderSelectedDate();
-            return;
-          }
-          if (detail.action === "edit-event" && typeof detail.eventId === "string") {
-            startEditEvent(detail.eventId);
-            return;
-          }
-          if (detail.action !== "select-date" || typeof detail.date !== "string") {
-            return;
-          }
-          selectedDate = detail.date;
-          weeklyPlannerUiState.expandedDateKey = detail.date;
-          weeklyPlannerUiState.activityPickerOpen = false;
-          renderWeeklyPlannerSection();
-          renderCalendar();
-          if (elements.eventStartTime) {
-            if (elements.eventEditorCard.dataset.reactOwned !== "true") {
-              window.requestAnimationFrame(function () {
-                elements.eventStartTime.focus();
-              });
-            }
-          }
-        });
         window.addEventListener(SKATE_HERO_ACTION_EVENT, function (event) {
           const detail = event && event.detail && typeof event.detail === "object" ? event.detail : {};
           if (detail.action === "set-rest-day") {
