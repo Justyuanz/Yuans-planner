@@ -181,13 +181,13 @@ For each feature:
 - [ ] remove legacy implementation only after tests pass
 
 ## Current Task
-The root/no-view entry path plus explicit Dashboard, Money, Journal, Calendar, and Skate routes render directly in React + strict TypeScript with no iframe. Guitar is the only primary page still using the temporary legacy-shell fallback. Its Progress planner goal card is now React/TypeScript-owned and verified; the Session tracker, finish dialog, weekly model, recent history, and task synchronization remain legacy-owned. Continue migrating that tracker as one compatibility-safe boundary before composing the direct Guitar route.
+All six primary routes now render directly in React + strict TypeScript with no iframe. The next rewrite boundary is Phase 3's clean Python API structure. First characterize the existing server entry points, `/api/kv` behavior, SQLite persistence, static legacy-app serving, and Vite proxy contracts, then add regression coverage before moving the smallest coherent backend responsibility.
 
 ## Last Completed Task
-Migrated the Guitar Progress planner card to a focused React component and strict-TypeScript compatibility model on the fallback route. Focus and next-step values preserve the shipped raw-string/on-input contract, persist through the shared Planner store, and are protected from the detached legacy renderer by an ownership guard. A comprehensive browser regression now records exact desktop/mobile visuals plus the complete current Guitar summary, practice plan, transient timer, finish dialog, task synchronization, recent sessions, reload behavior, malformed target/session fallback, and console contract. Commit: `e3a2c65 feat(react): migrate guitar goal card`.
+Completed the Guitar migration and direct route. The Progress planner, weekly session model, recent history, transient timer, finish dialog, and compatibility-safe task/session persistence are React/TypeScript-owned. The route has zero iframes and matches the legacy page at desktop and mobile sizes while preserving malformed-data fallbacks, reload behavior, unknown fields, and cross-feature task synchronization. Commits: `a114073 feat(react): migrate guitar session tracker` and `d90970f feat(react): compose direct guitar page`.
 
 ## Next Task
-Build a pure strict-TypeScript Guitar session model and React tracker/dialog controller from the new regression contract. Preserve weekly-target fallback rules, Monday-Sunday counting, duration rounding, four newest sessions, transient start time, exact status/plan copy, and compatibility-rich append/task writes. Explicitly preserve unknown session and task fields that the current legacy task-normalization path drops. Verify the fallback portal first, then compose the direct Guitar route only after the complete tracker passes desktop/mobile parity, persistence, reload, and navigation coverage.
+Inspect the current Python server and its tests, document the live route/storage/static-serving boundaries, and add regression tests for behavior that the first backend refactor could disturb. Then extract one small, readable API boundary without changing `/api/kv`, SQLite data, legacy static-app behavior, or the Vite development proxy contract.
 
 ## Upstream Legacy Change — Activity Categories (2026-10-05)
 
@@ -206,7 +206,7 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Production activity/category compatibility is defined by legacy `main` commit `01d6c6d`. The rewrite must accept old stored IDs, expose the new labels/IDs, preserve unknown fields, and avoid hardcoding weekly target values into UI or calculation logic.
 - React centralizes the production activity definitions and legacy ID mapping in the strict-TypeScript `activity-categories.ts` module. Life Pie and Planned vs actual import this contract instead of maintaining separate category lists.
 - Planned-hour decoding combines numeric old and new values that map to the same production activity while retaining unrelated fields unchanged. The UI persists the normalized object on the next edit rather than discarding compatibility data.
-- The temporary legacy shell loads a focused activity-category bridge during hydration because Calendar, Skate, and Guitar still run inside that shell. All new bridge code follows the same `const`-by-default/no-`var` rule; it is compatibility infrastructure, not a replacement for the React TypeScript model.
+- The explicit legacy-shell fixture loads a focused activity-category bridge during hydration so fallback regression coverage continues to exercise the standalone legacy views. All bridge code follows the same `const`-by-default/no-`var` rule; it is compatibility infrastructure, not a replacement for the React TypeScript model.
 - Meditation and Journal remain standalone features but no longer contribute to activity totals or Life Pie. The Meditation regression explicitly verifies session persistence without a Life Pie side effect.
 - The rewrite must preserve visual parity with the legacy Planner; this is an architecture rewrite, not a UI redesign.
 - Do not add migration-preview branding, explanatory badges, new layouts, or invented visual treatments to the React UI.
@@ -262,10 +262,12 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - React owns `.skate-session-card .panel-inner` on fallback routes and derives its state directly from the immutable typed SkateIQ data plus compatible settings. The shipped manual-progression rule remains exact: pre-season previews Day 1, then `currentProgramDay` selects Day 1–60 even on post-streak calendar dates. No detached legacy renderer, DOM parser, or `MutationObserver` remains.
 - React owns `.guitar-goal-card .panel-inner` on fallback routes through a focused strict-TypeScript model. Focus and next-step values remain raw strings, save on every input event without trimming, and use the existing Planner persistence path; the legacy Guitar renderer skips only these detached inputs when the card is marked React-owned.
 - The Guitar migration regression records the complete shipped page before the tracker cutover: weekly target/minute/average calculations, focus-aware plan copy, four-row recent history, transient timer reset, finish-dialog persistence, task synchronization, malformed root fallback, exact desktop/mobile goal-card visuals, and clean console behavior.
-- The root/no-view entry path plus explicit Dashboard, Money, Journal, Calendar, and Skate routes bypass the iframe and compose their pages directly inside the focused React shell. Guitar still instantiates `LegacyPlannerApp`, preserving a verification fallback during incremental cutover.
+- Guitar session/task synchronization is shared with Skate through a focused strict-TypeScript compatibility module. It retains every raw existing session entry and unknown task field, chooses ready then unfinished then any matching activity task, and creates the legacy-compatible `Saved session` task only when no Guitar task exists.
+- Guitar session start remains transient across reload. Completing a session writes its task update before appending the completion marker, preserves the Monday-Sunday target rules and newest-four history contract, and uses the exact legacy duration rounding and copy.
+- The root/no-view entry path plus explicit Dashboard, Money, Journal, Calendar, Skate, and Guitar routes bypass the iframe and compose all six primary pages directly inside the focused React shell.
 - A missing `view` maps to the direct React Dashboard, while unknown explicit values continue through `LegacyPlannerApp`. Migration-boundary browser fixtures use `view=legacyShell`, which the parent intentionally treats as fallback and the legacy app safely normalizes to its Dashboard.
 - The direct route loads the legacy stylesheet only while mounted. Loading it globally changes the parent body's padding and narrows every iframe preview, which the complete Money regression suite caught.
-- Direct-shell navigation writes the requested `view` and deterministic planner `date` into the URL. Dashboard, Money, Journal, Calendar, and Skate navigate directly; Guitar still reloads into the established legacy-shell route until migrated.
+- Direct-shell navigation writes the requested `view` and deterministic planner `date` into the URL. Dashboard, Money, Journal, Calendar, Skate, and Guitar all navigate directly.
 - React backup import/export preserves unknown `hivePlanner.*` values and excludes the transient Guitar session just like legacy. Import publishes same-window storage events so the direct Money cards update immediately.
 - The React Pattern store adapter runs only after the server-first Planner store is loaded and the hydrated legacy frame exposes the portal boundary. It never interprets bridge memory as source data or writes metric inputs back to storage.
 - Insight action navigation resolves the current `#plannedMount` and `#taskTitle` at click time because React ownership replaces their original child nodes; retaining pre-migration references would target detached nodes.
@@ -313,30 +315,22 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Some files contain thousands of lines.
 - Duplicate/redundant functions likely exist.
 - Current architecture is difficult to understand.
-- `frontend/js/app.js` is 8,725 lines and still owns most storage, normalization, rendering, event handling, and cross-feature orchestration; only the newly extracted boundaries have direct coverage.
+- `frontend/js/app.js` is 8,731 lines and still owns much of the standalone legacy application's storage, normalization, rendering, event handling, and cross-feature orchestration; only the extracted boundaries have direct coverage.
 - `frontend/css/styles.css` is 5,667 lines with several accumulated responsive sections.
 - Time/date parsing and normalization are duplicated across frontend modules and backend integrations.
 - Several declared storage keys and an older Study/Body weekly-overview path are inactive, while the real database still contains legacy-only keys that backups must preserve.
 - Browser inspection reports generated form controls without an `id` or `name`; the current Chrome run reported 29 controls.
 - The default `node` on the inspected machine is Node 14 and cannot run `node --test`; use the installed modern Node runtime or fix the local PATH before relying on `scripts/test.sh` without `NODE_BIN`.
-- Most remaining cross-feature flows in `app.js` still lack DOM or end-to-end tests; browser coverage now protects task and activity-session lifecycles, all six primary views, the direct Dashboard, Money, Journal, Calendar, and Skate pages, and the other migrated React boundaries.
-- Weekly goals, dashboard day state, task progress, Today's intention, the task list/editor/form, Life Pie, Planned vs actual, Energy trail, Pattern noticed/history, all six Money boundaries, Journal editor, Meditation, Journal archive, the complete Calendar page, the complete Skate page, and Guitar's Progress planner card are React-owned and verified. The root/no-view Dashboard plus explicit Dashboard, Money, Journal, Calendar, and Skate routes are directly composed; Guitar is the only primary page still dependent on the temporary iframe shell.
-- The legacy Guitar session-to-task path normalizes the selected task before saving and can drop unknown task fields. The React tracker migration must replace this with compatibility-safe typed writes rather than copying that data loss.
+- Most remaining cross-feature flows in the standalone legacy `app.js` still lack DOM or end-to-end tests; browser coverage now protects task and activity-session lifecycles, all six direct primary pages, and the other migrated React boundaries.
+- Weekly goals, dashboard day state, task progress, Today's intention, the task list/editor/form, Life Pie, Planned vs actual, Energy trail, Pattern noticed/history, all six Money boundaries, Journal editor, Meditation, Journal archive, Calendar, Skate, and Guitar are React-owned and verified. The root/no-view Dashboard plus every explicit primary route is directly composed; the temporary iframe shell remains only for explicit `view=legacyShell` regression fixtures and unknown-view compatibility.
 - Browser smoke tests skip when Chrome/Chromium or Node WebSocket support is unavailable; they run with the documented Node 24 runtime on the inspected machine.
-- The React preview is not yet served directly by the Python backend. Its temporary legacy shell depends on Vite development proxies and is not the final production integration architecture.
+- The React application is not yet served directly by the Python backend. Vite development proxies remain migration infrastructure and are not the final production integration architecture.
 - The direct shell's Sprouty surface now sends grounded task, insight, journal, planning, activity, day-state, Money, and Skate context; restores state-aware quick prompts; handles server failure with evidence-based local answers; appends question-aware action suggestions; and preserves pointer-follow, drag persistence, click suppression, and mobile motion behavior. Shared-shell Sprouty parity is complete.
 - The React visual regression test skips when Chrome or `frontend-react` dependencies are unavailable, matching the existing browser-test prerequisite policy.
 - Browser-capable root Node test files run serially to avoid Chrome/Vite startup timeouts under parallel process saturation.
 - Long combined browser runs can intermittently expose the pre-existing Skate hero hydration race, a roughly 2.3% mobile roadmap screenshot variance, or a Calendar editor mount-timing null lookup. These pass when rerun in isolation; treat a repeated isolated failure as actionable rather than accepting the combined-run flake.
 
 ## Session Log
-
-### Session 54
-
-- Re-read `AGENTS.md`, this handoff, branch state, recent history, current diff, and the implementation/browser-verification/commit workflows; traced the legacy Training-plan renderer, manual program-day behavior, settings normalization, pre-season preview, rest-day labels, benchmark rows, and post-streak calendar behavior before implementation.
-- Added a focused pure strict-TypeScript Training-plan model derived directly from the checked-in 60-day SkateIQ data. Removed the detached legacy DOM parser and `MutationObserver`; the fallback card now reacts to Planner-store settings without consuming legacy-rendered plan markup.
-- Added unit coverage for Day 15 content, pre-season preview, malformed/default settings, clamped boundaries, duplicate rest-day normalization, and the shipped manual Day 60 behavior after the streak. Extended the browser regression with post-streak parity while retaining exact desktop/mobile content, computed geometry, screenshots, live Day 15 → Day 30 persistence, reload, and console checks.
-- Final verification: 230 React tests, React lint, strict type-checking, the Vite production build, all six focused Skate/navigation browser regressions, 18 Python tests, and all 147 root JavaScript/browser tests pass. Commit: `f9a4cc1 refactor(react): derive skate training plan directly`.
 
 ### Session 55
 
@@ -351,6 +345,13 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Added a focused React Progress planner card and strict-TypeScript Guitar goal model. Focus and next-step values preserve the legacy raw-string contract, persist on every input through the shared Planner store, and remain isolated from the detached legacy renderer through a narrow ownership guard using `const`, with no new `var` or untyped React code.
 - Added unit coverage for legacy values, missing keys, exact compatibility keys, and whitespace preservation. Added a real-browser regression comparing legacy and React state, computed styles, geometry, and screenshots at 1280×900 and 390×844 while also protecting weekly summary/plan behavior, recent sessions, timer reset, dialog save, task sync, reload persistence, malformed target/session fallback, and console cleanliness.
 - Verification: 239 React tests, React lint, strict type-checking, the Vite production build, four focused Guitar/navigation/session browser regressions, 18 Python tests, and all 149 root JavaScript/browser tests pass. Commit: `e3a2c65 feat(react): migrate guitar goal card`.
+
+### Session 57
+
+- Re-read `AGENTS.md`, this handoff, branch state, recent history, current diff, and the implementation/browser-verification/commit workflows; traced the Guitar weekly target, history, timer, finish-dialog, persistence, task-matching, unknown-field, navigation, and visual contracts before implementation.
+- Added a pure strict-TypeScript Guitar session model, compatibility-safe persistence, focused React session card/dialog/controller, and a shared session-to-task synchronization module used by Guitar and Skate. Existing raw session entries and unknown task fields survive writes, task selection follows the shipped priority, the timer remains transient, and task state is stored before the completed session becomes observable.
+- Verified the tracker first through the legacy-shell portal, then composed the complete Guitar page directly in `PlannerShell` with zero iframes. The route regression protects exact desktop/mobile content, styles, geometry, screenshots, goal/session persistence, reload behavior, malformed inputs, task synchronization, unknown-field retention, navigation, and console cleanliness.
+- Final verification: 247 React tests, React lint, strict type-checking, the Vite production build, focused Guitar/Skate/session/navigation browser regressions, 18 Python tests, and all 149 root JavaScript/browser tests pass. Commits: `a114073 feat(react): migrate guitar session tracker` and `d90970f feat(react): compose direct guitar page`.
 
 ---
 
