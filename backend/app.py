@@ -24,8 +24,16 @@ from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
 from config import planner_db_path, planner_host, planner_port, planner_timezone
-from db import delete_value, import_values, init_database, put_value, read_all_values
+from db import init_database, put_value, read_all_values
 from openai_mascot import ask_mascot, openai_enabled
+from planner_api import (
+    ApiRequestError,
+    delete_value_for_key,
+    export_document,
+    import_values_from_payload,
+    put_value_from_payload,
+    read_values_document,
+)
 from telegram_notifier import (
     DAILY_TASKS_PREFIX,
     EVENTS_KEY,
@@ -63,15 +71,11 @@ class PlannerHandler(BaseHTTPRequestHandler):
     def handle_read(self, include_body: bool) -> None:
         path = urlparse(self.path).path
         if path == "/api/kv":
-            self.send_json({"data": read_all_values()}, include_body=include_body)
+            self.send_json(read_values_document(), include_body=include_body)
             return
         if path == "/api/export":
             self.send_json(
-                {
-                    "app": "Yuan's Planner",
-                    "version": 2,
-                    "data": read_all_values(),
-                },
+                export_document(),
                 headers={"Content-Disposition": 'attachment; filename="yuan-planner-backup.json"'},
                 include_body=include_body,
             )
@@ -93,27 +97,23 @@ class PlannerHandler(BaseHTTPRequestHandler):
             self.send_error(404)
             return
         payload = self.read_json_body()
-        key = payload.get("key")
-        value = payload.get("value")
-        if not isinstance(key, str) or not key.startswith("hivePlanner."):
-            self.send_error(400, "Invalid planner key")
+        try:
+            response = put_value_from_payload(payload)
+        except ApiRequestError as error:
+            self.send_error(400, str(error))
             return
-        if not isinstance(value, str):
-            self.send_error(400, "Value must be a string")
-            return
-        put_value(key, value)
-        self.send_json({"ok": True})
+        self.send_json(response)
 
     def do_POST(self) -> None:
         path = urlparse(self.path).path
         if path == "/api/import":
             payload = self.read_json_body()
-            data = payload.get("data")
-            if not isinstance(data, dict):
-                self.send_error(400, "Import data must be an object")
+            try:
+                response = import_values_from_payload(payload)
+            except ApiRequestError as error:
+                self.send_error(400, str(error))
                 return
-            imported = import_values(data)
-            self.send_json({"ok": True, "imported": imported})
+            self.send_json(response)
             return
         if path == "/api/mascot/chat":
             payload = self.read_json_body()
@@ -150,11 +150,12 @@ class PlannerHandler(BaseHTTPRequestHandler):
             self.send_error(404)
             return
         key = parse_qs(parsed.query).get("key", [""])[0]
-        if not isinstance(key, str) or not key.startswith("hivePlanner."):
-            self.send_error(400, "Invalid planner key")
+        try:
+            response = delete_value_for_key(key)
+        except ApiRequestError as error:
+            self.send_error(400, str(error))
             return
-        delete_value(key)
-        self.send_json({"ok": True})
+        self.send_json(response)
 
     def serve_static(self, path: str, include_body: bool = True) -> None:
         if path == "/":
