@@ -181,13 +181,13 @@ For each feature:
 - [ ] remove legacy implementation only after tests pass
 
 ## Current Task
-Phase 3 and the production-serving cutover are complete. Phase 4 is now in migration-infrastructure cleanup: retire the migration-only React portal shell and narrow legacy runtime dependencies without losing visual-reference coverage. Every Dashboard, Journal archive, Calendar, and Skate boundary now runs only on its direct React production page; explicit fallback and standalone `/legacy/` routes keep their complete legacy renderers. Continue removing the remaining Guitar, Meditation, and Money portal ownership one verified feature at a time.
+Phase 3 and the production-serving cutover are complete. Phase 4 is now in migration-infrastructure cleanup: retire the migration-only React portal shell and narrow legacy runtime dependencies without losing visual-reference coverage. Every Dashboard, Journal archive, Calendar, Skate, and Guitar boundary now runs only on its direct React production page; explicit fallback and standalone `/legacy/` routes keep their complete legacy renderers. Continue removing the remaining Meditation and Money portal ownership one verified feature at a time.
 
 ## Last Completed Task
-Moved Skate hero, session-feedback, roadmap, Body-support, and training-plan behavior plus desktop/mobile visual parity coverage to the direct React Skate page and standalone legacy reference. Removed all five Skate fallback portals, mount claims, custom state/action events, delayed training-plan claim, dialog ownership mutation, and the obsolete bridge module/tests in `04e8f17`. `frontend-react/src/app/App.tsx` fell from 439 to 279 lines, `frontend/js/app.js` fell from 8,542 to 8,436 lines, and the complete repository workflow passes.
+Retired the Guitar goal, session, and finish-dialog fallback portals after confirming that the dedicated direct React regression already protects standalone legacy parity, settings, weekly totals, transient timer reset, session/task synchronization, malformed data, persistence/reload, and desktop/mobile visuals. Removed both mount claims, the fallback controller instance, three portals, dialog ownership mutation, and all corresponding legacy render/timer guards in `56d46e3`. `frontend-react/src/app/App.tsx` fell from 279 to 208 lines, `frontend/js/app.js` fell from 8,436 to 8,427 lines, and the complete repository workflow passes.
 
 ## Next Task
-Retire the Guitar goal, session, and finish-dialog fallback portals. The dedicated Guitar regression already compares the direct React route with the standalone legacy reference and protects settings, weekly totals, timer reset, session/task synchronization, malformed data, reload/persistence, and exact desktop/mobile visuals. Remove the two Guitar mount claims, dialog claim, controller instance, portals, and corresponding legacy ownership guards while preserving both direct and standalone behavior. Continue with Meditation and Money afterward. Keep `/legacy/` and the shared legacy stylesheet/assets until no direct React page or regression depends on them.
+Move the dedicated Meditation fixture from `view=legacyShell` to the direct React Journal route plus standalone legacy reference. Preserve timer start/cancel/expiry, single completion across reload or suspension, selected Journal-date synchronization, standalone totals, compatibility fields, persistence/reload, and identical desktop/mobile visuals. Then remove the Meditation mount claim/portal, the shared iframe Journal-date observer that exists only for it, and the legacy ownership guard. Continue with the six Money portals afterward. Keep `/legacy/` and the shared legacy stylesheet/assets until no direct React page or regression depends on them.
 
 ## Upstream Legacy Change — Activity Categories (2026-10-05)
 
@@ -255,7 +255,7 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Body-support saves append the normalized new record while retaining every existing raw array entry and unknown field. This is intentionally safer than the legacy save path, which normalizes the complete array and can discard compatibility data. The React card is composed only by the direct Skate page, and same-window storage events immediately refresh Life Pie and Sprouty context; fallback routes use the standalone legacy implementation.
 - The shipped Skate Training plan is currently read-only. Older warm-up, focus, and skill-editing functions remain orphaned in the legacy source with no live call sites, so the migration preserves the visible checked-in plan instead of reviving dead editor behavior.
 - The direct React Skate page owns the training-plan card and derives its state directly from the immutable typed SkateIQ data plus compatible settings. The shipped manual-progression rule remains exact: pre-season previews Day 1, then `currentProgramDay` selects Day 1–60 even on post-streak calendar dates. Explicit fallback routes use the complete standalone legacy renderer; no detached DOM parser or `MutationObserver` remains.
-- React owns `.guitar-goal-card .panel-inner` on fallback routes through a focused strict-TypeScript model. Focus and next-step values remain raw strings, save on every input event without trimming, and use the existing Planner persistence path; the legacy Guitar renderer skips only these detached inputs when the card is marked React-owned.
+- The Guitar goal, session card, and finish dialog are composed only by the direct React Guitar page. Focus and next-step values remain raw strings, save on every input event without trimming, and use the existing Planner persistence path; explicit fallback and standalone legacy routes use the complete original Guitar renderer and timer handling without React ownership flags.
 - The Guitar migration regression records the complete shipped page before the tracker cutover: weekly target/minute/average calculations, focus-aware plan copy, four-row recent history, transient timer reset, finish-dialog persistence, task synchronization, malformed root fallback, exact desktop/mobile goal-card visuals, and clean console behavior.
 - Guitar session/task synchronization is shared with Skate through a focused strict-TypeScript compatibility module. It retains every raw existing session entry and unknown task field, chooses ready then unfinished then any matching activity task, and creates the legacy-compatible `Saved session` task only when no Guitar task exists.
 - Guitar session start remains transient across reload. Completing a session writes its task update before appending the completion marker, preserves the Monday-Sunday target rules and newest-four history contract, and uses the exact legacy duration rounding and copy.
@@ -319,7 +319,7 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Duplicate/redundant functions likely exist.
 - Current architecture is difficult to understand.
 - `backend/app.py` is now a 58-line process bootstrap, the clean Python structure milestone is complete, and `http_server.py` serves the compiled React application at the root. The legacy directory remains reachable only through explicit compatibility and shared-asset routes.
-- `frontend/js/app.js` is 8,436 lines and still owns much of the standalone legacy application's storage, normalization, rendering, event handling, and cross-feature orchestration; only the extracted boundaries have direct coverage.
+- `frontend/js/app.js` is 8,427 lines and still owns much of the standalone legacy application's storage, normalization, rendering, event handling, and cross-feature orchestration; only the extracted boundaries have direct coverage.
 - `frontend/css/styles.css` is 5,663 lines with several accumulated responsive sections.
 - Time/date parsing and normalization are duplicated across frontend modules and backend integrations.
 - Several declared storage keys and an older Study/Body weekly-overview path are inactive, while the real database still contains legacy-only keys that backups must preserve.
@@ -329,7 +329,7 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Weekly goals, dashboard day state, task progress, Today's intention, the task list/editor/form, Life Pie, Planned vs actual, Energy trail, Pattern noticed/history, all six Money boundaries, Journal editor, Meditation, Journal archive, Calendar, Skate, and Guitar are React-owned and verified on direct production routes. No Dashboard feature retains a fallback portal. The temporary iframe shell remains only for explicit `view=legacyShell` regression fixtures and unknown-view compatibility.
 - Browser smoke tests skip when Chrome/Chromium or Node WebSocket support is unavailable; they run with the documented Node 24 runtime on the inspected machine.
 - A local Python start returns `503` at the UI root when `frontend-react/dist` has not been built. This is intentional and documented; Docker always builds the bundle.
-- `LegacyPlannerApp` and its remaining portal ownership bridges still occupy most of the 279-line `frontend-react/src/app/App.tsx`. Production primary routes bypass it, but Guitar, Meditation, and Money fallback paths still depend on it.
+- `LegacyPlannerApp` and its remaining portal ownership bridges still occupy most of the 208-line `frontend-react/src/app/App.tsx`. Production primary routes bypass it, but Meditation and Money fallback paths still depend on it.
 - Direct React pages still load the 5,663-line legacy stylesheet, and explicit legacy `/css` and `/js` routes remain runtime dependencies. These cannot be removed until focused styling and compatibility migrations replace them.
 - The direct shell's Sprouty surface now sends grounded task, insight, journal, planning, activity, day-state, Money, and Skate context; restores state-aware quick prompts; handles server failure with evidence-based local answers; appends question-aware action suggestions; and preserves pointer-follow, drag persistence, click suppression, and mobile motion behavior. Shared-shell Sprouty parity is complete.
 - The React visual regression test skips when Chrome or `frontend-react` dependencies are unavailable, matching the existing browser-test prerequisite policy.
@@ -337,13 +337,6 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - The final complete browser run passed all 150 root JavaScript/browser tests after the shared Chrome waiter was hardened against transient detached iframe documents. Treat any repeated failure as actionable rather than accepting it as a combined-run flake.
 
 ## Session Log
-
-### Session 65
-
-- Re-read the repository instructions and full handoff, confirmed the clean rewrite branch/history/diff, and traced the Journal archive portal, delegated date selection, direct page composition, Meditation dependency, and legacy ownership guard before changing code.
-- Moved the dedicated Journal archive regression from the iframe fixture to the direct React Journal page while retaining standalone legacy reference coverage. The direct test now protects empty/search states, compatibility normalization, archive-to-editor navigation, live editor synchronization, reload persistence, console cleanliness, and exact desktop/mobile geometry and screenshot parity.
-- Removed the Journal archive portal state, mount claim, delegated legacy date-open helper, and legacy renderer ownership guard. Kept the shared iframe Journal-date observer because the remaining Meditation fallback still needs it. Commit: `b052ca9`.
-- Verification: 42 Python tests, 247 React tests, lint, strict typecheck, production build, and all 150 root JavaScript/browser tests pass. The focused Journal archive and complete direct-Journal browser suites also pass.
 
 ### Session 66
 
@@ -358,6 +351,13 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Moved the dedicated Skate hero, feedback, roadmap, Body-support, and training-plan fixtures from `view=legacyShell` to the direct React Skate route while retaining standalone legacy reference coverage. The direct regressions protect settings and manual progression, timers, dialog visuals, current and retro session persistence, task synchronization, roadmap history, Body-support/Life-Pie synchronization, pre-season and post-streak plans, reload behavior, clean console output, and exact desktop/mobile geometry and screenshots.
 - Removed all Skate fallback state and mount claims, five portals, custom hero/roadmap bridge events, delayed training-plan claim, dialog ownership mutation, and the bridge module/tests. Explicit fallback and `/legacy/` routes now use the complete legacy Skate renderer. Commit: `04e8f17`.
 - Verification: 42 Python tests, 245 React tests, lint, strict typecheck, production build, and all 150 root JavaScript/browser tests pass. All six focused Skate browser suites also pass.
+
+### Session 68
+
+- Re-read the repository instructions and full handoff, confirmed the clean rewrite branch/history/diff, and traced the Guitar goal/session/dialog portals, direct controller, standalone renderer, timer updates, and ownership guards before changing code.
+- Confirmed the existing Guitar migration regression already compares the direct React page with the standalone legacy reference at desktop/mobile sizes and protects raw goal inputs, weekly calculations, transient timer reset, finish-dialog persistence, task synchronization, malformed compatibility data, navigation, reload behavior, and clean console output.
+- Removed the two Guitar mount claims, fallback session-controller instance, three portals, dialog ownership mutation, and legacy render/timer ownership guards. Explicit fallback and `/legacy/` routes now use the complete legacy Guitar renderer. Commit: `56d46e3`.
+- Verification: 42 Python tests, 245 React tests, lint, strict typecheck, production build, and all 150 root JavaScript/browser tests pass. Focused Guitar parity, cross-feature session/task synchronization, and production-serving/fallback browser suites also pass.
 
 ---
 
