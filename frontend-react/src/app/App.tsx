@@ -36,6 +36,8 @@ import {
   type DashboardInsightModel
 } from "../features/dashboard-insight/dashboard-insight";
 import { EnergyTrailCard } from "../features/energy-trail/EnergyTrailCard";
+import { GuitarGoalCard } from "../features/guitar/GuitarGoalCard";
+import { buildGuitarGoalModel, buildGuitarGoalWrite } from "../features/guitar/guitar-goal";
 import { JournalArchiveCard } from "../features/journal-archive/JournalArchiveCard";
 import { JournalPage } from "../features/journal-page/JournalPage";
 import { LifePieCard } from "../features/life-pie/LifePieCard";
@@ -136,6 +138,7 @@ function LegacyPlannerApp() {
   const [lifePieBoundary, setLifePieBoundary] = useState<ReactPanelBoundary | null>(null);
   const [plannedBoundary, setPlannedBoundary] = useState<ReactPanelBoundary | null>(null);
   const [energyTrailBoundary, setEnergyTrailBoundary] = useState<FramePortalBoundary | null>(null);
+  const [guitarGoalMount, setGuitarGoalMount] = useState<HTMLElement | null>(null);
   const [journalArchiveBoundary, setJournalArchiveBoundary] = useState<FramePortalBoundary | null>(null);
   const [monthlyCalendarBoundary, setMonthlyCalendarBoundary] = useState<FramePortalBoundary | null>(null);
   const [weeklyPlannerBoundary, setWeeklyPlannerBoundary] = useState<WeeklyPlannerBoundary | null>(null);
@@ -371,6 +374,15 @@ function LegacyPlannerApp() {
       skateBodySupportCard.dataset.reactOwned = "true";
       skateBodySupportMount.replaceChildren();
       setSkateBodySupportMount(skateBodySupportMount);
+    }
+
+    const guitarGoalCard = document?.querySelector<HTMLElement>(".guitar-goal-card");
+    const guitarGoalMount = guitarGoalCard?.querySelector<HTMLElement>(".panel-inner");
+    if (guitarGoalCard !== null && guitarGoalCard !== undefined
+      && guitarGoalMount !== null && guitarGoalMount !== undefined) {
+      guitarGoalCard.dataset.reactOwned = "true";
+      guitarGoalMount.replaceChildren();
+      setGuitarGoalMount(guitarGoalMount);
     }
 
     const moneyQuickCard = document?.querySelector<HTMLElement>(".money-quick-card");
@@ -820,6 +832,17 @@ function LegacyPlannerApp() {
         createPortal(
           <SkateTrainingPlanCard state={skateTrainingPlanState} />,
           skateTrainingPlanBoundary.mount
+        )
+      )}
+      {loadedStore !== null && guitarGoalMount !== null && (
+        createPortal(
+          <GuitarGoalCard
+            model={buildGuitarGoalModel(loadedStore)}
+            onChange={(field, value) => persistPlannerWrites([
+              buildGuitarGoalWrite(field, value)
+            ])}
+          />,
+          guitarGoalMount
         )
       )}
       {loadedStore !== null && moneyQuickMount !== null && (

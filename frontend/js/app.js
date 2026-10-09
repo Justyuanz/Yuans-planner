@@ -6753,8 +6753,11 @@
         var remainingMinutes = Math.max(0, targetMinutes - weekMinutes);
         var averageMinutes = weekCount ? Math.round(weekMinutes / weekCount) : 0;
 
-        elements.guitarFocusInput.value = focus;
-        elements.guitarNextStepInput.value = nextStep;
+        const guitarGoalCard = document.querySelector(".guitar-goal-card");
+        if (!guitarGoalCard || guitarGoalCard.dataset.reactOwned !== "true") {
+          elements.guitarFocusInput.value = focus;
+          elements.guitarNextStepInput.value = nextStep;
+        }
         elements.guitarSessionStatus.textContent = sessionStatusText("Guitar", session.startedAt);
         elements.guitarSessionHint.textContent = session.startedAt
           ? "Finish when you stop. If a Guitar task exists today, the time can land there."
