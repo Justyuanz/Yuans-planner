@@ -20,30 +20,20 @@ async function putPlannerValue(serverUrl, key, value) {
   assert.equal(response.ok, true);
 }
 
-async function openSkate(browser, url, documentExpression) {
+async function openSkate(browser, url) {
   await browser.open(url);
-  await browser.waitForExpression(`(${documentExpression}).documentElement.dataset.plannerReady === "true"`);
-  await browser.evaluate(`(() => {
-    const documentRoot = ${documentExpression};
-    if (!documentRoot.getElementById("skateView").classList.contains("active")) {
-      documentRoot.querySelector('[data-view-target="skateView"]').click();
-    }
-  })()`);
-  await browser.waitForExpression(`(() => {
-    const documentRoot = ${documentExpression};
-    return documentRoot.getElementById("skateView").classList.contains("active")
-      && documentRoot.getElementById("logSkateSession") !== null;
-  })()`);
+  await browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
+  await browser.waitForExpression('document.getElementById("skateView").classList.contains("active") && document.getElementById("logSkateSession") !== null');
 }
 
-async function openFeedback(browser, documentExpression) {
-  await browser.evaluate(`(${documentExpression}).getElementById("logSkateSession").click()`);
-  await browser.waitForExpression(`(${documentExpression}).getElementById("skateFeedbackDialog").open`);
+async function openFeedback(browser) {
+  await browser.evaluate('document.getElementById("logSkateSession").click()');
+  await browser.waitForExpression('document.getElementById("skateFeedbackDialog").open');
 }
 
-function feedbackState(documentExpression) {
+function feedbackState() {
   return `(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const dialog = documentRoot.getElementById("skateFeedbackDialog");
     const form = documentRoot.getElementById("skateFeedbackForm");
     return {
@@ -87,9 +77,9 @@ function feedbackState(documentExpression) {
   })()`;
 }
 
-function feedbackVisualContract(documentExpression) {
+function feedbackVisualContract() {
   return `(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const view = documentRoot.defaultView;
     const pick = (element) => {
       const rect = element.getBoundingClientRect();
@@ -126,35 +116,30 @@ function feedbackVisualContract(documentExpression) {
   })()`;
 }
 
-async function settleDialog(browser, documentExpression) {
-  await browser.evaluate(`new Promise((resolve) => {
-    const view = (${documentExpression}).defaultView;
-    view.requestAnimationFrame(() => view.requestAnimationFrame(resolve));
-  })`);
+async function settleDialog(browser) {
+  await browser.evaluate('new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
 }
 
-function dialogClip(documentExpression, frameExpression = "null") {
+function dialogClip() {
   return `(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const rect = documentRoot.getElementById("skateFeedbackDialog").getBoundingClientRect();
-    const frame = ${frameExpression};
-    const frameRect = frame ? frame.getBoundingClientRect() : { x: 0, y: 0 };
     const viewportWidth = documentRoot.defaultView.innerWidth;
     const viewportHeight = documentRoot.defaultView.innerHeight;
     const x = Math.max(0, rect.x);
     const y = Math.max(0, rect.y);
     return {
-      x: frameRect.x + x,
-      y: frameRect.y + y,
+      x,
+      y,
       width: Math.min(rect.width, viewportWidth - x),
       height: Math.min(rect.height, viewportHeight - y)
     };
   })()`;
 }
 
-function setFormValue(documentExpression, id, value) {
+function setFormValue(id, value) {
   return `(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const field = documentRoot.getElementById(${JSON.stringify(id)});
     const view = documentRoot.defaultView;
     const prototype = field instanceof view.HTMLTextAreaElement
@@ -219,31 +204,25 @@ test("Skate feedback preserves dialog visuals, session persistence, task sync, a
   ]);
 
   const legacyUrl = `${planner.server.url}/?view=skateView&date=${TEST_DATE}`;
-  const previewUrl = `${preview.url}/?view=legacyShell&date=${TEST_DATE}`;
-  const previewDocument = 'document.querySelector("iframe").contentDocument';
+  const previewUrl = `${preview.url}/?view=skateView&date=${TEST_DATE}`;
 
   for (const [width, height] of [[1280, 900], [390, 844]]) {
     await planner.browser.setViewport(width, height, width < 500);
-    await openSkate(planner.browser, legacyUrl, "document");
-    await openFeedback(planner.browser, "document");
-    const legacyState = await planner.browser.evaluate(feedbackState("document"));
-    const legacyVisual = await planner.browser.evaluate(feedbackVisualContract("document"));
-    await settleDialog(planner.browser, "document");
-    const legacyScreenshot = await planner.browser.captureScreenshot(dialogClip("document"));
+    await openSkate(planner.browser, legacyUrl);
+    await openFeedback(planner.browser);
+    const legacyState = await planner.browser.evaluate(feedbackState());
+    const legacyVisual = await planner.browser.evaluate(feedbackVisualContract());
+    await settleDialog(planner.browser);
+    const legacyScreenshot = await planner.browser.captureScreenshot(dialogClip());
     await planner.browser.evaluate('document.getElementById("cancelSkateFeedback").click()');
 
-    await openSkate(planner.browser, previewUrl, previewDocument);
-    await openFeedback(planner.browser, previewDocument);
-    assert.equal(await planner.browser.evaluate(
-      `(${previewDocument}).getElementById("skateFeedbackDialog").dataset.reactOwned`
-    ), "true");
-    const reactState = await planner.browser.evaluate(feedbackState(previewDocument));
-    const reactVisual = await planner.browser.evaluate(feedbackVisualContract(previewDocument));
-    await settleDialog(planner.browser, previewDocument);
-    const reactScreenshot = await planner.browser.captureScreenshot(dialogClip(
-      previewDocument,
-      'document.querySelector("iframe")'
-    ));
+    await openSkate(planner.browser, previewUrl);
+    await openFeedback(planner.browser);
+    assert.equal(await planner.browser.evaluate('document.querySelector("iframe")'), null);
+    const reactState = await planner.browser.evaluate(feedbackState());
+    const reactVisual = await planner.browser.evaluate(feedbackVisualContract());
+    await settleDialog(planner.browser);
+    const reactScreenshot = await planner.browser.captureScreenshot(dialogClip());
 
     assert.deepEqual(reactState, legacyState);
     assert.equal(reactState.date, TEST_DATE);
@@ -253,19 +232,19 @@ test("Skate feedback preserves dialog visuals, session persistence, task sync, a
     assert.equal(reactState.progress.find(({ checked }) => checked).value, "3");
     assert.deepEqual(reactVisual, legacyVisual);
     assertSameScreenshot(reactScreenshot, legacyScreenshot, `${width}px Skate feedback`);
-    await planner.browser.evaluate(`(${previewDocument}).getElementById("cancelSkateFeedback").click()`);
+    await planner.browser.evaluate('document.getElementById("cancelSkateFeedback").click()');
   }
 
   await planner.browser.setViewport(1280, 900);
-  await openSkate(planner.browser, previewUrl, previewDocument);
-  await planner.browser.evaluate(`(${previewDocument}).getElementById("startSkateSession").click()`);
-  await planner.browser.evaluate(`(${previewDocument}).getElementById("finishSkateSession").click()`);
-  await planner.browser.waitForExpression(`(${previewDocument}).getElementById("skateFeedbackDialog").open`);
-  await planner.browser.evaluate(setFormValue(previewDocument, "skateDurationMinutes", "50"));
-  await planner.browser.evaluate(setFormValue(previewDocument, "skateImprovedNote", "  Cleaner shoulders  "));
-  await planner.browser.evaluate(setFormValue(previewDocument, "skateNextFocusNote", "Commit earlier"));
+  await openSkate(planner.browser, previewUrl);
+  await planner.browser.evaluate('document.getElementById("startSkateSession").click()');
+  await planner.browser.evaluate('document.getElementById("finishSkateSession").click()');
+  await planner.browser.waitForExpression('document.getElementById("skateFeedbackDialog").open');
+  await planner.browser.evaluate(setFormValue("skateDurationMinutes", "50"));
+  await planner.browser.evaluate(setFormValue("skateImprovedNote", "  Cleaner shoulders  "));
+  await planner.browser.evaluate(setFormValue("skateNextFocusNote", "Commit earlier"));
   await planner.browser.evaluate(`(() => {
-    const documentRoot = ${previewDocument};
+    const documentRoot = document;
     documentRoot.querySelector('#skateFeedbackIntensity [data-intensity="blue"]').click();
     documentRoot.querySelector('input[name="confidence"][value="5"]').click();
     documentRoot.querySelector('input[name="progressToday"][value="2"]').click();
@@ -311,19 +290,19 @@ test("Skate feedback preserves dialog visuals, session persistence, task sync, a
   assert.equal(JSON.parse(currentSave.data[SKATE_SETTINGS_KEY]).intensityByDate[TEST_DATE], "blue");
   assert.equal(JSON.parse(currentSave.data[SKATE_CURRENT_SESSION_KEY]).selectedFlat, "Shove-it");
   assert.equal(await planner.browser.evaluate(
-    `(${previewDocument}).getElementById("skateFeedbackDialog").open`
+    'document.getElementById("skateFeedbackDialog").open'
   ), false);
   assert.equal(await planner.browser.evaluate(
-    `(${previewDocument}).getElementById("skateSessionHint").textContent.trim()`
+    'document.getElementById("skateSessionHint").textContent.trim()'
   ), 'Session saved and added to "Evening skate".');
   await planner.browser.waitForExpression(`(() => {
-    const day = (${previewDocument}).querySelector('[aria-label="Mon Sep 14 · 1 skate session"]');
+    const day = document.querySelector('[aria-label="Mon Sep 14 · 1 skate session"]');
     return day?.classList.contains("intensity-blue");
   })()`);
 
-  await openSkate(planner.browser, previewUrl, previewDocument);
+  await openSkate(planner.browser, previewUrl);
   assert.deepEqual(await planner.browser.evaluate(`(() => {
-    const documentRoot = ${previewDocument};
+    const documentRoot = document;
     return {
       finishDisabled: documentRoot.getElementById("finishSkateSession").disabled,
       roadmapBlue: documentRoot.querySelector('[aria-label="Mon Sep 14 · 1 skate session"]')
@@ -333,12 +312,12 @@ test("Skate feedback preserves dialog visuals, session persistence, task sync, a
   })()`), { finishDisabled: true, roadmapBlue: true, startDisabled: false });
 
   await planner.browser.evaluate(
-    `(${previewDocument}).querySelector('[aria-label="Wed Sep 2 · no logged session"]').click()`
+    'document.querySelector(\'[aria-label="Wed Sep 2 · no logged session"]\').click()'
   );
-  await planner.browser.waitForExpression(`(${previewDocument}).getElementById("skateFeedbackDialog").open`);
-  await planner.browser.evaluate(setFormValue(previewDocument, "skateDurationMinutes", "35"));
+  await planner.browser.waitForExpression('document.getElementById("skateFeedbackDialog").open');
+  await planner.browser.evaluate(setFormValue("skateDurationMinutes", "35"));
   await planner.browser.evaluate(`(() => {
-    const documentRoot = ${previewDocument};
+    const documentRoot = document;
     documentRoot.querySelector('#skateFeedbackIntensity [data-intensity="green"]').click();
     documentRoot.getElementById("skateFeedbackForm").requestSubmit();
   })()`);
@@ -355,18 +334,18 @@ test("Skate feedback preserves dialog visuals, session persistence, task sync, a
   assert.equal(retroSave.saved.trackedInTask, false);
   assert.equal(retroSave.data["hivePlanner.dailyTasks.2026-09-02"], undefined);
 
-  await openFeedback(planner.browser, previewDocument);
-  await planner.browser.evaluate(setFormValue(previewDocument, "skateImprovedNote", "Discard me"));
-  await planner.browser.evaluate(`(${previewDocument}).getElementById("cancelSkateFeedback").click()`);
+  await openFeedback(planner.browser);
+  await planner.browser.evaluate(setFormValue("skateImprovedNote", "Discard me"));
+  await planner.browser.evaluate('document.getElementById("cancelSkateFeedback").click()');
   assert.equal(await planner.browser.evaluate(
-    `(${previewDocument}).getElementById("skateFeedbackDialog").open`
+    'document.getElementById("skateFeedbackDialog").open'
   ), false);
   const afterCancel = await planner.server.readPlannerData();
   assert.equal(JSON.parse(afterCancel[SKATE_SESSIONS_KEY]).length, 3);
-  await openFeedback(planner.browser, previewDocument);
+  await openFeedback(planner.browser);
   assert.equal(await planner.browser.evaluate(
-    `(${previewDocument}).getElementById("skateImprovedNote").value`
+    'document.getElementById("skateImprovedNote").value'
   ), "");
-  await planner.browser.evaluate(`(${previewDocument}).getElementById("cancelSkateFeedback").click()`);
+  await planner.browser.evaluate('document.getElementById("cancelSkateFeedback").click()');
   assert.deepEqual(planner.browser.errors(), []);
 });

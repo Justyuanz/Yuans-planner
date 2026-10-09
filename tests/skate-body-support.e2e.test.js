@@ -65,28 +65,21 @@ async function putPlannerValue(serverUrl, key, value) {
   assert.equal(response.ok, true);
 }
 
-async function openSkate(browser, url, documentExpression, populated = true) {
+async function openSkate(browser, url, populated = true) {
   await browser.open(url);
-  await browser.waitForExpression(`(${documentExpression}).documentElement.dataset.plannerReady === "true"`);
-  await browser.evaluate(`(() => {
-    const documentRoot = ${documentExpression};
-    if (!documentRoot.getElementById("skateView").classList.contains("active")) {
-      documentRoot.querySelector('[data-view-target="skateView"]').click();
-    }
-  })()`);
+  await browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
   const resultSelector = populated
-    ? 'documentRoot.querySelector("#skateWeeklyMetrics .body-support-chip") !== null'
-    : 'documentRoot.querySelector("#skateWeeklyMetrics .body-support-empty") !== null';
+    ? 'document.querySelector("#skateWeeklyMetrics .body-support-chip") !== null'
+    : 'document.querySelector("#skateWeeklyMetrics .body-support-empty") !== null';
   await browser.waitForExpression(`(() => {
-    const documentRoot = ${documentExpression};
-    return documentRoot.getElementById("skateView").classList.contains("active")
+    return document.getElementById("skateView").classList.contains("active")
       && ${resultSelector};
   })()`);
 }
 
-function bodySupportState(documentExpression) {
+function bodySupportState() {
   return `(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const type = documentRoot.getElementById("bodyWorkoutType");
     const minutes = documentRoot.getElementById("bodyWorkoutMinutes");
     const note = documentRoot.getElementById("bodyWorkoutName");
@@ -121,9 +114,9 @@ function bodySupportState(documentExpression) {
   })()`;
 }
 
-function bodySupportVisualContract(documentExpression) {
+function bodySupportVisualContract() {
   return `(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const view = documentRoot.defaultView;
     const pick = (element) => {
       const rect = element.getBoundingClientRect();
@@ -167,29 +160,24 @@ function bodySupportVisualContract(documentExpression) {
   })()`;
 }
 
-async function prepareScreenshot(browser, documentExpression) {
+async function prepareScreenshot(browser) {
   await browser.evaluate(`(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     documentRoot.documentElement.style.scrollBehavior = "auto";
     const mascot = documentRoot.querySelector(".mascot-card");
     if (mascot) mascot.style.visibility = "hidden";
     documentRoot.querySelector(".body-log-card").scrollIntoView({ block: "start" });
   })()`);
-  await browser.evaluate(`new Promise((resolve) => {
-    const view = (${documentExpression}).defaultView;
-    view.requestAnimationFrame(() => view.requestAnimationFrame(resolve));
-  })`);
+  await browser.evaluate('new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
 }
 
-function cardClip(documentExpression, frameExpression = "null") {
+function cardClip() {
   return `(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const rect = documentRoot.querySelector(".body-log-card").getBoundingClientRect();
-    const frame = ${frameExpression};
-    const frameRect = frame ? frame.getBoundingClientRect() : { x: 0, y: 0 };
     return {
-      x: frame ? frameRect.x + rect.x : rect.x + documentRoot.defaultView.scrollX,
-      y: frame ? frameRect.y + rect.y : rect.y + documentRoot.defaultView.scrollY,
+      x: rect.x + documentRoot.defaultView.scrollX,
+      y: rect.y + documentRoot.defaultView.scrollY,
       width: rect.width,
       height: rect.height
     };
@@ -201,9 +189,9 @@ function assertSameScreenshot(actual, expected, label) {
   assert.equal(comparison.matches, true, `${label}: ${JSON.stringify(comparison)}`);
 }
 
-function gymLifePieSummary(documentExpression) {
+function gymLifePieSummary() {
   return `(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const row = [...documentRoot.querySelectorAll("#lifeBreakdown .breakdown-row")]
       .find((candidate) => candidate.querySelector("strong").textContent.trim() === "Gym");
     return row?.querySelector("span").textContent.trim() || "";
@@ -225,28 +213,22 @@ test("Skate Body support preserves weekly metrics, persistence, totals, and visu
   await putPlannerValue(planner.server.url, BODY_SUPPORT_KEY, SEEDED_LOGS);
 
   const legacyUrl = `${planner.server.url}/?view=skateView&date=${TEST_DATE}`;
-  const previewUrl = `${preview.url}/?view=legacyShell&date=${TEST_DATE}`;
-  const previewDocument = 'document.querySelector("iframe").contentDocument';
+  const previewUrl = `${preview.url}/?view=skateView&date=${TEST_DATE}`;
 
   for (const [width, height] of [[1280, 720], [390, 844]]) {
     await planner.browser.setViewport(width, height, width < 500);
-    await openSkate(planner.browser, legacyUrl, "document");
-    const legacyState = await planner.browser.evaluate(bodySupportState("document"));
-    const legacyVisual = await planner.browser.evaluate(bodySupportVisualContract("document"));
-    await prepareScreenshot(planner.browser, "document");
-    const legacyScreenshot = await planner.browser.captureScreenshot(cardClip("document"));
+    await openSkate(planner.browser, legacyUrl);
+    const legacyState = await planner.browser.evaluate(bodySupportState());
+    const legacyVisual = await planner.browser.evaluate(bodySupportVisualContract());
+    await prepareScreenshot(planner.browser);
+    const legacyScreenshot = await planner.browser.captureScreenshot(cardClip());
 
-    await openSkate(planner.browser, previewUrl, previewDocument);
-    assert.equal(await planner.browser.evaluate(
-      'document.querySelector("iframe").contentDocument.querySelector(".body-log-card").dataset.reactOwned'
-    ), "true");
-    const reactState = await planner.browser.evaluate(bodySupportState(previewDocument));
-    const reactVisual = await planner.browser.evaluate(bodySupportVisualContract(previewDocument));
-    await prepareScreenshot(planner.browser, previewDocument);
-    const reactScreenshot = await planner.browser.captureScreenshot(cardClip(
-      previewDocument,
-      'document.querySelector("iframe")'
-    ));
+    await openSkate(planner.browser, previewUrl);
+    assert.equal(await planner.browser.evaluate('document.querySelector("iframe")'), null);
+    const reactState = await planner.browser.evaluate(bodySupportState());
+    const reactVisual = await planner.browser.evaluate(bodySupportVisualContract());
+    await prepareScreenshot(planner.browser);
+    const reactScreenshot = await planner.browser.captureScreenshot(cardClip());
 
     assert.deepEqual(reactState, legacyState);
     assert.equal(reactState.week, "2026-W38");
@@ -260,20 +242,20 @@ test("Skate Body support preserves weekly metrics, persistence, totals, and visu
   }
 
   await planner.browser.setViewport(1280, 720);
-  await openSkate(planner.browser, previewUrl, previewDocument);
+  await openSkate(planner.browser, previewUrl);
   const beforeSaveData = await planner.server.readPlannerData();
   await planner.browser.evaluate(`(() => {
-    const frame = document.querySelector("iframe");
-    const documentRoot = frame.contentDocument;
+    const documentRoot = document;
+    const view = documentRoot.defaultView;
     const change = (id, value, eventType, prototype) => {
       const field = documentRoot.getElementById(id);
       Object.getOwnPropertyDescriptor(prototype, "value").set.call(field, value);
-      field.dispatchEvent(new frame.contentWindow.Event(eventType, { bubbles: true }));
+      field.dispatchEvent(new view.Event(eventType, { bubbles: true }));
     };
-    change("bodyWorkoutType", "yoga", "change", frame.contentWindow.HTMLSelectElement.prototype);
-    change("bodyWorkoutMinutes", "35", "input", frame.contentWindow.HTMLInputElement.prototype);
-    change("bodyWorkoutName", "  Yin yoga  ", "input", frame.contentWindow.HTMLInputElement.prototype);
-    documentRoot.getElementById("bodyLogForm").dispatchEvent(new frame.contentWindow.Event("submit", {
+    change("bodyWorkoutType", "yoga", "change", view.HTMLSelectElement.prototype);
+    change("bodyWorkoutMinutes", "35", "input", view.HTMLInputElement.prototype);
+    change("bodyWorkoutName", "  Yin yoga  ", "input", view.HTMLInputElement.prototype);
+    documentRoot.getElementById("bodyLogForm").dispatchEvent(new view.Event("submit", {
       bubbles: true,
       cancelable: true
     }));
@@ -313,7 +295,7 @@ test("Skate Body support preserves weekly metrics, persistence, totals, and visu
   assert.deepEqual(unrelatedData, unrelatedBeforeSave);
 
   await planner.browser.waitForExpression(`(() => {
-    const documentRoot = ${previewDocument};
+    const documentRoot = document;
     const yoga = [...documentRoot.querySelectorAll("#skateWeeklyMetrics .body-support-chip")]
       .find((chip) => chip.querySelector("strong").textContent === "Yoga");
     return yoga?.textContent.replace(/\\s/g, "") === "Yoga1x35min"
@@ -326,10 +308,10 @@ test("Skate Body support preserves weekly metrics, persistence, totals, and visu
   await planner.browser.open(`${preview.url}/?view=todayView&date=${TEST_DATE}`);
   await planner.browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
   await planner.browser.waitForExpression('document.querySelectorAll("#lifeBreakdown .breakdown-row").length === 6');
-  assert.equal(await planner.browser.evaluate(gymLifePieSummary("document")), "100% · 1.42h");
+  assert.equal(await planner.browser.evaluate(gymLifePieSummary()), "100% · 1.42h");
 
-  await openSkate(planner.browser, previewUrl, previewDocument);
-  const reloaded = await planner.browser.evaluate(bodySupportState(previewDocument));
+  await openSkate(planner.browser, previewUrl);
+  const reloaded = await planner.browser.evaluate(bodySupportState());
   assert.deepEqual(reloaded.chips, [
     { text: "Gym2x45 min", title: "Leg day" },
     { text: "Other1x5 min", title: "" },
@@ -338,14 +320,14 @@ test("Skate Body support preserves weekly metrics, persistence, totals, and visu
   ]);
 
   const emptyLegacyUrl = `${planner.server.url}/?view=skateView&date=2026-09-21`;
-  const emptyPreviewUrl = `${preview.url}/?view=legacyShell&date=2026-09-21`;
-  await openSkate(planner.browser, emptyLegacyUrl, "document", false);
+  const emptyPreviewUrl = `${preview.url}/?view=skateView&date=2026-09-21`;
+  await openSkate(planner.browser, emptyLegacyUrl, false);
   const legacyEmpty = await planner.browser.evaluate(
     'document.querySelector("#skateWeeklyMetrics .body-support-empty").textContent.trim()'
   );
-  await openSkate(planner.browser, emptyPreviewUrl, previewDocument, false);
+  await openSkate(planner.browser, emptyPreviewUrl, false);
   const reactEmpty = await planner.browser.evaluate(
-    'document.querySelector("iframe").contentDocument.querySelector("#skateWeeklyMetrics .body-support-empty").textContent.trim()'
+    'document.querySelector("#skateWeeklyMetrics .body-support-empty").textContent.trim()'
   );
   assert.equal(reactEmpty, legacyEmpty);
   assert.equal(reactEmpty, "Saved body support from this week will appear here.");

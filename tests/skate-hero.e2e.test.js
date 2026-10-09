@@ -17,25 +17,15 @@ async function putPlannerValue(serverUrl, key, value) {
   assert.equal(response.ok, true);
 }
 
-async function openSkate(browser, url, documentExpression) {
+async function openSkate(browser, url) {
   await browser.open(url);
-  await browser.waitForExpression(`(${documentExpression}).documentElement.dataset.plannerReady === "true"`);
-  await browser.evaluate(`(() => {
-    const documentRoot = ${documentExpression};
-    if (!documentRoot.getElementById("skateView").classList.contains("active")) {
-      documentRoot.querySelector('[data-view-target="skateView"]').click();
-    }
-  })()`);
-  await browser.waitForExpression(`(() => {
-    const documentRoot = ${documentExpression};
-    return documentRoot.getElementById("skateView").classList.contains("active")
-      && documentRoot.getElementById("skatePhaseBadge").textContent.trim() !== "";
-  })()`);
+  await browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
+  await browser.waitForExpression('document.getElementById("skateView").classList.contains("active") && document.getElementById("skatePhaseBadge").textContent.trim() !== ""');
 }
 
-async function commitProgramDay(browser, server, documentExpression, value, expectedDay) {
+async function commitProgramDay(browser, server, value, expectedDay) {
   await browser.evaluate(`(() => {
-    const input = (${documentExpression}).getElementById("skateCurrentDay");
+    const input = document.getElementById("skateCurrentDay");
     input.focus();
     input.value = ${JSON.stringify(value)};
     input.blur();
@@ -46,13 +36,13 @@ async function commitProgramDay(browser, server, documentExpression, value, expe
     return settings.currentProgramDay === expectedDay;
   });
   await browser.waitForExpression(
-    `(${documentExpression}).getElementById("skateCurrentDay").value === "${expectedDay}"`
+    `document.getElementById("skateCurrentDay").value === "${expectedDay}"`
   );
 }
 
-function skateHeroState(documentExpression) {
+function skateHeroState() {
   return `(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const text = (id) => documentRoot.getElementById(id).textContent.trim();
     return {
       activeView: documentRoot.querySelector(".view.active").id,
@@ -82,9 +72,9 @@ function skateHeroState(documentExpression) {
   })()`;
 }
 
-function skateHeroVisualContract(documentExpression) {
+function skateHeroVisualContract() {
   return `(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const view = documentRoot.defaultView;
     const pick = (element) => {
       const rect = element.getBoundingClientRect();
@@ -121,29 +111,24 @@ function skateHeroVisualContract(documentExpression) {
   })()`;
 }
 
-async function prepareScreenshot(browser, documentExpression) {
+async function prepareScreenshot(browser) {
   await browser.evaluate(`(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     documentRoot.documentElement.style.scrollBehavior = "auto";
     const mascot = documentRoot.querySelector(".mascot-card");
     if (mascot) mascot.style.visibility = "hidden";
     documentRoot.querySelector(".skate-hero-card").scrollIntoView({ block: "start" });
   })()`);
-  await browser.evaluate(`new Promise((resolve) => {
-    const view = (${documentExpression}).defaultView;
-    view.requestAnimationFrame(() => view.requestAnimationFrame(resolve));
-  })`);
+  await browser.evaluate('new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
 }
 
-function heroClip(documentExpression, frameExpression = "null") {
+function heroClip() {
   return `(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const rect = documentRoot.querySelector(".skate-hero-card").getBoundingClientRect();
-    const frame = ${frameExpression};
-    const frameRect = frame ? frame.getBoundingClientRect() : { x: 0, y: 0 };
     return {
-      x: frame ? frameRect.x + rect.x : rect.x + documentRoot.defaultView.scrollX,
-      y: frame ? frameRect.y + rect.y : rect.y + documentRoot.defaultView.scrollY,
+      x: rect.x + documentRoot.defaultView.scrollX,
+      y: rect.y + documentRoot.defaultView.scrollY,
       width: rect.width,
       height: Math.min(rect.height, documentRoot.defaultView.innerHeight)
     };
@@ -175,28 +160,22 @@ test("Skate hero preserves visuals, settings, timer actions, and reload behavior
   });
 
   const legacyUrl = `${planner.server.url}/?view=skateView&date=${TEST_DATE}`;
-  const previewUrl = `${preview.url}/?view=legacyShell&date=${TEST_DATE}`;
-  const previewDocument = 'document.querySelector("iframe").contentDocument';
+  const previewUrl = `${preview.url}/?view=skateView&date=${TEST_DATE}`;
 
   for (const [width, height] of [[1280, 720], [390, 844]]) {
     await planner.browser.setViewport(width, height, width < 500);
-    await openSkate(planner.browser, legacyUrl, "document");
-    const legacyState = await planner.browser.evaluate(skateHeroState("document"));
-    const legacyVisual = await planner.browser.evaluate(skateHeroVisualContract("document"));
-    await prepareScreenshot(planner.browser, "document");
-    const legacyScreenshot = await planner.browser.captureScreenshot(heroClip("document"));
+    await openSkate(planner.browser, legacyUrl);
+    const legacyState = await planner.browser.evaluate(skateHeroState());
+    const legacyVisual = await planner.browser.evaluate(skateHeroVisualContract());
+    await prepareScreenshot(planner.browser);
+    const legacyScreenshot = await planner.browser.captureScreenshot(heroClip());
 
-    await openSkate(planner.browser, previewUrl, previewDocument);
-    assert.equal(await planner.browser.evaluate(
-      'document.querySelector("iframe").contentDocument.querySelector(".skate-hero-card").dataset.reactOwned'
-    ), "true");
-    const reactState = await planner.browser.evaluate(skateHeroState(previewDocument));
-    const reactVisual = await planner.browser.evaluate(skateHeroVisualContract(previewDocument));
-    await prepareScreenshot(planner.browser, previewDocument);
-    const reactScreenshot = await planner.browser.captureScreenshot(heroClip(
-      previewDocument,
-      'document.querySelector("iframe")'
-    ));
+    await openSkate(planner.browser, previewUrl);
+    assert.equal(await planner.browser.evaluate('document.querySelector("iframe")'), null);
+    const reactState = await planner.browser.evaluate(skateHeroState());
+    const reactVisual = await planner.browser.evaluate(skateHeroVisualContract());
+    await prepareScreenshot(planner.browser);
+    const reactScreenshot = await planner.browser.captureScreenshot(heroClip());
 
     assert.deepEqual(reactState, legacyState);
     assert.deepEqual(reactVisual, legacyVisual);
@@ -204,22 +183,21 @@ test("Skate hero preserves visuals, settings, timer actions, and reload behavior
   }
 
   await planner.browser.setViewport(1280, 720);
-  await openSkate(planner.browser, previewUrl, previewDocument);
+  await openSkate(planner.browser, previewUrl);
   await planner.browser.evaluate(`(() => {
-    const frame = document.querySelector("iframe");
-    const documentRoot = frame.contentDocument;
+    const documentRoot = document;
     const change = (id, value) => {
       const field = documentRoot.getElementById(id);
       field.value = value;
-      field.dispatchEvent(new frame.contentWindow.Event("change", { bubbles: true }));
+      field.dispatchEvent(new Event("change", { bubbles: true }));
     };
     change("skateRestDay", "2");
     change("skateExtraRestDay", "4");
     documentRoot.querySelector('[data-intensity="green"]').click();
   })()`);
-  await commitProgramDay(planner.browser, planner.server, previewDocument, "", 1);
-  await commitProgramDay(planner.browser, planner.server, previewDocument, "999", 60);
-  await commitProgramDay(planner.browser, planner.server, previewDocument, "30", 30);
+  await commitProgramDay(planner.browser, planner.server, "", 1);
+  await commitProgramDay(planner.browser, planner.server, "999", 60);
+  await commitProgramDay(planner.browser, planner.server, "30", 30);
   await planner.server.waitFor(async function () {
     const stored = await planner.server.readPlannerData();
     const settings = JSON.parse(stored[SKATE_SETTINGS_KEY] || "{}");
@@ -229,15 +207,15 @@ test("Skate hero preserves visuals, settings, timer actions, and reload behavior
       && settings.restDayOfWeek === 2;
   });
   await planner.browser.waitForExpression(`(() => {
-    const documentRoot = ${previewDocument};
+    const documentRoot = document;
     return documentRoot.getElementById("skateCurrentDay").value === "30"
       && documentRoot.querySelector('[data-intensity="green"]').classList.contains("active");
   })()`);
 
-  await planner.browser.evaluate(`(${previewDocument}).getElementById("startSkateSession").click()`);
-  await planner.browser.waitForExpression(`(${previewDocument}).getElementById("finishSkateSession").disabled === false`);
+  await planner.browser.evaluate('document.getElementById("startSkateSession").click()');
+  await planner.browser.waitForExpression('document.getElementById("finishSkateSession").disabled === false');
   assert.deepEqual(await planner.browser.evaluate(`(() => {
-    const documentRoot = ${previewDocument};
+    const documentRoot = document;
     return {
       finishDisabled: documentRoot.getElementById("finishSkateSession").disabled,
       hint: documentRoot.getElementById("skateSessionHint").textContent.trim(),
@@ -249,21 +227,21 @@ test("Skate hero preserves visuals, settings, timer actions, and reload behavior
     startDisabled: true
   });
 
-  await planner.browser.evaluate(`(${previewDocument}).getElementById("finishSkateSession").click()`);
-  await planner.browser.waitForExpression(`(${previewDocument}).getElementById("skateFeedbackDialog").open`);
+  await planner.browser.evaluate('document.getElementById("finishSkateSession").click()');
+  await planner.browser.waitForExpression('document.getElementById("skateFeedbackDialog").open');
   assert.equal(await planner.browser.evaluate(
-    `(${previewDocument}).getElementById("skateSessionDate").value`
+    'document.getElementById("skateSessionDate").value'
   ), TEST_DATE);
-  await planner.browser.evaluate(`(${previewDocument}).getElementById("cancelSkateFeedback").click()`);
-  await planner.browser.evaluate(`(${previewDocument}).getElementById("logSkateSession").click()`);
-  await planner.browser.waitForExpression(`(${previewDocument}).getElementById("skateFeedbackDialog").open`);
+  await planner.browser.evaluate('document.getElementById("cancelSkateFeedback").click()');
+  await planner.browser.evaluate('document.getElementById("logSkateSession").click()');
+  await planner.browser.waitForExpression('document.getElementById("skateFeedbackDialog").open');
   assert.equal(await planner.browser.evaluate(
-    `(${previewDocument}).getElementById("skateSessionHint").textContent.trim()`
+    'document.getElementById("skateSessionHint").textContent.trim()'
   ), "Logging a skate session without the timer is okay too.");
 
-  await openSkate(planner.browser, previewUrl, previewDocument);
+  await openSkate(planner.browser, previewUrl);
   assert.deepEqual(await planner.browser.evaluate(`(() => {
-    const documentRoot = ${previewDocument};
+    const documentRoot = document;
     return {
       currentDay: documentRoot.getElementById("skateCurrentDay").value,
       extraRestDay: documentRoot.getElementById("skateExtraRestDay").value,

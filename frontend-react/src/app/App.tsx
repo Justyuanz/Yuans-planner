@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { CalendarPage } from "../features/calendar/CalendarPage";
@@ -20,35 +20,12 @@ import { MoneyPacingCard } from "../features/money-pacing/MoneyPacingCard";
 import { MoneyQuickCard } from "../features/money-quick/MoneyQuickCard";
 import { MoneyVendorsCard } from "../features/money-vendors/MoneyVendorsCard";
 import { MoneyPage } from "../features/money-page/MoneyPage";
-import { SkateFeedbackDialog } from "../features/skate/SkateFeedbackDialog";
-import { SkateHeroCard } from "../features/skate/SkateHeroCard";
 import { SkatePage } from "../features/skate/SkatePage";
-import { SkateBodySupportCard } from "../features/skate/SkateBodySupportCard";
-import { SkateRoadmapCard } from "../features/skate/SkateRoadmapCard";
-import { SkateTrainingPlanCard } from "../features/skate/SkateTrainingPlanCard";
-import {
-  dispatchSkateHeroAction,
-  SKATE_HERO_STATE_EVENT,
-  skateHeroStateFromDocument,
-  skateHeroStateFromEvent
-} from "../features/skate/skate-hero-bridge";
-import type { SkateHeroState } from "../features/skate/skate-hero";
-import {
-  buildSkateTrainingPlanState,
-  type SkateTrainingPlanState
-} from "../features/skate/skate-training-plan";
-import type { SkateHeroSettingsAction } from "../features/skate/skate-settings";
-import { useSkateFeedbackController } from "../features/skate/use-skate-feedback-controller";
 import { usePlannerStore } from "./use-planner-store";
 import { persistPlannerWrites } from "./planner-persistence";
 
 interface ReactPanelBoundary {
   initialNowMs: number;
-  mount: HTMLElement;
-}
-
-interface FramePortalBoundary {
-  frame: HTMLIFrameElement;
   mount: HTMLElement;
 }
 
@@ -66,11 +43,6 @@ function LegacyPlannerApp() {
   const todayKey = formatPlannerDate(today);
   const [guitarGoalMount, setGuitarGoalMount] = useState<HTMLElement | null>(null);
   const [guitarSessionMount, setGuitarSessionMount] = useState<HTMLElement | null>(null);
-  const [skateHeroBoundary, setSkateHeroBoundary] = useState<FramePortalBoundary | null>(null);
-  const [skateHeroState, setSkateHeroState] = useState<SkateHeroState | null>(null);
-  const [skateBodySupportMount, setSkateBodySupportMount] = useState<HTMLElement | null>(null);
-  const [skateRoadmapBoundary, setSkateRoadmapBoundary] = useState<FramePortalBoundary | null>(null);
-  const [skateTrainingPlanBoundary, setSkateTrainingPlanBoundary] = useState<FramePortalBoundary | null>(null);
   const [legacyFrame, setLegacyFrame] = useState<HTMLIFrameElement | null>(null);
   const [meditationBoundary, setMeditationBoundary] = useState<ReactPanelBoundary | null>(null);
   const [moneyActivityMount, setMoneyActivityMount] = useState<HTMLElement | null>(null);
@@ -82,20 +54,6 @@ function LegacyPlannerApp() {
   const [selectedJournalDateKey, setSelectedJournalDateKey] = useState(formatPlannerDate(today));
   const legacyUrl = `/legacy/${window.location.search}`;
   const loadedStore = plannerStore.status === "ready" ? plannerStore.store : null;
-  const skateTrainingPlanState: SkateTrainingPlanState | null = useMemo(
-    () => loadedStore === null ? null : buildSkateTrainingPlanState(loadedStore, today),
-    [loadedStore, today]
-  );
-  const dispatchLegacySkateSetting = useCallback((action: SkateHeroSettingsAction) => {
-    if (skateHeroBoundary !== null) dispatchSkateHeroAction(skateHeroBoundary.frame, action);
-  }, [skateHeroBoundary]);
-  const skateFeedback = useSkateFeedbackController({
-    heroState: skateHeroState,
-    onPersist: persistPlannerWrites,
-    onSettingsAction: dispatchLegacySkateSetting,
-    store: loadedStore,
-    todayKey
-  });
   const guitarSession = useGuitarSessionController({
     onPersist: persistPlannerWrites,
     store: loadedStore,
@@ -108,42 +66,6 @@ function LegacyPlannerApp() {
     const journalDate = document?.querySelector<HTMLInputElement>("#journalDate");
     setLegacyFrame(frame);
     setSelectedJournalDateKey(selectedJournalDate(journalDate, formatPlannerDate(today)));
-    const skateHeroCard = document?.querySelector<HTMLElement>(".skate-hero-card");
-    const skateHeroMount = skateHeroCard?.querySelector<HTMLElement>(".panel-inner");
-    const initialSkateHeroState = document === null ? null : skateHeroStateFromDocument(document);
-    if (document !== null
-      && skateHeroCard !== null && skateHeroCard !== undefined
-      && skateHeroMount !== null && skateHeroMount !== undefined
-      && initialSkateHeroState !== null) {
-      setSkateHeroState(initialSkateHeroState);
-      skateHeroCard.dataset.reactOwned = "true";
-      skateHeroMount.replaceChildren();
-      setSkateHeroBoundary({ frame, mount: skateHeroMount });
-    }
-
-    const feedbackDialog = document?.querySelector<HTMLDialogElement>("#skateFeedbackDialog");
-    if (feedbackDialog !== null && feedbackDialog !== undefined) {
-      skateFeedback.claimDialog(feedbackDialog);
-    }
-
-    const skateRoadmapCard = document?.querySelector<HTMLElement>(".skate-trends-card");
-    const skateRoadmapMount = skateRoadmapCard?.querySelector<HTMLElement>(".panel-inner");
-    if (skateRoadmapCard !== null && skateRoadmapCard !== undefined
-      && skateRoadmapMount !== null && skateRoadmapMount !== undefined) {
-      skateRoadmapCard.dataset.reactOwned = "true";
-      skateRoadmapMount.replaceChildren();
-      setSkateRoadmapBoundary({ frame, mount: skateRoadmapMount });
-    }
-
-    const skateBodySupportCard = document?.querySelector<HTMLElement>(".body-log-card");
-    const skateBodySupportMount = skateBodySupportCard?.querySelector<HTMLElement>(".panel-inner");
-    if (skateBodySupportCard !== null && skateBodySupportCard !== undefined
-      && skateBodySupportMount !== null && skateBodySupportMount !== undefined) {
-      skateBodySupportCard.dataset.reactOwned = "true";
-      skateBodySupportMount.replaceChildren();
-      setSkateBodySupportMount(skateBodySupportMount);
-    }
-
     const guitarGoalCard = document?.querySelector<HTMLElement>(".guitar-goal-card");
     const guitarGoalMount = guitarGoalCard?.querySelector<HTMLElement>(".panel-inner");
     if (guitarGoalCard !== null && guitarGoalCard !== undefined
@@ -252,40 +174,6 @@ function LegacyPlannerApp() {
     };
   }, [legacyFrame]);
 
-  useEffect(() => {
-    const frameWindow = skateHeroBoundary?.frame.contentWindow;
-    if (frameWindow === null || frameWindow === undefined) return;
-    function syncSkateHeroState(event: Event): void {
-      const state = skateHeroStateFromEvent(event);
-      if (state !== null) setSkateHeroState(state);
-    }
-    frameWindow.addEventListener(SKATE_HERO_STATE_EVENT, syncSkateHeroState);
-    return () => frameWindow.removeEventListener(SKATE_HERO_STATE_EVENT, syncSkateHeroState);
-  }, [skateHeroBoundary]);
-
-  useEffect(() => {
-    if (legacyFrame === null) return;
-    const frame = legacyFrame;
-    const frameDocument = frame.contentDocument;
-    if (frameDocument === null) return;
-    const card = frameDocument.querySelector<HTMLElement>(".skate-session-card");
-    const mount = card?.querySelector<HTMLElement>(".panel-inner") ?? null;
-    const legacyFlow = card?.querySelector<HTMLElement>("#skateCoachFlow") ?? null;
-    if (card === null || mount === null || legacyFlow === null) return;
-
-    // Legacy keeps its stale element reference, while React becomes the only visible renderer.
-    legacyFlow.remove();
-    card.dataset.reactOwned = "true";
-    mount.replaceChildren();
-    let disposed = false;
-    queueMicrotask(() => {
-      if (!disposed) setSkateTrainingPlanBoundary({ frame, mount });
-    });
-    return () => {
-      disposed = true;
-    };
-  }, [legacyFrame]);
-
   return (
     <>
       <iframe
@@ -294,54 +182,6 @@ function LegacyPlannerApp() {
         src={legacyUrl}
         title="Yuan's Planner"
       />
-      {skateHeroBoundary !== null && skateFeedback.heroState !== null && (
-        createPortal(
-          <SkateHeroCard
-            onAction={skateFeedback.handleHeroAction}
-            state={skateFeedback.heroState}
-          />,
-          skateHeroBoundary.mount
-        )
-      )}
-      {loadedStore !== null && skateFeedback.dialog !== null && skateFeedback.request !== null && (
-        createPortal(
-          <SkateFeedbackDialog
-            dialog={skateFeedback.dialog}
-            intensityForDate={skateFeedback.intensityForDate}
-            key={skateFeedback.request.revision}
-            request={skateFeedback.request}
-            onCancel={skateFeedback.cancelFeedback}
-            onSave={skateFeedback.saveFeedback}
-          />,
-          skateFeedback.dialog
-        )
-      )}
-      {loadedStore !== null && skateRoadmapBoundary !== null && (
-        createPortal(
-          <SkateRoadmapCard
-            onLogDate={skateFeedback.openRoadmapLog}
-            store={loadedStore}
-            today={today}
-          />,
-          skateRoadmapBoundary.mount
-        )
-      )}
-      {loadedStore !== null && skateBodySupportMount !== null && (
-        createPortal(
-          <SkateBodySupportCard
-            onPersist={persistPlannerWrites}
-            store={loadedStore}
-            today={today}
-          />,
-          skateBodySupportMount
-        )
-      )}
-      {skateTrainingPlanBoundary !== null && skateTrainingPlanState !== null && (
-        createPortal(
-          <SkateTrainingPlanCard state={skateTrainingPlanState} />,
-          skateTrainingPlanBoundary.mount
-        )
-      )}
       {loadedStore !== null && guitarGoalMount !== null && (
         createPortal(
           <GuitarGoalCard

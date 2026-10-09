@@ -49,30 +49,20 @@ async function putPlannerValue(serverUrl, key, value) {
   assert.equal(response.ok, true);
 }
 
-async function openSkate(browser, url, documentExpression, populated = true) {
+async function openSkate(browser, url, populated = true) {
   await browser.open(url);
-  await browser.waitForExpression(`(() => {
-    const documentRoot = ${documentExpression};
-    return documentRoot?.documentElement.dataset.plannerReady === "true";
-  })()`);
-  await browser.evaluate(`(() => {
-    const documentRoot = ${documentExpression};
-    if (!documentRoot.getElementById("skateView").classList.contains("active")) {
-      documentRoot.querySelector('[data-view-target="skateView"]').click();
-    }
-  })()`);
+  await browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
   const readySelector = populated
-    ? 'documentRoot.querySelector("#skateTrendCharts .skate-roadmap-day") !== null'
-    : 'documentRoot.querySelector("#skateTrendCharts .body-support-empty") !== null';
+    ? 'document.querySelector("#skateTrendCharts .skate-roadmap-day") !== null'
+    : 'document.querySelector("#skateTrendCharts .body-support-empty") !== null';
   await browser.waitForExpression(`(() => {
-    const documentRoot = ${documentExpression};
-    return documentRoot.getElementById("skateView").classList.contains("active") && ${readySelector};
+    return document.getElementById("skateView").classList.contains("active") && ${readySelector};
   })()`);
 }
 
-function roadmapState(documentExpression) {
+function roadmapState() {
   return `(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const grid = documentRoot.querySelector("#skateTrendCharts .skate-roadmap-grid");
     return {
       days: [...documentRoot.querySelectorAll("#skateTrendCharts .skate-roadmap-day")].map((day) => ({
@@ -92,9 +82,9 @@ function roadmapState(documentExpression) {
   })()`;
 }
 
-function roadmapVisualContract(documentExpression) {
+function roadmapVisualContract() {
   return `(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const view = documentRoot.defaultView;
     const pick = (element) => {
       const rect = element.getBoundingClientRect();
@@ -131,29 +121,24 @@ function roadmapVisualContract(documentExpression) {
   })()`;
 }
 
-async function prepareScreenshot(browser, documentExpression) {
+async function prepareScreenshot(browser) {
   await browser.evaluate(`(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     documentRoot.documentElement.style.scrollBehavior = "auto";
     const mascot = documentRoot.querySelector(".mascot-card");
     if (mascot) mascot.style.visibility = "hidden";
     documentRoot.querySelector(".skate-trends-card").scrollIntoView({ block: "start" });
   })()`);
-  await browser.evaluate(`new Promise((resolve) => {
-    const view = (${documentExpression}).defaultView;
-    view.requestAnimationFrame(() => view.requestAnimationFrame(resolve));
-  })`);
+  await browser.evaluate('new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
 }
 
-function cardClip(documentExpression, frameExpression = "null") {
+function cardClip() {
   return `(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const rect = documentRoot.querySelector(".skate-trends-card").getBoundingClientRect();
-    const frame = ${frameExpression};
-    const frameRect = frame ? frame.getBoundingClientRect() : { x: 0, y: 0 };
     return {
-      x: frame ? frameRect.x + rect.x : rect.x + documentRoot.defaultView.scrollX,
-      y: frame ? frameRect.y + rect.y : rect.y + documentRoot.defaultView.scrollY,
+      x: rect.x + documentRoot.defaultView.scrollX,
+      y: rect.y + documentRoot.defaultView.scrollY,
       width: rect.width,
       height: rect.height
     };
@@ -188,28 +173,22 @@ test("Skate roadmap preserves season history, missed-session logging, and visual
   ]);
 
   const legacyUrl = `${planner.server.url}/?view=skateView&date=${TEST_DATE}`;
-  const previewUrl = `${preview.url}/?view=legacyShell&date=${TEST_DATE}`;
-  const previewDocument = 'document.querySelector("iframe")?.contentDocument';
+  const previewUrl = `${preview.url}/?view=skateView&date=${TEST_DATE}`;
 
   for (const [width, height] of [[1280, 720], [390, 844]]) {
     await planner.browser.setViewport(width, height, width < 500);
-    await openSkate(planner.browser, legacyUrl, "document");
-    const legacyState = await planner.browser.evaluate(roadmapState("document"));
-    const legacyVisual = await planner.browser.evaluate(roadmapVisualContract("document"));
-    await prepareScreenshot(planner.browser, "document");
-    const legacyScreenshot = await planner.browser.captureScreenshot(cardClip("document"));
+    await openSkate(planner.browser, legacyUrl);
+    const legacyState = await planner.browser.evaluate(roadmapState());
+    const legacyVisual = await planner.browser.evaluate(roadmapVisualContract());
+    await prepareScreenshot(planner.browser);
+    const legacyScreenshot = await planner.browser.captureScreenshot(cardClip());
 
-    await openSkate(planner.browser, previewUrl, previewDocument);
-    assert.equal(await planner.browser.evaluate(
-      'document.querySelector("iframe").contentDocument.querySelector(".skate-trends-card").dataset.reactOwned'
-    ), "true");
-    const reactState = await planner.browser.evaluate(roadmapState(previewDocument));
-    const reactVisual = await planner.browser.evaluate(roadmapVisualContract(previewDocument));
-    await prepareScreenshot(planner.browser, previewDocument);
-    const reactScreenshot = await planner.browser.captureScreenshot(cardClip(
-      previewDocument,
-      'document.querySelector("iframe")'
-    ));
+    await openSkate(planner.browser, previewUrl);
+    assert.equal(await planner.browser.evaluate('document.querySelector("iframe")'), null);
+    const reactState = await planner.browser.evaluate(roadmapState());
+    const reactVisual = await planner.browser.evaluate(roadmapVisualContract());
+    await prepareScreenshot(planner.browser);
+    const reactScreenshot = await planner.browser.captureScreenshot(cardClip());
 
     assert.deepEqual(reactState, legacyState);
     assert.equal(reactState.days.length, 17);
@@ -223,13 +202,13 @@ test("Skate roadmap preserves season history, missed-session logging, and visual
   }
 
   await planner.browser.setViewport(1280, 720);
-  await openSkate(planner.browser, previewUrl, previewDocument);
+  await openSkate(planner.browser, previewUrl);
   await planner.browser.evaluate(
-    `(${previewDocument}).querySelector('[title="Tue Sep 1 · GREEN · Latest session"]').click()`
+    'document.querySelector(\'[title="Tue Sep 1 · GREEN · Latest session"]\').click()'
   );
-  await planner.browser.waitForExpression(`(${previewDocument}).getElementById("skateFeedbackDialog").open`);
+  await planner.browser.waitForExpression('document.getElementById("skateFeedbackDialog").open');
   assert.deepEqual(await planner.browser.evaluate(`(() => {
-    const documentRoot = ${previewDocument};
+    const documentRoot = document;
     return {
       date: documentRoot.getElementById("skateSessionDate").value,
       duration: documentRoot.getElementById("skateDurationMinutes").value,
@@ -242,14 +221,14 @@ test("Skate roadmap preserves season history, missed-session logging, and visual
     hint: "Logging for Tue Sep 1.",
     intensity: "green"
   });
-  await planner.browser.evaluate(`(${previewDocument}).getElementById("cancelSkateFeedback").click()`);
+  await planner.browser.evaluate('document.getElementById("cancelSkateFeedback").click()');
 
   await planner.browser.evaluate(
-    `(${previewDocument}).querySelector('[aria-label="Wed Sep 2 · no logged session"]').click()`
+    'document.querySelector(\'[aria-label="Wed Sep 2 · no logged session"]\').click()'
   );
-  await planner.browser.waitForExpression(`(${previewDocument}).getElementById("skateFeedbackDialog").open`);
+  await planner.browser.waitForExpression('document.getElementById("skateFeedbackDialog").open');
   assert.deepEqual(await planner.browser.evaluate(`(() => {
-    const documentRoot = ${previewDocument};
+    const documentRoot = document;
     return {
       date: documentRoot.getElementById("skateSessionDate").value,
       duration: documentRoot.getElementById("skateDurationMinutes").value,
@@ -263,11 +242,10 @@ test("Skate roadmap preserves season history, missed-session logging, and visual
     intensity: "yellow"
   });
   await planner.browser.evaluate(`(() => {
-    const frame = document.querySelector("iframe");
-    const documentRoot = frame.contentDocument;
+    const documentRoot = document;
     documentRoot.getElementById("skateDurationMinutes").value = "35";
     documentRoot.querySelector("#skateFeedbackIntensity [data-intensity=blue]").click();
-    documentRoot.getElementById("skateFeedbackForm").dispatchEvent(new frame.contentWindow.Event("submit", {
+    documentRoot.getElementById("skateFeedbackForm").dispatchEvent(new Event("submit", {
       bubbles: true,
       cancelable: true
     }));
@@ -288,21 +266,21 @@ test("Skate roadmap preserves season history, missed-session logging, and visual
     "blue"
   );
   await planner.browser.waitForExpression(`(() => {
-    const day = (${previewDocument}).querySelector('[aria-label="Wed Sep 2 · 1 skate session"]');
+    const day = document.querySelector('[aria-label="Wed Sep 2 · 1 skate session"]');
     return day?.classList.contains("intensity-blue") && day.title.includes(" · BLUE · ");
   })()`);
 
-  await openSkate(planner.browser, previewUrl, previewDocument);
+  await openSkate(planner.browser, previewUrl);
   assert.equal(await planner.browser.evaluate(
-    `(${previewDocument}).querySelector('[aria-label="Wed Sep 2 · 1 skate session"]').classList.contains("intensity-blue")`
+    'document.querySelector(\'[aria-label="Wed Sep 2 · 1 skate session"]\').classList.contains("intensity-blue")'
   ), true);
 
   const preSeasonLegacyUrl = `${planner.server.url}/?view=skateView&date=2026-08-28`;
-  const preSeasonPreviewUrl = `${preview.url}/?view=legacyShell&date=2026-08-28`;
-  await openSkate(planner.browser, preSeasonLegacyUrl, "document", false);
-  const preSeasonLegacy = await planner.browser.evaluate(roadmapState("document"));
-  await openSkate(planner.browser, preSeasonPreviewUrl, previewDocument, false);
-  const preSeasonReact = await planner.browser.evaluate(roadmapState(previewDocument));
+  const preSeasonPreviewUrl = `${preview.url}/?view=skateView&date=2026-08-28`;
+  await openSkate(planner.browser, preSeasonLegacyUrl, false);
+  const preSeasonLegacy = await planner.browser.evaluate(roadmapState());
+  await openSkate(planner.browser, preSeasonPreviewUrl, false);
+  const preSeasonReact = await planner.browser.evaluate(roadmapState());
   assert.deepEqual(preSeasonReact, preSeasonLegacy);
   assert.equal(
     preSeasonReact.empty,

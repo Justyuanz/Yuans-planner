@@ -17,28 +17,15 @@ async function putPlannerValue(serverUrl, key, value) {
   assert.equal(response.ok, true);
 }
 
-async function openSkate(browser, url, documentExpression) {
+async function openSkate(browser, url) {
   await browser.open(url);
-  await browser.waitForExpression(`(() => {
-    const documentRoot = ${documentExpression};
-    return documentRoot?.documentElement.dataset.plannerReady === "true";
-  })()`);
-  await browser.evaluate(`(() => {
-    const documentRoot = ${documentExpression};
-    if (!documentRoot.getElementById("skateView").classList.contains("active")) {
-      documentRoot.querySelector('[data-view-target="skateView"]').click();
-    }
-  })()`);
-  await browser.waitForExpression(`(() => {
-    const documentRoot = ${documentExpression};
-    return documentRoot.getElementById("skateView").classList.contains("active")
-      && documentRoot.querySelector("#skateCoachFlow .skate-plan-card") !== null;
-  })()`);
+  await browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
+  await browser.waitForExpression('document.getElementById("skateView").classList.contains("active") && document.querySelector("#skateCoachFlow .skate-plan-card") !== null');
 }
 
-function trainingPlanState(documentExpression) {
+function trainingPlanState() {
   return `(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const cards = documentRoot.querySelectorAll("#skateCoachFlow .skate-plan-card");
     const text = (root, selector) => root?.querySelector(selector)?.textContent.trim() || "";
     const today = cards.item(0);
@@ -74,9 +61,9 @@ function trainingPlanState(documentExpression) {
   })()`;
 }
 
-function trainingPlanVisualContract(documentExpression) {
+function trainingPlanVisualContract() {
   return `(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const view = documentRoot.defaultView;
     const pick = (element) => {
       const rect = element.getBoundingClientRect();
@@ -117,29 +104,24 @@ function trainingPlanVisualContract(documentExpression) {
   })()`;
 }
 
-async function prepareScreenshot(browser, documentExpression) {
+async function prepareScreenshot(browser) {
   await browser.evaluate(`(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     documentRoot.documentElement.style.scrollBehavior = "auto";
     const mascot = documentRoot.querySelector(".mascot-card");
     if (mascot) mascot.style.visibility = "hidden";
     documentRoot.querySelector(".skate-session-card").scrollIntoView({ block: "start" });
   })()`);
-  await browser.evaluate(`new Promise((resolve) => {
-    const view = (${documentExpression}).defaultView;
-    view.requestAnimationFrame(() => view.requestAnimationFrame(resolve));
-  })`);
+  await browser.evaluate('new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
 }
 
-function cardClip(documentExpression, frameExpression = "null") {
+function cardClip() {
   return `(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const rect = documentRoot.querySelector(".skate-session-card").getBoundingClientRect();
-    const frame = ${frameExpression};
-    const frameRect = frame ? frame.getBoundingClientRect() : { x: 0, y: 0 };
     return {
-      x: frame ? frameRect.x + rect.x : rect.x + documentRoot.defaultView.scrollX,
-      y: frame ? frameRect.y + rect.y : rect.y + documentRoot.defaultView.scrollY,
+      x: rect.x + documentRoot.defaultView.scrollX,
+      y: rect.y + documentRoot.defaultView.scrollY,
       width: rect.width,
       height: Math.min(rect.height, documentRoot.defaultView.innerHeight)
     };
@@ -171,28 +153,22 @@ test("Skate training plan preserves current-week content, live settings, and vis
   });
 
   const legacyUrl = `${planner.server.url}/?view=skateView&date=${TEST_DATE}`;
-  const previewUrl = `${preview.url}/?view=legacyShell&date=${TEST_DATE}`;
-  const previewDocument = 'document.querySelector("iframe")?.contentDocument';
+  const previewUrl = `${preview.url}/?view=skateView&date=${TEST_DATE}`;
 
   for (const [width, height] of [[1280, 720], [390, 844]]) {
     await planner.browser.setViewport(width, height, width < 500);
-    await openSkate(planner.browser, legacyUrl, "document");
-    const legacyState = await planner.browser.evaluate(trainingPlanState("document"));
-    const legacyVisual = await planner.browser.evaluate(trainingPlanVisualContract("document"));
-    await prepareScreenshot(planner.browser, "document");
-    const legacyScreenshot = await planner.browser.captureScreenshot(cardClip("document"));
+    await openSkate(planner.browser, legacyUrl);
+    const legacyState = await planner.browser.evaluate(trainingPlanState());
+    const legacyVisual = await planner.browser.evaluate(trainingPlanVisualContract());
+    await prepareScreenshot(planner.browser);
+    const legacyScreenshot = await planner.browser.captureScreenshot(cardClip());
 
-    await openSkate(planner.browser, previewUrl, previewDocument);
-    assert.equal(await planner.browser.evaluate(
-      'document.querySelector("iframe").contentDocument.querySelector(".skate-session-card").dataset.reactOwned'
-    ), "true");
-    const reactState = await planner.browser.evaluate(trainingPlanState(previewDocument));
-    const reactVisual = await planner.browser.evaluate(trainingPlanVisualContract(previewDocument));
-    await prepareScreenshot(planner.browser, previewDocument);
-    const reactScreenshot = await planner.browser.captureScreenshot(cardClip(
-      previewDocument,
-      'document.querySelector("iframe")'
-    ));
+    await openSkate(planner.browser, previewUrl);
+    assert.equal(await planner.browser.evaluate('document.querySelector("iframe")'), null);
+    const reactState = await planner.browser.evaluate(trainingPlanState());
+    const reactVisual = await planner.browser.evaluate(trainingPlanVisualContract());
+    await prepareScreenshot(planner.browser);
+    const reactScreenshot = await planner.browser.captureScreenshot(cardClip());
 
     assert.deepEqual(reactState, legacyState);
     assert.equal(reactState.today.kicker, "Day 15");
@@ -205,13 +181,12 @@ test("Skate training plan preserves current-week content, live settings, and vis
   }
 
   await planner.browser.setViewport(1280, 720);
-  await openSkate(planner.browser, previewUrl, previewDocument);
+  await openSkate(planner.browser, previewUrl);
   await planner.browser.evaluate(`(() => {
-    const frame = document.querySelector("iframe");
-    const input = frame.contentDocument.getElementById("skateCurrentDay");
+    const input = document.getElementById("skateCurrentDay");
     input.focus();
-    Object.getOwnPropertyDescriptor(frame.contentWindow.HTMLInputElement.prototype, "value").set.call(input, "30");
-    input.dispatchEvent(new frame.contentWindow.Event("input", { bubbles: true }));
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(input, "30");
+    input.dispatchEvent(new Event("input", { bubbles: true }));
     input.blur();
   })()`);
   await planner.server.waitFor(async function () {
@@ -219,26 +194,25 @@ test("Skate training plan preserves current-week content, live settings, and vis
     return JSON.parse(data[SKATE_SETTINGS_KEY] || "{}").currentProgramDay === 30;
   });
   await planner.browser.waitForExpression(`(() => {
-    const documentRoot = ${previewDocument};
-    return documentRoot.querySelector(".skate-plan-today .skate-plan-kicker").textContent.trim() === "Day 30"
-      && documentRoot.querySelectorAll(".skate-plan-row.is-current").length === 1;
+    return document.querySelector(".skate-plan-today .skate-plan-kicker").textContent.trim() === "Day 30"
+      && document.querySelectorAll(".skate-plan-row.is-current").length === 1;
   })()`);
-  const updated = await planner.browser.evaluate(trainingPlanState(previewDocument));
+  const updated = await planner.browser.evaluate(trainingPlanState());
   assert.equal(updated.today.title, "Benchmark first, then shove-it.");
   assert.equal(updated.today.note, "Day 30 benchmark");
   assert.equal(updated.week.kicker, "Week 5 / 21");
   assert.equal(updated.week.rows.find((row) => row.className.includes("is-current")).label, "Day 30");
 
-  await openSkate(planner.browser, previewUrl, previewDocument);
-  const reloaded = await planner.browser.evaluate(trainingPlanState(previewDocument));
+  await openSkate(planner.browser, previewUrl);
+  const reloaded = await planner.browser.evaluate(trainingPlanState());
   assert.deepEqual(reloaded, updated);
 
   const preSeasonLegacyUrl = `${planner.server.url}/?view=skateView&date=2026-08-28`;
-  const preSeasonPreviewUrl = `${preview.url}/?view=legacyShell&date=2026-08-28`;
-  await openSkate(planner.browser, preSeasonLegacyUrl, "document");
-  const legacyPreSeason = await planner.browser.evaluate(trainingPlanState("document"));
-  await openSkate(planner.browser, preSeasonPreviewUrl, previewDocument);
-  const reactPreSeason = await planner.browser.evaluate(trainingPlanState(previewDocument));
+  const preSeasonPreviewUrl = `${preview.url}/?view=skateView&date=2026-08-28`;
+  await openSkate(planner.browser, preSeasonLegacyUrl);
+  const legacyPreSeason = await planner.browser.evaluate(trainingPlanState());
+  await openSkate(planner.browser, preSeasonPreviewUrl);
+  const reactPreSeason = await planner.browser.evaluate(trainingPlanState());
   assert.deepEqual(reactPreSeason, legacyPreSeason);
   assert.equal(reactPreSeason.today.kicker, "Day 1");
   assert.equal(reactPreSeason.week.description, "Previewing the program before Saturday, August 29, 2026.");
@@ -251,11 +225,11 @@ test("Skate training plan preserves current-week content, live settings, and vis
     restDayOfWeek: 0
   });
   const postStreakLegacyUrl = `${planner.server.url}/?view=skateView&date=2026-11-16`;
-  const postStreakPreviewUrl = `${preview.url}/?view=legacyShell&date=2026-11-16`;
-  await openSkate(planner.browser, postStreakLegacyUrl, "document");
-  const legacyPostStreak = await planner.browser.evaluate(trainingPlanState("document"));
-  await openSkate(planner.browser, postStreakPreviewUrl, previewDocument);
-  const reactPostStreak = await planner.browser.evaluate(trainingPlanState(previewDocument));
+  const postStreakPreviewUrl = `${preview.url}/?view=skateView&date=2026-11-16`;
+  await openSkate(planner.browser, postStreakLegacyUrl);
+  const legacyPostStreak = await planner.browser.evaluate(trainingPlanState());
+  await openSkate(planner.browser, postStreakPreviewUrl);
+  const reactPostStreak = await planner.browser.evaluate(trainingPlanState());
   assert.deepEqual(reactPostStreak, legacyPostStreak);
   assert.equal(reactPostStreak.today.kicker, "Day 60");
   assert.equal(reactPostStreak.week.kicker, "Week 9 / 21");

@@ -78,8 +78,6 @@ export function useSkateFeedbackController({
   }, [heroState, sessionHint, sessionStartedAt]);
 
   const claimDialog = useCallback((mount: HTMLDialogElement) => {
-    mount.dataset.reactOwned = "true";
-    mount.replaceChildren();
     setDialog(mount);
   }, []);
 
