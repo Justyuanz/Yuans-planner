@@ -181,13 +181,13 @@ For each feature:
 - [ ] remove legacy implementation only after tests pass
 
 ## Current Task
-Phase 3 and the production-serving cutover are complete. Phase 4 is now in legacy-reference retirement. The production React application is self-contained: every view renders directly in React, the stylesheet is bundled from `frontend-react/src/planner.css`, unknown view values fall back to the React Dashboard, and Vite no longer proxies legacy assets. The remaining `frontend/` HTML and JavaScript exist only for migration-reference tests and temporary `/legacy/` compatibility delivery; retire those test dependencies incrementally until the directory and server support can be deleted.
+Phase 3 and the production-serving cutover are complete. Phase 4 is now in legacy-reference retirement. The production React application is self-contained, and the broad navigation, task lifecycle, and Guitar/Skate synchronization flows now run only against direct React routes. The remaining `frontend/` HTML and JavaScript exist only for focused migration-reference tests and temporary `/legacy/` compatibility delivery; retire those dependencies incrementally until the directory and server support can be deleted.
 
 ## Last Completed Task
-Made the React runtime independent from `frontend/`. The exact 5,663-line visual stylesheet now lives at `frontend-react/src/planner.css` and ships in the compiled asset bundle; dynamic `/css/styles.css` loading, the unknown-view legacy iframe, and Vite legacy proxies are gone in `c80e391`. Removed the duplicate `frontend/css/styles.css` while keeping the temporary legacy reference pointed at the React-owned source in `b5cfb8f`. Hardened two browser persistence waits exposed by the complete run in `0191265`. `frontend-react/src/app/App.tsx` is now a 20-line React-only dispatcher, and the complete repository workflow passes.
+Retired the duplicate legacy-only navigation and task lifecycle browser files in `5677588`. The direct React task regression now protects creation, time/reminder/activity editing, completion, deletion, persistence, and reload behavior. The cross-feature Guitar/Skate session regression now runs on direct React routes, waits for each persisted write, and still protects task synchronization and no-double-count totals. The complete repository workflow passes with 42 Python tests, 245 React tests, and 148 root JavaScript/browser tests.
 
 ## Next Task
-Retire the remaining test dependencies on `frontend/index.html` and the 17 files in `frontend/js/` one verified feature group at a time. Start with duplicate legacy-only smoke/lifecycle coverage already protected by the direct Dashboard and six direct-page regressions, then replace dynamic legacy visual comparisons with stable React-owned contracts. Keep temporary `/legacy/`, `/js/`, and legacy-mode server support only while a surviving regression still requires them; remove the server configuration, Docker copy, and entire `frontend/` directory once the final reference test is independent.
+Retire the remaining test dependencies on `frontend/index.html` and the 17 files in `frontend/js/` one verified feature group at a time. Audit the 16 Node unit-test imports first and move any still-unique compatibility assertions to the matching strict-TypeScript production modules; delete a legacy module only after its direct React behavior remains protected. Then replace the 18 surviving browser files that explicitly load `/legacy/` with stable React-owned behavior and visual contracts. Keep temporary `/legacy/`, `/js/`, and legacy-mode server support only while a surviving regression still requires them; remove the server configuration, Docker copy, and entire `frontend/` directory once the final reference test is independent.
 
 ## Upstream Legacy Change — Activity Categories (2026-10-05)
 
@@ -270,6 +270,7 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Missing and unknown `view` values both map to the direct React Dashboard. The production-serving regression verifies that even `view=legacyShell` renders React with no iframe.
 - `frontend-react/src/planner.css` is the single canonical visual stylesheet. Vite bundles it with the React application, while the temporary legacy reference receives the same file through `/css/styles.css`; there is no second CSS copy to drift.
 - Direct React pages no longer request `/css`, `/js`, or `/legacy`, and Vite proxies only the API and favicon. This runtime boundary must remain true while test-only legacy dependencies are retired.
+- Broad navigation and task lifecycle coverage is now owned by the direct React page regressions. The cross-feature Guitar/Skate flow also runs only against direct React routes and verifies persisted task/session synchronization plus no-double-count totals; the duplicate legacy-only smoke and lifecycle files are intentionally removed.
 - Direct-shell navigation writes the requested `view` and deterministic planner `date` into the URL. Dashboard, Money, Journal, Calendar, Skate, and Guitar all navigate directly.
 - React backup import/export preserves unknown `hivePlanner.*` values and excludes the transient Guitar session just like legacy. Import publishes same-window storage events so the direct Money cards update immediately.
 - The React Pattern store adapter runs only after the server-first Planner store is loaded. It derives the direct Dashboard model from typed Planner data, never interprets legacy bridge memory as source data, and never writes metric inputs back to storage.
@@ -329,20 +330,13 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Browser smoke tests skip when Chrome/Chromium or Node WebSocket support is unavailable; they run with the documented Node 24 runtime on the inspected machine.
 - A local Python start returns `503` at the UI root when `frontend-react/dist` has not been built. This is intentional and documented; Docker always builds the bundle.
 - `frontend-react/src/app/App.tsx` is now a 20-line React-only route dispatcher. Unknown explicit values safely render the Dashboard.
-- `frontend/` now contains only the 891-line reference HTML and 17 legacy JavaScript files; production React does not depend on them, but 36 browser files and 17 legacy JavaScript unit-test imports still prevent deletion. Those references must be retired without weakening behavior or visual coverage.
+- `frontend/` now contains only the 891-line reference HTML and 17 legacy JavaScript files; production React does not depend on them. Of the 34 browser files, 18 still explicitly load the standalone legacy reference, and 16 Node unit-test files import legacy JavaScript modules. Those references must be retired without weakening behavior or visual coverage.
 - The direct shell's Sprouty surface now sends grounded task, insight, journal, planning, activity, day-state, Money, and Skate context; restores state-aware quick prompts; handles server failure with evidence-based local answers; appends question-aware action suggestions; and preserves pointer-follow, drag persistence, click suppression, and mobile motion behavior. Shared-shell Sprouty parity is complete.
 - The React visual regression test skips when Chrome or `frontend-react` dependencies are unavailable, matching the existing browser-test prerequisite policy.
 - Browser-capable root Node test files run serially to avoid Chrome/Vite startup timeouts under parallel process saturation.
-- The final complete browser run passed all 150 root JavaScript/browser tests after the shared Chrome waiter was hardened against transient detached iframe documents. Treat any repeated failure as actionable rather than accepting it as a combined-run flake.
+- The final complete browser run passed all 148 root JavaScript/browser tests after the duplicate legacy navigation/task flows were removed and their unique assertions moved to direct React coverage. Treat any repeated failure as actionable rather than accepting it as a combined-run flake.
 
 ## Session Log
-
-### Session 69
-
-- Re-read the repository instructions and full handoff, confirmed the clean rewrite branch/history/diff, and traced the Meditation portal, iframe selected-date observer, direct Journal composition, timer persistence, external-store completion, and standalone legacy renderer before changing code.
-- Moved the dedicated Meditation browser fixture from `view=legacyShell` to the direct React Journal route while retaining the standalone legacy reference. The direct regression protects start/cancel, reload persistence, expired-session completion exactly once, Journal date-input and Today synchronization, standalone totals, external storage updates, compatibility fields, clean console output, and exact desktop/mobile geometry and screenshots.
-- Removed the Meditation mount claim/portal, the shared iframe Journal-date observer and related state/helpers/imports, and the legacy renderer ownership guard. Explicit fallback and `/legacy/` routes now use the complete legacy Meditation renderer. Commit: `58e8431`.
-- Verification: 42 Python tests, 245 React tests, lint, strict typecheck, production build, and all 150 root JavaScript/browser tests pass. Focused Meditation, direct Journal, and production-serving/fallback browser suites also pass.
 
 ### Session 70
 
@@ -357,6 +351,13 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Copied the exact established visual contract into `frontend-react/src/planner.css`, bundled it through Vite, removed dynamic stylesheet loading and legacy proxies, deleted `LegacyPlannerApp`, and made unknown view values render the direct React Dashboard in `c80e391`. All six direct-page desktop/mobile visual comparisons remained exact.
 - Removed the duplicate `frontend/css/styles.css` in `b5cfb8f`; the temporary legacy reference now receives the canonical React stylesheet through the Python server. A combined run exposed asynchronous Money and Journal persistence waits, which were made deterministic in `0191265` without changing application behavior.
 - Verification: 42 Python tests, 245 React tests, lint, strict typecheck, production build, all six focused direct-page visual/browser regressions, the self-contained production-serving regression, and all 150 root JavaScript/browser tests pass.
+
+### Session 72
+
+- Re-read the repository instructions and full handoff, confirmed the clean rewrite branch/history/diff, and compared the broad legacy-only navigation, task lifecycle, and Guitar/Skate synchronization tests with their direct React replacements before changing coverage.
+- Expanded the direct React task lifecycle regression to protect scheduled time, reminder, and activity creation/editing, persistence after each write, completion, deletion, and reload behavior. Converted the Guitar/Skate cross-feature regression to direct React routes with explicit persistence checkpoints while preserving task synchronization and no-double-count assertions.
+- Deleted the duplicate legacy-only `task-flow.e2e.test.js` and `view-navigation.e2e.test.js` files in `5677588`. The remaining retirement surface is 16 legacy JavaScript unit-test imports plus 18 of 34 browser files that explicitly load the standalone legacy reference.
+- Verification: 42 Python tests, 245 React tests, lint, strict typecheck, production build, and all 148 root JavaScript/browser tests pass.
 
 ---
 
