@@ -181,13 +181,13 @@ For each feature:
 - [ ] remove legacy implementation only after tests pass
 
 ## Current Task
-Phase 3 and the production-serving cutover are complete. Phase 4 is now in legacy-reference retirement. The production React application is self-contained, and the broad navigation, task lifecycle, and Guitar/Skate synchronization flows now run only against direct React routes. The remaining `frontend/` HTML and JavaScript exist only for focused migration-reference tests and temporary `/legacy/` compatibility delivery; retire those dependencies incrementally until the directory and server support can be deleted.
+Phase 3 and the production-serving cutover are complete. Phase 4 is now in legacy-reference retirement. The production React application is self-contained, broad browser flows run on direct React routes, and calendar-task, Pattern History, and weekly-planner unit contracts now live in strict-TypeScript production tests. The remaining `frontend/` HTML and JavaScript exist only for focused migration-reference tests and temporary `/legacy/` compatibility delivery; retire those dependencies incrementally until the directory and server support can be deleted.
 
 ## Last Completed Task
-Retired the duplicate legacy-only navigation and task lifecycle browser files in `5677588`. The direct React task regression now protects creation, time/reminder/activity editing, completion, deletion, persistence, and reload behavior. The cross-feature Guitar/Skate session regression now runs on direct React routes, waits for each persisted write, and still protects task synchronization and no-double-count totals. The complete repository workflow passes with 42 Python tests, 245 React tests, and 148 root JavaScript/browser tests.
+Retired three legacy JavaScript unit-test dependencies without changing runtime behavior. Calendar-task reconciliation gained complete production-category mapping coverage in `6d4a8c1`; the already broader TypeScript Pattern History builder replaced its duplicate legacy test in `e04bf27`; and weekly-planner capacities, continuous duration/effort loads, recovery and over-budget rules, the established normal-day mix, and Finnish compatibility moved to the typed Calendar model in `ef73d26`. The complete repository workflow passes with 42 Python tests, 251 React tests, and 132 root JavaScript/browser tests.
 
 ## Next Task
-Retire the remaining test dependencies on `frontend/index.html` and the 17 files in `frontend/js/` one verified feature group at a time. Audit the 16 Node unit-test imports first and move any still-unique compatibility assertions to the matching strict-TypeScript production modules; delete a legacy module only after its direct React behavior remains protected. Then replace the 18 surviving browser files that explicitly load `/legacy/` with stable React-owned behavior and visual contracts. Keep temporary `/legacy/`, `/js/`, and legacy-mode server support only while a surviving regression still requires them; remove the server configuration, Docker copy, and entire `frontend/` directory once the final reference test is independent.
+Retire the remaining test dependencies on `frontend/index.html` and the 17 files in `frontend/js/` one verified feature group at a time. Continue auditing the 13 Node unit-test files, starting with the related Journal/Mind compatibility coverage, and move every still-unique assertion to the matching strict-TypeScript production boundary before deleting the old test. Then replace the 18 surviving browser files that explicitly load `/legacy/` with stable React-owned behavior and visual contracts. Keep temporary `/legacy/`, `/js/`, and legacy-mode server support only while a surviving regression still requires them; remove the server configuration, Docker copy, and entire `frontend/` directory once the final reference test is independent.
 
 ## Upstream Legacy Change — Activity Categories (2026-10-05)
 
@@ -271,6 +271,7 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - `frontend-react/src/planner.css` is the single canonical visual stylesheet. Vite bundles it with the React application, while the temporary legacy reference receives the same file through `/css/styles.css`; there is no second CSS copy to drift.
 - Direct React pages no longer request `/css`, `/js`, or `/legacy`, and Vite proxies only the API and favicon. This runtime boundary must remain true while test-only legacy dependencies are retired.
 - Broad navigation and task lifecycle coverage is now owned by the direct React page regressions. The cross-feature Guitar/Skate flow also runs only against direct React routes and verifies persisted task/session synchronization plus no-double-count totals; the duplicate legacy-only smoke and lifecycle files are intentionally removed.
+- Legacy unit-test dependencies are retired only after every unique compatibility assertion is represented through the matching public strict-TypeScript production boundary. The standalone JavaScript module remains available while browser reference coverage still needs it; removing a duplicate CommonJS test does not authorize deleting its runtime reference module early.
 - Direct-shell navigation writes the requested `view` and deterministic planner `date` into the URL. Dashboard, Money, Journal, Calendar, Skate, and Guitar all navigate directly.
 - React backup import/export preserves unknown `hivePlanner.*` values and excludes the transient Guitar session just like legacy. Import publishes same-window storage events so the direct Money cards update immediately.
 - The React Pattern store adapter runs only after the server-first Planner store is loaded. It derives the direct Dashboard model from typed Planner data, never interprets legacy bridge memory as source data, and never writes metric inputs back to storage.
@@ -330,20 +331,13 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Browser smoke tests skip when Chrome/Chromium or Node WebSocket support is unavailable; they run with the documented Node 24 runtime on the inspected machine.
 - A local Python start returns `503` at the UI root when `frontend-react/dist` has not been built. This is intentional and documented; Docker always builds the bundle.
 - `frontend-react/src/app/App.tsx` is now a 20-line React-only route dispatcher. Unknown explicit values safely render the Dashboard.
-- `frontend/` now contains only the 891-line reference HTML and 17 legacy JavaScript files; production React does not depend on them. Of the 34 browser files, 18 still explicitly load the standalone legacy reference, and 16 Node unit-test files import legacy JavaScript modules. Those references must be retired without weakening behavior or visual coverage.
+- `frontend/` now contains only the 891-line reference HTML and 17 legacy JavaScript files; production React does not depend on them. Of the 34 browser files, 18 still explicitly load the standalone legacy reference, and 13 Node unit-test files import legacy JavaScript modules. Those references must be retired without weakening behavior or visual coverage.
 - The direct shell's Sprouty surface now sends grounded task, insight, journal, planning, activity, day-state, Money, and Skate context; restores state-aware quick prompts; handles server failure with evidence-based local answers; appends question-aware action suggestions; and preserves pointer-follow, drag persistence, click suppression, and mobile motion behavior. Shared-shell Sprouty parity is complete.
 - The React visual regression test skips when Chrome or `frontend-react` dependencies are unavailable, matching the existing browser-test prerequisite policy.
 - Browser-capable root Node test files run serially to avoid Chrome/Vite startup timeouts under parallel process saturation.
-- The final complete browser run passed all 148 root JavaScript/browser tests after the duplicate legacy navigation/task flows were removed and their unique assertions moved to direct React coverage. Treat any repeated failure as actionable rather than accepting it as a combined-run flake.
+- The final complete browser run passed all 132 root JavaScript/browser tests after the first three legacy unit-test dependencies were replaced by stronger TypeScript coverage. Treat any repeated failure as actionable rather than accepting it as a combined-run flake.
 
 ## Session Log
-
-### Session 70
-
-- Re-read the repository instructions and full handoff, confirmed the clean rewrite branch/history/diff, and traced all six Money fallback portals, dedicated regressions, direct Money composition, shared compatibility decoders, and standalone legacy ownership guards before changing code.
-- Moved Money quick, overview, pacing, recent activity, vendors, and budgets/categories regressions from `view=legacyShell` to the direct React Money route while retaining standalone legacy references. Coverage protects invalid and boundary inputs, empty/populated data, disclosure state, category and transfer editing, cross-card and Dashboard synchronization, compatibility fields, persistence/reload, exact desktop/mobile geometry/screenshots, and clean console behavior.
-- Removed all six Money mount claims and portals plus their corresponding legacy ownership guards in `5c7c2bf`, `ef8d35e`, `6b3eb6c`, `2bc33de`, `3ce1b7b`, and `3050cb8`. The app dispatcher fell to 31 lines; explicit fallback and `/legacy/` routes now use the complete original Money renderer.
-- Verification: 42 Python tests, 245 React tests, lint, strict typecheck, production build, all focused Money/direct-page/production-serving regressions, and all 150 root JavaScript/browser tests pass.
 
 ### Session 71
 
@@ -358,6 +352,13 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Expanded the direct React task lifecycle regression to protect scheduled time, reminder, and activity creation/editing, persistence after each write, completion, deletion, and reload behavior. Converted the Guitar/Skate cross-feature regression to direct React routes with explicit persistence checkpoints while preserving task synchronization and no-double-count assertions.
 - Deleted the duplicate legacy-only `task-flow.e2e.test.js` and `view-navigation.e2e.test.js` files in `5677588`. The remaining retirement surface is 16 legacy JavaScript unit-test imports plus 18 of 34 browser files that explicitly load the standalone legacy reference.
 - Verification: 42 Python tests, 245 React tests, lint, strict typecheck, production build, and all 148 root JavaScript/browser tests pass.
+
+### Session 73
+
+- Re-read the repository instructions and full handoff, confirmed the clean rewrite branch/history/diff, and mapped all 16 remaining legacy JavaScript unit-test imports to their strict-TypeScript production modules before selecting small behavior-preserving retirement slices.
+- Moved the complete production calendar-category mapping contract into the typed calendar-task reconciliation suite and removed its redundant CommonJS test in `6d4a8c1`. Removed the duplicate legacy Pattern History unit test in `e04bf27` because the TypeScript builder already protects empty state, grouping, ordering, action limits, and all eleven evidence formats.
+- Moved weekly-planner day capacities, continuous duration and effort calculations, physical defaults, the established 6.25-load normal-day mix, recovery and over-budget rules, and Finnish compatibility into the typed Calendar week suite, then removed the legacy core test in `ef73d26`. The remaining retirement surface is 13 legacy JavaScript unit-test files plus 18 of 34 browser files that explicitly load the standalone reference.
+- Verification: 42 Python tests, 251 React tests, lint, strict typecheck, production build, focused Calendar browser verification, and all 132 root JavaScript/browser tests pass.
 
 ---
 
