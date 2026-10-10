@@ -91,6 +91,7 @@ describe("classifyMascotQuestion", () => {
   it("routes the established Sprouty question families", () => {
     expect(classifyMascotQuestion("Why do my mornings run late?")).toBe("morning");
     expect(classifyMascotQuestion("What am I spending too much money on?")).toBe("money");
+    expect(classifyMascotQuestion("What pattern do you notice about me?")).toBe("patterns");
     expect(classifyMascotQuestion("Which task should I move to tomorrow?")).toBe("move_task");
     expect(classifyMascotQuestion("Which task needs to be broken down?")).toBe("breakdown");
   });
