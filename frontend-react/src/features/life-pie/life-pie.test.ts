@@ -81,6 +81,27 @@ describe("buildLifePie", () => {
     ]);
   });
 
+  it("filters standalone sessions across day, week, and all-time ranges", () => {
+    const store: PlannerStore = {
+      "hivePlanner.guitar.sessions": JSON.stringify([
+        { dateKey: "2026-09-13", finishedAt: "2026-09-13T12:00:00Z", durationHours: 0.5 },
+        { dateKey: "2026-09-13", finishedAt: "2026-09-13T13:00:00Z", durationHours: 1, trackedInTask: true },
+        { dateKey: "2026-09-12", finishedAt: "2026-09-12T12:00:00Z", durationHours: 2 },
+        { dateKey: "2026-09-06", finishedAt: "2026-09-06T12:00:00Z", durationHours: 1.5 },
+        { finishedAt: "2026-09-13T14:00:00Z", durationHours: -1 },
+        { dateKey: "2026-09-13", durationHours: 4 }
+      ])
+    };
+    const guitarHours = (period: LifePiePeriod) => (
+      buildLifePie(store, period, TODAY, NOW_MS).activities
+        .find(({ id }) => id === "guitar")?.hours
+    );
+
+    expect(guitarHours("day")).toBe(0.5);
+    expect(guitarHours("week")).toBe(2.5);
+    expect(guitarHours("all")).toBe(4);
+  });
+
   it("uses current timers, caps legacy values, and ignores malformed collections", () => {
     const model = buildLifePie({
       "hivePlanner.dailyTasks.2026-09-13": JSON.stringify([
