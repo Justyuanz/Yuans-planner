@@ -48,23 +48,23 @@ async function seedVendors(serverUrl) {
   await putValue(serverUrl, TRANSACTIONS_KEY, TRANSACTIONS);
 }
 
-async function openMoney(browser, pageUrl, documentExpression = "document") {
+async function openMoney(browser, pageUrl) {
   await browser.open(pageUrl);
-  await browser.waitForExpression(`(${documentExpression}).querySelector('[data-view-target="moneyView"]')`);
+  await browser.waitForExpression('document.querySelector(\'[data-view-target="moneyView"]\') !== null');
   await browser.waitForExpression(`(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const moneyView = documentRoot.getElementById("moneyView");
     if (!moneyView.classList.contains("active")) {
       documentRoot.querySelector('[data-view-target="moneyView"]').click();
     }
     return moneyView.classList.contains("active");
   })()`);
-  await browser.waitForExpression(`(${documentExpression}).querySelector(".money-vendors-card .money-vendor-list") !== null`);
+  await browser.waitForExpression('document.querySelector(".money-vendors-card .money-vendor-list") !== null');
 }
 
-function vendorsState(documentExpression) {
+function vendorsState() {
   return `(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const panel = documentRoot.querySelector(".money-vendors-card");
     return {
       heading: panel.querySelector("h3").textContent.trim(),
@@ -78,9 +78,9 @@ function vendorsState(documentExpression) {
   })()`;
 }
 
-function vendorsVisualContract(documentExpression) {
+function vendorsVisualContract() {
   return `(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const view = documentRoot.defaultView;
     const panel = documentRoot.querySelector(".money-vendors-card");
     const pick = (element) => {
@@ -117,33 +117,24 @@ function vendorsVisualContract(documentExpression) {
         text: row.textContent.trim(),
         visual: pick(row)
       })),
-      state: ${vendorsState(documentExpression)}
+      state: ${vendorsState()}
     };
   })()`;
 }
 
-const LEGACY_CLIP = `(() => {
+const MONEY_VENDORS_CLIP = `(() => {
   const rect = document.querySelector(".money-vendors-card").getBoundingClientRect();
   return { x: rect.x + scrollX, y: rect.y + scrollY, width: rect.width, height: Math.min(rect.height, 680) };
 })()`;
 
-const PREVIEW_CLIP = `(() => {
-  const frame = document.querySelector("iframe");
-  const rect = frame.contentDocument.querySelector(".money-vendors-card").getBoundingClientRect();
-  const frameRect = frame.getBoundingClientRect();
-  return { x: frameRect.x + rect.x, y: frameRect.y + rect.y, width: rect.width, height: Math.min(rect.height, 680) };
-})()`;
-
-async function scrollToVendors(browser, documentExpression) {
-  await browser.waitForExpression(
-    `(${documentExpression}).documentElement.dataset.plannerReady === "true"`
-  );
+async function scrollToVendors(browser) {
+  await browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
   await browser.evaluate(`(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     documentRoot.documentElement.style.scrollBehavior = "auto";
     documentRoot.querySelector(".money-vendors-card").scrollIntoView({ block: "start" });
   })()`);
-  await browser.waitForExpression(`Math.abs((${documentExpression}).querySelector(".money-vendors-card").getBoundingClientRect().top) < 1`);
+  await browser.waitForExpression('Math.abs(document.querySelector(".money-vendors-card").getBoundingClientRect().top) < 1');
 }
 
 function assertPopulatedState(state) {
@@ -176,7 +167,7 @@ test("Money vendors preserves aggregation, month comparison, limits, and visual 
 
   await planner.browser.setViewport(1280, 720);
   await openMoney(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
-  assert.deepEqual(await planner.browser.evaluate(vendorsState("document")), {
+  assert.deepEqual(await planner.browser.evaluate(vendorsState()), {
     heading: "Vendors",
     note: "See who gets the money, how often, and what category they usually land in.",
     rows: [{ head: [], metrics: [], text: "No vendors yetTransactions with vendor names will build this automatically." }]
@@ -184,10 +175,10 @@ test("Money vendors preserves aggregation, month comparison, limits, and visual 
 
   await seedVendors(planner.server.url);
   await openMoney(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
-  assertPopulatedState(await planner.browser.evaluate(vendorsState("document")));
-  await scrollToVendors(planner.browser, "document");
-  const legacyDesktop = await planner.browser.evaluate(vendorsVisualContract("document"));
-  const legacyDesktopScreenshot = await planner.browser.captureScreenshot(LEGACY_CLIP);
+  assertPopulatedState(await planner.browser.evaluate(vendorsState()));
+  await scrollToVendors(planner.browser);
+  const legacyDesktop = await planner.browser.evaluate(vendorsVisualContract());
+  const legacyDesktopScreenshot = await planner.browser.captureScreenshot(MONEY_VENDORS_CLIP);
 
   const preview = await startReactPreviewServer(planner.server.url);
   if (!preview) {
@@ -198,15 +189,12 @@ test("Money vendors preserves aggregation, month comparison, limits, and visual 
     await preview.close();
   });
 
-  const previewDocument = 'document.querySelector("iframe").contentDocument';
-  await openMoney(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, previewDocument);
-  assert.equal(await planner.browser.evaluate(
-    'document.querySelector("iframe").contentDocument.querySelector(".money-vendors-card").dataset.reactOwned'
-  ), "true");
-  assertPopulatedState(await planner.browser.evaluate(vendorsState(previewDocument)));
-  await scrollToVendors(planner.browser, previewDocument);
-  const previewDesktop = await planner.browser.evaluate(vendorsVisualContract(previewDocument));
-  const previewDesktopScreenshot = await planner.browser.captureScreenshot(PREVIEW_CLIP);
+  await openMoney(planner.browser, `${preview.url}/?view=moneyView&date=${TEST_DATE}`);
+  assert.equal(await planner.browser.evaluate('document.querySelector("iframe")'), null);
+  assertPopulatedState(await planner.browser.evaluate(vendorsState()));
+  await scrollToVendors(planner.browser);
+  const previewDesktop = await planner.browser.evaluate(vendorsVisualContract());
+  const previewDesktopScreenshot = await planner.browser.captureScreenshot(MONEY_VENDORS_CLIP);
   assert.deepEqual(previewDesktop, legacyDesktop);
   assertSameScreenshot(previewDesktopScreenshot, legacyDesktopScreenshot, "desktop Money vendors screenshot");
 
@@ -214,18 +202,18 @@ test("Money vendors preserves aggregation, month comparison, limits, and visual 
     key: ${JSON.stringify(TRANSACTIONS_KEY)},
     newValue: "[]"
   }))`);
-  await planner.browser.waitForExpression(`(${previewDocument}).querySelector("#moneyVendorList .money-vendor-row strong").textContent === "No vendors yet"`);
+  await planner.browser.waitForExpression('document.querySelector("#moneyVendorList .money-vendor-row strong").textContent === "No vendors yet"');
 
   await planner.browser.setViewport(390, 844, true);
   await openMoney(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
-  await scrollToVendors(planner.browser, "document");
-  const legacyMobile = await planner.browser.evaluate(vendorsVisualContract("document"));
-  const legacyMobileScreenshot = await planner.browser.captureScreenshot(LEGACY_CLIP);
+  await scrollToVendors(planner.browser);
+  const legacyMobile = await planner.browser.evaluate(vendorsVisualContract());
+  const legacyMobileScreenshot = await planner.browser.captureScreenshot(MONEY_VENDORS_CLIP);
 
-  await openMoney(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, previewDocument);
-  await scrollToVendors(planner.browser, previewDocument);
-  const previewMobile = await planner.browser.evaluate(vendorsVisualContract(previewDocument));
-  const previewMobileScreenshot = await planner.browser.captureScreenshot(PREVIEW_CLIP);
+  await openMoney(planner.browser, `${preview.url}/?view=moneyView&date=${TEST_DATE}`);
+  await scrollToVendors(planner.browser);
+  const previewMobile = await planner.browser.evaluate(vendorsVisualContract());
+  const previewMobileScreenshot = await planner.browser.captureScreenshot(MONEY_VENDORS_CLIP);
   assert.deepEqual(previewMobile, legacyMobile);
   assert.equal(previewMobile.panel.width, 370);
   assert.equal(previewMobile.rows[0].visual.gridTemplateColumns, "279px");

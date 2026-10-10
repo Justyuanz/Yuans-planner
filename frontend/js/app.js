@@ -3890,10 +3890,6 @@
         if (!elements.moneyVendorList || !state) {
           return;
         }
-        var vendorsCard = elements.moneyVendorList.closest(".money-vendors-card");
-        if (vendorsCard && vendorsCard.dataset.reactOwned === "true") {
-          return;
-        }
         var wrapper = document.createElement("div");
         wrapper.className = "money-vendor-list";
         var topVendors = state.vendors.slice(0, 8);

@@ -7,7 +7,6 @@ import { GuitarPage } from "../features/guitar/GuitarPage";
 import { JournalPage } from "../features/journal-page/JournalPage";
 import { plannerDateFromSearch } from "../features/life-pie/life-pie";
 import { MoneyBudgetsCard } from "../features/money-budgets/MoneyBudgetsCard";
-import { MoneyVendorsCard } from "../features/money-vendors/MoneyVendorsCard";
 import { MoneyPage } from "../features/money-page/MoneyPage";
 import { SkatePage } from "../features/skate/SkatePage";
 import { usePlannerStore } from "./use-planner-store";
@@ -17,20 +16,10 @@ function LegacyPlannerApp() {
   const plannerStore = usePlannerStore();
   const today = useMemo(() => plannerDateFromSearch(window.location.search, new Date()), []);
   const [moneyBudgetsMount, setMoneyBudgetsMount] = useState<HTMLElement | null>(null);
-  const [moneyVendorsMount, setMoneyVendorsMount] = useState<HTMLElement | null>(null);
   const legacyUrl = `/legacy/${window.location.search}`;
   const loadedStore = plannerStore.status === "ready" ? plannerStore.store : null;
   function claimReactMounts(frame: HTMLIFrameElement): void {
     const document = frame.contentDocument;
-    const moneyVendorsCard = document?.querySelector<HTMLElement>(".money-vendors-card");
-    const moneyVendorsPanel = moneyVendorsCard?.querySelector<HTMLElement>(".panel-inner");
-    if (moneyVendorsCard !== null && moneyVendorsCard !== undefined
-      && moneyVendorsPanel !== null && moneyVendorsPanel !== undefined) {
-      moneyVendorsCard.dataset.reactOwned = "true";
-      moneyVendorsPanel.replaceChildren();
-      setMoneyVendorsMount(moneyVendorsPanel);
-    }
-
     const moneyBudgetsCard = document?.querySelector<HTMLElement>(".money-budget-card");
     const moneyBudgetsPanel = moneyBudgetsCard?.querySelector<HTMLElement>(".panel-inner");
     if (moneyBudgetsCard !== null && moneyBudgetsCard !== undefined
@@ -50,12 +39,6 @@ function LegacyPlannerApp() {
         src={legacyUrl}
         title="Yuan's Planner"
       />
-      {loadedStore !== null && moneyVendorsMount !== null && (
-        createPortal(
-          <MoneyVendorsCard store={loadedStore} today={today} />,
-          moneyVendorsMount
-        )
-      )}
       {loadedStore !== null && moneyBudgetsMount !== null && (
         createPortal(
           <MoneyBudgetsCard onPersist={persistPlannerWrites} store={loadedStore} today={today} />,
