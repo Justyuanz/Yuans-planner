@@ -38,6 +38,43 @@ function identity(eventId: string) {
 }
 
 describe("buildCalendarTaskReconciliation", () => {
+  it("maps every production calendar category to its task activity", () => {
+    const categories = [
+      ["finnish", "Finnish"],
+      ["guitar", "Guitar"],
+      ["gym", "Gym"],
+      ["mobile", "Mobile Development"],
+      ["personal", "Personal"],
+      ["portfolio", "Portfolio / Job Prep"],
+      ["skate", "Skate"],
+      ["study", "Study/school"],
+      ["transcendence", "Transcendence"]
+    ] as const;
+    const store: PlannerStore = {
+      [CALENDAR_EVENTS_KEY]: JSON.stringify(categories.map(([id, category]) => ({
+        category,
+        date: DATE_KEY,
+        id,
+        title: id
+      })))
+    };
+
+    const tasks = buildCalendarTaskReconciliation(store, DATE_KEY, identity).tasks;
+    expect(Object.fromEntries(tasks.map(({ activity, sourceEventId }) => (
+      [sourceEventId, activity]
+    )))).toEqual({
+      finnish: "other",
+      guitar: "guitar",
+      gym: "gym",
+      mobile: "mobileDevelopment",
+      personal: "other",
+      portfolio: "portfolioJobPrep",
+      skate: "skate",
+      study: "transcendence",
+      transcendence: "transcendence"
+    });
+  });
+
   it("creates legacy-compatible tasks from structured and legacy calendar events", () => {
     const store: PlannerStore = {
       [CALENDAR_EVENTS_KEY]: JSON.stringify([
