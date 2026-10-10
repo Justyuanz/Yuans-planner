@@ -85,6 +85,26 @@ describe("buildDashboardTaskMetrics", () => {
     expect(metrics.vagueTaskFriction.vagueOpenCount).toBe(0);
   });
 
+  it("ignores non-finite and non-numeric task durations", () => {
+    const metrics = buildDashboardTaskMetrics({
+      activityLog: [],
+      currentDateKey: "2026-08-08",
+      lookbackDays: 7,
+      taskMap: {
+        "2026-08-07": [
+          task("09 Corrupt timer", Infinity, true, Infinity),
+          task("10 Invalid values", "not-a-number", true, "not-a-number")
+        ]
+      }
+    });
+
+    expect(metrics.hourGapAverages).toEqual(expect.objectContaining({
+      averageGap: 0,
+      completedAverage: 0,
+      plannedAverage: 0
+    }));
+  });
+
   it("matches legacy task, hour, edit, evening, unscheduled, and vague metrics", () => {
     const metrics = buildDashboardTaskMetrics({
       currentDateKey: "2026-08-06",
