@@ -39,9 +39,9 @@ YUAN_PLANNER_PORT=8876 ./scripts/start.sh
 ## Project structure
 
 ```text
-backend/       HTTP server, SQLite storage, configuration, and integrations
-frontend-react/ React + strict TypeScript application and production build
-frontend/       Legacy compatibility shell and shared CSS/JavaScript assets
+backend/        HTTP server, SQLite storage, configuration, and integrations
+frontend-react/ React + strict TypeScript application, styles, and production build
+frontend/       Legacy HTML/JavaScript reference used during migration testing
 scripts/       Start, open, and test commands
 tests/         Backend, browser, compatibility, and end-to-end tests
 docs/          Design notes and future plans

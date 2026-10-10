@@ -289,7 +289,7 @@ class HttpTests(unittest.TestCase):
             self.assertEqual(self.request("GET", "/missing.js")[0], 404)
             self.assertEqual(
                 self.request("GET", "/css/styles.css")[2],
-                (http_server.LEGACY_FRONTEND_DIR / "css" / "styles.css").read_bytes(),
+                http_server.REACT_STYLESHEET.read_bytes(),
             )
             self.assertEqual(
                 self.request("GET", "/legacy/")[2],

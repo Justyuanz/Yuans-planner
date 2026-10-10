@@ -24,6 +24,7 @@ from telegram_notifier import send_telegram_message, telegram_status
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 LEGACY_FRONTEND_DIR = PROJECT_ROOT / "frontend"
 REACT_FRONTEND_DIR = PROJECT_ROOT / "frontend-react" / "dist"
+REACT_STYLESHEET = PROJECT_ROOT / "frontend-react" / "src" / "planner.css"
 
 
 class PlannerHandler(BaseHTTPRequestHandler):
@@ -140,11 +141,14 @@ class PlannerHandler(BaseHTTPRequestHandler):
         self.send_json(response)
 
     def serve_static(self, path: str, include_body: bool = True) -> None:
+        if path == "/css/styles.css":
+            self.send_static_file(REACT_STYLESHEET, include_body)
+            return
         if path == "/legacy" or path.startswith("/legacy/"):
             legacy_path = path[len("/legacy"):]
             self.serve_legacy_static(legacy_path or "/", include_body)
             return
-        if path.startswith("/css/") or path.startswith("/js/"):
+        if path.startswith("/js/"):
             self.serve_legacy_static(path, include_body)
             return
         if planner_frontend_mode() == "legacy":
