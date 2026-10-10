@@ -3840,10 +3840,6 @@
         if (!elements.moneyProgressList || !state) {
           return;
         }
-        var pacingCard = elements.moneyProgressList.closest(".money-pacing-card");
-        if (pacingCard && pacingCard.dataset.reactOwned === "true") {
-          return;
-        }
         elements.moneyProgressList.innerHTML = "";
         appendMoneyProgressCard(
           elements.moneyProgressList,
@@ -3862,10 +3858,6 @@
 
       function renderMoneyCharts(state) {
         if (!elements.moneyCharts || !state) {
-          return;
-        }
-        var pacingCard = elements.moneyCharts.closest(".money-pacing-card");
-        if (pacingCard && pacingCard.dataset.reactOwned === "true") {
           return;
         }
         elements.moneyCharts.innerHTML = "";

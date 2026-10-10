@@ -41,33 +41,33 @@ async function seedPacing(serverUrl) {
   await putValue(serverUrl, TRANSACTIONS_KEY, TRANSACTIONS);
 }
 
-async function openMoney(browser, pageUrl, documentExpression = "document") {
+async function openMoney(browser, pageUrl) {
   await browser.open(pageUrl);
-  await browser.waitForExpression(`(${documentExpression}).querySelector('[data-view-target="moneyView"]')`);
+  await browser.waitForExpression('document.querySelector(\'[data-view-target="moneyView"]\') !== null');
   await browser.waitForExpression(`(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const moneyView = documentRoot.getElementById("moneyView");
     if (!moneyView.classList.contains("active")) {
       documentRoot.querySelector('[data-view-target="moneyView"]').click();
     }
     return moneyView.classList.contains("active");
   })()`);
-  await browser.waitForExpression(`(${documentExpression}).querySelectorAll("#moneyProgressList .money-progress-card").length === 2`);
+  await browser.waitForExpression('document.querySelectorAll("#moneyProgressList .money-progress-card").length === 2');
 }
 
-async function expandHistory(browser, documentExpression) {
+async function expandHistory(browser) {
   await browser.evaluate(`(() => {
-    const details = (${documentExpression}).querySelector(".money-pacing-card .money-chart-dropdown");
+    const details = document.querySelector(".money-pacing-card .money-chart-dropdown");
     if (!details.open) {
       details.querySelector("summary").click();
     }
   })()`);
-  await browser.waitForExpression(`(${documentExpression}).querySelector(".money-pacing-card .money-chart-dropdown").open`);
+  await browser.waitForExpression('document.querySelector(".money-pacing-card .money-chart-dropdown").open');
 }
 
-function pacingState(documentExpression) {
+function pacingState() {
   return `(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const panel = documentRoot.querySelector(".money-pacing-card");
     const progress = [...panel.querySelectorAll(".money-progress-card")].map((card) => {
       const estimate = card.querySelector(".money-estimate-block");
@@ -105,9 +105,9 @@ function pacingState(documentExpression) {
   })()`;
 }
 
-function pacingVisualContract(documentExpression) {
+function pacingVisualContract() {
   return `(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const view = documentRoot.defaultView;
     const panel = documentRoot.querySelector(".money-pacing-card");
     const pick = (element) => {
@@ -149,33 +149,24 @@ function pacingVisualContract(documentExpression) {
         visual: pick(card)
       })),
       progressList: pick(documentRoot.getElementById("moneyProgressList")),
-      state: ${pacingState(documentExpression)}
+      state: ${pacingState()}
     };
   })()`;
 }
 
-const LEGACY_CLIP = `(() => {
+const MONEY_PACING_CLIP = `(() => {
   const rect = document.querySelector(".money-pacing-card").getBoundingClientRect();
   return { x: rect.x + scrollX, y: rect.y + scrollY, width: rect.width, height: Math.min(rect.height, 680) };
 })()`;
 
-const PREVIEW_CLIP = `(() => {
-  const frame = document.querySelector("iframe");
-  const rect = frame.contentDocument.querySelector(".money-pacing-card").getBoundingClientRect();
-  const frameRect = frame.getBoundingClientRect();
-  return { x: frameRect.x + rect.x, y: frameRect.y + rect.y, width: rect.width, height: Math.min(rect.height, 680) };
-})()`;
-
-async function scrollToPacing(browser, documentExpression) {
-  await browser.waitForExpression(
-    `(${documentExpression}).documentElement.dataset.plannerReady === "true"`
-  );
+async function scrollToPacing(browser) {
+  await browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
   await browser.evaluate(`(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     documentRoot.documentElement.style.scrollBehavior = "auto";
     documentRoot.querySelector(".money-pacing-card").scrollIntoView({ block: "start" });
   })()`);
-  await browser.waitForExpression(`Math.abs((${documentExpression}).querySelector(".money-pacing-card").getBoundingClientRect().top) < 1`);
+  await browser.waitForExpression('Math.abs(document.querySelector(".money-pacing-card").getBoundingClientRect().top) < 1');
 }
 
 function expectedCategoryRows(overBudget) {
@@ -266,15 +257,15 @@ test("Money pacing preserves projections, charts, history, and visual behavior",
 
   await planner.browser.setViewport(1280, 720);
   await openMoney(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
-  assertDefaultState(await planner.browser.evaluate(pacingState("document")));
+  assertDefaultState(await planner.browser.evaluate(pacingState()));
 
   await seedPacing(planner.server.url);
   await openMoney(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
-  await expandHistory(planner.browser, "document");
-  assertPopulatedState(await planner.browser.evaluate(pacingState("document")));
-  await scrollToPacing(planner.browser, "document");
-  const legacyDesktop = await planner.browser.evaluate(pacingVisualContract("document"));
-  const legacyDesktopScreenshot = await planner.browser.captureScreenshot(LEGACY_CLIP);
+  await expandHistory(planner.browser);
+  assertPopulatedState(await planner.browser.evaluate(pacingState()));
+  await scrollToPacing(planner.browser);
+  const legacyDesktop = await planner.browser.evaluate(pacingVisualContract());
+  const legacyDesktopScreenshot = await planner.browser.captureScreenshot(MONEY_PACING_CLIP);
 
   const preview = await startReactPreviewServer(planner.server.url);
   if (!preview) {
@@ -285,17 +276,14 @@ test("Money pacing preserves projections, charts, history, and visual behavior",
     await preview.close();
   });
 
-  const previewDocument = 'document.querySelector("iframe").contentDocument';
-  await openMoney(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, previewDocument);
-  assert.equal(await planner.browser.evaluate(
-    'document.querySelector("iframe").contentDocument.querySelector(".money-pacing-card").dataset.reactOwned'
-  ), "true");
-  assert.equal((await planner.browser.evaluate(pacingState(previewDocument))).history.open, false);
-  await expandHistory(planner.browser, previewDocument);
-  assertPopulatedState(await planner.browser.evaluate(pacingState(previewDocument)));
-  await scrollToPacing(planner.browser, previewDocument);
-  const previewDesktop = await planner.browser.evaluate(pacingVisualContract(previewDocument));
-  const previewDesktopScreenshot = await planner.browser.captureScreenshot(PREVIEW_CLIP);
+  await openMoney(planner.browser, `${preview.url}/?view=moneyView&date=${TEST_DATE}`);
+  assert.equal(await planner.browser.evaluate('document.querySelector("iframe")'), null);
+  assert.equal((await planner.browser.evaluate(pacingState())).history.open, false);
+  await expandHistory(planner.browser);
+  assertPopulatedState(await planner.browser.evaluate(pacingState()));
+  await scrollToPacing(planner.browser);
+  const previewDesktop = await planner.browser.evaluate(pacingVisualContract());
+  const previewDesktopScreenshot = await planner.browser.captureScreenshot(MONEY_PACING_CLIP);
   assert.deepEqual(previewDesktop, legacyDesktop);
   assertSameScreenshot(previewDesktopScreenshot, legacyDesktopScreenshot, "desktop Money pacing screenshot");
 
@@ -307,24 +295,24 @@ test("Money pacing preserves projections, charts, history, and visual behavior",
     key: ${JSON.stringify(SETTINGS_KEY)},
     newValue: "{}"
   }))`);
-  await planner.browser.waitForExpression(`(${previewDocument}).querySelector("#moneyProgressList .money-progress-copy span").textContent === "€0.00 spent of €1,300.00"`);
-  assertDefaultState(await planner.browser.evaluate(pacingState(previewDocument)), true);
+  await planner.browser.waitForExpression('document.querySelector("#moneyProgressList .money-progress-copy span").textContent === "€0.00 spent of €1,300.00"');
+  assertDefaultState(await planner.browser.evaluate(pacingState()), true);
 
-  await openMoney(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, previewDocument);
-  assert.equal((await planner.browser.evaluate(pacingState(previewDocument))).history.open, false);
+  await openMoney(planner.browser, `${preview.url}/?view=moneyView&date=${TEST_DATE}`);
+  assert.equal((await planner.browser.evaluate(pacingState())).history.open, false);
 
   await planner.browser.setViewport(390, 844, true);
   await openMoney(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
-  await expandHistory(planner.browser, "document");
-  await scrollToPacing(planner.browser, "document");
-  const legacyMobile = await planner.browser.evaluate(pacingVisualContract("document"));
-  const legacyMobileScreenshot = await planner.browser.captureScreenshot(LEGACY_CLIP);
+  await expandHistory(planner.browser);
+  await scrollToPacing(planner.browser);
+  const legacyMobile = await planner.browser.evaluate(pacingVisualContract());
+  const legacyMobileScreenshot = await planner.browser.captureScreenshot(MONEY_PACING_CLIP);
 
-  await openMoney(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, previewDocument);
-  await expandHistory(planner.browser, previewDocument);
-  await scrollToPacing(planner.browser, previewDocument);
-  const previewMobile = await planner.browser.evaluate(pacingVisualContract(previewDocument));
-  const previewMobileScreenshot = await planner.browser.captureScreenshot(PREVIEW_CLIP);
+  await openMoney(planner.browser, `${preview.url}/?view=moneyView&date=${TEST_DATE}`);
+  await expandHistory(planner.browser);
+  await scrollToPacing(planner.browser);
+  const previewMobile = await planner.browser.evaluate(pacingVisualContract());
+  const previewMobileScreenshot = await planner.browser.captureScreenshot(MONEY_PACING_CLIP);
   assert.deepEqual(previewMobile, legacyMobile);
   assert.equal(previewMobile.panel.width, 370);
   assert.equal(previewMobile.progressCards[0].visual.width, 338);
