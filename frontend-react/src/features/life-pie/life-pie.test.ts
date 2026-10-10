@@ -57,7 +57,10 @@ describe("buildLifePie", () => {
       ]),
       "hivePlanner.skate.sessions": JSON.stringify([
         { dateKey: "2026-09-13", finishedAt: "2026-09-13T10:00:00Z", durationHours: 0.5 },
-        { dateKey: "2026-09-13", finishedAt: "2026-09-13T11:00:00Z", durationHours: 0.75, trackedInTask: true }
+        { dateKey: "2026-09-13", finishedAt: "2026-09-13T11:00:00Z", durationHours: 0.75, trackedInTask: true },
+        { dateKey: "2026-09-13", finishedAt: "2026-09-13T12:00:00Z", durationHours: "not-a-number" },
+        { dateKey: "2026-09-13", finishedAt: "2026-09-13T13:00:00Z", durationHours: -1 },
+        null
       ]),
       "hivePlanner.guitar.sessions": JSON.stringify([
         { dateKey: "2026-09-13", finishedAt: "2026-09-13T10:00:00Z", durationHours: 0.25 },

@@ -19,7 +19,7 @@ describe("Skate roadmap model", () => {
         {
           dateKey: "2026-08-29",
           durationHours: 0.5,
-          finishedAt: "2026-08-29T12:00:00.000Z",
+          finishedAt: "2026-08-28T12:00:00.000Z",
           intensity: "blue",
           mainFocus: "Baseline"
         },
