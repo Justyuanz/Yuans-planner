@@ -23,11 +23,13 @@ describe("activity log compatibility", () => {
         entityId: "task-a",
         field: "hours",
         before: 1,
-        after: 3
+        after: 3,
+        meta: { activity: "python", preserve: true }
       }
     ]));
 
     expect(entries.map(({ id }) => id)).toEqual(["a", "b"]);
+    expect(entries[0]?.meta).toEqual({ activity: "mobileDevelopment", preserve: true });
     expect(entries[1]).toMatchObject({ entityId: "task-b", entityType: "task", meta: {} });
     expect(decodeActivityLog("not-json")).toEqual([]);
     expect(decodeActivityLog(JSON.stringify({}))).toEqual([]);

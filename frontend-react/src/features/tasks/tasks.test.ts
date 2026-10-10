@@ -36,7 +36,7 @@ describe("task compatibility", () => {
   it("normalizes malformed fields, retired activities, caps, and chronological order", () => {
     const tasks = decodeTasks(JSON.stringify([
       { id: "late", label: " Late ", activity: "cpp", hours: 40, scheduledTime: "2pm" },
-      { id: "early", label: "Early", track: "python", timerSeconds: 40_000, scheduledTime: "930" },
+      { id: "early", label: "Early", track: "python", hours: 1, timerSeconds: 40_000, scheduledTime: "930" },
       { id: "passive", label: "Other", activity: "missing", done: "yes" },
       { label: "  " },
       null
@@ -45,9 +45,11 @@ describe("task compatibility", () => {
     expect(tasks.map(({ id }) => id)).toEqual(["early", "late", "passive"]);
     expect(tasks[0]).toMatchObject({
       activity: "mobileDevelopment",
+      hours: 1,
       scheduledTime: "09:30",
       timerSeconds: 28_800
     });
+    expect(tasks[0]).not.toHaveProperty("track");
     expect(tasks[1]).toMatchObject({ activity: "transcendence", hours: 24, scheduledTime: "14:00" });
     expect(tasks[2]).toMatchObject({ activity: "other", done: true });
   });

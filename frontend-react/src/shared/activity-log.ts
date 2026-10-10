@@ -1,3 +1,4 @@
+import { migrateLegacyActivityReference } from "../features/activity-categories/activity-categories";
 import { isRecord } from "./is-record";
 
 export interface ActivityLogEntry {
@@ -40,6 +41,10 @@ function normalizeActivityEntry(candidate: unknown): ActivityLogEntry | null {
   const entityType = typeof candidate.entityType === "string" ? candidate.entityType.trim() : "";
   const entityId = typeof candidate.entityId === "string" ? candidate.entityId.trim() : "";
   if (!VALID_ACTIVITY_ACTIONS.has(action) || !timestamp || !entityType || !entityId) return null;
+  const meta = isRecord(candidate.meta) ? { ...candidate.meta } : {};
+  if ("activity" in meta) {
+    meta.activity = migrateLegacyActivityReference(meta.activity);
+  }
   return {
     action,
     after: candidate.after,
@@ -49,7 +54,7 @@ function normalizeActivityEntry(candidate: unknown): ActivityLogEntry | null {
     entityType,
     field: typeof candidate.field === "string" ? candidate.field : "",
     id: typeof candidate.id === "string" ? candidate.id : "",
-    meta: isRecord(candidate.meta) ? { ...candidate.meta } : {},
+    meta,
     timestamp
   };
 }

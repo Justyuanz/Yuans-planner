@@ -70,11 +70,17 @@ const PLANNED_IDS = new Set<TrackedActivityId>(
     .map(({ id }) => id as TrackedActivityId)
 );
 
+export function migrateLegacyActivityReference(value: unknown): unknown {
+  if (typeof value !== "string" || !(value in LEGACY_ACTIVITY_IDS)) {
+    return value;
+  }
+  return LEGACY_ACTIVITY_IDS[value as keyof typeof LEGACY_ACTIVITY_IDS];
+}
+
 export function normalizeActivityId(value: unknown): ActivityId {
   const id = typeof value === "string" ? value.trim() : "";
-  if (id in LEGACY_ACTIVITY_IDS) {
-    return LEGACY_ACTIVITY_IDS[id as keyof typeof LEGACY_ACTIVITY_IDS];
-  }
+  const migrated = migrateLegacyActivityReference(id);
+  if (migrated !== id) return migrated as TrackedActivityId;
   return ACTIVE_IDS.has(id as ActivityId) ? id as ActivityId : "other";
 }
 
