@@ -17,11 +17,15 @@ describe("DAY_STATE_OPTIONS", () => {
 
 describe("decodeDayState", () => {
   it("normalizes a stored state like the legacy agent core", () => {
-    expect(decodeDayState({
+    const store = {
       "hivePlanner.dayState": JSON.stringify({
+        "2026-09-15": "good",
         "2026-09-16": "  LOW-FOCUS  "
       })
-    }, "2026-09-16")).toBe("low-focus");
+    };
+
+    expect(decodeDayState(store, "2026-09-15")).toBe("good");
+    expect(decodeDayState(store, "2026-09-16")).toBe("low-focus");
   });
 
   const malformedStores: PlannerStore[] = [
