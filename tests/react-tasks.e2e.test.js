@@ -164,16 +164,35 @@ test("React tasks preserve the legacy design and task lifecycle", { timeout: 60_
   await planner.browser.open(previewUrl);
   await planner.browser.waitForExpression(directReady(2));
   await planner.browser.evaluate(`(() => {
-    const input = document.getElementById("taskTitle");
-    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
-    setter.call(input, "React TypeScript task");
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-    document.querySelector(".task-form-add").click();
+    const setInput = (selector, value) => {
+      const input = document.querySelector(selector);
+      Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(input, value);
+      input.dispatchEvent(new Event("input", { bubbles: true }));
+    };
+    const setSelect = (selector, value) => {
+      const select = document.querySelector(selector);
+      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set.call(select, value);
+      select.dispatchEvent(new Event("change", { bubbles: true }));
+    };
+    setInput("#taskTitle", "React TypeScript task");
+    setInput("#taskTime", "09:30");
+    setSelect("#taskReminder", "10");
+    setSelect("#taskActivity", "transcendence");
+    document.getElementById("taskForm").requestSubmit();
   })()`);
-  await planner.server.waitFor(async function () {
+  const createdTask = await planner.server.waitFor(async function () {
     const data = await planner.server.readPlannerData();
     const tasks = JSON.parse(data[TASK_KEY] || "[]");
-    return tasks.some(({ label }) => label === "React TypeScript task");
+    return tasks.find(({ label }) => label === "React TypeScript task");
+  });
+  assert.deepEqual({
+    activity: createdTask.activity,
+    reminderMinutes: createdTask.reminderMinutes,
+    scheduledTime: createdTask.scheduledTime
+  }, {
+    activity: "transcendence",
+    reminderMinutes: 10,
+    scheduledTime: "09:30"
   });
 
   await planner.browser.reload();
@@ -189,6 +208,44 @@ test("React tasks preserve the legacy design and task lifecycle", { timeout: 60_
   })()`);
   await planner.browser.waitForExpression('document.querySelector(".task-title-input") !== null');
   await planner.browser.evaluate(`(() => {
+    const input = document.querySelector(".task-editor-time");
+    input.focus();
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(input, "10:15");
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.blur();
+  })()`);
+  await planner.server.waitFor(async function () {
+    const data = await planner.server.readPlannerData();
+    const tasks = JSON.parse(data[TASK_KEY] || "[]");
+    return tasks.some(({ label, scheduledTime }) => (
+      label === "React TypeScript task" && scheduledTime === "10:15"
+    ));
+  });
+  await planner.browser.evaluate(`(() => {
+    const select = document.querySelector(".task-editor-activity");
+    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set.call(select, "mobileDevelopment");
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  })()`);
+  await planner.server.waitFor(async function () {
+    const data = await planner.server.readPlannerData();
+    const tasks = JSON.parse(data[TASK_KEY] || "[]");
+    return tasks.some(({ activity, label }) => (
+      activity === "mobileDevelopment" && label === "React TypeScript task"
+    ));
+  });
+  await planner.browser.evaluate(`(() => {
+    const select = document.querySelector(".task-editor-reminder");
+    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set.call(select, "15");
+    select.dispatchEvent(new Event("change", { bubbles: true }));
+  })()`);
+  await planner.server.waitFor(async function () {
+    const data = await planner.server.readPlannerData();
+    const tasks = JSON.parse(data[TASK_KEY] || "[]");
+    return tasks.some(({ label, reminderMinutes }) => (
+      label === "React TypeScript task" && reminderMinutes === 15
+    ));
+  });
+  await planner.browser.evaluate(`(() => {
     const input = document.querySelector(".task-title-input");
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
     setter.call(input, "Edited React task");
@@ -202,7 +259,12 @@ test("React tasks preserve the legacy design and task lifecycle", { timeout: 60_
   await planner.server.waitFor(async function () {
     const data = await planner.server.readPlannerData();
     const tasks = JSON.parse(data[TASK_KEY] || "[]");
-    return tasks.some(({ label }) => label === "Edited React task");
+    return tasks.some(({ activity, label, reminderMinutes, scheduledTime }) => (
+      activity === "mobileDevelopment"
+      && label === "Edited React task"
+      && reminderMinutes === 15
+      && scheduledTime === "10:15"
+    ));
   });
 
   await planner.browser.evaluate(`(() => {
@@ -224,6 +286,12 @@ test("React tasks preserve the legacy design and task lifecycle", { timeout: 60_
     const tasks = JSON.parse(data[TASK_KEY] || "[]");
     return !tasks.some(({ label }) => label === "Edited React task");
   });
+  await planner.browser.reload();
+  await planner.browser.waitForExpression(directReady(2));
+  assert.equal(await planner.browser.evaluate(`(() => (
+    [...document.querySelectorAll(".task-title")]
+      .some((node) => node.textContent.includes("Edited React task"))
+  ))()`), false);
   assert.deepEqual(planner.browser.errors(), []);
 });
 

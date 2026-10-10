@@ -1,8 +1,8 @@
 const assert = require("node:assert/strict");
 const test = require("node:test");
 
-const mindCore = require("../frontend/js/mind-core");
 const { startBrowserPlanner } = require("./helpers/browser-planner");
+const { startReactPreviewServer } = require("./helpers/react-preview-server");
 
 const TEST_DATE = "2026-09-12";
 const TASK_STORAGE_KEY = `hivePlanner.dailyTasks.${TEST_DATE}`;
@@ -22,31 +22,34 @@ function findActivityTask(tasks, activityId) {
 function recordedHours(tasks, sessions, activityId) {
   const task = findActivityTask(tasks, activityId);
   const taskHours = task ? task.hours : 0;
-  return taskHours + mindCore.sessionHours(sessions);
+  const standaloneHours = sessions.reduce(function (total, session) {
+    return session.trackedInTask ? total : total + (Number(session.durationHours) || 0);
+  }, 0);
+  return taskHours + standaloneHours;
 }
 
 async function finishGuitarSession(browser) {
+  await browser.evaluate('document.getElementById("startGuitarSession").click()');
+  await browser.evaluate('document.getElementById("finishGuitarSession").click()');
+  await browser.waitForExpression('document.getElementById("guitarSessionDialog").open');
   await browser.evaluate(`(() => {
-    document.getElementById("startGuitarSession").click();
-    document.getElementById("finishGuitarSession").click();
-    document.getElementById("guitarDurationMinutes").value = "30";
-    document.getElementById("guitarSessionForm").dispatchEvent(new Event("submit", {
-      bubbles: true,
-      cancelable: true
-    }));
+    const duration = document.getElementById("guitarDurationMinutes");
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(duration, "30");
+    document.getElementById("guitarSessionForm").requestSubmit();
   })()`);
 }
 
 async function finishSkateSession(browser) {
+  await browser.evaluate('document.getElementById("startSkateSession").click()');
+  await browser.evaluate('document.getElementById("finishSkateSession").click()');
+  await browser.waitForExpression('document.getElementById("skateFeedbackDialog").open');
   await browser.evaluate(`(() => {
-    document.getElementById("startSkateSession").click();
-    document.getElementById("finishSkateSession").click();
-    document.getElementById("skateDurationMinutes").value = "45";
-    document.getElementById("skateSessionDate").value = "${TEST_DATE}";
-    document.getElementById("skateFeedbackForm").dispatchEvent(new Event("submit", {
-      bubbles: true,
-      cancelable: true
-    }));
+    const duration = document.getElementById("skateDurationMinutes");
+    const sessionDate = document.getElementById("skateSessionDate");
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
+    setter.call(duration, "45");
+    setter.call(sessionDate, "${TEST_DATE}");
+    document.getElementById("skateFeedbackForm").requestSubmit();
   })()`);
 }
 
@@ -63,14 +66,31 @@ async function waitForSessionData(server) {
 }
 
 test("finished Guitar and Skate sessions sync to tasks without double-counting time", { timeout: 30_000 }, async function (context) {
-  const planner = await startBrowserPlanner(context);
+  const planner = await startBrowserPlanner(context, { frontendMode: "react" });
   if (!planner) {
     return;
   }
+  const preview = await startReactPreviewServer(planner.server.url);
+  if (!preview) {
+    context.skip("Install frontend-react dependencies to run React session tests.");
+    return;
+  }
+  context.after(async function () {
+    await preview.close();
+  });
 
-  await planner.browser.open(`${planner.server.url}/?date=${TEST_DATE}`);
-  await planner.browser.waitForExpression('document.querySelector("#tasksMount .empty") !== null');
+  await planner.browser.open(`${preview.url}/?view=guitarView&date=${TEST_DATE}`);
+  await planner.browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
   await finishGuitarSession(planner.browser);
+  await planner.server.waitFor(async function () {
+    const data = await planner.server.readPlannerData();
+    const tasks = JSON.parse(data[TASK_STORAGE_KEY] || "[]");
+    const sessions = JSON.parse(data[GUITAR_SESSIONS_KEY] || "[]");
+    return tasks.some(({ activity }) => activity === "guitar") && sessions.length === 1;
+  });
+
+  await planner.browser.open(`${preview.url}/?view=skateView&date=${TEST_DATE}`);
+  await planner.browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
   await finishSkateSession(planner.browser);
 
   const data = await waitForSessionData(planner.server);
@@ -87,7 +107,9 @@ test("finished Guitar and Skate sessions sync to tasks without double-counting t
   assert.equal(data.skateSessions[0].trackedInTask, true);
   assert.equal(recordedHours(data.tasks, data.skateSessions, "skate"), 0.75);
 
-  await planner.browser.reload();
+  await planner.browser.open(`${preview.url}/?view=todayView&date=${TEST_DATE}`);
+  await planner.browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
   await planner.browser.waitForExpression('document.querySelectorAll(".task").length === 2');
+  assert.equal(await planner.browser.evaluate('document.querySelector("iframe")'), null);
   assert.deepEqual(planner.browser.errors(), []);
 });
