@@ -42,33 +42,33 @@ async function seedActivity(serverUrl) {
   await putValue(serverUrl, TRANSACTIONS_KEY, TRANSACTIONS);
 }
 
-async function openMoney(browser, pageUrl, documentExpression = "document") {
+async function openMoney(browser, pageUrl) {
   await browser.open(pageUrl);
-  await browser.waitForExpression(`(${documentExpression}).querySelector('[data-view-target="moneyView"]')`);
+  await browser.waitForExpression('document.querySelector(\'[data-view-target="moneyView"]\') !== null');
   await browser.waitForExpression(`(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const moneyView = documentRoot.getElementById("moneyView");
     if (!moneyView.classList.contains("active")) {
       documentRoot.querySelector('[data-view-target="moneyView"]').click();
     }
     return moneyView.classList.contains("active");
   })()`);
-  await browser.waitForExpression(`(${documentExpression}).querySelector(".money-activity-card details") !== null`);
+  await browser.waitForExpression('document.querySelector(".money-activity-card details") !== null');
 }
 
-async function expandActivity(browser, documentExpression) {
+async function expandActivity(browser) {
   await browser.evaluate(`(() => {
-    const details = (${documentExpression}).querySelector(".money-activity-card details");
+    const details = document.querySelector(".money-activity-card details");
     if (!details.open) {
       details.querySelector("summary").click();
     }
   })()`);
-  await browser.waitForExpression(`(${documentExpression}).querySelector(".money-activity-card details").open`);
+  await browser.waitForExpression('document.querySelector(".money-activity-card details").open');
 }
 
-function activityState(documentExpression) {
+function activityState() {
   return `(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const panel = documentRoot.querySelector(".money-activity-card");
     const details = panel.querySelector("details");
     return {
@@ -83,9 +83,9 @@ function activityState(documentExpression) {
   })()`;
 }
 
-function activityVisualContract(documentExpression) {
+function activityVisualContract() {
   return `(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const view = documentRoot.defaultView;
     const panel = documentRoot.querySelector(".money-activity-card");
     const details = panel.querySelector("details");
@@ -123,46 +123,30 @@ function activityVisualContract(documentExpression) {
         text: row.textContent.trim(),
         visual: pick(row)
       })),
-      state: ${activityState(documentExpression)},
+      state: ${activityState()},
       summary: pick(details.querySelector("summary"))
     };
   })()`;
 }
 
-const LEGACY_CLIP = `(() => {
+const ACTIVITY_CLIP = `(() => {
   const rect = document.querySelector(".money-activity-card").getBoundingClientRect();
   return { x: rect.x + scrollX, y: rect.y + scrollY, width: rect.width, height: rect.height };
 })()`;
 
-const PREVIEW_CLIP = `(() => {
-  const frame = document.querySelector("iframe");
-  const rect = frame.contentDocument.querySelector(".money-activity-card").getBoundingClientRect();
-  const frameRect = frame.getBoundingClientRect();
-  return { x: frameRect.x + rect.x, y: frameRect.y + rect.y, width: rect.width, height: rect.height };
-})()`;
-
-const LEGACY_MOBILE_CLIP = `(() => {
+const ACTIVITY_MOBILE_CLIP = `(() => {
   const rect = document.querySelector(".money-activity-card").getBoundingClientRect();
   return { x: rect.x + scrollX, y: rect.y + scrollY, width: rect.width, height: Math.min(rect.height, 640) };
 })()`;
 
-const PREVIEW_MOBILE_CLIP = `(() => {
-  const frame = document.querySelector("iframe");
-  const rect = frame.contentDocument.querySelector(".money-activity-card").getBoundingClientRect();
-  const frameRect = frame.getBoundingClientRect();
-  return { x: frameRect.x + rect.x, y: frameRect.y + rect.y, width: rect.width, height: Math.min(rect.height, 640) };
-})()`;
-
-async function scrollToActivity(browser, documentExpression) {
-  await browser.waitForExpression(
-    `(${documentExpression}).documentElement.dataset.plannerReady === "true"`
-  );
+async function scrollToActivity(browser) {
+  await browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
   await browser.evaluate(`(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     documentRoot.documentElement.style.scrollBehavior = "auto";
     documentRoot.querySelector(".money-activity-card").scrollIntoView({ block: "start" });
   })()`);
-  await browser.waitForExpression(`Math.abs((${documentExpression}).querySelector(".money-activity-card").getBoundingClientRect().top) < 1`);
+  await browser.waitForExpression('Math.abs(document.querySelector(".money-activity-card").getBoundingClientRect().top) < 1');
 }
 
 function assertPopulatedState(state) {
@@ -195,7 +179,7 @@ test("Money recent activity preserves ordering, disclosure state, and visual beh
 
   await planner.browser.setViewport(1280, 720);
   await openMoney(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
-  assert.deepEqual(await planner.browser.evaluate(activityState("document")), {
+  assert.deepEqual(await planner.browser.evaluate(activityState()), {
     open: false,
     summary: ["Recent activity", "Open for the latest transactions."],
     rows: [{ head: [], metrics: [], text: "No activity yetYour latest spending will show up here." }]
@@ -203,11 +187,11 @@ test("Money recent activity preserves ordering, disclosure state, and visual beh
 
   await seedActivity(planner.server.url);
   await openMoney(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
-  await expandActivity(planner.browser, "document");
-  assertPopulatedState(await planner.browser.evaluate(activityState("document")));
-  await scrollToActivity(planner.browser, "document");
-  const legacyDesktop = await planner.browser.evaluate(activityVisualContract("document"));
-  const legacyDesktopScreenshot = await planner.browser.captureScreenshot(LEGACY_CLIP);
+  await expandActivity(planner.browser);
+  assertPopulatedState(await planner.browser.evaluate(activityState()));
+  await scrollToActivity(planner.browser);
+  const legacyDesktop = await planner.browser.evaluate(activityVisualContract());
+  const legacyDesktopScreenshot = await planner.browser.captureScreenshot(ACTIVITY_CLIP);
 
   const preview = await startReactPreviewServer(planner.server.url);
   if (!preview) {
@@ -218,17 +202,14 @@ test("Money recent activity preserves ordering, disclosure state, and visual beh
     await preview.close();
   });
 
-  const previewDocument = 'document.querySelector("iframe").contentDocument';
-  await openMoney(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, previewDocument);
-  assert.equal(await planner.browser.evaluate(
-    'document.querySelector("iframe").contentDocument.querySelector(".money-activity-card").dataset.reactOwned'
-  ), "true");
-  assert.equal((await planner.browser.evaluate(activityState(previewDocument))).open, false);
-  await expandActivity(planner.browser, previewDocument);
-  assertPopulatedState(await planner.browser.evaluate(activityState(previewDocument)));
-  await scrollToActivity(planner.browser, previewDocument);
-  const previewDesktop = await planner.browser.evaluate(activityVisualContract(previewDocument));
-  const previewDesktopScreenshot = await planner.browser.captureScreenshot(PREVIEW_CLIP);
+  await openMoney(planner.browser, `${preview.url}/?view=moneyView&date=${TEST_DATE}`);
+  assert.equal(await planner.browser.evaluate('document.querySelector("iframe")'), null);
+  assert.equal((await planner.browser.evaluate(activityState())).open, false);
+  await expandActivity(planner.browser);
+  assertPopulatedState(await planner.browser.evaluate(activityState()));
+  await scrollToActivity(planner.browser);
+  const previewDesktop = await planner.browser.evaluate(activityVisualContract());
+  const previewDesktopScreenshot = await planner.browser.captureScreenshot(ACTIVITY_CLIP);
   assert.deepEqual(previewDesktop, legacyDesktop);
   assertSameScreenshot(previewDesktopScreenshot, legacyDesktopScreenshot, "desktop Money activity screenshot");
 
@@ -236,24 +217,24 @@ test("Money recent activity preserves ordering, disclosure state, and visual beh
     key: ${JSON.stringify(TRANSACTIONS_KEY)},
     newValue: "[]"
   }))`);
-  await planner.browser.waitForExpression(`(${previewDocument}).querySelector("#moneyRecentActivity .money-vendor-row strong").textContent === "No activity yet"`);
-  assert.equal((await planner.browser.evaluate(activityState(previewDocument))).open, true);
+  await planner.browser.waitForExpression('document.querySelector("#moneyRecentActivity .money-vendor-row strong").textContent === "No activity yet"');
+  assert.equal((await planner.browser.evaluate(activityState())).open, true);
 
-  await openMoney(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, previewDocument);
-  assert.equal((await planner.browser.evaluate(activityState(previewDocument))).open, false);
+  await openMoney(planner.browser, `${preview.url}/?view=moneyView&date=${TEST_DATE}`);
+  assert.equal((await planner.browser.evaluate(activityState())).open, false);
 
   await planner.browser.setViewport(390, 844, true);
   await openMoney(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
-  await expandActivity(planner.browser, "document");
-  await scrollToActivity(planner.browser, "document");
-  const legacyMobile = await planner.browser.evaluate(activityVisualContract("document"));
-  const legacyMobileScreenshot = await planner.browser.captureScreenshot(LEGACY_MOBILE_CLIP);
+  await expandActivity(planner.browser);
+  await scrollToActivity(planner.browser);
+  const legacyMobile = await planner.browser.evaluate(activityVisualContract());
+  const legacyMobileScreenshot = await planner.browser.captureScreenshot(ACTIVITY_MOBILE_CLIP);
 
-  await openMoney(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, previewDocument);
-  await expandActivity(planner.browser, previewDocument);
-  await scrollToActivity(planner.browser, previewDocument);
-  const previewMobile = await planner.browser.evaluate(activityVisualContract(previewDocument));
-  const previewMobileScreenshot = await planner.browser.captureScreenshot(PREVIEW_MOBILE_CLIP);
+  await openMoney(planner.browser, `${preview.url}/?view=moneyView&date=${TEST_DATE}`);
+  await expandActivity(planner.browser);
+  await scrollToActivity(planner.browser);
+  const previewMobile = await planner.browser.evaluate(activityVisualContract());
+  const previewMobileScreenshot = await planner.browser.captureScreenshot(ACTIVITY_MOBILE_CLIP);
   assert.deepEqual(previewMobile, legacyMobile);
   assert.equal(previewMobile.panel.width, 370);
   assert.equal(previewMobile.rows[0].visual.gridTemplateColumns, "282px");
