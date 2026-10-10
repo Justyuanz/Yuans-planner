@@ -2,12 +2,11 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const { startBrowserPlanner } = require("./helpers/browser-planner");
-const { compareScreenshots } = require("./helpers/png-compare");
-const { startReactPreviewServer } = require("./helpers/react-preview-server");
 
 const TEST_DATE = "2026-09-14";
 const DAY_STATE_KEY = "hivePlanner.dayState";
 const ACTIVITY_LOG_KEY = "hivePlanner.activityLog";
+const FONT_FAMILY = 'ui-rounded, "SF Pro Rounded", Nunito, "Avenir Next", -apple-system, "system-ui", "Segoe UI", system-ui, sans-serif';
 
 async function putStoredValue(serverUrl, key, value) {
   const response = await fetch(`${serverUrl}/api/kv`, {
@@ -80,47 +79,6 @@ function dayStateVisualContract(documentExpression = "document") {
   })()`;
 }
 
-function stripClip(documentExpression = "document", frameExpression = "null") {
-  return `(() => {
-    const documentRoot = ${documentExpression};
-    const rect = documentRoot.querySelector(".day-state-strip").getBoundingClientRect();
-    const frame = ${frameExpression};
-    const frameRect = frame ? frame.getBoundingClientRect() : { x: 0, y: 0 };
-    return {
-      x: frameRect.x + rect.x + (frame ? 0 : documentRoot.defaultView.scrollX),
-      y: frameRect.y + rect.y + (frame ? 0 : documentRoot.defaultView.scrollY),
-      width: rect.width,
-      height: rect.height
-    };
-  })()`;
-}
-
-async function scrollToDayState(browser, documentExpression = "document") {
-  await browser.evaluate(`(() => {
-    const documentRoot = ${documentExpression};
-    const mascot = documentRoot.querySelector(".mascot-card");
-    documentRoot.documentElement.style.scrollBehavior = "auto";
-    if (mascot) {
-      mascot.style.visibility = "hidden";
-    }
-    documentRoot.querySelector(".day-state-strip").scrollIntoView({ block: "center" });
-  })()`);
-  await browser.waitForExpression(`(() => {
-    const documentRoot = ${documentExpression};
-    const rect = documentRoot.querySelector(".day-state-strip").getBoundingClientRect();
-    return rect.top >= 0 && rect.bottom <= documentRoot.defaultView.innerHeight;
-  })()`);
-  await browser.evaluate(`new Promise((resolve) => {
-    const view = (${documentExpression}).defaultView;
-    view.requestAnimationFrame(() => view.requestAnimationFrame(resolve));
-  })`);
-}
-
-function assertSameScreenshot(actual, expected, label) {
-  const comparison = compareScreenshots(actual, expected);
-  assert.equal(comparison.matches, true, `${label}: ${JSON.stringify(comparison)}`);
-}
-
 const DEFAULT_OPTIONS = [
   { id: "good", label: "Good", active: false },
   { id: "okay", label: "Steady", active: true },
@@ -129,14 +87,97 @@ const DEFAULT_OPTIONS = [
   { id: "low-focus", label: "Scattered", active: false }
 ];
 
+function expectedDayStateVisual(stripWidth, stripHeight, optionsWidth, optionsHeight) {
+  const sharedText = {
+    fontFamily: FONT_FAMILY,
+    fontSize: "16px",
+    fontWeight: "410",
+    lineHeight: "23.2px"
+  };
+  const chip = {
+    alignItems: "normal",
+    background: "rgba(236, 235, 255, 0.9) none repeat scroll 0% 0% / auto padding-box border-box",
+    border: "1px solid rgba(113, 107, 255, 0.22)",
+    borderRadius: "999px",
+    color: "rgb(113, 107, 255)",
+    display: "block",
+    flexWrap: "nowrap",
+    fontFamily: FONT_FAMILY,
+    fontSize: "12.16px",
+    fontWeight: "580",
+    gap: "normal",
+    height: 30,
+    lineHeight: "17.632px",
+    margin: "0px",
+    minHeight: "30px",
+    padding: "5px 10px",
+    width: 53.953125
+  };
+  return {
+    strip: {
+      alignItems: "normal",
+      background: "rgba(255, 255, 255, 0.46) none repeat scroll 0% 0% / auto padding-box border-box",
+      border: "1px solid rgba(224, 219, 209, 0.68)",
+      borderRadius: "16px",
+      color: "rgb(23, 24, 32)",
+      display: "grid",
+      flexWrap: "nowrap",
+      ...sharedText,
+      gap: "8px",
+      height: stripHeight,
+      margin: "12px 0px 14px",
+      minHeight: "0px",
+      padding: "12px 14px",
+      width: stripWidth
+    },
+    label: {
+      alignItems: "normal",
+      background: "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+      border: "0px none rgb(95, 91, 102)",
+      borderRadius: "0px",
+      color: "rgb(95, 91, 102)",
+      display: "block",
+      flexWrap: "nowrap",
+      fontFamily: FONT_FAMILY,
+      fontSize: "12.8px",
+      fontWeight: "700",
+      gap: "normal",
+      height: 18.546875,
+      lineHeight: "18.56px",
+      margin: "0px",
+      minHeight: "auto",
+      padding: "0px",
+      width: optionsWidth
+    },
+    options: {
+      alignItems: "normal",
+      background: "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+      border: "0px none rgb(23, 24, 32)",
+      borderRadius: "0px",
+      color: "rgb(23, 24, 32)",
+      display: "flex",
+      flexWrap: "wrap",
+      ...sharedText,
+      gap: "8px",
+      height: optionsHeight,
+      margin: "0px",
+      minHeight: "auto",
+      padding: "0px",
+      width: optionsWidth
+    },
+    chip,
+    activeChip: chip
+  };
+}
+
 test("day state preserves defaults, storage, audit logging, side effects, and reload behavior", { timeout: 60_000 }, async function (context) {
-  const planner = await startBrowserPlanner(context);
+  const planner = await startBrowserPlanner(context, { frontendMode: "react" });
   if (!planner) {
     return;
   }
 
   await planner.browser.setViewport(1280, 720);
-  await openPlanner(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
+  await openPlanner(planner.browser, `${planner.server.url}/?view=todayView&date=${TEST_DATE}`);
   assert.deepEqual(await planner.browser.evaluate(dayState()), {
     label: "How does today feel?",
     options: DEFAULT_OPTIONS,
@@ -161,7 +202,7 @@ test("day state preserves defaults, storage, audit logging, side effects, and re
     compatibilityField: { keep: true }
   });
   await putStoredValue(planner.server.url, ACTIVITY_LOG_KEY, [existingLog]);
-  await openPlanner(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
+  await openPlanner(planner.browser, `${planner.server.url}/?view=todayView&date=${TEST_DATE}`);
   const tiredState = await planner.browser.evaluate(dayState());
   assert.equal(tiredState.options.find((option) => option.id === "tired").active, true);
   assert.equal(tiredState.firstMascotPrompt, "I'm tired. Can you cut today down?");
@@ -204,7 +245,7 @@ test("day state preserves defaults, storage, audit logging, side effects, and re
     'document.querySelector("#dayStateOptions [data-day-state=good]").classList.contains("is-active")'
   );
   assert.equal(
-    await planner.browser.evaluate('document.querySelector("#mascotQuickAsks .mascot-quick-ask").textContent.trim()'),
+    await planner.browser.evaluate('document.querySelector(".mascot-quick-asks .mascot-quick-ask").textContent.trim()'),
     "What should I use my good energy on today?"
   );
 
@@ -215,74 +256,37 @@ test("day state preserves defaults, storage, audit logging, side effects, and re
   assert.deepEqual(planner.browser.errors(), []);
 });
 
-test("day state records the legacy desktop and mobile visual contract", { timeout: 60_000 }, async function (context) {
-  const planner = await startBrowserPlanner(context);
+test("day state preserves its desktop and mobile visual contract", { timeout: 60_000 }, async function (context) {
+  const planner = await startBrowserPlanner(context, { frontendMode: "react" });
   if (!planner) {
     return;
   }
   await putStoredValue(planner.server.url, DAY_STATE_KEY, { [TEST_DATE]: "good" });
-  const preview = await startReactPreviewServer(planner.server.url);
-  if (!preview) {
-    context.skip("Install frontend-react dependencies to run React visual regression tests.");
-    return;
-  }
-  context.after(async function () {
-    await preview.close();
-  });
 
   await planner.browser.setViewport(1280, 720);
-  await openPlanner(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
-  const legacyDesktopState = await planner.browser.evaluate(dayState());
-  const legacyDesktop = await planner.browser.evaluate(dayStateVisualContract());
-  await scrollToDayState(planner.browser);
-  const legacyDesktopScreenshot = await planner.browser.captureScreenshot(stripClip());
-  assert.deepEqual({
-    stripWidth: legacyDesktop.strip.width,
-    stripHeight: legacyDesktop.strip.height,
-    optionsWidth: legacyDesktop.options.width,
-    optionsHeight: legacyDesktop.options.height
-  }, {
-    stripWidth: 892,
-    stripHeight: 82.546875,
-    optionsWidth: 862,
-    optionsHeight: 30
+  await openPlanner(planner.browser, `${planner.server.url}/?view=todayView&date=${TEST_DATE}`);
+  assert.deepEqual(await planner.browser.evaluate(dayState()), {
+    label: "How does today feel?",
+    options: [
+      { id: "good", label: "Good", active: true },
+      { id: "okay", label: "Steady", active: false },
+      { id: "tired", label: "Tired", active: false },
+      { id: "overwhelmed", label: "Heavy", active: false },
+      { id: "low-focus", label: "Scattered", active: false }
+    ],
+    firstMascotPrompt: "What should I use my good energy on today?"
   });
-
-  await openPlanner(planner.browser, `${preview.url}/?view=todayView&date=${TEST_DATE}`);
-  const previewDesktopState = await planner.browser.evaluate(dayState());
-  const previewDesktop = await planner.browser.evaluate(dayStateVisualContract());
-  await scrollToDayState(planner.browser);
-  const previewDesktopScreenshot = await planner.browser.captureScreenshot(stripClip());
-  assert.deepEqual(previewDesktopState, legacyDesktopState);
-  assert.deepEqual(previewDesktop, legacyDesktop);
-  assertSameScreenshot(previewDesktopScreenshot, legacyDesktopScreenshot, "desktop day-state screenshot");
+  assert.deepEqual(
+    await planner.browser.evaluate(dayStateVisualContract()),
+    expectedDayStateVisual(892, 82.546875, 862, 30)
+  );
 
   await planner.browser.setViewport(390, 844, true);
-  await openPlanner(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
-  const legacyMobileState = await planner.browser.evaluate(dayState());
-  const legacyMobile = await planner.browser.evaluate(dayStateVisualContract());
-  await scrollToDayState(planner.browser);
-  const legacyMobileScreenshot = await planner.browser.captureScreenshot(stripClip());
-  assert.deepEqual({
-    stripWidth: legacyMobile.strip.width,
-    stripHeight: legacyMobile.strip.height,
-    optionsWidth: legacyMobile.options.width,
-    optionsHeight: legacyMobile.options.height
-  }, {
-    stripWidth: 338,
-    stripHeight: 120.546875,
-    optionsWidth: 308,
-    optionsHeight: 68
-  });
-
-  await openPlanner(planner.browser, `${preview.url}/?view=todayView&date=${TEST_DATE}`);
-  const previewMobileState = await planner.browser.evaluate(dayState());
-  const previewMobile = await planner.browser.evaluate(dayStateVisualContract());
-  await scrollToDayState(planner.browser);
-  const previewMobileScreenshot = await planner.browser.captureScreenshot(stripClip());
-  assert.deepEqual(previewMobileState, legacyMobileState);
-  assert.deepEqual(previewMobile, legacyMobile);
-  assertSameScreenshot(previewMobileScreenshot, legacyMobileScreenshot, "mobile day-state screenshot");
+  await openPlanner(planner.browser, `${planner.server.url}/?view=todayView&date=${TEST_DATE}`);
+  assert.deepEqual(
+    await planner.browser.evaluate(dayStateVisualContract()),
+    expectedDayStateVisual(338, 120.546875, 308, 68)
+  );
 
   await planner.browser.evaluate(`(() => {
     window.YuanPlannerDayStateBridge = Object.freeze({
