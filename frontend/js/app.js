@@ -3367,11 +3367,6 @@
         var flexCategories = categories.filter(function (category) {
           return category.kind === "flex";
         });
-        var moneyBudgetCard = elements.moneyCategoryBudgetList
-          ? elements.moneyCategoryBudgetList.closest(".money-budget-card")
-          : null;
-        var moneyBudgetOwned = moneyBudgetCard && moneyBudgetCard.dataset.reactOwned === "true";
-
         if (elements.moneyQuickCategory) {
           elements.moneyQuickCategory.innerHTML = "";
           orderedQuickCategories.forEach(function (category) {
@@ -3389,7 +3384,7 @@
         }
 
         [elements.moneyTransferFrom, elements.moneyTransferTo].forEach(function (select, index) {
-          if (!select || moneyBudgetOwned) {
+          if (!select) {
             return;
           }
           var previousValue = index === 0 ? transferFromValue : transferToValue;
@@ -3618,10 +3613,6 @@
         if (!elements.moneyCategoryBudgetList || !state) {
           return;
         }
-        var budgetCard = elements.moneyCategoryBudgetList.closest(".money-budget-card");
-        if (budgetCard && budgetCard.dataset.reactOwned === "true") {
-          return;
-        }
         if (elements.moneyMonthlyTarget) {
           elements.moneyMonthlyTarget.value = (state.month.targetCents / 100).toFixed(2).replace(/\.00$/, "");
         }
@@ -3705,10 +3696,6 @@
 
       function renderMoneyTransfers() {
         if (!elements.moneyTransferList) {
-          return;
-        }
-        var budgetCard = elements.moneyTransferList.closest(".money-budget-card");
-        if (budgetCard && budgetCard.dataset.reactOwned === "true") {
           return;
         }
         var settings = getMoneySettings();
