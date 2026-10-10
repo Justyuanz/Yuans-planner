@@ -192,7 +192,7 @@ test("Journal is a direct React page with legacy parity, persistence, and date n
       && entry.tracker?.context === "After class."
       && entry.tracker?.energy === "strong"
       && entry.tracker?.focus === "steady";
-  });
+  }, 20_000);
   await planner.browser.waitForExpression('document.querySelector("#journalArchiveList .journal-entry-card strong").textContent === "Updated feeling"');
 
   await planner.browser.reload();

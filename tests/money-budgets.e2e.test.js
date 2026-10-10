@@ -334,6 +334,12 @@ test("Money budgets preserves editing, transfers, disclosure state, and persiste
     "9,25"
   );
   await planner.browser.waitForExpression('document.querySelector(\'.money-budget-row-flex input[aria-label="Food week"]\').value === "9.25"');
+  await planner.server.waitFor(async function () {
+    const stored = await planner.server.readPlannerData();
+    const settings = JSON.parse(stored[SETTINGS_KEY] || "{}");
+    return settings.categories?.find((category) => category.id === "groceries")
+      ?.weeklyBudgetCents === 925;
+  });
 
   const beforeInvalidTransfer = await planner.server.readPlannerData();
   await planner.browser.evaluate(`(() => {
