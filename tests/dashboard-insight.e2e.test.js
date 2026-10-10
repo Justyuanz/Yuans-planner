@@ -2,11 +2,10 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const { startBrowserPlanner } = require("./helpers/browser-planner");
-const { compareScreenshots } = require("./helpers/png-compare");
-const { startReactPreviewServer } = require("./helpers/react-preview-server");
 
 const TEST_DATE = "2026-09-14";
 const DAILY_TASKS_PREFIX = "hivePlanner.dailyTasks.";
+const FONT_FAMILY = 'ui-rounded, "SF Pro Rounded", Nunito, "Avenir Next", -apple-system, "system-ui", "Segoe UI", system-ui, sans-serif';
 
 function task(id, label, hours, done) {
   return { id, label, activity: "cpp", hours, done };
@@ -118,55 +117,121 @@ function insightVisualContract(documentExpression = "document") {
   })()`;
 }
 
-function cardClip(documentExpression = "document", frameExpression = "null") {
-  return `(() => {
-    const documentRoot = ${documentExpression};
-    const rect = documentRoot.getElementById("dashboardInsightCard").getBoundingClientRect();
-    const frame = ${frameExpression};
-    const frameRect = frame ? frame.getBoundingClientRect() : { x: 0, y: 0 };
-    return {
-      x: frameRect.x + rect.x + (frame ? 0 : documentRoot.defaultView.scrollX),
-      y: frameRect.y + rect.y + (frame ? 0 : documentRoot.defaultView.scrollY),
-      width: rect.width,
-      height: Math.min(rect.height, 640)
-    };
-  })()`;
+function visualBox(overrides) {
+  return {
+    alignItems: "normal",
+    background: "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+    border: "0px none rgb(23, 24, 32)",
+    borderRadius: "0px",
+    boxShadow: "none",
+    color: "rgb(23, 24, 32)",
+    display: "block",
+    fontFamily: FONT_FAMILY,
+    fontSize: "16px",
+    fontWeight: "410",
+    gap: "normal",
+    height: 0,
+    lineHeight: "23.2px",
+    margin: "0px",
+    minHeight: "0px",
+    padding: "0px",
+    width: 0,
+    ...overrides
+  };
 }
 
-async function scrollToInsight(browser, documentExpression = "document") {
-  await browser.evaluate(`(() => {
-    const documentRoot = ${documentExpression};
-    const mascot = documentRoot.querySelector(".mascot-card");
-    documentRoot.documentElement.style.scrollBehavior = "auto";
-    if (mascot) {
-      mascot.style.visibility = "hidden";
-    }
-    documentRoot.getElementById("dashboardInsightCard").scrollIntoView({ block: "start" });
-  })()`);
-  await browser.waitForExpression(`(() => {
-    const documentRoot = ${documentExpression};
-    const rect = documentRoot.getElementById("dashboardInsightCard").getBoundingClientRect();
-    return rect.top < documentRoot.defaultView.innerHeight && rect.bottom > 0;
-  })()`);
-  await browser.evaluate(`new Promise((resolve) => {
-    const view = (${documentExpression}).defaultView;
-    view.requestAnimationFrame(() => view.requestAnimationFrame(resolve));
-  })`);
-}
-
-function assertSameScreenshot(actual, expected, label) {
-  const comparison = compareScreenshots(actual, expected);
-  assert.equal(comparison.matches, true, `${label}: ${JSON.stringify(comparison)}`);
+function expectedInsightVisual(mobile) {
+  const contentWidth = mobile ? 338 : 411;
+  return {
+    card: visualBox({
+      background: "rgba(255, 255, 255, 0.86) none repeat scroll 0% 0% / auto padding-box border-box",
+      borderRadius: "18px",
+      boxShadow: "rgba(40, 40, 55, 0.055) 0px 14px 36px 0px",
+      height: mobile ? 315 : 665.28125,
+      minHeight: "auto",
+      width: mobile ? 370 : 459
+    }),
+    panelInner: visualBox({
+      height: 315,
+      minHeight: "315px",
+      padding: mobile ? "16px" : "24px",
+      width: mobile ? 370 : 459
+    }),
+    heading: visualBox({
+      fontSize: mobile ? "20px" : "26.4px",
+      fontWeight: "570",
+      height: mobile ? 23.1875 : 30.625,
+      lineHeight: mobile ? "23.2px" : "30.624px",
+      minHeight: "auto",
+      width: mobile ? 140.5 : 185.46875
+    }),
+    mode: visualBox({
+      border: "0px none rgb(118, 118, 129)",
+      color: "rgb(118, 118, 129)",
+      fontWeight: "450",
+      height: 23.1875,
+      minHeight: "auto",
+      width: 104.5625
+    }),
+    title: visualBox({
+      fontSize: "15.36px",
+      fontWeight: "580",
+      height: mobile ? 43.59375 : 21.796875,
+      lineHeight: "21.8112px",
+      margin: "0px 0px 10px",
+      width: contentWidth
+    }),
+    why: visualBox({
+      border: "0px none rgb(118, 118, 129)",
+      color: "rgb(118, 118, 129)",
+      fontSize: "13.76px",
+      height: 41.28125,
+      lineHeight: "20.64px",
+      margin: "0px 0px 14px",
+      width: contentWidth
+    }),
+    actions: visualBox({
+      display: "flex",
+      gap: "8px",
+      height: 32.09375,
+      width: contentWidth
+    }),
+    action: visualBox({
+      background: "rgba(255, 255, 255, 0.78) none repeat scroll 0% 0% / auto padding-box border-box",
+      border: "1px solid rgba(224, 219, 209, 0.72)",
+      borderRadius: "999px",
+      color: "rgb(87, 87, 96)",
+      fontSize: "12.48px",
+      fontWeight: "550",
+      height: 32.09375,
+      lineHeight: "18.096px",
+      minHeight: "32px",
+      padding: "6px 10px",
+      width: 132.296875
+    }),
+    history: visualBox({
+      background: "rgba(0, 0, 0, 0) none repeat scroll 0px 0px / auto padding-box border-box",
+      border: "0px none rgb(112, 110, 146)",
+      color: "rgb(112, 110, 146)",
+      display: "inline-block",
+      fontSize: "12.8px",
+      fontWeight: "560",
+      height: 18.546875,
+      lineHeight: "18.56px",
+      margin: "10px 0px 0px",
+      width: 118.5625
+    })
+  };
 }
 
 test("Pattern noticed preserves quiet and task-overpacking behavior", { timeout: 60_000 }, async function (context) {
-  const planner = await startBrowserPlanner(context);
+  const planner = await startBrowserPlanner(context, { frontendMode: "react" });
   if (!planner) {
     return;
   }
 
   await planner.browser.setViewport(1280, 720);
-  await openDashboard(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
+  await openDashboard(planner.browser, `${planner.server.url}/?view=todayView&date=${TEST_DATE}`);
   assert.deepEqual(await planner.browser.evaluate(insightState()), {
     hidden: false,
     heading: "Pattern noticed",
@@ -178,7 +243,7 @@ test("Pattern noticed preserves quiet and task-overpacking behavior", { timeout:
   });
 
   await seedTaskOverpacking(planner.server.url);
-  await openDashboard(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
+  await openDashboard(planner.browser, `${planner.server.url}/?view=todayView&date=${TEST_DATE}`);
   assert.deepEqual(await planner.browser.evaluate(insightState()), {
     hidden: false,
     heading: "Pattern noticed",
@@ -248,96 +313,51 @@ test("Pattern noticed preserves quiet and task-overpacking behavior", { timeout:
   assert.deepEqual(planner.browser.errors(), []);
 });
 
-test("Pattern noticed records the legacy desktop and mobile visual contract", { timeout: 60_000 }, async function (context) {
-  const planner = await startBrowserPlanner(context);
+test("Pattern noticed preserves its desktop and mobile visual contract", { timeout: 60_000 }, async function (context) {
+  const planner = await startBrowserPlanner(context, { frontendMode: "react" });
   if (!planner) {
     return;
   }
   await seedTaskOverpacking(planner.server.url);
-  const preview = await startReactPreviewServer(planner.server.url);
-  if (!preview) {
-    context.skip("Install frontend-react dependencies to run React visual regression tests.");
-    return;
-  }
-  context.after(async function () {
-    await preview.close();
-  });
 
+  const pageUrl = `${planner.server.url}/?view=todayView&date=${TEST_DATE}`;
   await planner.browser.setViewport(1280, 720);
-  await openDashboard(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
-  const legacyDesktopState = await planner.browser.evaluate(insightState());
-  const legacyDesktop = await planner.browser.evaluate(insightVisualContract());
-  await scrollToInsight(planner.browser);
-  const legacyDesktopScreenshot = await planner.browser.captureScreenshot(cardClip());
-  assert.deepEqual({
-    cardWidth: legacyDesktop.card.width,
-    cardHeight: legacyDesktop.card.height,
-    panelMinHeight: legacyDesktop.panelInner.minHeight
-  }, {
-    cardWidth: 459,
-    cardHeight: 665.28125,
-    panelMinHeight: "315px"
-  });
-  assert.ok(legacyDesktopScreenshot.length > 1_000);
-
-  const previewUrl = `${preview.url}/?view=todayView&date=${TEST_DATE}`;
-  await openDashboard(planner.browser, previewUrl);
+  await openDashboard(planner.browser, pageUrl);
   await waitForTaskOverpacking(planner.browser);
   assert.equal(await planner.browser.evaluate('document.querySelector("iframe")'), null);
-  const previewDesktopState = await planner.browser.evaluate(insightState());
-  const previewDesktop = await planner.browser.evaluate(insightVisualContract());
-  await scrollToInsight(planner.browser);
-  const previewDesktopScreenshot = await planner.browser.captureScreenshot(cardClip());
-  assert.deepEqual(previewDesktopState, legacyDesktopState);
-  assert.deepEqual(previewDesktop, legacyDesktop);
-  assertSameScreenshot(previewDesktopScreenshot, legacyDesktopScreenshot, "desktop Pattern noticed screenshot");
+  assert.deepEqual(await planner.browser.evaluate(insightState()), {
+    hidden: false,
+    heading: "Pattern noticed",
+    mode: "reality · 4 days",
+    title: "Today may be holding more tasks than you usually finish.",
+    why: "You planned 4 tasks today, while your recent completion average is 1 tasks.",
+    actions: ["Focus today's tasks", "Review planned hours"],
+    history: { hidden: false, text: "View pattern history" }
+  });
+  assert.deepEqual(
+    await planner.browser.evaluate(insightVisualContract()),
+    expectedInsightVisual(false)
+  );
 
   await planner.browser.setViewport(390, 844, true);
-  await openDashboard(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
-  const legacyMobileState = await planner.browser.evaluate(insightState());
-  const legacyMobile = await planner.browser.evaluate(insightVisualContract());
-  await scrollToInsight(planner.browser);
-  const legacyMobileScreenshot = await planner.browser.captureScreenshot(cardClip());
-  assert.deepEqual({
-    cardWidth: legacyMobile.card.width,
-    cardHeight: legacyMobile.card.height,
-    panelMinHeight: legacyMobile.panelInner.minHeight
-  }, {
-    cardWidth: 370,
-    cardHeight: 315,
-    panelMinHeight: "315px"
-  });
-  assert.ok(legacyMobileScreenshot.length > 1_000);
-
-  await openDashboard(planner.browser, previewUrl);
+  await openDashboard(planner.browser, pageUrl);
   await waitForTaskOverpacking(planner.browser);
-  const previewMobileState = await planner.browser.evaluate(insightState());
-  const previewMobile = await planner.browser.evaluate(insightVisualContract());
-  await scrollToInsight(planner.browser);
-  const previewMobileScreenshot = await planner.browser.captureScreenshot(cardClip());
-  assert.deepEqual(previewMobileState, legacyMobileState);
-  assert.deepEqual(previewMobile, legacyMobile);
-  assertSameScreenshot(previewMobileScreenshot, legacyMobileScreenshot, "mobile Pattern noticed screenshot");
+  assert.deepEqual(
+    await planner.browser.evaluate(insightVisualContract()),
+    expectedInsightVisual(true)
+  );
   assert.deepEqual(planner.browser.errors(), []);
 });
 
 test("React Pattern noticed routes actions and follows direct task changes", { timeout: 60_000 }, async function (context) {
-  const planner = await startBrowserPlanner(context);
+  const planner = await startBrowserPlanner(context, { frontendMode: "react" });
   if (!planner) {
     return;
   }
   await seedTaskOverpacking(planner.server.url);
-  const preview = await startReactPreviewServer(planner.server.url);
-  if (!preview) {
-    context.skip("Install frontend-react dependencies to run React interaction tests.");
-    return;
-  }
-  context.after(async function () {
-    await preview.close();
-  });
 
   await planner.browser.setViewport(1280, 720);
-  await openDashboard(planner.browser, `${preview.url}/?view=todayView&date=${TEST_DATE}`);
+  await openDashboard(planner.browser, `${planner.server.url}/?view=todayView&date=${TEST_DATE}`);
   await waitForTaskOverpacking(planner.browser);
   assert.equal(await planner.browser.evaluate('document.querySelector("iframe")'), null);
 
