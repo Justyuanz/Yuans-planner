@@ -8,7 +8,6 @@ import { JournalPage } from "../features/journal-page/JournalPage";
 import { plannerDateFromSearch } from "../features/life-pie/life-pie";
 import { MoneyActivityCard } from "../features/money-activity/MoneyActivityCard";
 import { MoneyBudgetsCard } from "../features/money-budgets/MoneyBudgetsCard";
-import { MoneyOverviewCard } from "../features/money-overview/MoneyOverviewCard";
 import { MoneyPacingCard } from "../features/money-pacing/MoneyPacingCard";
 import { MoneyVendorsCard } from "../features/money-vendors/MoneyVendorsCard";
 import { MoneyPage } from "../features/money-page/MoneyPage";
@@ -21,22 +20,12 @@ function LegacyPlannerApp() {
   const today = useMemo(() => plannerDateFromSearch(window.location.search, new Date()), []);
   const [moneyActivityMount, setMoneyActivityMount] = useState<HTMLElement | null>(null);
   const [moneyBudgetsMount, setMoneyBudgetsMount] = useState<HTMLElement | null>(null);
-  const [moneyOverviewMount, setMoneyOverviewMount] = useState<HTMLElement | null>(null);
   const [moneyPacingMount, setMoneyPacingMount] = useState<HTMLElement | null>(null);
   const [moneyVendorsMount, setMoneyVendorsMount] = useState<HTMLElement | null>(null);
   const legacyUrl = `/legacy/${window.location.search}`;
   const loadedStore = plannerStore.status === "ready" ? plannerStore.store : null;
   function claimReactMounts(frame: HTMLIFrameElement): void {
     const document = frame.contentDocument;
-    const moneyOverviewCard = document?.querySelector<HTMLElement>(".money-overview-card");
-    const moneyOverviewPanel = moneyOverviewCard?.querySelector<HTMLElement>(".panel-inner");
-    if (moneyOverviewCard !== null && moneyOverviewCard !== undefined
-      && moneyOverviewPanel !== null && moneyOverviewPanel !== undefined) {
-      moneyOverviewCard.dataset.reactOwned = "true";
-      moneyOverviewPanel.replaceChildren();
-      setMoneyOverviewMount(moneyOverviewPanel);
-    }
-
     const moneyPacingCard = document?.querySelector<HTMLElement>(".money-pacing-card");
     const moneyPacingPanel = moneyPacingCard?.querySelector<HTMLElement>(".panel-inner");
     if (moneyPacingCard !== null && moneyPacingCard !== undefined
@@ -83,12 +72,6 @@ function LegacyPlannerApp() {
         src={legacyUrl}
         title="Yuan's Planner"
       />
-      {loadedStore !== null && moneyOverviewMount !== null && (
-        createPortal(
-          <MoneyOverviewCard store={loadedStore} today={today} />,
-          moneyOverviewMount
-        )
-      )}
       {loadedStore !== null && moneyPacingMount !== null && (
         createPortal(
           <MoneyPacingCard store={loadedStore} today={today} />,

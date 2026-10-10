@@ -36,23 +36,23 @@ async function putTransactions(serverUrl, transactions) {
   assert.equal(response.ok, true);
 }
 
-async function openMoney(browser, pageUrl, documentExpression = "document") {
+async function openMoney(browser, pageUrl) {
   await browser.open(pageUrl);
-  await browser.waitForExpression(`(${documentExpression}).querySelector('[data-view-target="moneyView"]')`);
+  await browser.waitForExpression('document.querySelector(\'[data-view-target="moneyView"]\') !== null');
   await browser.waitForExpression(`(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const moneyView = documentRoot.getElementById("moneyView");
     if (!moneyView.classList.contains("active")) {
       documentRoot.querySelector('[data-view-target="moneyView"]').click();
     }
     return moneyView.classList.contains("active");
   })()`);
-  await browser.waitForExpression(`(${documentExpression}).querySelectorAll("#moneyOverviewGrid .money-mini-stat").length === 2`);
+  await browser.waitForExpression('document.querySelectorAll("#moneyOverviewGrid .money-mini-stat").length === 2');
 }
 
-function moneyOverviewState(documentExpression) {
+function moneyOverviewState() {
   return `(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const panel = documentRoot.querySelector(".money-overview-card");
     return {
       heading: panel.querySelector("h2").textContent.trim(),
@@ -67,9 +67,9 @@ function moneyOverviewState(documentExpression) {
   })()`;
 }
 
-function moneyOverviewVisualContract(documentExpression) {
+function moneyOverviewVisualContract() {
   return `(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     const view = documentRoot.defaultView;
     const panel = documentRoot.querySelector(".money-overview-card");
     const pick = (element) => {
@@ -100,7 +100,7 @@ function moneyOverviewVisualContract(documentExpression) {
       note: { text: panel.querySelector(".small-note").textContent.trim(), visual: pick(panel.querySelector(".small-note")) },
       panel: pick(panel),
       panelInner: pick(panel.querySelector(".panel-inner")),
-      state: ${moneyOverviewState(documentExpression)},
+      state: ${moneyOverviewState()},
       stats: [...panel.querySelectorAll(".money-mini-stat")].map((item) => ({
         children: [...item.children].map(pick),
         text: item.textContent.trim(),
@@ -110,28 +110,19 @@ function moneyOverviewVisualContract(documentExpression) {
   })()`;
 }
 
-const LEGACY_CLIP = `(() => {
+const MONEY_OVERVIEW_CLIP = `(() => {
   const rect = document.querySelector(".money-overview-card").getBoundingClientRect();
   return { x: rect.x + scrollX, y: rect.y + scrollY, width: rect.width, height: rect.height };
 })()`;
 
-const PREVIEW_CLIP = `(() => {
-  const frame = document.querySelector("iframe");
-  const rect = frame.contentDocument.querySelector(".money-overview-card").getBoundingClientRect();
-  const frameRect = frame.getBoundingClientRect();
-  return { x: frameRect.x + rect.x, y: frameRect.y + rect.y, width: rect.width, height: rect.height };
-})()`;
-
-async function scrollToMoneyOverview(browser, documentExpression) {
-  await browser.waitForExpression(
-    `(${documentExpression}).documentElement.dataset.plannerReady === "true"`
-  );
+async function scrollToMoneyOverview(browser) {
+  await browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
   await browser.evaluate(`(() => {
-    const documentRoot = ${documentExpression};
+    const documentRoot = document;
     documentRoot.documentElement.style.scrollBehavior = "auto";
     documentRoot.querySelector(".money-overview-card").scrollIntoView({ block: "start" });
   })()`);
-  await browser.waitForExpression(`(${documentExpression}).querySelector(".money-overview-card").getBoundingClientRect().bottom > 0`);
+  await browser.waitForExpression('document.querySelector(".money-overview-card").getBoundingClientRect().bottom > 0');
 }
 
 function assertSameScreenshot(actual, expected, label) {
@@ -182,14 +173,14 @@ test("Money overview preserves totals, dates, synchronization, and visual behavi
 
   await planner.browser.setViewport(1280, 720);
   await openMoney(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
-  assertDefaultState(await planner.browser.evaluate(moneyOverviewState("document")));
+  assertDefaultState(await planner.browser.evaluate(moneyOverviewState()));
 
   await putTransactions(planner.server.url, TRANSACTIONS);
   await openMoney(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
-  assertNegativeState(await planner.browser.evaluate(moneyOverviewState("document")));
-  await scrollToMoneyOverview(planner.browser, "document");
-  const legacyDesktop = await planner.browser.evaluate(moneyOverviewVisualContract("document"));
-  const legacyDesktopScreenshot = await planner.browser.captureScreenshot(LEGACY_CLIP);
+  assertNegativeState(await planner.browser.evaluate(moneyOverviewState()));
+  await scrollToMoneyOverview(planner.browser);
+  const legacyDesktop = await planner.browser.evaluate(moneyOverviewVisualContract());
+  const legacyDesktopScreenshot = await planner.browser.captureScreenshot(MONEY_OVERVIEW_CLIP);
 
   const preview = await startReactPreviewServer(planner.server.url);
   if (!preview) {
@@ -200,15 +191,12 @@ test("Money overview preserves totals, dates, synchronization, and visual behavi
     await preview.close();
   });
 
-  await openMoney(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, 'document.querySelector("iframe").contentDocument');
-  const previewDocument = 'document.querySelector("iframe").contentDocument';
-  assert.equal(await planner.browser.evaluate(
-    'document.querySelector("iframe").contentDocument.querySelector(".money-overview-card").dataset.reactOwned'
-  ), "true");
-  assertNegativeState(await planner.browser.evaluate(moneyOverviewState(previewDocument)));
-  await scrollToMoneyOverview(planner.browser, previewDocument);
-  const previewDesktop = await planner.browser.evaluate(moneyOverviewVisualContract(previewDocument));
-  const previewDesktopScreenshot = await planner.browser.captureScreenshot(PREVIEW_CLIP);
+  await openMoney(planner.browser, `${preview.url}/?view=moneyView&date=${TEST_DATE}`);
+  assert.equal(await planner.browser.evaluate('document.querySelector("iframe")'), null);
+  assertNegativeState(await planner.browser.evaluate(moneyOverviewState()));
+  await scrollToMoneyOverview(planner.browser);
+  const previewDesktop = await planner.browser.evaluate(moneyOverviewVisualContract());
+  const previewDesktopScreenshot = await planner.browser.captureScreenshot(MONEY_OVERVIEW_CLIP);
   assert.deepEqual(previewDesktop, legacyDesktop);
   assertSameScreenshot(previewDesktopScreenshot, legacyDesktopScreenshot, "desktop Money overview screenshot");
 
@@ -217,19 +205,19 @@ test("Money overview preserves totals, dates, synchronization, and visual behavi
     key: ${JSON.stringify(TRANSACTIONS_KEY)},
     newValue: "[]"
   }))`);
-  await planner.browser.waitForExpression('document.querySelector("iframe").contentDocument.querySelector("#moneyOverviewGrid .money-mini-stat strong").textContent === "€107.45"');
-  assertDefaultState(await planner.browser.evaluate(moneyOverviewState(previewDocument)));
+  await planner.browser.waitForExpression('document.querySelector("#moneyOverviewGrid .money-mini-stat strong").textContent === "€107.45"');
+  assertDefaultState(await planner.browser.evaluate(moneyOverviewState()));
 
   await planner.browser.setViewport(390, 844, true);
   await openMoney(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
-  await scrollToMoneyOverview(planner.browser, "document");
-  const legacyMobile = await planner.browser.evaluate(moneyOverviewVisualContract("document"));
-  const legacyMobileScreenshot = await planner.browser.captureScreenshot(LEGACY_CLIP);
+  await scrollToMoneyOverview(planner.browser);
+  const legacyMobile = await planner.browser.evaluate(moneyOverviewVisualContract());
+  const legacyMobileScreenshot = await planner.browser.captureScreenshot(MONEY_OVERVIEW_CLIP);
 
-  await openMoney(planner.browser, `${preview.url}/?view=legacyShell&date=${TEST_DATE}`, previewDocument);
-  await scrollToMoneyOverview(planner.browser, previewDocument);
-  const previewMobile = await planner.browser.evaluate(moneyOverviewVisualContract(previewDocument));
-  const previewMobileScreenshot = await planner.browser.captureScreenshot(PREVIEW_CLIP);
+  await openMoney(planner.browser, `${preview.url}/?view=moneyView&date=${TEST_DATE}`);
+  await scrollToMoneyOverview(planner.browser);
+  const previewMobile = await planner.browser.evaluate(moneyOverviewVisualContract());
+  const previewMobileScreenshot = await planner.browser.captureScreenshot(MONEY_OVERVIEW_CLIP);
   assert.deepEqual(previewMobile, legacyMobile);
   assert.equal(previewMobile.panel.width, 370);
   assert.equal(previewMobile.grid.gridTemplateColumns, "162px 162px");

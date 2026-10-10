@@ -3598,10 +3598,6 @@
         if (!elements.moneyOverviewGrid || !state) {
           return;
         }
-        var overviewCard = elements.moneyOverviewGrid.closest(".money-overview-card");
-        if (overviewCard && overviewCard.dataset.reactOwned === "true") {
-          return;
-        }
         var items = [
           { label: "Remaining this week", value: state.month.availableWeekCents, note: state.currentWeek.start + " to " + state.currentWeek.end },
           { label: "Flexible money left", value: state.month.flexibleRemainingCents, note: "Adjustable spending." }
