@@ -2,11 +2,10 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const { startBrowserPlanner } = require("./helpers/browser-planner");
-const { compareScreenshots } = require("./helpers/png-compare");
-const { startReactPreviewServer } = require("./helpers/react-preview-server");
 
 const TEST_DATE = "2026-09-13";
 const PLANNED_KEY = "hivePlanner.planned.2026-W37";
+const FONT_FAMILY = 'ui-rounded, "SF Pro Rounded", Nunito, "Avenir Next", -apple-system, "system-ui", "Segoe UI", system-ui, sans-serif';
 
 const TASKS_BY_DATE = {
   "2026-08-20": [
@@ -106,47 +105,31 @@ function plannedActualVisualContract(documentExpression) {
         width: rect.width
       };
     };
+    const inputs = [...panel.querySelectorAll(".planned-row input")];
+    const progress = [...panel.querySelectorAll(".soft-progress")];
+    const rows = [...panel.querySelectorAll(".planned-row")];
+    const geometry = (elements) => elements.map((element) => {
+      const rect = element.getBoundingClientRect();
+      return { height: rect.height, width: rect.width };
+    });
     return {
       heading: {
         text: panel.querySelector("h3").textContent.trim(),
         visual: pick(panel.querySelector("h3"))
       },
-      inputs: [...panel.querySelectorAll(".planned-row input")].map(pick),
+      input: pick(inputs[0]),
+      inputGeometry: geometry(inputs),
       note: {
         text: documentRoot.getElementById("plannedWeekLabel").textContent.trim(),
         visual: pick(documentRoot.getElementById("plannedWeekLabel"))
       },
       panel: pick(panel),
-      progress: [...panel.querySelectorAll(".soft-progress")].map(pick),
-      rows: [...panel.querySelectorAll(".planned-row")].map((row) => ({
-        text: row.textContent.trim(),
-        visual: pick(row)
-      })),
-      state: ${plannedActualState(documentExpression)}
+      progress: pick(progress[0]),
+      progressGeometry: geometry(progress),
+      row: pick(rows[0]),
+      rowGeometry: geometry(rows)
     };
   })()`;
-}
-
-const LEGACY_CLIP = `(() => {
-  const rect = document.querySelector(".planned-card").getBoundingClientRect();
-  return { x: rect.x + scrollX, y: rect.y + scrollY, width: rect.width, height: rect.height };
-})()`;
-
-async function scrollToPlannedCard(browser, documentExpression) {
-  await browser.waitForExpression(
-    `(${documentExpression}).documentElement.dataset.plannerReady === "true"`
-  );
-  await browser.evaluate(`(() => {
-    const documentRoot = ${documentExpression};
-    documentRoot.documentElement.style.scrollBehavior = "auto";
-    documentRoot.querySelector(".planned-card").scrollIntoView({ block: "start" });
-  })()`);
-  await browser.waitForExpression(`Math.abs((${documentExpression}).querySelector(".planned-card").getBoundingClientRect().top) < 1`);
-}
-
-function assertSameScreenshot(actual, expected, label) {
-  const comparison = compareScreenshots(actual, expected);
-  assert.equal(comparison.matches, true, `${label}: ${JSON.stringify(comparison)}`);
 }
 
 function assertEmptyState(state) {
@@ -188,6 +171,113 @@ function assertPopulatedState(state) {
   });
 }
 
+function assertTranscendenceEditState(state, value, plannedTotal, progressWidth) {
+  assert.equal(state.week, "2026-W37");
+  assert.equal(state.groups[0].title, `StudyPlanned ${plannedTotal}h · Actual 3h`);
+  assert.equal(state.groups[0].progress, `Study progress3 / ${plannedTotal}`);
+  assert.equal(state.groups[0].progressWidth, progressWidth);
+  assert.equal(state.groups[0].rows[0].value, value);
+  assert.equal(state.groups[1].title, "LeisurePlanned 4h · Actual 3.5h");
+  assert.equal(state.groups[1].progressWidth, "88%");
+}
+
+function visualBox(overrides) {
+  return {
+    background: "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+    border: "0px none rgb(23, 24, 32)",
+    borderRadius: "0px",
+    boxShadow: "none",
+    color: "rgb(23, 24, 32)",
+    display: "block",
+    fontFamily: FONT_FAMILY,
+    fontSize: "16px",
+    fontWeight: "410",
+    gap: "normal",
+    gridTemplateColumns: "none",
+    height: 0,
+    lineHeight: "23.2px",
+    padding: "0px",
+    width: 0,
+    ...overrides
+  };
+}
+
+function expectedPlannedActualVisual(mobile) {
+  const inputWidth = mobile ? 68 : 72;
+  const contentWidth = mobile ? 279 : 352;
+  const repeatedGeometry = (count, height, width) => Array.from(
+    { length: count },
+    () => ({ height, width })
+  );
+  return {
+    heading: {
+      text: "Planned vs actual",
+      visual: visualBox({
+        fontSize: mobile ? "20px" : "26.4px",
+        fontWeight: "570",
+        height: mobile ? 23.1875 : 30.625,
+        lineHeight: mobile ? "23.2px" : "30.624px",
+        width: mobile ? 160.703125 : 212.125
+      })
+    },
+    input: visualBox({
+      background: "rgba(255, 255, 255, 0.72) none repeat scroll 0% 0% / auto padding-box border-box",
+      border: "1px solid rgba(185, 206, 240, 0.46)",
+      borderRadius: "15px",
+      color: "rgb(45, 47, 43)",
+      fontSize: "14.72px",
+      fontWeight: "430",
+      height: 42,
+      lineHeight: "18.4px",
+      padding: "9px 12px",
+      width: inputWidth
+    }),
+    inputGeometry: repeatedGeometry(6, 42, inputWidth),
+    note: {
+      text: "2026-W37",
+      visual: visualBox({
+        border: "0px none rgb(118, 118, 129)",
+        color: "rgb(118, 118, 129)",
+        fontWeight: "450",
+        height: 23.1875,
+        width: 77.859375
+      })
+    },
+    panel: visualBox({
+      background: "rgba(255, 255, 255, 0.86) none repeat scroll 0% 0% / auto padding-box border-box",
+      borderRadius: "18px",
+      boxShadow: "rgba(40, 40, 55, 0.055) 0px 14px 36px 0px",
+      height: mobile ? 641.84375 : 665.28125,
+      width: mobile ? 370 : 459
+    }),
+    progress: visualBox({
+      background: "rgba(255, 255, 255, 0.62) none repeat scroll 0% 0% / auto padding-box border-box",
+      border: "1px solid rgba(224, 219, 209, 0.72)",
+      borderRadius: "15px",
+      display: "grid",
+      gap: "9px",
+      gridTemplateColumns: mobile ? "253px" : "326px",
+      height: 64.875,
+      padding: "12px",
+      width: contentWidth
+    }),
+    progressGeometry: repeatedGeometry(2, 64.875, contentWidth),
+    row: visualBox({
+      border: "0px none rgb(118, 118, 129)",
+      color: "rgb(118, 118, 129)",
+      display: "grid",
+      fontSize: "14.72px",
+      fontWeight: "510",
+      gap: "12px",
+      gridTemplateColumns: mobile ? "135px 68px 52px" : "192px 72px 64px",
+      height: 42,
+      lineHeight: "21.344px",
+      width: contentWidth
+    }),
+    rowGeometry: repeatedGeometry(6, 42, contentWidth)
+  };
+}
+
 async function editTranscendencePlan(planner) {
   const titleBeforeChange = await planner.browser.evaluate(`(() => {
     const input = document.getElementById("planned-transcendence");
@@ -216,7 +306,7 @@ async function editTranscendencePlan(planner) {
   await planner.browser.waitForExpression('document.getElementById("planned-transcendence").value === "5.25"');
 }
 
-async function editReactTranscendencePlan(planner) {
+async function reviseTranscendencePlan(planner) {
   const titleBeforeChange = await planner.browser.evaluate(`(() => {
     const input = document.getElementById("planned-transcendence");
     input.value = "4.5";
@@ -243,8 +333,8 @@ async function editReactTranscendencePlan(planner) {
   await planner.browser.waitForExpression('document.querySelector("#plannedMount .planned-title").textContent.includes("7.5h")');
 }
 
-async function assertReactLogSurvivesLegacyWrite(planner, legacyUrl) {
-  await planner.browser.open(legacyUrl);
+async function assertPlannedLogSurvivesTaskWrite(planner, pageUrl) {
+  await planner.browser.open(pageUrl);
   await planner.browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
   await planner.browser.evaluate(`(() => {
     const setInput = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
@@ -270,24 +360,15 @@ async function assertReactLogSurvivesLegacyWrite(planner, legacyUrl) {
   });
 }
 
-test("Planned vs actual preserves totals, editing, logging, and visual parity", { timeout: 60_000 }, async function (context) {
-  const planner = await startBrowserPlanner(context);
+test("Planned vs actual preserves totals, editing, logging, and its visual contract", { timeout: 60_000 }, async function (context) {
+  const planner = await startBrowserPlanner(context, { frontendMode: "react" });
   if (!planner) {
     return;
   }
-  const preview = await startReactPreviewServer(planner.server.url);
-  if (!preview) {
-    context.skip("Install frontend-react dependencies to run React visual regression tests.");
-    return;
-  }
-  context.after(async function () {
-    await preview.close();
-  });
-  const legacyUrl = `${planner.server.url}/?view=todayView&date=${TEST_DATE}`;
-  const previewUrl = `${preview.url}/?view=todayView&date=${TEST_DATE}`;
+  const pageUrl = `${planner.server.url}/?view=todayView&date=${TEST_DATE}`;
 
   await planner.browser.setViewport(1280, 720);
-  await planner.browser.open(legacyUrl);
+  await planner.browser.open(pageUrl);
   await planner.browser.waitForExpression('document.querySelectorAll("#plannedMount .planned-row").length === 6');
 
   assertEmptyState(await planner.browser.evaluate(plannedActualState("document")));
@@ -298,36 +379,38 @@ test("Planned vs actual preserves totals, editing, logging, and visual parity", 
 
   assertPopulatedState(await planner.browser.evaluate(plannedActualState("document")));
   await editTranscendencePlan(planner);
+  assertTranscendenceEditState(
+    await planner.browser.evaluate(plannedActualState("document")),
+    "5.25",
+    "8.25",
+    "36%"
+  );
+  assert.deepEqual(
+    await planner.browser.evaluate(plannedActualVisualContract("document")),
+    expectedPlannedActualVisual(false)
+  );
 
-  await scrollToPlannedCard(planner.browser, "document");
-  const legacyDesktop = await planner.browser.evaluate(plannedActualVisualContract("document"));
-  const legacyDesktopScreenshot = await planner.browser.captureScreenshot(LEGACY_CLIP);
-
-  await planner.browser.open(previewUrl);
-  await planner.browser.waitForExpression('document.querySelectorAll("#plannedMount .planned-row").length === 6');
-  await scrollToPlannedCard(planner.browser, "document");
-  const reactDesktop = await planner.browser.evaluate(plannedActualVisualContract("document"));
-  const reactDesktopScreenshot = await planner.browser.captureScreenshot(LEGACY_CLIP);
-  assert.deepEqual(reactDesktop, legacyDesktop);
-  assertSameScreenshot(reactDesktopScreenshot, legacyDesktopScreenshot, "desktop Planned vs actual screenshot");
-  await editReactTranscendencePlan(planner);
-  await assertReactLogSurvivesLegacyWrite(planner, legacyUrl);
+  await reviseTranscendencePlan(planner);
+  assertTranscendenceEditState(
+    await planner.browser.evaluate(plannedActualState("document")),
+    "4.5",
+    "7.5",
+    "40%"
+  );
+  await assertPlannedLogSurvivesTaskWrite(planner, pageUrl);
 
   await planner.browser.setViewport(390, 844, true);
-  await planner.browser.open(legacyUrl);
+  await planner.browser.open(pageUrl);
   await planner.browser.waitForExpression('document.getElementById("planned-transcendence")?.value === "4.5"');
-  await scrollToPlannedCard(planner.browser, "document");
-  const legacyMobile = await planner.browser.evaluate(plannedActualVisualContract("document"));
-  const legacyMobileScreenshot = await planner.browser.captureScreenshot(LEGACY_CLIP);
-
-  await planner.browser.open(previewUrl);
-  await planner.browser.waitForExpression('document.getElementById("planned-transcendence")?.value === "4.5"');
-  await scrollToPlannedCard(planner.browser, "document");
-  const reactMobile = await planner.browser.evaluate(plannedActualVisualContract("document"));
-  const reactMobileScreenshot = await planner.browser.captureScreenshot(LEGACY_CLIP);
-  assert.deepEqual(reactMobile, legacyMobile);
-  assert.equal(reactMobile.panel.width, 370);
-  assert.equal(reactMobile.rows[0].visual.gridTemplateColumns, "135px 68px 52px");
-  assertSameScreenshot(reactMobileScreenshot, legacyMobileScreenshot, "mobile Planned vs actual screenshot");
+  assertTranscendenceEditState(
+    await planner.browser.evaluate(plannedActualState("document")),
+    "4.5",
+    "7.5",
+    "40%"
+  );
+  assert.deepEqual(
+    await planner.browser.evaluate(plannedActualVisualContract("document")),
+    expectedPlannedActualVisual(true)
+  );
   assert.deepEqual(planner.browser.errors(), []);
 });
