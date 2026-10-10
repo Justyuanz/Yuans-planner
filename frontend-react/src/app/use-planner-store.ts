@@ -3,6 +3,9 @@ import { useEffect, useState } from "react";
 import {
   applyPlannerStorageChange,
   fetchPlannerStore,
+  mergePlannerHydrationSources,
+  putPlannerStoreValue,
+  readPlannerBrowserStore,
   type PlannerStore
 } from "../api/planner-store";
 
@@ -20,9 +23,19 @@ export function usePlannerStore(): PlannerStoreState {
 
     async function loadPlannerStore(): Promise<void> {
       try {
-        const store = await fetchPlannerStore();
+        const serverStore = await fetchPlannerStore();
+        let browserStore: PlannerStore = {};
+        try {
+          browserStore = readPlannerBrowserStore(window.localStorage);
+        } catch {
+          // Server storage remains authoritative when browser storage is blocked.
+        }
+        const hydration = mergePlannerHydrationSources(serverStore, browserStore);
+        void Promise.all(hydration.serverBackfills.map(({ key, value }) => (
+          putPlannerStoreValue(key, value)
+        ))).catch(() => undefined);
         if (acceptsUpdates) {
-          setState({ status: "ready", store });
+          setState({ status: "ready", store: hydration.store });
         }
       } catch (error: unknown) {
         if (!acceptsUpdates) {

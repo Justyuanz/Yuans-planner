@@ -4,9 +4,50 @@ import {
   applyPlannerStorageChange,
   decodePlannerStoreResponse,
   fetchPlannerStore,
+  mergePlannerHydrationSources,
   putPlannerStoreValue,
   type PlannerFetch
 } from "./planner-store";
+
+describe("mergePlannerHydrationSources", () => {
+  it("keeps server values and backfills only missing Planner keys", () => {
+    const result = mergePlannerHydrationSources({
+      "hivePlanner.events": "server-events",
+      "server.metadata": "preserve"
+    }, {
+      "hivePlanner.dailyTasks.2026-09-12": "browser-tasks",
+      "hivePlanner.events": "browser-events",
+      "other.application": "ignore"
+    });
+
+    expect(result).toEqual({
+      serverBackfills: [{
+        key: "hivePlanner.dailyTasks.2026-09-12",
+        value: "browser-tasks"
+      }],
+      store: {
+        "hivePlanner.dailyTasks.2026-09-12": "browser-tasks",
+        "hivePlanner.events": "server-events",
+        "server.metadata": "preserve"
+      }
+    });
+  });
+
+  it("ignores malformed sources and non-string browser values", () => {
+    expect(mergePlannerHydrationSources([], null)).toEqual({
+      serverBackfills: [],
+      store: {}
+    });
+    expect(mergePlannerHydrationSources({}, {
+      "hivePlanner.invalid": [],
+      "hivePlanner.valid": "[]",
+      "notPlanner.valid": "value"
+    })).toEqual({
+      serverBackfills: [{ key: "hivePlanner.valid", value: "[]" }],
+      store: { "hivePlanner.valid": "[]" }
+    });
+  });
+});
 
 describe("applyPlannerStorageChange", () => {
   it("merges and removes planner keys written by the legacy frame", () => {

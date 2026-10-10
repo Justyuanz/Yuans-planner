@@ -7,12 +7,61 @@ export interface PlannerStoreWrite {
   value: string;
 }
 
+export interface PlannerStoreHydration {
+  serverBackfills: PlannerStoreWrite[];
+  store: PlannerStore;
+}
+
 export type PlannerFetch = (
   input: RequestInfo | URL,
   init?: RequestInit
 ) => Promise<Response>;
 
 const INVALID_RESPONSE_MESSAGE = "Invalid planner data response";
+
+function stringRecord(value: unknown): Record<string, string> {
+  if (!isRecord(value)) {
+    return {};
+  }
+  return Object.fromEntries(Object.entries(value).filter((entry): entry is [string, string] => (
+    typeof entry[1] === "string"
+  )));
+}
+
+export function mergePlannerHydrationSources(
+  serverValues: unknown,
+  browserValues: unknown
+): PlannerStoreHydration {
+  const store: Record<string, string> = { ...stringRecord(serverValues) };
+  const serverBackfills: PlannerStoreWrite[] = [];
+
+  Object.entries(stringRecord(browserValues)).forEach(([key, value]) => {
+    if (!key.startsWith("hivePlanner.") || store[key] !== undefined) {
+      return;
+    }
+    store[key] = value;
+    serverBackfills.push({ key, value });
+  });
+
+  return { serverBackfills, store };
+}
+
+export function readPlannerBrowserStore(
+  storage: Pick<Storage, "getItem" | "key" | "length">
+): PlannerStore {
+  const store: Record<string, string> = {};
+  for (let index = 0; index < storage.length; index += 1) {
+    const key = storage.key(index);
+    if (!key?.startsWith("hivePlanner.")) {
+      continue;
+    }
+    const value = storage.getItem(key);
+    if (value !== null) {
+      store[key] = value;
+    }
+  }
+  return store;
+}
 
 export function applyPlannerStorageChange(
   store: PlannerStore,
