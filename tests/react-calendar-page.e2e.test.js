@@ -4,8 +4,10 @@ const test = require("node:test");
 const { startBrowserPlanner } = require("./helpers/browser-planner");
 const {
   expectedCalendarPageGeometry,
+  expectedCalendarPageScreenshot,
   expectedCalendarPageState
 } = require("./helpers/calendar-page-contract");
+const { compareScreenshotSignature } = require("./helpers/png-compare");
 
 const TEST_DATE = "2026-09-14";
 const EVENTS_KEY = "hivePlanner.events";
@@ -88,6 +90,31 @@ function pageGeometry() {
   })()`;
 }
 
+async function prepareScreenshot(browser) {
+  await browser.evaluate(`(() => {
+    document.documentElement.style.scrollBehavior = "auto";
+    const style = document.createElement("style");
+    style.textContent = ".day-cell,.event-pill{transition:none!important}";
+    document.head.appendChild(style);
+    const mascot = document.querySelector(".mascot-card");
+    if (mascot) mascot.style.visibility = "hidden";
+    document.querySelector(".monthly-calendar-card").scrollIntoView({ block: "start" });
+  })()`);
+  await browser.evaluate("new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))");
+}
+
+function monthClip() {
+  return `(() => {
+    const rect = document.querySelector(".monthly-calendar-card").getBoundingClientRect();
+    return {
+      x: rect.x + scrollX,
+      y: rect.y + scrollY,
+      width: rect.width,
+      height: Math.min(rect.height, 620)
+    };
+  })()`;
+}
+
 async function setInput(browser, id, value) {
   await browser.evaluate(`(() => {
     const input = document.getElementById(${JSON.stringify(id)});
@@ -109,6 +136,17 @@ test("Calendar is a direct React page with responsive layout and persistence", {
     assert.deepEqual(
       await planner.browser.evaluate(pageGeometry()),
       expectedCalendarPageGeometry(width < 500)
+    );
+    await prepareScreenshot(planner.browser);
+    const screenshot = await planner.browser.captureScreenshot(monthClip());
+    const comparison = compareScreenshotSignature(
+      screenshot,
+      expectedCalendarPageScreenshot(width < 500)
+    );
+    assert.equal(
+      comparison.matches,
+      true,
+      `${width}px Calendar screenshot: ${JSON.stringify(comparison)}`
     );
   }
 
