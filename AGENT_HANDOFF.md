@@ -181,13 +181,13 @@ For each feature:
 - [ ] remove legacy implementation only after tests pass
 
 ## Current Task
-Phase 3 and the production-serving cutover are complete. Phase 4 is now in browser-reference retirement. All former Node/CommonJS unit-test dependencies on `frontend/js/` have been replaced by strict React/TypeScript production boundaries and tests. The remaining `frontend/` HTML and JavaScript exist only for 18 focused browser behavior/visual-reference files and temporary `/legacy/` compatibility delivery; replace those references incrementally until the directory and server support can be deleted.
+Phase 3 and the production-serving cutover are complete. Phase 4 is now in browser-reference retirement. All former Node/CommonJS unit-test dependencies on `frontend/js/` have been replaced by strict React/TypeScript production boundaries and tests. Life Pie's duplicate standalone browser file has been consolidated into direct Dashboard coverage, and Today's intention plus Task progress now run entirely against the production React server with pinned legacy-derived visual contracts. Twenty-nine browser files still start the legacy-mode server, although several use it only as an API host; convert those fixtures incrementally until `frontend/` and its compatibility server support can be deleted.
 
 ## Last Completed Task
-Completed the legacy JavaScript unit-test retirement. Activity categories, Calendar core, Money core, agent/day-state compatibility, Pattern metrics/rules, Sprouty retrieval, and storage hydration now have matching strict-TypeScript coverage in `b32addb`, `8fa10a2`, `afb0580`, `024deae`, `4f868d3`, `f1aa4d4`, and `7b0f6f5`. React now also performs the legacy server-first hydration rule and backfills only missing `hivePlanner.*` browser values. The complete repository workflow passes with 42 Python tests, 274 React tests, and all 44 remaining root browser tests.
+Retired three Dashboard browser dependencies from the standalone legacy frontend. Life Pie's unique four-period and reload assertions moved into the direct React Dashboard regression and the duplicate file was removed in `de2fdcc`. Today's intention and Task progress now run against the production React server with exact desktop/mobile computed-style and geometry contracts plus their existing state, update, persistence, and reload behavior in `d18ab9d` and `053822a`. Their 30 focused TypeScript tests pass, and all six consolidated Dashboard browser checks pass.
 
 ## Next Task
-Replace the 18 surviving browser files that explicitly load the standalone legacy reference, one verified feature group at a time. Start by inventorying which files use legacy only for behavior, which compare legacy/React visuals, and which still protect a unique contract; move stable expected values or fixtures into React-owned browser coverage without weakening desktop/mobile visual assertions. Keep temporary `/legacy/`, `/js/`, and legacy-mode server support only while a surviving regression still requires them, then remove the server configuration, Docker copy, and entire `frontend/` directory after the final reference test is independent.
+Continue the Dashboard browser-reference group with Day state, Pattern noticed/history, Energy trail, and Planned vs actual. For focused component regressions, pin the already-verified legacy-derived text, computed styles, and desktop/mobile geometry while retaining interaction, same-window synchronization, persistence, and reload assertions against the production React server; keep rendered screenshot coverage at the direct full-page boundaries. Then convert the Calendar, Money, Journal, Guitar, and Skate groups. Remove `/legacy/`, `/js/`, legacy server mode, Docker legacy copies, and `frontend/` only after no browser fixture starts or loads the standalone application.
 
 ## Upstream Legacy Change — Activity Categories (2026-10-05)
 
@@ -283,6 +283,7 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - React persistence explicitly publishes a same-window storage event after local writes because browsers do not deliver native storage events to the document that performed the write. This keeps sibling React boundaries synchronized immediately. Server writes within one logical batch are serialized so a trailing audit entry cannot become observable before the restored state it records.
 - Direct React hydration preserves the server-first compatibility rule. Valid server strings win, missing `hivePlanner.*` values are read from browser storage and shown immediately, and only those missing values are backfilled to `/api/kv`; unrelated browser keys and malformed values are ignored.
 - Visual regression coverage must compare the legacy and React versions at identical desktop and mobile viewports, including computed styles/geometry and a rendered screenshot where stable.
+- Once a focused component has already matched the standalone page, its browser regression may retire the live legacy dependency by pinning that verified text, computed-style, and geometry contract and running interactions against the production React server. Rendered screenshot coverage remains at the corresponding direct full-page boundary so removing a duplicate component screenshot does not remove screen-level visual protection.
 - Screenshot comparisons decode Chrome PNG pixels and allow at most 1% of pixels to differ by more than eight channel values; exact DOM content and computed style/geometry comparisons remain mandatory so minor cross-frame antialiasing does not create false failures.
 - The legacy document publishes `data-planner-ready="true"` only after asynchronous hydration, rendering, event binding, and initial-view selection finish. Browser visual helpers wait for this marker before scrolling, so a late `setActiveView` cannot reset capture position; card-only screenshots hide the unrelated animated mascot with `visibility: hidden` while preserving layout.
 - New code must be split into small, clear, single-responsibility modules with short focused functions and short explanatory comments for non-obvious logic; do not create new monolithic files.
@@ -336,20 +337,13 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Browser smoke tests skip when Chrome/Chromium or Node WebSocket support is unavailable; they run with the documented Node 24 runtime on the inspected machine.
 - A local Python start returns `503` at the UI root when `frontend-react/dist` has not been built. This is intentional and documented; Docker always builds the bundle.
 - `frontend-react/src/app/App.tsx` is now a 20-line React-only route dispatcher. Unknown explicit values safely render the Dashboard.
-- `frontend/` now contains only the 891-line reference HTML and 17 legacy JavaScript files; production React does not depend on them. No Node unit test imports those modules anymore, but 18 of the 34 browser files still explicitly load the standalone legacy reference. Those browser references must be retired without weakening behavior or visual coverage.
+- `frontend/` now contains only the 891-line reference HTML and 17 legacy JavaScript files; production React does not depend on them. No Node unit test imports those modules anymore. A fresh mechanical audit found 29 browser files still calling the default legacy-mode server fixture; this corrects the older 18-file estimate, which counted only a narrower set of explicit comparison patterns. Several of the 29 use the legacy server only as an API host, but every default fixture call must be converted before the legacy server mode can be removed.
 - The direct shell's Sprouty surface now sends grounded task, insight, journal, planning, activity, day-state, Money, and Skate context; restores state-aware quick prompts; handles server failure with evidence-based local answers; appends question-aware action suggestions; and preserves pointer-follow, drag persistence, click suppression, and mobile motion behavior. Shared-shell Sprouty parity is complete.
 - The React visual regression test skips when Chrome or `frontend-react` dependencies are unavailable, matching the existing browser-test prerequisite policy.
 - Browser-capable root Node test files run serially to avoid Chrome/Vite startup timeouts under parallel process saturation.
-- The final complete run passed all 44 remaining root browser tests after the last eight legacy unit-test dependencies were replaced by stronger TypeScript coverage in Session 75. Treat any repeated failure as actionable rather than accepting it as a combined-run flake.
+- The Session 75 complete run passed all 44 root browser tests. Session 76 removed one redundant standalone Life Pie test and retained its unique assertions in direct React coverage, so the next complete run is expected to contain 43 root browser tests. Treat any repeated failure as actionable rather than accepting it as a combined-run flake.
 
 ## Session Log
-
-### Session 73
-
-- Re-read the repository instructions and full handoff, confirmed the clean rewrite branch/history/diff, and mapped all 16 remaining legacy JavaScript unit-test imports to their strict-TypeScript production modules before selecting small behavior-preserving retirement slices.
-- Moved the complete production calendar-category mapping contract into the typed calendar-task reconciliation suite and removed its redundant CommonJS test in `6d4a8c1`. Removed the duplicate legacy Pattern History unit test in `e04bf27` because the TypeScript builder already protects empty state, grouping, ordering, action limits, and all eleven evidence formats.
-- Moved weekly-planner day capacities, continuous duration and effort calculations, physical defaults, the established 6.25-load normal-day mix, recovery and over-budget rules, and Finnish compatibility into the typed Calendar week suite, then removed the legacy core test in `ef73d26`. The remaining retirement surface is 13 legacy JavaScript unit-test files plus 18 of 34 browser files that explicitly load the standalone reference.
-- Verification: 42 Python tests, 251 React tests, lint, strict typecheck, production build, focused Calendar browser verification, and all 132 root JavaScript/browser tests pass.
 
 ### Session 74
 
@@ -364,6 +358,13 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Migrated activity-category compatibility, Calendar core, Money core, day-state, insight metrics/rules, and Sprouty retrieval assertions; removed the obsolete agent mutation assertions that are intentionally outside the wording-only direct React chat contract. Deleted all eight CommonJS unit files in `b32addb`, `8fa10a2`, `afb0580`, `024deae`, `4f868d3`, and `f1aa4d4`.
 - Added strict-TypeScript server-first hydration and wired it into the React store loader so missing browser-only Planner values remain visible and are backfilled to SQLite without overriding server values. Removed the final legacy storage unit dependency in `7b0f6f5`. No unit test now imports `frontend/js/`; only the 18 browser reference files remain.
 - Verification: 42 Python tests, 274 React tests, lint, strict typecheck, production build, and all 44 root browser tests pass.
+
+### Session 76
+
+- Re-read the repository instructions and complete handoff, confirmed the clean rewrite branch/history/diff, and inventoried browser fixtures that still start the standalone legacy frontend. Corrected the remaining mechanical count from the older narrow 18-file estimate to 29 default legacy-mode fixture users.
+- Moved Life Pie's exact Day/Week/Month/All aria labels, summary rows, activity breakdowns, totals, task-edit synchronization, and reload reset into the direct React Dashboard regression, then deleted the duplicate standalone browser file in `de2fdcc`.
+- Converted Today's intention and Task progress to production-React-only browser tests with pinned legacy-derived desktop/mobile computed styles and geometry while retaining defaults, aliases/filtering, same-window updates, task completion, persistence, and reload behavior in `d18ab9d` and `053822a`.
+- Verification: 30 focused React/TypeScript tests, lint, strict typecheck, and all six consolidated Dashboard browser checks pass. The complete repository suite remains pending after these test-only changes.
 
 ---
 
