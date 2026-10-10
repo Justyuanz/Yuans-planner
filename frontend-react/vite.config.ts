@@ -8,10 +8,7 @@ export default defineConfig({
   server: {
     proxy: {
       "/api": apiTarget,
-      "/css": apiTarget,
-      "/favicon.ico": apiTarget,
-      "/js": apiTarget,
-      "/legacy": apiTarget
+      "/favicon.ico": apiTarget
     }
   }
 });

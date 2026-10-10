@@ -15,9 +15,9 @@ interface MoneyPageProps {
 export function MoneyPage({ today }: MoneyPageProps) {
   const plannerStore = usePlannerStore();
   const store = plannerStore.status === "ready" ? plannerStore.store : null;
-  const stylesReady = useDirectPlannerPage(store !== null);
+  useDirectPlannerPage(store !== null);
 
-  if (store === null || !stylesReady) {
+  if (store === null) {
     return <div className="planner-loading">Loading planner…</div>;
   }
 

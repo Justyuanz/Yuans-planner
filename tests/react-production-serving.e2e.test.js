@@ -30,12 +30,14 @@ function directPageState() {
     assetScripts: [...document.scripts]
       .map((script) => new URL(script.src).pathname)
       .filter((pathname) => pathname.startsWith("/assets/")),
+    stylesheets: [...document.querySelectorAll('link[rel="stylesheet"]')]
+      .map((stylesheet) => new URL(stylesheet.href).pathname),
     iframeCount: document.querySelectorAll("iframe").length,
     overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth
   }))()`;
 }
 
-test("Python serves the production React build and isolated legacy fallback", { timeout: 90_000 }, async function (context) {
+test("Python serves a self-contained production React build", { timeout: 90_000 }, async function (context) {
   if (!await hasReactBuild()) {
     context.skip("Run the React production build before the production-serving browser test.");
     return;
@@ -55,6 +57,8 @@ test("Python serves the production React build and isolated legacy fallback", { 
     assert.equal(state.iframeCount, 0);
     assert.equal(state.overflow, false);
     assert.equal(state.assetScripts.length, 1);
+    assert.ok(state.stylesheets.length >= 1);
+    assert.equal(state.stylesheets.every((pathname) => pathname.startsWith("/assets/")), true);
   }
 
   await openDirectPage(
@@ -74,29 +78,20 @@ test("Python serves the production React build and isolated legacy fallback", { 
     .then((payload) => ({ hasData: typeof payload.data === "object" }))`);
   assert.deepEqual(apiResponse, { hasData: true });
 
-  await planner.browser.open(
+  await openDirectPage(
+    planner.browser,
     `${planner.server.url}/?view=legacyShell&date=${TEST_DATE}`
   );
-  await planner.browser.waitForExpression(`(() => {
-    const frame = document.querySelector("iframe.planner-frame");
-    return frame?.contentDocument?.documentElement.dataset.plannerReady === "true";
-  })()`);
   assert.deepEqual(
-    await planner.browser.evaluate(`(() => {
-      const frame = document.querySelector("iframe.planner-frame");
-      const frameUrl = new URL(frame.src);
-      return {
-        date: frameUrl.searchParams.get("date"),
-        frameCount: document.querySelectorAll("iframe.planner-frame").length,
-        path: frameUrl.pathname,
-        view: frameUrl.searchParams.get("view")
-      };
-    })()`),
+    await planner.browser.evaluate(`(() => ({
+      activeView: document.querySelector(".view.active")?.id,
+      iframeCount: document.querySelectorAll("iframe").length,
+      requestedView: new URL(location.href).searchParams.get("view")
+    }))()`),
     {
-      date: TEST_DATE,
-      frameCount: 1,
-      path: "/legacy/",
-      view: "legacyShell"
+      activeView: "todayView",
+      iframeCount: 0,
+      requestedView: "legacyShell"
     }
   );
   assert.deepEqual(planner.browser.errors(), []);

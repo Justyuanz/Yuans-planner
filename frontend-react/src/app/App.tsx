@@ -8,16 +8,6 @@ import { plannerDateFromSearch } from "../features/life-pie/life-pie";
 import { MoneyPage } from "../features/money-page/MoneyPage";
 import { SkatePage } from "../features/skate/SkatePage";
 
-function LegacyPlannerApp() {
-  return (
-    <iframe
-      className="planner-frame"
-      src={`/legacy/${window.location.search}`}
-      title="Yuan's Planner"
-    />
-  );
-}
-
 export function App() {
   const today = useMemo(() => plannerDateFromSearch(window.location.search, new Date()), []);
   const requestedView = new URLSearchParams(window.location.search).get("view");
@@ -26,6 +16,5 @@ export function App() {
   if (requestedView === "calendarView") return <CalendarPage today={today} />;
   if (requestedView === "skateView") return <SkatePage today={today} />;
   if (requestedView === "guitarView") return <GuitarPage today={today} />;
-  if (requestedView === null || requestedView === "todayView") return <DashboardPage today={today} />;
-  return <LegacyPlannerApp />;
+  return <DashboardPage today={today} />;
 }

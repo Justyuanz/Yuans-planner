@@ -94,7 +94,7 @@ function TasksCard({ store, today }: { store: PlannerStore; today: Date }) {
 export function DashboardPage({ today }: DashboardPageProps) {
   const plannerStore = usePlannerStore();
   const loadedStore = plannerStore.status === "ready" ? plannerStore.store : null;
-  const stylesReady = useDirectPlannerPage(loadedStore !== null);
+  useDirectPlannerPage(loadedStore !== null);
   const todayKey = formatPlannerDate(today);
   const [initialNowMs] = useState(() => Date.now());
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -113,7 +113,7 @@ export function DashboardPage({ today }: DashboardPageProps) {
     if (reconciliation?.write) persistPlannerWrites([reconciliation.write]);
   }, [reconciliation]);
 
-  if (store === null || !stylesReady) return <div className="planner-loading">Loading planner…</div>;
+  if (store === null) return <div className="planner-loading">Loading planner…</div>;
 
   const readyStore = store;
   const insight = buildDashboardInsightFromStore(readyStore, today);

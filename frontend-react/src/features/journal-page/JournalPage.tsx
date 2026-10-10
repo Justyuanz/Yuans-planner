@@ -34,7 +34,7 @@ function applyOptimisticWrites(store: PlannerStore, writes: OptimisticWrites): P
 export function JournalPage({ today }: JournalPageProps) {
   const plannerStore = usePlannerStore();
   const loadedStore = plannerStore.status === "ready" ? plannerStore.store : null;
-  const stylesReady = useDirectPlannerPage(loadedStore !== null);
+  useDirectPlannerPage(loadedStore !== null);
   const [selectedDate, setSelectedDate] = useState(() => formatPlannerDate(today));
   const [initialNowMs] = useState(() => Date.now());
   const [optimisticWrites, setOptimisticWrites] = useState<OptimisticWrites>({});
@@ -43,7 +43,7 @@ export function JournalPage({ today }: JournalPageProps) {
     [loadedStore, optimisticWrites]
   );
 
-  if (store === null || !stylesReady) {
+  if (store === null) {
     return <div className="planner-loading">Loading planner…</div>;
   }
 

@@ -24,7 +24,7 @@ function shiftedDate(dateKey: string, days: number): string {
 export function CalendarPage({ today }: CalendarPageProps) {
   const plannerStore = usePlannerStore();
   const store = plannerStore.status === "ready" ? plannerStore.store : null;
-  const stylesReady = useDirectPlannerPage(store !== null);
+  useDirectPlannerPage(store !== null);
   const todayKey = formatPlannerDate(today);
   const [selectedDate, setSelectedDate] = useState(todayKey);
   const [expandedDate, setExpandedDate] = useState("");
@@ -48,7 +48,7 @@ export function CalendarPage({ today }: CalendarPageProps) {
     }
   }, [taskReconciliation]);
 
-  if (store === null || !stylesReady) {
+  if (store === null) {
     return <div className="planner-loading">Loading planner…</div>;
   }
 

@@ -23,7 +23,7 @@ interface SkatePageProps {
 export function SkatePage({ today }: SkatePageProps) {
   const plannerStore = usePlannerStore();
   const store = plannerStore.status === "ready" ? plannerStore.store : null;
-  const stylesReady = useDirectPlannerPage(store !== null);
+  useDirectPlannerPage(store !== null);
   const todayKey = formatPlannerDate(today);
   const [initialNowMs] = useState(() => Date.now());
   const heroState = useMemo(
@@ -51,7 +51,7 @@ export function SkatePage({ today }: SkatePageProps) {
     if (dialog !== null) claimDialog(dialog);
   }, [claimDialog]);
 
-  if (store === null || !stylesReady || feedback.heroState === null || trainingPlan === null) {
+  if (store === null || feedback.heroState === null || trainingPlan === null) {
     return <div className="planner-loading">Loading planner…</div>;
   }
 

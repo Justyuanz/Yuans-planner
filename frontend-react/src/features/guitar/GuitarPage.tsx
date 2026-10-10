@@ -19,7 +19,7 @@ interface GuitarPageProps {
 export function GuitarPage({ today }: GuitarPageProps) {
   const plannerStore = usePlannerStore();
   const store = plannerStore.status === "ready" ? plannerStore.store : null;
-  const stylesReady = useDirectPlannerPage(store !== null);
+  useDirectPlannerPage(store !== null);
   const session = useGuitarSessionController({
     onPersist: persistPlannerWrites,
     store,
@@ -31,7 +31,7 @@ export function GuitarPage({ today }: GuitarPageProps) {
     if (dialog !== null) claimDialog(dialog);
   }, [claimDialog]);
 
-  if (store === null || !stylesReady || session.model === null) {
+  if (store === null || session.model === null) {
     return <div className="planner-loading">Loading planner…</div>;
   }
 
