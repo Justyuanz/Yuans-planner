@@ -81,6 +81,8 @@ describe("Money quick inputs and persistence", () => {
 
   it("uses default and remembered vendor rules in stored order", () => {
     expect(suggestMoneyCategory({}, "Wolt Market Kamppi")).toBe("groceries");
+    expect(suggestMoneyCategory({}, "Apple Services")).toBe("subscriptions");
+    expect(suggestMoneyCategory({}, "Unknown merchant")).toBe("");
     expect(suggestMoneyCategory({
       "hivePlanner.money.vendorRules": JSON.stringify([
         { id: "specific", match: "wolt market", categoryId: "eating-out" },
