@@ -65,6 +65,24 @@ function fallbackRange(title: string): { endTime: string; startTime: string } {
   };
 }
 
+export function calendarEventDayPart(
+  event: Readonly<{ dayPart?: unknown; startTime?: unknown; title?: unknown }>
+): "afternoon" | "evening" | "morning" {
+  const titleMatch = /^(\d{1,2})(?::?(\d{2}))?(?=\s|$|[-–])/.exec(text(event.title).trim());
+  const titleTime = titleMatch === null
+    ? ""
+    : normalizeCalendarClock(`${titleMatch[1]}:${titleMatch[2] ?? "00"}`);
+  const startTime = normalizeCalendarClock(text(event.startTime)) || titleTime;
+  if (startTime) {
+    const hour = Number(startTime.slice(0, 2));
+    return hour < 12 ? "morning" : hour < 19 ? "afternoon" : "evening";
+  }
+  const storedPart = text(event.dayPart);
+  return storedPart === "morning" || storedPart === "afternoon" || storedPart === "evening"
+    ? storedPart
+    : "afternoon";
+}
+
 export function calendarTitleWithoutTime(title: string): string {
   return title.replace(/^(\d{1,2})(?::?(\d{2}))?(?:\s*[-–]\s*(\d{1,2})(?::?(\d{2}))?)?\s*/, "").trim();
 }
@@ -180,10 +198,7 @@ function updatedGoalPlannerValue(store: PlannerStore, event: Record<string, unkn
       steps: sourceSteps.map((step) => {
         if (!isRecord(step) || step.id !== goalStepId) return step;
         changed = true;
-        const startMinutes = normalizeCalendarClock(event.startTime);
-        const hour = startMinutes ? Number(startMinutes.slice(0, 2)) : null;
-        const dayPart = hour === null ? text(event.dayPart) || "afternoon"
-          : hour < 12 ? "morning" : hour < 19 ? "afternoon" : "evening";
+        const dayPart = calendarEventDayPart(event);
         return { ...step, eventId: text(event.id), scheduledDay: `${text(event.date)}|${dayPart}` };
       })
     };

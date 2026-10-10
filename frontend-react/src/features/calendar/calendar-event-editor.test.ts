@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { PlannerStore } from "../../api/planner-store";
 import {
   CALENDAR_GOAL_PLANNER_KEY,
+  calendarEventDayPart,
   calendarEditorEvents,
   calendarEventDraft,
   deleteCalendarEvent,
@@ -71,6 +72,9 @@ describe("Calendar event editor compatibility", () => {
     expect(calendarEditorEvents(store([
       { id: "late", date: DATE, title: "Late", category: "Python", startTime: "18:00", endTime: "19:00", note: "Bring notes" },
       { id: "early", date: DATE, title: "09:00-10:30 Deep work", category: "Coding" },
+      { id: "untimed-b", date: DATE, title: "Portfolio", category: "Personal", createdAt: "2026-09-14T10:00:00.000Z" },
+      { id: "untimed-a", date: DATE, title: "Laundry", category: "Personal", createdAt: "2026-09-14T10:00:00.000Z" },
+      { id: "untimed-c", date: DATE, title: "Therapy note", category: "Personal", createdAt: "2026-09-14T11:00:00.000Z" },
       { id: "routine", date: DATE, title: "Hidden", category: "Gym", routineManaged: true }
     ]), DATE)).toEqual([
       {
@@ -86,8 +90,55 @@ describe("Calendar event editor compatibility", () => {
         id: "late",
         note: "Bring notes",
         title: "18:00–19:00 · 1h  Late"
+      },
+      {
+        categoryClass: "personal-block",
+        categoryLabel: "Personal",
+        id: "untimed-a",
+        note: "",
+        title: "Laundry"
+      },
+      {
+        categoryClass: "personal-block",
+        categoryLabel: "Personal",
+        id: "untimed-b",
+        note: "",
+        title: "Portfolio"
+      },
+      {
+        categoryClass: "personal-block",
+        categoryLabel: "Personal",
+        id: "untimed-c",
+        note: "",
+        title: "Therapy note"
       }
     ]);
+  });
+
+  it("classifies structured, legacy, and untimed events for goal-step placement", () => {
+    expect(calendarEventDayPart({ title: "09 Doctor" })).toBe("morning");
+    expect(calendarEventDayPart({ title: "15 Cafe study" })).toBe("afternoon");
+    expect(calendarEventDayPart({ startTime: "20:00", title: "P90X3" })).toBe("evening");
+    expect(calendarEventDayPart({ dayPart: "evening", title: "Untimed" })).toBe("evening");
+    expect(calendarEventDayPart({ dayPart: "invalid", title: "Untimed" })).toBe("afternoon");
+  });
+
+  it("formats structured, legacy, reminder-only, and untimed event labels", () => {
+    const events = calendarEditorEvents(store([
+      { id: "long", date: DATE, title: "Class", startTime: "09:00", endTime: "12:15" },
+      { id: "legacy", date: DATE, title: "18-19 Gym" },
+      { id: "reminder", date: DATE, title: "Call", startTime: "10:00", reminderOnly: true },
+      { id: "untimed", date: DATE, title: "Untimed" },
+      { id: "short", date: DATE, title: "Review", startTime: "09:00", endTime: "09:45" }
+    ]), DATE);
+
+    expect(Object.fromEntries(events.map(({ id, title }) => [id, title]))).toEqual({
+      long: "09:00–12:15 · 3h 15m  Class",
+      legacy: "18:00–19:00 · 1h  Gym",
+      reminder: "10:00 · Reminder  Call",
+      untimed: "Untimed",
+      short: "09:00–09:45 · 45m  Review"
+    });
   });
 
   it("previews reminder, time-order, recovery, and capacity validation", () => {
