@@ -2,11 +2,10 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const { startBrowserPlanner } = require("./helpers/browser-planner");
-const { compareScreenshots } = require("./helpers/png-compare");
-const { startReactPreviewServer } = require("./helpers/react-preview-server");
 
 const TEST_DATE = "2026-09-13";
 const JOURNAL_KEY = "hivePlanner.journal.entries";
+const FONT_FAMILY = 'ui-rounded, "SF Pro Rounded", Nunito, "Avenir Next", -apple-system, "system-ui", "Segoe UI", system-ui, sans-serif';
 
 const JOURNAL_ENTRIES = [
   { id: "ignored", date: "2026-09-13", content: "No valid tracker", tracker: { energy: "wired" } },
@@ -92,62 +91,35 @@ function energyTrailVisualContract(documentExpression) {
         width: rect.width
       };
     };
+    const items = [...panel.querySelectorAll(".state-trail-item")];
+    const firstItem = items[0];
     return {
       heading: { text: panel.querySelector("h3").textContent.trim(), visual: pick(panel.querySelector("h3")) },
-      items: [...panel.querySelectorAll(".state-trail-item")].map((item) => ({
-        text: item.textContent.trim(),
-        visual: pick(item),
-        head: pick(item.querySelector(".state-trail-head"))
-      })),
+      item: pick(firstItem),
+      itemHead: pick(firstItem.querySelector(".state-trail-head")),
+      itemGeometry: items.map((item) => {
+        const itemRect = item.getBoundingClientRect();
+        const headRect = item.querySelector(".state-trail-head").getBoundingClientRect();
+        return {
+          height: itemRect.height,
+          width: itemRect.width,
+          headHeight: headRect.height,
+          headWidth: headRect.width
+        };
+      }),
       list: pick(documentRoot.getElementById("energyTrailList")),
       note: { text: panel.querySelector(".small-note").textContent.trim(), visual: pick(panel.querySelector(".small-note")) },
       panel: pick(panel),
-      pattern: { text: documentRoot.getElementById("energyPatternNote").textContent.trim(), visual: pick(documentRoot.getElementById("energyPatternNote")) },
-      state: ${energyTrailState(documentExpression)}
+      pattern: { text: documentRoot.getElementById("energyPatternNote").textContent.trim(), visual: pick(documentRoot.getElementById("energyPatternNote")) }
     };
   })()`;
 }
 
-const LEGACY_CLIP = `(() => {
-  const rect = document.querySelector(".state-history-card").getBoundingClientRect();
-  return { x: rect.x + scrollX, y: rect.y + scrollY, width: rect.width, height: rect.height };
-})()`;
-
-async function scrollToEnergyTrail(browser, documentExpression) {
-  await browser.waitForExpression(
-    `(${documentExpression}).documentElement.dataset.plannerReady === "true"`
-  );
-  await browser.evaluate(`(() => {
-    const documentRoot = ${documentExpression};
-    const card = documentRoot.querySelector(".state-history-card");
-    const mascot = documentRoot.querySelector(".mascot-card");
-    documentRoot.documentElement.style.scrollBehavior = "auto";
-    if (mascot) {
-      mascot.style.visibility = "hidden";
-    }
-    card.scrollIntoView({ block: "start" });
-  })()`);
-  await browser.waitForExpression(`(() => {
-    const documentRoot = ${documentExpression};
-    const rect = documentRoot.querySelector(".state-history-card").getBoundingClientRect();
-    return rect.top < documentRoot.defaultView.innerHeight && rect.bottom > 0;
-  })()`);
-  await browser.evaluate(`new Promise((resolve) => {
-    const view = (${documentExpression}).defaultView;
-    view.requestAnimationFrame(() => view.requestAnimationFrame(resolve));
-  })`);
-}
-
-function assertSameScreenshot(actual, expected, label) {
-  const comparison = compareScreenshots(actual, expected);
-  assert.equal(comparison.matches, true, `${label}: ${JSON.stringify(comparison)}`);
-}
-
-function assertPopulatedState(state) {
+function assertPopulatedState(state, firstContext = "Early night.") {
   assert.equal(state.ariaLive, "polite");
   assert.equal(state.empty, "");
   assert.deepEqual(state.items, [
-    { title: "Sat Sep 12", chips: "Energy Good · Focus Clear", context: "Early night.", type: "button" },
+    { title: "Sat Sep 12", chips: "Energy Good · Focus Clear", context: firstContext, type: "button" },
     { title: "Fri Sep 11", chips: "Energy Empty · Focus Foggy", context: "Late class.", type: "button" },
     { title: "Thu Sep 10", chips: "Energy Low", context: "", type: "button" },
     { title: "Wed Sep 9", chips: "Energy Okay · Focus Steady", context: "", type: "button" },
@@ -161,25 +133,111 @@ function assertPopulatedState(state) {
   );
 }
 
-test("Energy trail preserves history, pattern, navigation, and visual parity", { timeout: 60_000 }, async function (context) {
-  const planner = await startBrowserPlanner(context);
+function visualBox(overrides) {
+  return {
+    alignItems: "normal",
+    background: "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+    border: "0px none rgb(23, 24, 32)",
+    borderRadius: "0px",
+    color: "rgb(23, 24, 32)",
+    display: "block",
+    fontFamily: FONT_FAMILY,
+    fontSize: "16px",
+    fontWeight: "410",
+    gap: "normal",
+    height: 0,
+    justifyContent: "normal",
+    lineHeight: "23.2px",
+    padding: "0px",
+    width: 0,
+    ...overrides
+  };
+}
+
+function expectedEnergyTrailVisual(mobile) {
+  const contentWidth = mobile ? 338 : 411;
+  const headWidth = mobile ? 310 : 383;
+  const itemGeometry = [70.1875, 70.1875, 46.09375, 46.09375, 46.09375, 46.09375, 70.1875]
+    .map((height) => ({ height, width: contentWidth, headHeight: 20.09375, headWidth }));
+  return {
+    heading: {
+      text: "Energy trail",
+      visual: visualBox({
+        fontSize: mobile ? "20px" : "26.4px",
+        fontWeight: "570",
+        height: mobile ? 23.1875 : 30.625,
+        lineHeight: mobile ? "23.2px" : "30.624px",
+        width: contentWidth
+      })
+    },
+    item: visualBox({
+      background: "rgba(255, 255, 255, 0.72) none repeat scroll 0% 0% / auto padding-box border-box",
+      border: "1px solid rgba(224, 219, 209, 0.72)",
+      borderRadius: "16px",
+      color: "rgb(60, 60, 68)",
+      display: "grid",
+      gap: "6px",
+      height: 70.1875,
+      padding: "12px 13px",
+      width: contentWidth
+    }),
+    itemHead: visualBox({
+      alignItems: "baseline",
+      border: "0px none rgb(60, 60, 68)",
+      color: "rgb(60, 60, 68)",
+      display: "flex",
+      gap: "8px",
+      height: 20.09375,
+      justifyContent: "space-between",
+      width: headWidth
+    }),
+    itemGeometry,
+    list: visualBox({
+      display: "grid",
+      gap: "10px",
+      height: 454.9375,
+      width: contentWidth
+    }),
+    note: {
+      text: "Recent check-ins so shutdown days stop disappearing into blur.",
+      visual: visualBox({
+        border: "0px none rgb(118, 118, 129)",
+        color: "rgb(118, 118, 129)",
+        fontWeight: "450",
+        height: 46.375,
+        width: contentWidth
+      })
+    },
+    panel: visualBox({
+      background: "rgba(255, 255, 255, 0.86) none repeat scroll 0% 0% / auto padding-box border-box",
+      borderRadius: "18px",
+      height: mobile ? 608.5625 : 632,
+      width: mobile ? 370 : 459
+    }),
+    pattern: {
+      text: "Low-energy check-ins have recently followed evenings averaging 3h, compared with 1h before steadier days.",
+      visual: visualBox({
+        border: "0px none rgb(95, 91, 102)",
+        color: "rgb(95, 91, 102)",
+        fontSize: "13.12px",
+        height: 38.0625,
+        lineHeight: "19.024px",
+        width: contentWidth
+      })
+    }
+  };
+}
+
+test("Energy trail preserves history, pattern, navigation, and its visual contract", { timeout: 60_000 }, async function (context) {
+  const planner = await startBrowserPlanner(context, { frontendMode: "react" });
   if (!planner) {
     return;
   }
-  const preview = await startReactPreviewServer(planner.server.url);
-  if (!preview) {
-    context.skip("Install frontend-react dependencies to run React visual regression tests.");
-    return;
-  }
-  context.after(async function () {
-    await preview.close();
-  });
-  const legacyUrl = `${planner.server.url}/?view=todayView&date=${TEST_DATE}`;
-  const previewUrl = `${preview.url}/?view=todayView&date=${TEST_DATE}`;
+  const pageUrl = `${planner.server.url}/?view=todayView&date=${TEST_DATE}`;
 
   await planner.browser.setViewport(1280, 720);
-  await planner.browser.open(legacyUrl);
-  await planner.browser.waitForExpression('document.querySelector("#energyTrailList .pattern-history-empty")');
+  await planner.browser.open(pageUrl);
+  await planner.browser.waitForExpression('Boolean(document.querySelector("#energyTrailList .pattern-history-empty"))');
   assert.deepEqual(await planner.browser.evaluate(energyTrailState("document")), {
     ariaLive: "polite",
     empty: "Start with one tiny check-in. Your recent energy trail will show up here.",
@@ -191,6 +249,10 @@ test("Energy trail preserves history, pattern, navigation, and visual parity", {
   await planner.browser.reload();
   await planner.browser.waitForExpression('document.querySelectorAll("#energyTrailList .state-trail-item").length === 7');
   assertPopulatedState(await planner.browser.evaluate(energyTrailState("document")));
+  assert.deepEqual(
+    await planner.browser.evaluate(energyTrailVisualContract("document")),
+    expectedEnergyTrailVisual(false)
+  );
 
   await planner.browser.evaluate('document.querySelector("#energyTrailList .state-trail-item").click()');
   await planner.browser.waitForExpression('document.getElementById("journalView").classList.contains("active")');
@@ -199,24 +261,6 @@ test("Energy trail preserves history, pattern, navigation, and visual parity", {
     title: document.getElementById("journalTitle").value,
     view: document.querySelector(".view.active").id
   })`), { date: "2026-09-12", title: "", view: "journalView" });
-
-  await planner.browser.open(legacyUrl);
-  await planner.browser.waitForExpression('document.querySelectorAll("#energyTrailList .state-trail-item").length === 7');
-  await scrollToEnergyTrail(planner.browser, "document");
-  const legacyDesktop = await planner.browser.evaluate(energyTrailVisualContract("document"));
-  const legacyDesktopScreenshot = await planner.browser.captureScreenshot(LEGACY_CLIP);
-
-  await planner.browser.open(previewUrl);
-  await planner.browser.waitForExpression('document.querySelectorAll("#energyTrailList .state-trail-item").length === 7');
-  await scrollToEnergyTrail(planner.browser, "document");
-  const previewDesktop = await planner.browser.evaluate(energyTrailVisualContract("document"));
-  const previewDesktopScreenshot = await planner.browser.captureScreenshot(LEGACY_CLIP);
-  assert.deepEqual(previewDesktop, legacyDesktop);
-  assertSameScreenshot(previewDesktopScreenshot, legacyDesktopScreenshot, "desktop Energy trail screenshot");
-
-  await planner.browser.evaluate('document.querySelector("#energyTrailList .state-trail-item").click()');
-  await planner.browser.waitForExpression('document.getElementById("journalView")?.classList.contains("active")');
-  assert.equal(await planner.browser.evaluate('document.getElementById("journalDate").value'), "2026-09-12");
 
   await planner.browser.evaluate(`(() => {
     const input = document.getElementById("journalStateContext");
@@ -229,25 +273,19 @@ test("Energy trail preserves history, pattern, navigation, and visual parity", {
     const entries = JSON.parse(stored[JOURNAL_KEY] || "[]");
     return entries.some((entry) => entry.id === "good" && entry.tracker?.context === "Updated from Journal.");
   });
-  await planner.browser.open(previewUrl);
+  await planner.browser.open(pageUrl);
   await planner.browser.waitForExpression(
     'document.querySelector("#energyTrailList .state-trail-context").textContent === "Updated from Journal."'
   );
 
   await planner.browser.setViewport(390, 844, true);
-  await planner.browser.open(legacyUrl);
+  await planner.browser.open(pageUrl);
   await planner.browser.waitForExpression('document.querySelectorAll("#energyTrailList .state-trail-item").length === 7');
-  await scrollToEnergyTrail(planner.browser, "document");
-  const legacyMobile = await planner.browser.evaluate(energyTrailVisualContract("document"));
-  const legacyMobileScreenshot = await planner.browser.captureScreenshot(LEGACY_CLIP);
-
-  await planner.browser.open(previewUrl);
-  await planner.browser.waitForExpression('document.querySelectorAll("#energyTrailList .state-trail-item").length === 7');
-  await scrollToEnergyTrail(planner.browser, "document");
-  const previewMobile = await planner.browser.evaluate(energyTrailVisualContract("document"));
-  const previewMobileScreenshot = await planner.browser.captureScreenshot(LEGACY_CLIP);
-  assert.deepEqual(previewMobile, legacyMobile);
-  assert.equal(previewMobile.panel.width, 370);
-  assertSameScreenshot(previewMobileScreenshot, legacyMobileScreenshot, "mobile Energy trail screenshot");
+  const mobileState = await planner.browser.evaluate(energyTrailState("document"));
+  assertPopulatedState(mobileState, "Updated from Journal.");
+  assert.deepEqual(
+    await planner.browser.evaluate(energyTrailVisualContract("document")),
+    expectedEnergyTrailVisual(true)
+  );
   assert.deepEqual(planner.browser.errors(), []);
 });
