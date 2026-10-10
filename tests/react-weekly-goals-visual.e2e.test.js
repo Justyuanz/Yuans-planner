@@ -20,6 +20,32 @@ const LIFE_PIE_TASKS = [
 const OLDER_LIFE_PIE_TASKS = [
   { id: "visual-older", label: "Older study", activity: "lc", hours: 3, done: true }
 ];
+const EXPECTED_LIFE_PIE_PERIODS = {
+  Day: {
+    ariaLabel: "Work 2h, Body 1h, Guitar 0.5h",
+    breakdown: ["Transcendence57% · 2h", "Mobile Development0% · 0h", "Portfolio / Job Prep0% · 0h", "Skate29% · 1h", "Gym0% · 0h", "Guitar14% · 0.5h"],
+    summary: ["Work57% · 2h", "Body29% · 1h", "Guitar14% · 0.5h"],
+    total: "3.5h"
+  },
+  Week: {
+    ariaLabel: "Work 2h, Body 1h, Guitar 0.5h",
+    breakdown: ["Transcendence57% · 2h", "Mobile Development0% · 0h", "Portfolio / Job Prep0% · 0h", "Skate29% · 1h", "Gym0% · 0h", "Guitar14% · 0.5h"],
+    summary: ["Work57% · 2h", "Body29% · 1h", "Guitar14% · 0.5h"],
+    total: "3.5h"
+  },
+  Month: {
+    ariaLabel: "Work 2h, Body 1h, Guitar 0.5h",
+    breakdown: ["Transcendence57% · 2h", "Mobile Development0% · 0h", "Portfolio / Job Prep0% · 0h", "Skate29% · 1h", "Gym0% · 0h", "Guitar14% · 0.5h"],
+    summary: ["Work57% · 2h", "Body29% · 1h", "Guitar14% · 0.5h"],
+    total: "3.5h"
+  },
+  All: {
+    ariaLabel: "Work 5h, Body 1h, Guitar 0.5h",
+    breakdown: ["Transcendence31% · 2h", "Mobile Development0% · 0h", "Portfolio / Job Prep46% · 3h", "Skate15% · 1h", "Gym0% · 0h", "Guitar8% · 0.5h"],
+    summary: ["Work77% · 5h", "Body15% · 1h", "Guitar8% · 0.5h"],
+    total: "6.5h"
+  }
+};
 
 const LEGACY_GOALS_READY = `document.querySelectorAll("#weeklyGoals .weekly-goal-input").length === 3`;
 const REACT_GOALS_READY = `document.documentElement.dataset.plannerReady === "true"
@@ -159,6 +185,27 @@ async function putLifePieTasks(serverUrl) {
   }));
 }
 
+async function selectLifePiePeriod(browser, label) {
+  await browser.evaluate(`(() => {
+    [...document.querySelectorAll("#statsPeriodTabs .period-button")]
+      .find((button) => button.textContent.trim() === ${JSON.stringify(label)}).click();
+  })()`);
+}
+
+function lifePiePeriodState() {
+  return `(() => {
+    const textRows = (selector) => [...document.querySelectorAll(selector)]
+      .map((row) => row.textContent.trim());
+    return {
+      active: document.querySelector("#statsPeriodTabs .active").textContent.trim(),
+      ariaLabel: document.getElementById("lifeDonut").getAttribute("aria-label"),
+      breakdown: textRows("#lifeBreakdown .breakdown-row"),
+      summary: textRows("#lifeSummary .pie-summary-row"),
+      total: document.getElementById("lifeDonutLabel").textContent.trim()
+    };
+  })()`;
+}
+
 test("Direct React Dashboard preserves weekly goals and Life Pie behavior", { timeout: 60_000 }, async function (context) {
   const planner = await startBrowserPlanner(context);
   if (!planner) {
@@ -196,18 +243,14 @@ test("Direct React Dashboard preserves weekly goals and Life Pie behavior", { ti
   assert.deepEqual(reactLifeDesktop, legacyLifeDesktop);
   assertSameScreenshot(reactLifeScreenshot, legacyLifeScreenshot, "desktop Life Pie screenshot");
 
-  await planner.browser.evaluate(`(() => {
-    [...document.querySelectorAll("#statsPeriodTabs .period-button")]
-      .find((button) => button.textContent.trim() === "All").click();
-  })()`);
-  await planner.browser.waitForExpression(`document.querySelector("#statsPeriodTabs .active").textContent.trim() === "All"`);
-  const periodState = await planner.browser.evaluate(`(() => {
-    return {
-      active: document.querySelector("#statsPeriodTabs .active").textContent.trim(),
-      total: document.getElementById("lifeDonutLabel").textContent.trim()
-    };
-  })()`);
-  assert.deepEqual(periodState, { active: "All", total: "6.5h" });
+  for (const label of ["Week", "Day", "Month", "All"]) {
+    await selectLifePiePeriod(planner.browser, label);
+    await planner.browser.waitForExpression(`document.querySelector("#statsPeriodTabs .active").textContent.trim() === ${JSON.stringify(label)}`);
+    assert.deepEqual(await planner.browser.evaluate(lifePiePeriodState()), {
+      active: label,
+      ...EXPECTED_LIFE_PIE_PERIODS[label]
+    });
+  }
 
   await planner.browser.evaluate(`(() => {
     const input = document.getElementById("task-hours-visual-study");
@@ -240,6 +283,10 @@ test("Direct React Dashboard preserves weekly goals and Life Pie behavior", { ti
   await planner.browser.waitForExpression(REACT_GOALS_READY);
   const reloadedValue = await planner.browser.evaluate(`document.querySelector(".weekly-goal-input").value`);
   assert.equal(reloadedValue, "Ship the parity test");
+  assert.deepEqual(await planner.browser.evaluate(`(() => ({
+    active: document.querySelector("#statsPeriodTabs .active").textContent.trim(),
+    total: document.getElementById("lifeDonutLabel").textContent.trim()
+  }))()`), { active: "Week", total: "5.5h" });
 
   await planner.browser.setViewport(390, 844, true);
   await planner.browser.open(`${planner.server.url}/?date=${TEST_DATE}`);
