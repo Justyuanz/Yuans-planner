@@ -2,11 +2,10 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const { startBrowserPlanner } = require("./helpers/browser-planner");
-const { compareScreenshots } = require("./helpers/png-compare");
-const { startReactPreviewServer } = require("./helpers/react-preview-server");
 
 const TEST_DATE = "2026-09-14";
 const DAILY_TASKS_PREFIX = "hivePlanner.dailyTasks.";
+const FONT_FAMILY = 'ui-rounded, "SF Pro Rounded", Nunito, "Avenir Next", -apple-system, "system-ui", "Segoe UI", system-ui, sans-serif';
 
 function task(id, label, hours, done) {
   return { id, label, activity: "cpp", hours, done };
@@ -132,26 +131,6 @@ function historyVisualContract(documentExpression = "document") {
   })()`;
 }
 
-function dialogClip(documentExpression = "document", frameExpression = "null") {
-  return `(() => {
-    const documentRoot = ${documentExpression};
-    const rect = documentRoot.getElementById("patternHistoryDialog").getBoundingClientRect();
-    const frame = ${frameExpression};
-    const frameRect = frame ? frame.getBoundingClientRect() : { x: 0, y: 0 };
-    return {
-      x: frameRect.x + rect.x,
-      y: frameRect.y + rect.y,
-      width: rect.width,
-      height: rect.height
-    };
-  })()`;
-}
-
-function assertSameScreenshot(actual, expected, label) {
-  const comparison = compareScreenshots(actual, expected);
-  assert.equal(comparison.matches, true, `${label}: ${JSON.stringify(comparison)}`);
-}
-
 const POPULATED_HISTORY = {
   open: true,
   heading: "Pattern history",
@@ -214,14 +193,210 @@ const POPULATED_HISTORY = {
   ]
 };
 
+function visualBox(overrides) {
+  return {
+    alignItems: "normal",
+    background: "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+    border: "0px none rgb(0, 0, 0)",
+    borderRadius: "0px",
+    boxShadow: "none",
+    color: "rgb(0, 0, 0)",
+    display: "block",
+    fontFamily: FONT_FAMILY,
+    fontSize: "16px",
+    fontWeight: "410",
+    gap: "normal",
+    height: 0,
+    lineHeight: "23.2px",
+    margin: "0px",
+    maxHeight: "none",
+    overflow: "visible",
+    padding: "0px",
+    width: 0,
+    ...overrides
+  };
+}
+
+function expectedHistoryVisual(mobile) {
+  const dialogWidth = mobile ? 352 : 760;
+  const panelWidth = mobile ? 350 : 758;
+  const contentWidth = mobile ? 314 : 710;
+  const itemWidth = mobile ? 284 : 680;
+  return {
+    dialog: visualBox({
+      background: "rgba(0, 0, 0, 0) none repeat scroll 0px 0px / auto padding-box border-box",
+      border: "1px solid rgba(126, 116, 255, 0.28)",
+      borderRadius: "18px",
+      boxShadow: "rgba(114, 99, 135, 0.22) 0px 28px 80px 0px",
+      height: mobile ? 728.359375 : 640.21875,
+      margin: mobile ? "57.8125px 19px 57.8281px" : "39.8906px 260px",
+      maxHeight: "calc(100% - 38px)",
+      overflow: "auto",
+      width: dialogWidth
+    }),
+    panel: visualBox({
+      background: "radial-gradient(circle at 0px 0px, rgba(245, 202, 221, 0.2), rgba(0, 0, 0, 0) 34%) repeat scroll 0% 0% / auto padding-box border-box, rgba(255, 255, 255, 0.94) none repeat scroll 0% 0% / auto padding-box border-box",
+      borderRadius: "18px",
+      display: "grid",
+      gap: "16px",
+      height: mobile ? 726.359375 : 638.21875,
+      padding: mobile ? "18px" : "24px",
+      width: panelWidth
+    }),
+    header: visualBox({
+      alignItems: mobile ? "start" : "baseline",
+      display: "flex",
+      gap: "12px",
+      height: mobile ? 69.5625 : 56.21875,
+      margin: "0px 0px 14px",
+      width: contentWidth
+    }),
+    heading: visualBox({
+      border: "0px none rgb(23, 24, 32)",
+      color: "rgb(23, 24, 32)",
+      fontSize: mobile ? "20px" : "26.4px",
+      fontWeight: "570",
+      height: mobile ? 23.1875 : 30.625,
+      lineHeight: mobile ? "23.2px" : "30.624px",
+      width: mobile ? 230.515625 : 243.296875
+    }),
+    range: visualBox({
+      border: "0px none rgb(118, 118, 129)",
+      color: "rgb(118, 118, 129)",
+      fontWeight: "450",
+      height: mobile ? 46.375 : 23.1875,
+      width: mobile ? 230.515625 : 243.296875
+    }),
+    close: visualBox({
+      background: "rgb(236, 235, 255) none repeat scroll 0% 0% / auto padding-box border-box",
+      border: "0px none rgb(113, 107, 255)",
+      borderRadius: "12px",
+      color: "rgb(113, 107, 255)",
+      fontWeight: "510",
+      height: 42,
+      padding: "9px 15px",
+      width: 71.484375
+    }),
+    body: visualBox({
+      display: "grid",
+      gap: "14px",
+      height: mobile ? 590.796875 : 504,
+      maxHeight: mobile ? "590.8px" : "504px",
+      overflow: "auto",
+      width: contentWidth
+    }),
+    group: visualBox({
+      display: "grid",
+      gap: "10px",
+      height: mobile ? 575.484375 : 413.640625,
+      width: contentWidth
+    }),
+    groupTitle: visualBox({
+      border: "0px none rgb(23, 24, 32)",
+      color: "rgb(23, 24, 32)",
+      fontSize: "14.72px",
+      fontWeight: "600",
+      height: 21.328125,
+      lineHeight: "21.344px",
+      width: contentWidth
+    }),
+    item: visualBox({
+      background: "rgba(255, 255, 255, 0.72) none repeat scroll 0% 0% / auto padding-box border-box",
+      border: "1px solid rgba(224, 219, 209, 0.68)",
+      borderRadius: "18px",
+      display: "grid",
+      gap: "10px",
+      height: mobile ? 294.21875 : 213.296875,
+      padding: "14px",
+      width: contentWidth
+    }),
+    itemHead: visualBox({
+      alignItems: "baseline",
+      display: "flex",
+      gap: "10px",
+      height: mobile ? 40.8125 : 20.40625,
+      width: itemWidth
+    }),
+    itemTitle: visualBox({
+      border: "0px none rgb(23, 24, 32)",
+      color: "rgb(23, 24, 32)",
+      fontSize: "14.08px",
+      fontWeight: "590",
+      height: mobile ? 40.8125 : 20.40625,
+      lineHeight: "20.416px",
+      width: mobile ? 248.3125 : 368.953125
+    }),
+    meta: visualBox({
+      border: "0px none rgb(118, 118, 129)",
+      color: "rgb(118, 118, 129)",
+      fontSize: "12px",
+      fontWeight: "560",
+      height: mobile ? 34.78125 : 17.390625,
+      lineHeight: "17.4px",
+      width: mobile ? 25.6875 : 36.015625
+    }),
+    summary: visualBox({
+      border: "0px none rgb(95, 91, 102)",
+      color: "rgb(95, 91, 102)",
+      fontSize: "13.44px",
+      height: mobile ? 40.84375 : 20.421875,
+      lineHeight: "20.4288px",
+      width: itemWidth
+    }),
+    actions: visualBox({
+      display: "flex",
+      gap: "8px",
+      height: mobile ? 72.1875 : 32.09375,
+      width: itemWidth
+    }),
+    action: visualBox({
+      background: "rgba(255, 255, 255, 0.78) none repeat scroll 0% 0% / auto padding-box border-box",
+      border: "1px solid rgba(224, 219, 209, 0.72)",
+      borderRadius: "999px",
+      color: "rgb(87, 87, 96)",
+      fontSize: "12.48px",
+      fontWeight: "550",
+      height: 32.09375,
+      lineHeight: "18.096px",
+      padding: "6px 10px",
+      width: 132.296875
+    }),
+    evidence: visualBox({
+      display: "grid",
+      gap: "8px",
+      height: 80.375,
+      width: itemWidth
+    }),
+    evidenceSummary: visualBox({
+      border: "0px none rgb(112, 110, 146)",
+      color: "rgb(112, 110, 146)",
+      display: "list-item",
+      fontSize: "12.48px",
+      fontWeight: "560",
+      height: 18.09375,
+      lineHeight: "18.096px",
+      width: itemWidth
+    }),
+    evidenceList: visualBox({
+      border: "0px none rgb(118, 118, 129)",
+      color: "rgb(118, 118, 129)",
+      fontSize: "12.48px",
+      height: 54.28125,
+      lineHeight: "18.096px",
+      padding: "0px 0px 0px 18px",
+      width: itemWidth
+    })
+  };
+}
+
 test("Pattern history preserves empty, grouped, action, disclosure, and refresh behavior", { timeout: 60_000 }, async function (context) {
-  const planner = await startBrowserPlanner(context);
+  const planner = await startBrowserPlanner(context, { frontendMode: "react" });
   if (!planner) {
     return;
   }
 
   await planner.browser.setViewport(1280, 720);
-  await openPlanner(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
+  await openPlanner(planner.browser, `${planner.server.url}/?view=todayView&date=${TEST_DATE}`);
   await openHistory(planner.browser);
   assert.deepEqual(await planner.browser.evaluate(historyState()), {
     open: true,
@@ -232,7 +407,7 @@ test("Pattern history preserves empty, grouped, action, disclosure, and refresh 
   });
 
   await seedTaskOverpacking(planner.server.url);
-  await openPlanner(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
+  await openPlanner(planner.browser, `${planner.server.url}/?view=todayView&date=${TEST_DATE}`);
   await openHistory(planner.browser);
   assert.deepEqual(await planner.browser.evaluate(historyState()), POPULATED_HISTORY);
 
@@ -258,76 +433,46 @@ test("Pattern history preserves empty, grouped, action, disclosure, and refresh 
   assert.deepEqual(planner.browser.errors(), []);
 });
 
-test("Pattern history records the legacy desktop and mobile visual contract", { timeout: 60_000 }, async function (context) {
-  const planner = await startBrowserPlanner(context);
+test("Pattern history preserves its desktop and mobile visual contract", { timeout: 60_000 }, async function (context) {
+  const planner = await startBrowserPlanner(context, { frontendMode: "react" });
   if (!planner) {
     return;
   }
   await seedTaskOverpacking(planner.server.url);
-  const preview = await startReactPreviewServer(planner.server.url);
-  if (!preview) {
-    context.skip("Install frontend-react dependencies to run React visual regression tests.");
-    return;
-  }
-  context.after(async function () {
-    await preview.close();
-  });
 
-  const previewUrl = `${preview.url}/?view=todayView&date=${TEST_DATE}`;
+  const pageUrl = `${planner.server.url}/?view=todayView&date=${TEST_DATE}`;
   await planner.browser.setViewport(1280, 720);
-  await openPlanner(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
-  await openHistory(planner.browser);
-  await planner.browser.evaluate("document.querySelector('.pattern-history-evidence summary').click()");
-  const legacyDesktopState = await planner.browser.evaluate(historyState());
-  const legacyDesktop = await planner.browser.evaluate(historyVisualContract());
-  const legacyDesktopScreenshot = await planner.browser.captureScreenshot(dialogClip());
-  assert.deepEqual({
-    dialogWidth: legacyDesktop.dialog.width,
-    panelWidth: legacyDesktop.panel.width,
-    bodyOverflow: legacyDesktop.body.overflow
-  }, {
-    dialogWidth: 760,
-    panelWidth: 758,
-    bodyOverflow: "auto"
-  });
-
-  await openPlanner(planner.browser, previewUrl);
+  await openPlanner(planner.browser, pageUrl);
   assert.equal(await planner.browser.evaluate('document.querySelector("iframe")'), null);
   await openHistory(planner.browser);
   await planner.browser.evaluate("document.querySelector('.pattern-history-evidence summary').click()");
-  const previewDesktopState = await planner.browser.evaluate(historyState());
-  const previewDesktop = await planner.browser.evaluate(historyVisualContract());
-  const previewDesktopScreenshot = await planner.browser.captureScreenshot(dialogClip());
-  assert.deepEqual(previewDesktopState, legacyDesktopState);
-  assert.deepEqual(previewDesktop, legacyDesktop);
-  assertSameScreenshot(previewDesktopScreenshot, legacyDesktopScreenshot, "desktop Pattern history screenshot");
+  const desktopState = await planner.browser.evaluate(historyState());
+  assert.deepEqual(desktopState, {
+    ...POPULATED_HISTORY,
+    groups: POPULATED_HISTORY.groups.map((group, groupIndex) => ({
+      ...group,
+      items: group.items.map((item, itemIndex) => ({
+        ...item,
+        evidence: {
+          ...item.evidence,
+          open: groupIndex === 0 && itemIndex === 0
+        }
+      }))
+    }))
+  });
+  assert.deepEqual(
+    await planner.browser.evaluate(historyVisualContract()),
+    expectedHistoryVisual(false)
+  );
 
   await planner.browser.setViewport(390, 844, true);
-  await openPlanner(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
+  await openPlanner(planner.browser, pageUrl);
   await openHistory(planner.browser);
   await planner.browser.evaluate("document.querySelector('.pattern-history-evidence summary').click()");
-  const legacyMobileState = await planner.browser.evaluate(historyState());
-  const legacyMobile = await planner.browser.evaluate(historyVisualContract());
-  const legacyMobileScreenshot = await planner.browser.captureScreenshot(dialogClip());
-  assert.deepEqual({
-    dialogWidth: legacyMobile.dialog.width,
-    panelWidth: legacyMobile.panel.width,
-    bodyOverflow: legacyMobile.body.overflow
-  }, {
-    dialogWidth: 352,
-    panelWidth: 350,
-    bodyOverflow: "auto"
-  });
-
-  await openPlanner(planner.browser, previewUrl);
-  await openHistory(planner.browser);
-  await planner.browser.evaluate("document.querySelector('.pattern-history-evidence summary').click()");
-  const previewMobileState = await planner.browser.evaluate(historyState());
-  const previewMobile = await planner.browser.evaluate(historyVisualContract());
-  const previewMobileScreenshot = await planner.browser.captureScreenshot(dialogClip());
-  assert.deepEqual(previewMobileState, legacyMobileState);
-  assert.deepEqual(previewMobile, legacyMobile);
-  assertSameScreenshot(previewMobileScreenshot, legacyMobileScreenshot, "mobile Pattern history screenshot");
+  assert.deepEqual(
+    await planner.browser.evaluate(historyVisualContract()),
+    expectedHistoryVisual(true)
+  );
 
   await planner.browser.evaluate(`(() => {
     const planned = document.getElementById("plannedMount");
