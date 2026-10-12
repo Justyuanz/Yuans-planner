@@ -75,43 +75,33 @@ high-intensity day with a limit, so I can see a week is too full before I live i
 
 ### Skate
 
-A 21-week plan with something to work on each day, how hard to push, and a timer
-for the session. The roadmap shows the whole season, missed days and all.
+A 21-week plan with something to work on each day, how hard to push, and a
+timer. Gym and body work count too, and the roadmap covers the whole season.
 
 <img src="docs/images/skate.jpg" alt="Skate training" />
 
 </td>
 </tr>
-<tr>
-<td width="50%" valign="top">
-
-### Guitar
-
-One thing to focus on, one small thing to practise, and a timer. The weekly
-target is deliberately small, so just picking the guitar up still counts.
-
-<img src="docs/images/guitar.jpg" alt="Guitar practice" />
-
-</td>
-<td width="50%" valign="top">
-
-### Sprouty
-
-Ask it about my own data and it answers from what's actually stored: what's left
-this week, where the hours went. It says so when it doesn't know, and it works
-without an API key.
-
-<img src="docs/images/sprouty.jpg" alt="Sprouty, the mascot, with its chat open" />
-
-</td>
-</tr>
 </table>
 
-<div align="center">
-<br />
-<img src="docs/images/mobile.jpg" alt="The planner at phone width" width="260" />
-<p><sub>Every page works on the phone too.</sub></p>
-</div>
+Also in there:
+
+- **Guitar practice** — one focus, one small thing to practise, a timer, and a
+  weekly target that is deliberately modest.
+- **Sprouty** — ask about your own data and it answers from what is stored:
+  what's left this week, where the hours went. With an `OPENAI_API_KEY` it
+  reasons over that evidence and gives better suggestions; without one, or if
+  the server is unreachable, it falls back to local answers computed from the
+  same data. Either way it only uses what is actually stored, and says so when
+  it doesn't know.
+- **Planned vs actual** — the hours I meant to spend next to the ones I did.
+- **Energy trail** — how energy and focus moved over the past days.
+- **Pattern noticed** — one observation at a time, with the evidence behind it,
+  and a history of the earlier ones.
+- **Telegram reminders** — optional, for anything with a time on it.
+- **Backup export and import** — the whole planner as one JSON file.
+
+Every page is fully responsive and works on the phone.
 
 <br />
 
@@ -198,7 +188,7 @@ cd frontend && npm ci && cd ..
 NODE_BIN=$(which node) sh scripts/test.sh
 ```
 
-Four layers, all of which also run in CI on every push and pull request:
+Four layers:
 
 | Layer | Count | Covers |
 | --- | --- | --- |
@@ -213,10 +203,18 @@ They also cover persistence across a reload *and* across a server restart,
 backup export and import, and that the Python and TypeScript halves still agree
 on the records they share.
 
-That layer needs Chrome or Chromium. Without it the tests skip, and a skip counts
-as a failure here rather than a pass: CI rejects any run that reports one. Every
-test uses a temporary database, so none of it touches your planner data or calls
-an external service.
+That layer needs Chrome or Chromium, and it is a **local** gate: the pinned
+contracts measure text in a font stack that only resolves on macOS, so they
+cannot pass on a Linux CI runner and regenerating them there would break them
+here. Run `scripts/test.sh` before pushing.
+
+CI runs what it can check honestly: the Python tests, the frontend unit tests,
+lint and strict types, the production build, a browser-free smoke test that
+serves the built bundle and exercises the storage, backup and restart paths,
+and a Docker build that boots the image and fetches all six pages.
+
+Every test uses a temporary database, so none of it touches your planner data
+or calls an external service.
 
 <br />
 

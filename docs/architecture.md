@@ -103,8 +103,15 @@ so every write is serialized.
 
 ## The agent layer
 
-Sprouty is deterministic first. Facts are computed by the app; the model only
-phrases them, and the planner works with no API key at all.
+Sprouty is deterministic first. The facts come from the planner, never from the
+model's memory.
+
+With `OPENAI_API_KEY` set, the browser posts the question plus a compacted
+metrics bundle to `/api/mascot/chat`, and the server calls OpenAI under a system
+prompt that restricts it to the evidence supplied. Without a key, `ask_mascot`
+refuses and the frontend falls back to `mascot-local-reply.ts`, which answers
+from the same stored data by rule. The same fallback covers an unreachable or
+slow server, so the planner never depends on the network to answer.
 
 - `shared/activity-log.ts` — the event history insights are derived from.
 - `pages/dashboard/cards/insight/dashboard-insight-rules.ts` — the rules that
