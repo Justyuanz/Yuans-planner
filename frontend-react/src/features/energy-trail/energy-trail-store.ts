@@ -2,6 +2,7 @@ import type { PlannerStore } from "../../api/planner-store";
 import { isRecord } from "../../shared/is-record";
 import { journalEntries } from "../journal/journal-entry-store";
 import { formatPlannerDate } from "../life-pie/life-pie-store";
+import { leadingTimeMinutes } from "../../shared/planner-time";
 
 export interface EnergyTrailEntry {
   context: string;
@@ -25,7 +26,6 @@ const MAX_TASK_HOURS = 24;
 const MAX_TASK_TIMER_SECONDS = 8 * 60 * 60;
 const EVENING_START_MINUTES = 18 * 60;
 const LOOKBACK_DAYS = 14;
-const TASK_TIME_PATTERN = /^(\d{1,2})(?::?(\d{2}))?(?=\s|$|[-–])/;
 
 function parseStoredJson(rawValue: string | undefined): unknown {
   if (rawValue === undefined) {
@@ -89,15 +89,6 @@ function previousDateKey(dateKey: string): string {
   return dateWindow(dateKey, 2)[0] ?? "";
 }
 
-function taskStartMinutes(label: string): number | null {
-  const match = TASK_TIME_PATTERN.exec(label.trim());
-  if (match === null) {
-    return null;
-  }
-  const hours = Number(match[1]);
-  const minutes = match[2] === undefined ? 0 : Number(match[2]);
-  return hours <= 23 && minutes <= 59 ? (hours * 60) + minutes : null;
-}
 
 function effectiveTaskHours(task: Readonly<Record<string, unknown>>): number {
   const timerSeconds = finiteClamped(task.timerSeconds, MAX_TASK_TIMER_SECONDS);
@@ -116,7 +107,7 @@ function eveningHours(rawValue: string | undefined): number {
     if (!isRecord(candidate) || typeof candidate.label !== "string" || !candidate.label.trim()) {
       return sum;
     }
-    const startMinutes = taskStartMinutes(candidate.label);
+    const startMinutes = leadingTimeMinutes(candidate.label);
     return startMinutes !== null && startMinutes >= EVENING_START_MINUTES
       ? sum + effectiveTaskHours(candidate)
       : sum;

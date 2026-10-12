@@ -7,6 +7,7 @@ import {
   type CalendarEvent
 } from "./calendar-event-store";
 import { humanDate } from "../../shared/planner-date";
+import { leadingTimeMinutes } from "../../shared/planner-time";
 
 export interface CalendarMonthPill {
   categoryClass: string;
@@ -40,12 +41,7 @@ const MONTHS = [
 ] as const;
 
 function parseTimeMinutes(value: unknown): number | null {
-  const text = typeof value === "string" ? value.trim() : "";
-  const match = /^(\d{1,2})(?::?(\d{2}))?(?=\s|$|[-–])/.exec(text);
-  if (match === null) return null;
-  const hours = Number(match[1]);
-  const minutes = Number(match[2] ?? 0);
-  return hours > 23 || minutes > 59 ? null : hours * 60 + minutes;
+  return leadingTimeMinutes(typeof value === "string" ? value : "");
 }
 
 function parseTimeRange(event: CalendarEvent): { end: number; start: number } | null {

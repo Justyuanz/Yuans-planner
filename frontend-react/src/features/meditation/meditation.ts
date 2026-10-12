@@ -3,6 +3,7 @@ import { formatPlannerDate } from "../life-pie/life-pie-store";
 import { MEDITATION_STORAGE_KEY } from "./meditation-definitions";
 import { decodeMeditationDocument, meditationMinutesForDate } from "./meditation-store";
 import { humanDateFromKey } from "../../shared/planner-date";
+import { formatTimer } from "../../shared/planner-time";
 
 export { MEDITATION_STORAGE_KEY } from "./meditation-definitions";
 
@@ -20,19 +21,7 @@ export interface MeditationUpdate {
 
 
 
-function pad(value: number): string {
-  return String(value).padStart(2, "0");
-}
 
-function formatTimer(seconds: number): string {
-  const safeSeconds = Number.isFinite(seconds) ? Math.max(0, Math.floor(seconds)) : 0;
-  const hours = Math.floor(safeSeconds / 3600);
-  const minutes = Math.floor((safeSeconds % 3600) / 60);
-  const remainingSeconds = safeSeconds % 60;
-  return hours > 0
-    ? `${hours}:${pad(minutes)}:${pad(remainingSeconds)}`
-    : `${minutes}:${pad(remainingSeconds)}`;
-}
 
 function updateStore(store: PlannerStore, document: Readonly<Record<string, unknown>>): MeditationUpdate {
   const value = JSON.stringify(document);

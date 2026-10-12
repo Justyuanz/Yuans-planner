@@ -190,14 +190,14 @@ Complete.
 - [x] delete `frontend/` and re-verify the whole application without it
 
 ### Phase 6 — Bug Fixes and Maintenance
-In progress. Finish this before starting Phase 7.
+Complete.
 
 - [x] fix the write-ordering race that could discard a saved edit
-- [x] deduplicate the duplicated date helpers in React (see Date Helper Consolidation below)
-- [ ] remaining React duplicates: `formatTimer` (2 copies, differ on non-finite input) and the leading-time parsers (`parseTimeMinutes`, `clockMinutes`, `parseTaskTimeMinutes`, `parseMascotTaskTime`, `taskStartMinutes`, `eventMinutes`, `scheduledMinutes`)
+- [x] deduplicate the duplicated date helpers in React (see Date Helper Consolidation)
+- [x] deduplicate the leading-time parsers and `formatTimer` into `shared/planner-time.ts`
 - [x] investigated the two Python label-time parsers and deliberately left them separate (see Date Helper Consolidation)
-- [ ] give the form controls an `id` or `name` (7 JSX sites in the React source; the legacy-era figure of 29 counted rendered controls, including one row per budget category)
-- [ ] audit the declared-but-inactive storage keys and the old Study/Body weekly-overview path, keeping any key the real database still holds
+- [x] give the unlabelled form controls an accessible name (see Form Control Accessibility)
+- [x] audit the storage keys against the live database (see Storage Key Audit)
 
 ### Phase 7 — Architecture Refactor
 Not started. Only begin once Phase 6 is finished and the complete suite is green. See "Architecture Refactor Plan" below, and the Refactor Phase rules in `AGENTS.md`. Structural only: no behavior, visual, API, or storage change.
@@ -218,9 +218,36 @@ Deleted the retired `frontend/` directory, the last trace of the legacy applicat
 Verification before deleting: the complete suite passed with the directory still present. Verification after deleting: rebuilt the production bundle, re-ran the complete suite with the directory absent (44 Python tests, 277 React/TypeScript tests across 53 files, lint, strict typecheck, build, and all 42 browser tests, no skips), then repeated the live pass on the production server. All six pages rendered real seeded data with no console errors, every request returned 200, no page overflowed at 375px, `/js/*` and `/css/styles.css` returned 404 while `%2e%2e` traversal still returned 403, and `/legacy` fell back to the React shell like any other client path. A task created through the Dashboard UI reached SQLite with its `task_created` audit record, sorted into the right position, and survived a reload.
 
 ## Next Task
-Start **Session A** in the plan below, then work through B, C, and D in order. Each is one session and one commit, ending with the complete suite green and the live six-page pass.
+Session A is done, so start **Session B — the stylesheet** in the plan below, then C and D. Each is one session and one commit, ending with the complete suite green and the live six-page pass.
+
+Before deleting any CSS in Session B, read the warning at the end of the Storage Key Audit: dead styling does **not** imply a dead storage key.
 
 Do not merge into `main` until the user explicitly approves the merge. Nothing has been pushed yet; the branch is one commit ahead of `origin/rewrite/react-typescript`.
+
+## Form Control Accessibility
+
+Session A looked at the seven JSX form controls that carried no `id` or `name`, and the measurement changed the task. Two of them were false positives from a generic inspection heuristic: the Money budget input is wrapped in a `<label>` and also carries `aria-label` and `title`, and the weekly goal input carries `aria-label`. Both already had a proper accessible name, so an `id` would have added nothing.
+
+The other five had a real gap, and that gap was the accessible name rather than the id. The two Task editor selects had no name at all, and the Task editor title and time inputs plus the Sprouty chat input had only a placeholder. All five now carry an `aria-label` and an `id`: `taskEditorTitle`, `taskEditorTime`, `taskEditorReminder`, `taskEditorActivity`, and `mascotChatInput`. The editor ids are deliberately distinct from the task form's `taskTitle`, `taskTime`, `taskReminder` and `taskActivity`, because the form and the editor render at the same time and duplicate ids would be invalid. Only one editor can be open at once, since `TaskList` keeps a single `editingTaskId`, so static ids are safe.
+
+Verified in Chrome's accessibility tree: the editor controls now report "Task title" and "Scheduled time" as their names. Two things were checked and deliberately left alone:
+
+- The task form's selects already carry `aria-label` ("Task Telegram reminder", "Task activity"). The browser pane renders a combobox's selected value rather than its name, which made them look unlabelled.
+- The task hours input is correctly associated with its `<label for>`; `input.labels` resolves to "Hours". The same pane rendering made its name look like its placeholder.
+- The task form's title input takes its name from its placeholder, "Add the next thing that actually matters". Adding an `aria-label` would change what a screen reader announces, so it was left as is.
+
+## Storage Key Audit
+
+The live database at `/Users/yuan/Desktop/Hive/YuanPlanner/data/planner.db` holds 96 rows across 27 key families. Compared against the 27 key prefixes the React production code references, **eight families have no consumer**:
+
+- `hivePlanner.skate.focus`, `hivePlanner.skate.learningItems`, `hivePlanner.skate.warmupItems`, `hivePlanner.skate.weeklyTarget` — the orphaned Skate editors
+- `hivePlanner.study.sessions` — the retired Study feature
+- `hivePlanner.telegramWater.settings` — water reminders, removed from the product
+- `hivePlanner.weekOverview.study.<ISOWEEK>` and `hivePlanner.weekOverview.skateBody.<ISOWEEK>` — the inactive weekly-overview path, 10 rows between them
+
+All eight were already inactive in the shipped legacy app, so nothing was lost in the migration. Backups keep them regardless: `selectBackupData` and `decodeImportedPlannerData` pass through every `hivePlanner.*` key except the transient Guitar session, and `BackupTools.test.ts` now pins a round trip using these exact eight key names, so a future allowlist would fail loudly instead of quietly dropping them.
+
+**Warning for the stylesheet session: dead styling does not imply a dead key.** The `coach-*` and `goal-card-*` CSS clusters are dead, and the matching mounts are absent from the legacy document, so neither UI was reachable even in the legacy app. Their stored data is still read by features that survived: `hivePlanner.skate.coachTemplate` is decoded by the Skate feedback dialog, and `hivePlanner.goalPlanner.items` is both read and written by the Calendar event editor for its goal-step references. Delete the rules, keep the keys.
 
 ## Date Helper Consolidation
 
@@ -234,6 +261,8 @@ Session 79 removed the duplicated date helpers in React. `frontend-react/src/sha
 | `dateFromKey` tolerant key parse | 3 copies | 1 shared |
 | `dateKeyFromValue` (was `localDateKey`) | 2 byte-identical copies | 1 shared |
 | `strictDateKey` (was `normalizedDateKey`/`validDateKey`) | 2 copies, proven equivalent over a two-year sweep | 1 shared |
+| `leadingTimeMinutes` label parse | 4 copies | 1 shared in `planner-time.ts` |
+| `formatTimer` | 2 copies | 1 shared in `planner-time.ts` |
 
 Ten now-unused local `WEEKDAYS`/`MONTHS` arrays went with them, and `meditation-store.ts` no longer imports from `life-pie`.
 
@@ -242,6 +271,8 @@ The method matters more than the result: every group was characterized before be
 - **Guitar and the calendar event editor keep their own key parse.** Guitar defaults missing parts to 0, which rolls a partial key back a month instead of clamping to the 1st; the editor parses by fixed character positions because it reads a date input. Both now share only the label formatter, so their malformed-input behavior is unchanged.
 - **The three `normalizedDateKey` implementations are genuinely different contracts** (tolerant reformat in `life-pie`, strict round-trip in Skate, slice-based in Guitar) and must not be merged.
 - **The two Python label-time parsers stay separate.** `openai_mascot.parse_label_time_minutes` and `telegram_notifier.parse_event_time` agree on all 23 realistic labels tested but diverge on four malformed shapes (`"9:5 Odd"`, `"7:5"`, `"007:00 Odd"`, `"09:00Deep"`), where the mascot regex is stricter. Adopting the strict one would stop a reminder firing for a label like `"09:00Deep"`, so unifying them is a behavior change in the notification path, not a refactor. If it is ever wanted, the safe direction is to adopt the laxer parser in both and add tests for those four shapes. Note also that `telegram_notifier.parse_clock_time` is **not** a duplicate of either: it only ever receives field values such as `"09:00"` or `"09:00-10:30"`, never a label.
+
+The time helpers followed the same method. The four leading-time parsers agreed on all 24 string inputs tested and diverged only on numbers, because each coerced its input differently: the calendar ignores a number, the insight metrics treat 0 as absent, and the mascot reads any number. So `leadingTimeMinutes` takes text and every caller keeps its own coercion. The two `formatTimer` copies produced identical output for all 43,201 finite second values checked and differed only on a non-finite input; the shared version keeps the guard, which is unreachable from the task timer because `elapsedTaskSeconds` always returns a clamped finite number, and preserves Meditation's existing "0:00" for a malformed `endsAt`. `clockMinutes`, `eventMinutes` and `scheduledMinutes` were left alone: they parse field values such as `"09:00"` or `"09:00-10:30"`, not labels.
 
 `formatPlannerDate` still lives in `features/life-pie/life-pie-store.ts` even though Skate, Guitar, and others import it. Relocating it to `shared/planner-date.ts` as `toDateKey` is a Phase 7 move, kept out of Phase 6 so this phase only removed duplication.
 
@@ -573,8 +604,7 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - `backend/app.py` is now a 58-line process bootstrap, the clean Python structure milestone is complete, and `http_server.py` serves the compiled React application at the root. The legacy directory remains reachable only through explicit compatibility and shared-asset routes.
 - `frontend-react/src/planner.css` is now a 22-line index that imports 16 focused parts from `frontend-react/src/styles/` in cascade order. The split was proved safe: the built stylesheet is byte-identical to the pre-split build (same content hash), so it changed nothing visually. The parts must not be reordered; `responsive.css` and then `overrides.css` stay last because they intentionally override earlier declarations.
 - Time/date parsing and normalization are duplicated across frontend modules and backend integrations.
-- Several declared storage keys and an older Study/Body weekly-overview path are inactive, while the real database still contains legacy-only keys that backups must preserve.
-- Seven JSX form controls still lack an `id` or `name`. One of them renders a row per budget category, which is why an earlier browser inspection counted 29 rendered controls.
+- Eight legacy-only key families remain in the live database with no consumer; backups preserve them and a test pins that. See the Storage Key Audit.
 - The default `node` on the inspected machine is Node 14 and cannot run `node --test`; use the installed modern Node runtime or fix the local PATH before relying on `scripts/test.sh` without `NODE_BIN`.
 - Browser coverage protects task and activity-session lifecycles, all six direct primary pages, and every migrated React boundary. The untested flows that remain are all in the retired reference code, which no longer runs.
 - Weekly goals, dashboard day state, task progress, Today's intention, the task list/editor/form, Life Pie, Planned vs actual, Energy trail, Pattern noticed/history, all six Money boundaries, Journal editor, Meditation, Journal archive, Calendar, Skate, and Guitar are React-owned and verified on direct production routes. No migrated feature retains a fallback portal or iframe.
@@ -584,17 +614,10 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - The direct shell's Sprouty surface now sends grounded task, insight, journal, planning, activity, day-state, Money, and Skate context; restores state-aware quick prompts; handles server failure with evidence-based local answers; appends question-aware action suggestions; and preserves pointer-follow, drag persistence, click suppression, and mobile motion behavior. Shared-shell Sprouty parity is complete.
 - The React visual regression test skips when Chrome or `frontend-react` dependencies are unavailable, matching the existing browser-test prerequisite policy.
 - Browser-capable root Node test files run serially to avoid Chrome/Vite startup timeouts under parallel process saturation.
-- The Session 79 complete run passed 44 Python tests, 299 React/TypeScript tests across 54 files, lint, strict typecheck, the production build, and all 42 root browser tests. The count dropped from 43 because the duplicate legacy budgets interaction test was merged into the React one. Treat any repeated failure as actionable rather than accepting it as a combined-run flake.
+- The Session 80 complete run passed 44 Python tests, 312 React/TypeScript tests across 55 files, lint, strict typecheck, the production build, and all 42 root browser tests, with the built stylesheet hash unchanged from the session baseline. The count dropped from 43 because the duplicate legacy budgets interaction test was merged into the React one. Treat any repeated failure as actionable rather than accepting it as a combined-run flake.
 - No browser file starts the legacy frontend or the Vite dev server; all 42 root browser tests run against the production React build. The fixture no longer has a frontend-mode option and `tests/helpers/react-preview-server.js` is deleted.
 
 ## Session Log
-
-### Session 77
-
-- Re-read the repository instructions and complete handoff, confirmed the clean rewrite branch/history/diff, and continued the focused Dashboard browser-reference retirement using the existing strict React/TypeScript production boundaries.
-- Converted Day State, Pattern Noticed, Pattern History, Energy Trail, and Planned vs Actual to production-React-only browser regressions in `220c05a`, `44481e5`, `31911cb`, `59b0138`, and `bbff77b`. Pinned their verified legacy-derived desktop/mobile text, computed styles, and geometry while retaining default/empty/populated states, routing, disclosures, task-driven refresh, cross-feature Journal synchronization, compatibility-safe planned-hour edits, audit writes, unrelated task writes, persistence, and reload behavior.
-- Reduced the mechanical default legacy-fixture count from 29 to 24. The remaining files are the Calendar, Money, Journal, shared page/task boundaries, Guitar, and Skate browser groups; no legacy source was deleted early.
-- Verification: 42 Python tests, 274 React/TypeScript tests, lint, strict typecheck, production build, all 15 Dashboard browser checks, and all 43 root browser tests pass.
 
 ### Session 78
 
@@ -623,6 +646,13 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Investigated the one contract mismatch rather than adjusting the expectation blindly: the outer budget settings disclosure is reset by the card re-render that follows a toggle, and direct probes confirmed legacy and React behave identically in both click sequences. Corrected the handoff decision that claimed every edit collapses it.
 - Reduced the mechanical default legacy-fixture count from 20 to 13. No legacy source was deleted.
 - Verification: 42 Python tests, 274 React/TypeScript tests (52 files), lint, strict typecheck, production build, and all 42 root browser tests pass with zero skips. The browser suite now runs in about 57s instead of 87s because no Vite or legacy server starts.
+
+### Session 80
+
+- Completed Phase 6. Consolidated the four leading-time parsers and the two `formatTimer` copies into `shared/planner-time.ts` with 12 unit tests, after characterizing each group: the parsers agreed on all 24 string inputs and diverged only on numeric input, so each caller keeps its own coercion, and the two formatters matched across all 43,201 finite second values checked.
+- Gave the five genuinely unlabelled form controls an accessible name and an id, and confirmed in Chrome's accessibility tree that the names resolve. Two of the seven flagged controls were false positives, and the task hours input and form selects turned out to be correctly labelled already; the browser pane's rendering of combobox names had made them look otherwise. Corrected the recorded figure.
+- Audited the live database against the React key prefixes: eight legacy-only key families remain, all inactive in the legacy app too, and `BackupTools.test.ts` now pins a round trip over those exact key names. Found and recorded the trap that dead `coach-*` and `goal-card-*` styling does not mean the matching storage keys are dead, because the Skate feedback dialog and the Calendar event editor still read them.
+- Verification: 44 Python tests, 312 React/TypeScript tests across 55 files, lint, strict typecheck, production build, all 42 browser tests with zero skips, the built stylesheet hash unchanged from the session baseline, and a live six-page pass at desktop and 375px with no console errors and every request returning 200.
 
 ---
 

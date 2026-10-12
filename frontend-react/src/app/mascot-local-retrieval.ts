@@ -1,6 +1,7 @@
 import type { ActivityLogEntry } from "../shared/activity-log";
 import type { PlannerTask } from "../features/tasks/tasks";
 import type { MascotContext } from "./mascot-context";
+import { leadingTimeMinutes } from "../shared/planner-time";
 
 export type MascotIntent =
   | "avoidance" | "breakdown" | "general" | "journal" | "money" | "morning"
@@ -45,11 +46,7 @@ export function mascotTaskLabel(task: PlannerTask): string {
 }
 
 export function parseMascotTaskTime(label: unknown): number | null {
-  const match = /^(\d{1,2})(?::?(\d{2}))?(?=\s|$|[-–])/.exec(textValue(label).trim());
-  if (match === null) return null;
-  const hours = Number(match[1]);
-  const minutes = Number(match[2] ?? 0);
-  return hours <= 23 && minutes <= 59 ? hours * 60 + minutes : null;
+  return leadingTimeMinutes(textValue(label));
 }
 
 export function formatMascotClock(minutes: number): string {

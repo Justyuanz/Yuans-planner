@@ -19,6 +19,7 @@ import {
 } from "./tasks";
 import { TaskEditor } from "./TaskEditor";
 import { makeTaskRelatedId } from "./task-options";
+import { formatTimer } from "../../shared/planner-time";
 
 const OTHER_ACTIVITY = ACTIVITY_DEFINITIONS.find(({ id }) => id === "other")!;
 
@@ -29,15 +30,6 @@ interface TasksProps {
   store: PlannerStore;
 }
 
-function formatTimer(seconds: number): string {
-  const wholeSeconds = Math.max(0, Math.floor(seconds));
-  const hours = Math.floor(wholeSeconds / 3600);
-  const minutes = Math.floor((wholeSeconds % 3600) / 60);
-  const remainder = wholeSeconds % 60;
-  const minuteText = String(minutes).padStart(hours ? 2 : 1, "0");
-  const secondText = String(remainder).padStart(2, "0");
-  return hours ? `${hours}:${minuteText}:${secondText}` : `${minuteText}:${secondText}`;
-}
 
 export function TaskList({ dateKey, onPersist, onUndoAgentAction, store }: TasksProps) {
   const taskKey = `hivePlanner.dailyTasks.${dateKey}`;

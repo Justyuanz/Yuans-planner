@@ -5,6 +5,7 @@ import {
   roundMetric,
   taskMetricWindowDateKeys
 } from "./dashboard-insight-metric-utils";
+import { leadingTimeMinutes } from "../../shared/planner-time";
 
 const MORNING_END_MINUTES = 12 * 60;
 const EVENING_START_MINUTES = 18 * 60;
@@ -38,13 +39,7 @@ function taskText(value: unknown): string {
 }
 
 export function parseTaskTimeMinutes(label: unknown): number | null {
-  const match = /^(\d{1,2})(?::?(\d{2}))?(?=\s|$|[-–])/.exec(taskText(label).trim());
-  if (match === null) {
-    return null;
-  }
-  const hours = Number(match[1]);
-  const minutes = Number(match[2] ?? 0);
-  return hours > 23 || minutes > 59 ? null : hours * 60 + minutes;
+  return leadingTimeMinutes(taskText(label));
 }
 
 export function normalizeInsightTaskLabel(label: unknown): string {

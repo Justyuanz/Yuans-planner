@@ -35,8 +35,10 @@ export function TaskEditor({ onCancel, onSave, task }: TaskEditorProps) {
   return (
     <div className="task-editor">
       <input
+        aria-label="Task title"
         autoFocus
         className="task-title-input"
+        id="taskEditorTitle"
         maxLength={90}
         onChange={(event) => setDraft({ ...draft, label: event.target.value })}
         onBlur={(event) => {
@@ -51,7 +53,9 @@ export function TaskEditor({ onCancel, onSave, task }: TaskEditorProps) {
         value={draft.label}
       />
       <input
+        aria-label="Scheduled time"
         className="task-category-select task-editor-time"
+        id="taskEditorTime"
         inputMode="numeric"
         maxLength={17}
         onChange={(event) => setDraft({ ...draft, scheduledTime: event.target.value })}
@@ -61,7 +65,9 @@ export function TaskEditor({ onCancel, onSave, task }: TaskEditorProps) {
         value={draft.scheduledTime}
       />
       <select
+        aria-label="Task reminder"
         className="task-category-select task-editor-reminder"
+        id="taskEditorReminder"
         onChange={(event) => saveField({
           ...draft,
           reminderMinutes: normalizeReminderMinutes(event.target.value)
@@ -71,7 +77,9 @@ export function TaskEditor({ onCancel, onSave, task }: TaskEditorProps) {
         {TASK_REMINDERS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
       </select>
       <select
+        aria-label="Task activity"
         className="task-category-select task-editor-activity"
+        id="taskEditorActivity"
         onChange={(event) => saveField({
           ...draft,
           activity: normalizeActivityId(event.target.value)

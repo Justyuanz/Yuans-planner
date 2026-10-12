@@ -228,7 +228,9 @@ export function PlannerMascot({ chatOpen, onChatToggle, onPersist, store, today 
           </div>
           <form className="mascot-chat-form" onSubmit={submitQuestion}>
             <input
+              aria-label="Ask Sprouty about today"
               autoComplete="off"
+              id="mascotChatInput"
               maxLength={140}
               onChange={(event) => setQuestion(event.currentTarget.value)}
               placeholder="Ask Sprouty about today"
