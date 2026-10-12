@@ -1,5 +1,5 @@
 import type { PlannerStore } from "../../../../api/planner-store";
-import { buildTodayIntentionModel } from "../../../dashboard/cards/intention/today-intention";
+import { dayTypeForDate } from "../../../../shared/routine-week";
 import {
   calendarCategoryMeta,
   calendarEvents,
@@ -145,7 +145,7 @@ export function buildCalendarMonth(
     if (date.getMonth() !== month) classes.push("outside");
     if (dateKey === todayKey) classes.push("today");
     if (dateKey === selectedDate) classes.push("selected");
-    classes.push(buildTodayIntentionModel(store, date).className);
+    classes.push(dayTypeForDate(store, date).className);
     return {
       ariaLabel: `Select ${humanDate(date)}`,
       className: classes.join(" "),

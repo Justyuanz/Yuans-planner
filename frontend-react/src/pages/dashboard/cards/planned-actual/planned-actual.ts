@@ -8,6 +8,7 @@ import {
   type PlannedActivityId,
   type PlannedGroupId
 } from "./planned-actual-definitions";
+import { isoWeekKey } from "../../../../shared/planner-date";
 
 export { ACTIVITY_LOG_KEY, appendPlannedActivityLog } from "./planned-actual-log";
 export type { PlannedActivityId, PlannedGroupId } from "./planned-actual-definitions";
@@ -40,20 +41,6 @@ export interface PlannedActualModel {
   plannedValues: PlannedValues;
   storageKey: string;
   weekKey: string;
-}
-
-function pad(value: number): string {
-  return String(value).padStart(2, "0");
-}
-
-export function isoWeekKey(date: Date): string {
-  const temporary = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  const dayNumber = temporary.getUTCDay() || 7;
-  temporary.setUTCDate(temporary.getUTCDate() + 4 - dayNumber);
-  const isoYear = temporary.getUTCFullYear();
-  const yearStart = new Date(Date.UTC(isoYear, 0, 1));
-  const week = Math.ceil((((temporary.getTime() - yearStart.getTime()) / 86_400_000) + 1) / 7);
-  return `${isoYear}-W${pad(week)}`;
 }
 
 export function plannedStorageKey(date: Date): string {

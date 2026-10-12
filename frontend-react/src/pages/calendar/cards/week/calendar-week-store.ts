@@ -1,6 +1,7 @@
 import type { PlannerStore, PlannerStoreWrite } from "../../../../api/planner-store";
 import { isRecord } from "../../../../shared/is-record";
-import { isoWeekKey } from "../../../dashboard/cards/planned-actual/planned-actual";
+import { isoWeekKey } from "../../../../shared/planner-date";
+import { DAY_TYPE_ALIASES, routineWeekKey } from "../../../../shared/routine-week";
 
 export type CalendarDayTypeId = "high" | "normal" | "recovery";
 
@@ -29,21 +30,10 @@ export const CALENDAR_DAY_TYPES: readonly CalendarDayType[] = [
   { capacityLoad: 9, className: "high-day", id: "high", label: "High-Intensity Day", shortLabel: "High-Intensity" }
 ];
 
-const DAY_TYPE_ALIASES: Readonly<Record<string, CalendarDayTypeId>> = {
-  personal: "recovery",
-  rest: "recovery",
-  skate: "high",
-  study: "normal"
-};
-
 export function calendarDayType(value: unknown): CalendarDayType {
   const requested = typeof value === "string" ? value.trim() : "";
   const id = DAY_TYPE_ALIASES[requested] ?? requested;
   return CALENDAR_DAY_TYPES.find((type) => type.id === id) ?? CALENDAR_DAY_TYPES[1]!;
-}
-
-export function calendarWeekStorageKey(date: Date): string {
-  return `hivePlanner.routine.week.${isoWeekKey(date)}`;
 }
 
 export function calendarWeekDates(date: Date): Date[] {
@@ -56,7 +46,7 @@ export function calendarWeekDates(date: Date): Date[] {
 
 function storedWeek(store: PlannerStore, date: Date): unknown {
   try {
-    return JSON.parse(store[calendarWeekStorageKey(date)] ?? "null");
+    return JSON.parse(store[routineWeekKey(date)] ?? "null");
   } catch {
     return null;
   }
@@ -117,7 +107,7 @@ export function updateCalendarWeekType(
 
 export function calendarWeekWrite(plan: CalendarWeekPlan, date: Date): PlannerStoreWrite {
   return {
-    key: calendarWeekStorageKey(date),
+    key: routineWeekKey(date),
     value: JSON.stringify({ ...plan, isConfigured: true, week: isoWeekKey(date) })
   };
 }

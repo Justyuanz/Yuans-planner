@@ -10,7 +10,7 @@ import {
 } from "../pages/dashboard/cards/insight/dashboard-insight-rules";
 import { journalEntries } from "../shared/journal-entry-store";
 import { toDateKey } from "../shared/planner-date";
-import { decodeMoneyStore } from "../pages/money/cards/quick/money-quick-store";
+import { decodeMoneyStore } from "../shared/money-store";
 import { decodePlannedValues } from "../pages/dashboard/cards/planned-actual/planned-actual";
 import { ACTIVITY_LOG_KEY, decodeTasks } from "../shared/tasks/tasks";
 import { buildSkateMascotContext } from "./skate-mascot-context";

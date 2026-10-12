@@ -209,31 +209,23 @@ Not started. Only begin once Phase 6 is finished and the complete suite is green
 - [x] make page naming consistent (Session 82)
 
 ## Current Task
-**The Sessions A-D plan is complete.** Migration, bug fixes, the stylesheet, the restructure, and the verification work are all done, and every item that was deferred along the way is recorded with its evidence.
+The Sessions A-D plan is complete, and the first of the two decisions it left open is now resolved: **the cross-page coupling is down from five imports to one**, and the one that remains is deliberate.
 
-The suite is 44 Python tests, 316 React/TypeScript tests across 57 files, and 46 browser tests, with zero skips.
+The suite is 44 Python tests, 324 React/TypeScript tests across 58 files, and 46 browser tests, with zero skips.
 
 ## Last Completed Task
-Session E — verified the two columns the Session D matrix could only guess at, one feature at a time, and filled what was genuinely missing.
+Session F — resolved the cross-page coupling recorded in Session C.
 
-Both columns turned out to be **largely false alarms of the keyword scan**, which is worth knowing before anyone trusts a matrix like that again. Boundaries were being exercised with concrete values in tests that never use the word "boundary"; cross-feature coupling was already covered at unit level, because each consumer's tests seed the other feature's stored data. Three of the eleven boundary-flagged features have no numeric input at all.
+Session C had written that none of the five was fixable by a move. **That was wrong, and checking what each import actually pulled is what showed it.** Two imported nothing but `isoWeekKey`, a pure ISO-week function that belongs in `shared/planner-date.ts`. A third imported the day-type model, which split cleanly: the day type moved to a new `shared/routine-week.ts`, the card kept its own label. The fourth imported the money store, which all six Money cards, the insight and the mascot read — it was never the quick card's, and it is now `shared/money-store.ts` with `shared/money-definitions.ts`.
 
-Four real gaps came out of the verification and are now tested:
+The fifth, the Dashboard rendering `MoneyQuickCard`, stays. The quick log genuinely appears on the Dashboard; moving a page's main card into a shared directory to satisfy a layering rule would make the code harder to follow.
 
-- the journal archive's 132-character preview cut, with the trim in front of the ellipsis;
-- the Skate hero's upper week clamp, past the end of the 21-week season;
-- the feedback scale's lower clamp and a zero duration;
-- the live cross-card path on the Dashboard: a spend logged in the Money quick card must move the insight card beside it with no reload and no synthetic storage event. Mutation-checked by freezing the insight model, which makes the test time out.
-
-One assumption was wrong and the code was right: the Skate hero's day count is not clamped alongside its week, because it is a stored setting the skater advances by hand. The test says so now.
+Along the way the work exposed that `hivePlanner.routine.week.*` had **two owners**: the Calendar weekly planner and the Dashboard intention card each carried their own copy of the storage key and the day-type alias table, under different names. Two features could have drifted apart on the same stored document. They share `shared/routine-week.ts` now, which has its own tests.
 
 ## Next Task
-No planned work remains. What is left are decisions rather than tasks, both recorded with evidence in Session C:
+One recorded decision remains, and it is yours to make: the `@/` path alias described below. It would remove the four-deep relative imports, but it changes build configuration and every import line at once, so it is not a move and wants your go-ahead on the shape.
 
-1. The five cross-page couplings — four are a card owning a store another page reads. Splitting each store out into `shared/` is a logic change, so it needs its own step and its own tests.
-2. The `@/` path alias, which would remove the four-deep relative imports but touches build configuration and every import line at once.
-
-Both change code without changing behavior, so they want your go-ahead on the shape before anyone starts.
+Nothing else is outstanding. If you would rather stop here, the sensible next step is the merge: the branch is complete, verified, and waiting on your explicit approval.
 
 Do not merge into `main` until the user explicitly approves the merge. Nothing has been pushed yet.
 
@@ -437,31 +429,41 @@ source-relative path, map it through the move, and re-render it from the
 importing file's new location, so a regroup is one command and touches nothing
 but import specifiers.
 
-### Remaining cross-page coupling
+### Cross-page coupling — mostly resolved (Session 85)
 
-The regroup did not create these; it made them visible. They were invisible
-while every feature was a sibling in one flat directory. **None is fixable by a
-move**, so each is recorded rather than done:
+Session C recorded five cross-page imports and said none was fixable by a move.
+**That was too strong.** Looking at what each one actually imported showed four
+of them were movable, and they are now gone: **five became one.**
 
-| Importer | Imports | Why it exists |
-| --- | --- | --- |
-| `pages/calendar/cards/month/calendar-month` | dashboard `today-intention` | the month grid shows each day's type |
-| `pages/calendar/cards/week/calendar-week-store` | dashboard `planned-actual` | the week view reads planned hours |
-| `pages/skate/cards/body-support/skate-body-support` | dashboard `planned-actual` | same planned hours |
-| `pages/dashboard/cards/insight/dashboard-insight-store` | money `money-quick-store` | insights read spending |
-| `pages/dashboard/DashboardPage` | money `MoneyQuickCard` | deliberate: the quick log is rendered on the Dashboard too |
+| Was | Resolution |
+| --- | --- |
+| calendar week → dashboard `planned-actual` | imported only `isoWeekKey`, a pure ISO-week function. Moved to `shared/planner-date.ts`. |
+| skate body support → dashboard `planned-actual` | the same import, fixed by the same move. |
+| calendar month → dashboard `today-intention` | imported the day-type model. Split: the day type now lives in `shared/routine-week.ts`, the card keeps only its own label. |
+| dashboard insight → money `money-quick-store` | the money store is read by all six Money cards, the insight and the mascot. It was never the quick card's. Moved to `shared/money-store.ts` with `shared/money-definitions.ts`. |
 
-The first four are one shape: a card owns a store that other pages read. The
-clean fix is to split each store out of its card into `shared/`, which is a
-logic change, not a move, so it needs its own step and its own tests. The fifth
-is intentional component reuse and only needs a home that says so, such as a
-shared card directory.
+The one that remains is `pages/dashboard/DashboardPage` rendering
+`MoneyQuickCard`, and it should stay. The Money quick log genuinely appears on
+the Dashboard, so this is deliberate composition, not leakage. Moving a page's
+main card into a shared directory to satisfy a layering rule would make the
+code harder to follow, not easier.
 
-Separately, `mascot/` imports ten modules from four pages (day-state, insight
-rules and store, planned-actual, money-quick-store, skate program data and body
-support). This one is **accepted, not a defect**: Sprouty answers questions
-about every surface, so reading across them is its job. It is recorded here so
-a later session does not mistake it for an oversight.
+Two things the work turned up:
+
+- **`hivePlanner.routine.week.*` had two owners.** The Calendar weekly planner
+  and the Dashboard intention card each carried their own copy of the storage
+  key and of the day-type alias table, under different names
+  (`calendarWeekStorageKey`, `todayIntentionStorageKey`). Two features could
+  have drifted apart on the same stored document. They now share
+  `shared/routine-week.ts`, which has its own tests.
+- The ISO-week assertions moved with `isoWeekKey` and were checked against
+  Python's `isocalendar()` rather than only against the code under test. The
+  year-boundary case matters: 1 Jan 2021 is week 53 of **2020**, and four
+  features key weekly storage on it.
+
+`mascot/` still imports nine modules from pages, down from ten. This stays
+**accepted, not a defect**: Sprouty answers questions about every surface, so
+reading across them is its job.
 
 ### Deferred — a path alias
 
@@ -792,7 +794,7 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - The surface parts are not cleanly separated: 17 selectors are styled in two parts each and 5 of those conflict, so import order alone decides what renders. See "Cross-surface CSS overlap". This is the main constraint on any future stylesheet move or split.
 - Dead CSS is now zero by the class-name audit, but that audit only sees class selectors. Element, attribute, and descendant-only rules were not covered, so "no dead classes" is not the same as "no dead rules".
 - Time/date parsing and normalization are duplicated between the frontend and the backend integrations. Within the frontend the duplication is gone: Session 82 removed the last copy, `formatPlannerDate`, which was `toDateKey` under another name.
-- Five cross-page imports and ten mascot-to-page imports remain. They predate the restructure, which only made them visible. See "Remaining cross-page coupling" for each one and why it is not a move.
+- One cross-page import remains, the Dashboard rendering the Money quick card, and it is deliberate. The other four were resolved in Session 85; the mascot's nine page imports are accepted by design. See "Cross-page coupling".
 - Page nesting makes some imports four levels deep (`../../../../shared/...`). A `@/` path alias would fix them; it is deferred with its reason.
 - Eight legacy-only key families remain in the live database with no consumer; backups preserve them and a test pins that. See the Storage Key Audit.
 - The default `node` on the inspected machine is Node 14 and cannot run `node --test`; use the installed modern Node runtime or fix the local PATH before relying on `scripts/test.sh` without `NODE_BIN`.
@@ -804,23 +806,13 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - The direct shell's Sprouty surface now sends grounded task, insight, journal, planning, activity, day-state, Money, and Skate context; restores state-aware quick prompts; handles server failure with evidence-based local answers; appends question-aware action suggestions; and preserves pointer-follow, drag persistence, click suppression, and mobile motion behavior. Shared-shell Sprouty parity is complete.
 - The React visual regression test skips when Chrome or `frontend-react` dependencies are unavailable, matching the existing browser-test prerequisite policy.
 - Browser-capable root Node test files run serially to avoid Chrome/Vite startup timeouts under parallel process saturation.
-- The suite is now 44 Python, 316 React/TypeScript across 57 files, and 46 browser tests, zero skips. The browser count rose from 42 across Sessions 83 and 84: the restart, backup, reminder-contract, and Dashboard cross-card tests.
+- The suite is now 44 Python, 324 React/TypeScript across 58 files, and 46 browser tests, zero skips. The browser count rose from 42 across Sessions 83 and 84: the restart, backup, reminder-contract, and Dashboard cross-card tests.
 - The Python and React suites cannot see each other. Each pins its own half of a shared record and nothing but `tests/reminder-contract.e2e.test.js` pins that the halves agree; renaming a serialized field leaves the entire Python suite green.
 - Boundary and cross-feature coverage were verified feature by feature in Session 84; the gaps were four, and all four are now tested. The scan that flagged them was wrong in both directions, so treat a keyword matrix as a way to find candidates, never as a measurement.
 - The Session 80 complete run passed 44 Python tests, 312 React/TypeScript tests across 55 files, lint, strict typecheck, the production build, and all 42 root browser tests, with the built stylesheet hash unchanged from the session baseline. The count dropped from 43 because the duplicate legacy budgets interaction test was merged into the React one. Treat any repeated failure as actionable rather than accepting it as a combined-run flake.
 - No browser file starts the legacy frontend or the Vite dev server; all 42 root browser tests run against the production React build. The fixture no longer has a frontend-mode option and `tests/helpers/react-preview-server.js` is deleted.
 
 ## Session Log
-
-### Session 82
-
-- Ran Session C, the React restructure, in five stages, each verified by the complete suite with the built stylesheet byte-identical throughout. `features/` no longer exists: the source is `pages/` with six pages and their cards, a real `shared/` layer, `mascot/`, and an `app/` down to 11 files and 527 lines.
-- Measured before moving, and the measurement changed stage 1. The "shared kernel" inside `features/life-pie/` was mostly `formatPlannerDate`, a byte-identical duplicate of `shared/planner-date.ts`'s `toDateKey` that Session 79 had missed because the name differed. Deduplicating it rewrote 73 call sites across 21 files and left very little kernel to split.
-- Moved what was genuinely shared and renamed it for what it is: the totals engine became `shared/activity-totals.ts` with `activityTotalsForPeriod`, since the Life Pie card is one of its three consumers rather than its subject. `activity-categories`, the hours formatter, `tasks`, `sessions`, `journal-entry-store`, and `calendar-event-store` all moved to `shared/`; `plannerDateFromSearch` moved to the module that owns the URL. Every moved function kept its tests, split into files matching the new homes.
-- Wrote two reusable movers rather than hand-editing imports: they resolve each relative specifier to a source-relative path, map it through the move, and re-render it from the importing file's new location. A seven-directory regroup is then one command that touches nothing but import specifiers.
-- Investigated a typecheck that reported exit 1 with no diagnostics instead of re-running it. The cause was my own shell: `ls pages/*/ -d` failed on `-d` as a filename and broke the `&&` chain, so typecheck never ran and `$?` reported the failed `ls`. Not flaky, and nothing wrong with the code.
-- Recorded rather than forced: five cross-page imports and ten mascot-to-page imports. The restructure exposed them, it did not create them, and fixing the first four means splitting a store out of its card, which is a logic change and needs its own step. The mascot's reach across pages is accepted by design, written down so it is not mistaken for an oversight later. A `@/` path alias is deferred for the same reason: it is not a move.
-- Verification: 44 Python tests, 312 React/TypeScript tests across 57 files, lint, strict typecheck, production build, and all 42 browser tests with zero skips, plus a live pass over all six pages at desktop and 375px with no console errors and every request returning 200. The stylesheet hash and even the published asset name were unchanged from the session baseline, which is the proof that a restructure of 186 source files changed nothing the user can see.
 
 ### Session 83
 
@@ -838,6 +830,15 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - The Dashboard test is the one that needed a new idea. Every existing sync test fires a synthetic `StorageEvent`, which is the external path; nothing covered a real action in one card refreshing a card beside it through React state. It logs a spend through the real Money quick form and waits for the insight card, which belongs to another page's feature, to change before any reload. Mutation-checked by freezing the insight model on its first value, which makes the test time out rather than pass.
 - Dropped an assumption when the code disagreed with it. I expected the Skate hero's day count to clamp to 60 alongside the week; it reports 1, because the SkateIQ day is a stored setting the skater advances by hand rather than a date-derived value. The code was right, the test now states the distinction.
 - Verification: 44 Python tests, 316 React/TypeScript tests across 57 files, lint, strict typecheck, production build, and 46 browser tests with zero skips, stylesheet hash unchanged. No production source changed; the only non-test edit was reverted after its mutation check.
+
+### Session 85
+
+- Took the first of the two open decisions and found the record was wrong. Session C had written that none of the five cross-page imports was fixable by a move; reading what each one actually imported showed four were. Five cross-page imports are now one.
+- Moved `isoWeekKey` to `shared/planner-date.ts`, which removed two of them at once, and took its assertions with it. Checked the new cases against Python's `isocalendar()` instead of only against the code under test, because the year boundary is the part that matters: 1 Jan 2021 is week 53 of 2020, and four features key weekly storage on it.
+- Found a real duplication while doing it: the Calendar weekly planner and the Dashboard intention card each carried their own copy of the `hivePlanner.routine.week.*` key and of the day-type alias table, under different names. Two features owning the same stored document is how they drift apart. Merged both into `shared/routine-week.ts` and gave it its own tests; the existing tests on both sides were the regression net and passed unchanged.
+- Split the day type out of the intention card so the Calendar month can read it without importing the Dashboard, and moved the money store and its definitions to `shared/`, where the calendar event store and the journal entry store already live. The money store was read by all six Money cards, the insight and the mascot, so it was never the quick card's.
+- Left the last coupling alone on purpose. The Dashboard renders `MoneyQuickCard` because the quick log really does appear there; moving a page's main card into a shared directory to satisfy a layering rule would make the code harder to read, not easier.
+- Verification: 44 Python tests, 324 React/TypeScript tests across 58 files, lint, strict typecheck, production build, and 46 browser tests with zero skips, the built stylesheet byte-identical with its asset name unchanged, and a live pass over all six pages at desktop and 375px with no console errors and every request 200.
 
 ---
 

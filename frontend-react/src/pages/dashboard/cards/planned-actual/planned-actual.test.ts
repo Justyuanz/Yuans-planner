@@ -1,13 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import type { PlannerStore } from "../../../../api/planner-store";
-import {
-  applyPlannedInput,
-  appendPlannedActivityLog,
-  buildPlannedActual,
-  isoWeekKey,
-  plannedStorageKey
-} from "./planned-actual";
+import { applyPlannedInput, appendPlannedActivityLog, buildPlannedActual, plannedStorageKey } from "./planned-actual";
+import { } from "../../../../shared/planner-date";
 
 const TODAY = new Date(2026, 8, 13);
 const NOW_MS = new Date(2026, 8, 13, 12).getTime();
@@ -39,9 +34,7 @@ function populatedStore(): PlannerStore {
 }
 
 describe("Planned vs actual model", () => {
-  it("uses the legacy ISO week key across year boundaries", () => {
-    expect(isoWeekKey(new Date(2021, 0, 1))).toBe("2020-W53");
-    expect(isoWeekKey(TODAY)).toBe("2026-W37");
+  it("keys weekly storage on the ISO week", () => {
     expect(plannedStorageKey(TODAY)).toBe("hivePlanner.planned.2026-W37");
   });
 

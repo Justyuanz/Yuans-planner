@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import type { PlannerStore } from "../../../../api/planner-store";
-import { MONEY_SETTINGS_KEY, MONEY_TRANSACTIONS_KEY } from "./money-quick-definitions";
-import { decodeMoneyStore } from "./money-quick-store";
+import type { PlannerStore } from "../api/planner-store";
+import { MONEY_SETTINGS_KEY, MONEY_TRANSACTIONS_KEY } from "./money-definitions";
+import { decodeMoneyStore } from "./money-store";
 
 function store(settings: unknown, transactions: unknown): PlannerStore {
   return {

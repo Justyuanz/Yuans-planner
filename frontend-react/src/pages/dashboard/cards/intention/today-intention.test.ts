@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import type { PlannerStore } from "../../../../api/planner-store";
-import { buildTodayIntentionModel, todayIntentionStorageKey } from "./today-intention";
+import { buildTodayIntentionModel } from "./today-intention";
+import { routineWeekKey } from "../../../../shared/routine-week";
 
 function weekStore(date: Date, days: readonly unknown[]): PlannerStore {
   return {
-    [todayIntentionStorageKey(date)]: JSON.stringify({
+    [routineWeekKey(date)]: JSON.stringify({
       days: days.map((type) => ({ type })),
       isConfigured: true
     })
@@ -63,7 +64,7 @@ describe("buildTodayIntentionModel", () => {
 
   it("uses the ISO week-year when a calendar year starts in the previous ISO week", () => {
     const date = new Date(2021, 0, 1);
-    expect(todayIntentionStorageKey(date)).toBe("hivePlanner.routine.week.2020-W53");
+    expect(routineWeekKey(date)).toBe("hivePlanner.routine.week.2020-W53");
     expect(buildTodayIntentionModel(weekStore(date, [
       "normal", "normal", "normal", "normal", "high", "normal", "normal"
     ]), date).dayTypeLabel).toBe("High-Intensity Day");

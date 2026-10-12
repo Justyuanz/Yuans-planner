@@ -6,6 +6,7 @@ import {
   dateKeyFromValue,
   humanDate,
   humanDateFromKey,
+  isoWeekKey,
   startOfLocalDay,
   strictDateKey,
   toDateKey
@@ -139,5 +140,25 @@ describe("strictDateKey", () => {
 
   it("rejects a timestamp, because only a bare key is a valid day", () => {
     expect(strictDateKey("2026-09-14T10:00:00Z")).toEqual("");
+  });
+});
+
+describe("isoWeekKey", () => {
+  it("numbers the week inside its ISO year", () => {
+    expect(isoWeekKey(new Date(2026, 8, 14))).toBe("2026-W38");
+    expect(isoWeekKey(new Date(2026, 0, 5))).toBe("2026-W02");
+  });
+
+  // The ISO year is not the calendar year at the turn of January: 1 Jan 2021
+  // is a Friday, so it belongs to the last week of 2020. Four features key
+  // weekly storage on this, so the boundary has to stay fixed.
+  it("keeps a January date in the previous ISO year when the week started there", () => {
+    expect(isoWeekKey(new Date(2021, 0, 1))).toBe("2020-W53");
+    expect(isoWeekKey(new Date(2026, 0, 1))).toBe("2026-W01");
+  });
+
+  it("pads the week number to two digits", () => {
+    expect(isoWeekKey(new Date(2026, 0, 8))).toBe("2026-W02");
+    expect(isoWeekKey(new Date(2026, 11, 28))).toBe("2026-W53");
   });
 });

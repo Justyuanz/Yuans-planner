@@ -8,7 +8,7 @@ import {
   MONEY_TRANSACTIONS_KEY,
   MONEY_VENDOR_RULES_KEY,
   type MoneyTransaction
-} from "./money-quick-definitions";
+} from "../../../../shared/money-definitions";
 
 interface MoneyTransactionInput {
   amountCents: number;

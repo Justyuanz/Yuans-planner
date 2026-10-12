@@ -1,6 +1,6 @@
 import type { PlannerStore } from "../../../../api/planner-store";
 import { formatMoney } from "../quick/money-quick";
-import { decodeMoneyStore } from "../quick/money-quick-store";
+import { decodeMoneyStore } from "../../../../shared/money-store";
 
 export interface MoneyActivityModel {
   rows: readonly {

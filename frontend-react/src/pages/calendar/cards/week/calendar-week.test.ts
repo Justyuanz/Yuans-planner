@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { routineWeekKey } from "../../../../shared/routine-week";
 import type { PlannerStore } from "../../../../api/planner-store";
 import { CALENDAR_EVENTS_STORAGE_KEY } from "../../../../shared/calendar-event-store";
 import {
@@ -9,7 +10,6 @@ import {
 } from "./calendar-week";
 import {
   CALENDAR_DAY_TYPES,
-  calendarWeekStorageKey,
   calendarWeekTypeChangeReason,
   calendarWeekWrite,
   decodeCalendarWeek,
@@ -37,7 +37,7 @@ describe("Calendar weekly planner compatibility", () => {
   });
 
   it("uses the ISO week key and normal defaults for missing or malformed data", () => {
-    expect(calendarWeekStorageKey(MONDAY)).toBe(WEEK_KEY);
+    expect(routineWeekKey(MONDAY)).toBe(WEEK_KEY);
     const stores: PlannerStore[] = [{}, { [WEEK_KEY]: "bad-json" }, { [WEEK_KEY]: "[]" }];
     stores.forEach((plannerStore) => {
       expect(decodeCalendarWeek(plannerStore, MONDAY)).toEqual({

@@ -1,7 +1,6 @@
 import type { PlannerStore, PlannerStoreWrite } from "../../../../api/planner-store";
 import { isRecord } from "../../../../shared/is-record";
-import { isoWeekKey } from "../../../dashboard/cards/planned-actual/planned-actual";
-import { addDays, strictDateKey, toDateKey } from "../../../../shared/planner-date";
+import { addDays, isoWeekKey, strictDateKey, toDateKey } from "../../../../shared/planner-date";
 
 export const BODY_SUPPORT_STORAGE_KEY = "hivePlanner.physical.logs";
 export const BODY_SUPPORT_OPTIONS = [

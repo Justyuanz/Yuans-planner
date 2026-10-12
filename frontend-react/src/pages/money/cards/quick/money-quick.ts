@@ -1,8 +1,8 @@
 import type { PlannerStore } from "../../../../api/planner-store";
-import type { MoneyCategory, MoneyTransaction } from "./money-quick-definitions";
-import { decodeMoneyStore, moneyVendorRules } from "./money-quick-store";
+import type { MoneyCategory, MoneyTransaction } from "../../../../shared/money-definitions";
+import { decodeMoneyStore, moneyVendorRules } from "../../../../shared/money-store";
 
-export { DEFAULT_MONEY_IMPACT } from "./money-quick-definitions";
+export { DEFAULT_MONEY_IMPACT } from "../../../../shared/money-definitions";
 export { buildMoneyTransactionUpdate } from "./money-quick-persistence";
 
 export interface MoneyQuickCategory {
@@ -126,4 +126,4 @@ export function moneyImpactMessage(
     + ` This week now has ${formatMoney(after.month.availableWeekCents)} left and this month has ${formatMoney(after.month.remainingCents)} left.`;
 }
 
-export { MONEY_SETTINGS_KEY } from "./money-quick-definitions";
+export { MONEY_SETTINGS_KEY } from "../../../../shared/money-definitions";

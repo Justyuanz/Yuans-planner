@@ -79,3 +79,18 @@ export function strictDateKey(value: unknown): string {
     ? value
     : "";
 }
+
+/**
+ * The ISO-8601 week a date falls in, as `YYYY-Www`. The ISO year is not always
+ * the calendar year: 1 Jan 2021 belongs to week 53 of 2020. Four features key
+ * weekly storage on this, so they all have to agree on the edge cases.
+ */
+export function isoWeekKey(date: Date): string {
+  const temporary = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+  const dayNumber = temporary.getUTCDay() || 7;
+  temporary.setUTCDate(temporary.getUTCDate() + 4 - dayNumber);
+  const isoYear = temporary.getUTCFullYear();
+  const yearStart = new Date(Date.UTC(isoYear, 0, 1));
+  const week = Math.ceil((((temporary.getTime() - yearStart.getTime()) / 86_400_000) + 1) / 7);
+  return `${isoYear}-W${String(week).padStart(2, "0")}`;
+}

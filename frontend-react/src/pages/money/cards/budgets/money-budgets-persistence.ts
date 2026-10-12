@@ -3,7 +3,7 @@ import { isRecord } from "../../../../shared/is-record";
 import {
   DEFAULT_CATEGORIES,
   MONEY_SETTINGS_KEY
-} from "../quick/money-quick-definitions";
+} from "../../../../shared/money-definitions";
 
 export type MoneyBudgetField = "budgetCents" | "weeklyBudgetCents";
 

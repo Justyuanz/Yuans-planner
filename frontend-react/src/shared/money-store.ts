@@ -1,6 +1,6 @@
-import type { PlannerStore } from "../../../../api/planner-store";
-import { isRecord } from "../../../../shared/is-record";
-import { toDateKey } from "../../../../shared/planner-date";
+import type { PlannerStore } from "../api/planner-store";
+import { isRecord } from "./is-record";
+import { toDateKey } from "./planner-date";
 import {
   DEFAULT_CATEGORIES,
   DEFAULT_VENDOR_RULES,
@@ -12,7 +12,7 @@ import {
   type MoneyTransaction,
   type MoneyTransfer,
   type MoneyVendorRule
-} from "./money-quick-definitions";
+} from "./money-definitions";
 
 interface MoneySettings {
   categories: readonly MoneyCategory[];
