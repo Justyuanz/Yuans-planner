@@ -1,0 +1,103 @@
+name: CI
+
+# The same checks scripts/test.sh runs locally, split into three jobs so a
+# failure says which layer broke. The backend is Python standard library only,
+# so there is nothing to install for it.
+
+on:
+  push:
+    branches: [main, planner-rewrite]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Python tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Run Python tests
+        run: python3 -m unittest discover -s tests -p '*_test.py' --verbose
+
+  frontend:
+    name: Lint, types, unit tests, build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  smoke:
+    name: Server smoke tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Build the production bundle
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      # The rest of tests/ drives a real Chrome and asserts pixel geometry
+      # captured on macOS, where the stylesheet's ui-rounded / SF Pro Rounded
+      # stack resolves. Those contracts cannot pass on a Linux runner and
+      # regenerating them here would break them on the machine the app is
+      # developed on, so they stay a local gate: run scripts/test.sh before
+      # pushing. This file needs no browser and checks what CI can check
+      # honestly: that the built bundle is served, the storage and backup
+      # endpoints work, data survives a restart, and the retired legacy
+      # routes stay gone.
+      - name: Run server smoke tests
+        run: node --test --test-concurrency=1 tests/server-smoke.test.js
+
+  docker:
+    name: Docker image
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # The app is deployed from this image, so a broken Dockerfile matters
+      # as much as a broken test.
+      - name: Build the image
+        run: docker compose build
+
+      - name: Serve the six pages from a container
+        run: |
+          docker compose up -d
+          for attempt in $(seq 1 30); do
+            curl -sf -o /dev/null http://127.0.0.1:8765/ && break
+            sleep 2
+          done
+          for view in todayView calendarView journalView moneyView skateView guitarView; do
+            code=$(curl -s -o /dev/null -w '%{http_code}' "http://127.0.0.1:8765/?view=$view")
+            echo "$view -> $code"
+            [ "$code" = "200" ] || exit 1
+          done
+          docker compose down

@@ -11,6 +11,8 @@ __pycache__/
 .DS_Store
 backups/
 data/
+node_modules/
+dist/
 *.db
 *.db-shm
 *.db-wal

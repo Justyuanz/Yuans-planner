@@ -1,0 +1,291 @@
+const assert = require("node:assert/strict");
+const test = require("node:test");
+
+const { startBrowserPlanner } = require("./helpers/browser-planner");
+const {
+  expectedMoneyPageGeometry,
+  expectedMoneyPageScreenshot,
+  expectedMoneyPageState,
+  mascotPosition,
+  overviewClip,
+  pageGeometry,
+  pageState
+} = require("./helpers/money-page-contract");
+const { compareScreenshotSignature } = require("./helpers/png-compare");
+
+const TEST_DATE = "2026-09-14";
+
+async function putStoredValue(serverUrl, key, value) {
+  const response = await fetch(`${serverUrl}/api/kv`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ key, value })
+  });
+  assert.equal(response.ok, true);
+}
+
+async function openReady(browser, url) {
+  await browser.open(url);
+  await browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
+}
+
+// The animated mascot is hidden before capture so it cannot add noise, while
+// its layout space is preserved.
+async function prepareScreenshot(browser) {
+  await browser.evaluate(`(() => {
+    const documentRoot = document;
+    documentRoot.documentElement.style.scrollBehavior = "auto";
+    documentRoot.defaultView.scrollTo(0, 0);
+    const mascot = documentRoot.querySelector(".mascot-card");
+    if (mascot) mascot.style.visibility = "hidden";
+  })()`);
+  await browser.evaluate(`new Promise((resolve) => {
+    requestAnimationFrame(() => requestAnimationFrame(resolve));
+  })`);
+}
+
+function assertMatchesSignature(actual, expected, label) {
+  const comparison = compareScreenshotSignature(actual, expected);
+  assert.equal(comparison.matches, true, `${label}: ${JSON.stringify(comparison)}`);
+}
+
+test("Money is a direct React page with legacy parity, navigation, and persistence", { timeout: 90_000 }, async function (context) {
+  const planner = await startBrowserPlanner(context);
+  if (!planner) return;
+
+  const pageUrl = `${planner.server.url}/?view=moneyView&date=${TEST_DATE}`;
+  await putStoredValue(
+    planner.server.url,
+    "hivePlanner.dayState",
+    JSON.stringify({ [TEST_DATE]: "tired" })
+  );
+  await putStoredValue(
+    planner.server.url,
+    `hivePlanner.dailyTasks.${TEST_DATE}`,
+    JSON.stringify([{ done: false, hours: 0.5, id: "mascot-task", label: "11 Send invoice" }])
+  );
+  await putStoredValue(
+    planner.server.url,
+    "hivePlanner.journal.entries",
+    JSON.stringify([{
+      content: "Morning felt slower than planned.",
+      date: TEST_DATE,
+      id: "mascot-journal",
+      title: "Slow morning"
+    }])
+  );
+  await putStoredValue(
+    planner.server.url,
+    "hivePlanner.skate.settings",
+    JSON.stringify({ currentProgramDay: 17, intensityByDate: { [TEST_DATE]: "green" } })
+  );
+  await putStoredValue(
+    planner.server.url,
+    "hivePlanner.skate.sessions",
+    JSON.stringify([0, 1, 2].map((index) => ({
+      finishedAt: `2026-09-${String(13 - index).padStart(2, "0")}T18:00:00.000Z`,
+      intensity: "green",
+      mainFocus: `Session ${index + 1}`
+    })))
+  );
+  await putStoredValue(
+    planner.server.url,
+    "hivePlanner.physical.logs",
+    JSON.stringify([{ date: TEST_DATE, kind: "gym", minutes: 30, name: "Gym", status: "done" }])
+  );
+  await putStoredValue(
+    planner.server.url,
+    "hivePlanner.mascot.position",
+    JSON.stringify({ x: 15, y: -10 })
+  );
+
+  await planner.browser.setViewport(1280, 720);
+  await openReady(planner.browser, pageUrl);
+  assert.deepEqual(await planner.browser.evaluate(pageState()), expectedMoneyPageState());
+  assert.deepEqual(await planner.browser.evaluate(pageGeometry()), expectedMoneyPageGeometry(false));
+  // The stored mascot position is restored before paint.
+  assert.deepEqual(await planner.browser.evaluate(mascotPosition()), { x: "15.00px", y: "-10.00px" });
+  await prepareScreenshot(planner.browser);
+  assertMatchesSignature(
+    await planner.browser.captureScreenshot(overviewClip()),
+    expectedMoneyPageScreenshot(false),
+    "desktop Money page"
+  );
+
+  const dragResult = await planner.browser.evaluate(`(() => {
+    const card = document.querySelector(".mascot-card");
+    const button = document.querySelector(".soft-mascot");
+    const event = (type, x, y) => new PointerEvent(type, {
+      bubbles: true,
+      clientX: x,
+      clientY: y,
+      pointerId: 7
+    });
+    button.dispatchEvent(event("pointerdown", 100, 80));
+    const wasDragging = card.classList.contains("is-dragging");
+    button.dispatchEvent(event("pointermove", 124, 94));
+    button.dispatchEvent(event("pointerup", 124, 94));
+    button.click();
+    return {
+      chatStayedClosed: document.querySelector(".mascot-chat").hidden,
+      wasDragging,
+      x: card.style.getPropertyValue("--mascot-drag-x"),
+      y: card.style.getPropertyValue("--mascot-drag-y")
+    };
+  })()`);
+  assert.deepEqual(dragResult, {
+    chatStayedClosed: true,
+    wasDragging: true,
+    x: "39.00px",
+    y: "4.00px"
+  });
+  await planner.server.waitFor(async function () {
+    const data = await planner.server.readPlannerData();
+    return data["hivePlanner.mascot.position"] === '{"x":39,"y":4}';
+  });
+  await planner.browser.evaluate('document.querySelector(".soft-mascot").click()');
+  await planner.browser.waitForExpression('document.querySelector(".mascot-chat").hidden === false');
+  await planner.browser.evaluate('document.querySelector(".soft-mascot").click()');
+  await planner.browser.waitForExpression('document.querySelector(".mascot-chat").hidden === true');
+
+  await planner.browser.reload();
+  await planner.browser.waitForExpression(
+    'document.documentElement.dataset.plannerReady === "true"'
+  );
+  assert.deepEqual(await planner.browser.evaluate(mascotPosition()), { x: "39.00px", y: "4.00px" });
+
+  await planner.browser.evaluate(`(() => {
+    document.querySelector(".money-budget-card .money-settings-panel").open = true;
+    document.querySelector(".money-budget-section:last-child").open = true;
+    const input = document.querySelector('input[aria-label="Groceries week"]');
+    input.value = "33.25";
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  })()`);
+  await planner.browser.waitForExpression(
+    'document.querySelector(\'input[aria-label="Groceries week"]\')?.value === "33.25"'
+  );
+  await planner.server.waitFor(async function () {
+    const data = await planner.server.readPlannerData();
+    const settings = JSON.parse(data["hivePlanner.money.settings"] || "{}");
+    return settings.categories?.find((category) => category.id === "groceries")
+      ?.weeklyBudgetCents === 3325;
+  });
+
+  await planner.browser.reload();
+  await planner.browser.waitForExpression(
+    'document.documentElement.dataset.plannerReady === "true"'
+  );
+  await planner.browser.evaluate('document.querySelector(".money-budget-card .money-settings-panel").open = true');
+  await planner.browser.evaluate('document.querySelector(".money-budget-section:last-child").open = true');
+  await planner.browser.waitForExpression(
+    'document.querySelector(\'input[aria-label="Groceries week"]\')?.value === "33.25"'
+  );
+
+  await planner.browser.setViewport(390, 844, true);
+  await openReady(planner.browser, pageUrl);
+  assert.deepEqual(await planner.browser.evaluate(pageGeometry()), expectedMoneyPageGeometry(true));
+  await prepareScreenshot(planner.browser);
+  assertMatchesSignature(
+    await planner.browser.captureScreenshot(overviewClip()),
+    expectedMoneyPageScreenshot(true),
+    "mobile Money page"
+  );
+
+  await planner.browser.evaluate(`(() => {
+    const originalFetch = window.fetch.bind(window);
+    window.__originalFetch = originalFetch;
+    window.fetch = async (url, options) => {
+      if (String(url) === "/api/mascot/chat") {
+        window.__mascotRequest = JSON.parse(options.body);
+        return {
+          json: async () => ({
+            ok: true,
+            reply: {
+              answer: "Grounded browser reply",
+              evidence: ["Used Planner context"],
+              source: "openai"
+            }
+          })
+        };
+      }
+      return originalFetch(url, options);
+    };
+    document.querySelector(".top-ai-button").click();
+  })()`);
+  await planner.browser.waitForExpression(
+    'getComputedStyle(document.querySelector(".mascot-card")).transform === "none"'
+  );
+  assert.equal(
+    await planner.browser.evaluate('getComputedStyle(document.querySelector(".soft-mascot")).display'),
+    "none"
+  );
+  await planner.browser.waitForExpression(
+    'document.querySelector(".mascot-quick-ask")?.textContent.includes("tired")'
+  );
+  await planner.browser.evaluate('document.querySelector(".mascot-quick-ask").click()');
+  await planner.browser.waitForExpression(
+    'document.querySelector(".mascot-message.assistant")?.textContent.includes("Grounded browser reply")'
+  );
+  assert.equal(
+    await planner.browser.evaluate('document.querySelector(".mascot-message.assistant p")?.textContent'),
+    "Grounded browser reply Useful next step: cut today to a 2-task version."
+  );
+  const mascotRequest = await planner.browser.evaluate(`(() => ({
+    currentDateKey: window.__mascotRequest.context.currentDateKey,
+    dayState: window.__mascotRequest.context.dayState,
+    journalTitle: window.__mascotRequest.context.journalEntries[0].title,
+    prompt: window.__mascotRequest.question,
+    skateBlock: window.__mascotRequest.context.skate.todayPlan.blockLabel,
+    skateIntensity: window.__mascotRequest.context.skate.todayState.selectedIntensity,
+    skateSessionCount: window.__mascotRequest.context.skate.recentSessions.length,
+    supportType: window.__mascotRequest.context.skate.supportThisWeek[0].type,
+    taskLabel: window.__mascotRequest.context.todayTasks[0].label
+  }))()`);
+  assert.deepEqual(mascotRequest, {
+    currentDateKey: TEST_DATE,
+    dayState: "tired",
+    journalTitle: "Slow morning",
+    prompt: "I'm tired. Can you cut today down?",
+    skateBlock: "Day 17",
+    skateIntensity: "green",
+    skateSessionCount: 3,
+    supportType: "Gym",
+    taskLabel: "11 Send invoice"
+  });
+
+  await planner.browser.evaluate(`(() => {
+    window.fetch = async (url, options) => {
+      if (String(url) === "/api/mascot/chat") throw new Error("test server outage");
+      return window.__originalFetch(url, options);
+    };
+    const input = document.querySelector(".mascot-chat-form input");
+    Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set.call(
+      input,
+      "How hard should I skate today?"
+    );
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+  })()`);
+  await planner.browser.evaluate('document.querySelector(".mascot-chat-form").requestSubmit()');
+  await planner.browser.waitForExpression(
+    'document.querySelector(".mascot-message.assistant")?.textContent.includes("Make today Blue")'
+  );
+  assert.match(
+    await planner.browser.evaluate('document.querySelector(".mascot-message.assistant p")?.textContent'),
+    /Useful next step: cut today to a 2-task version\.$/
+  );
+  assert.equal(
+    await planner.browser.evaluate('document.querySelector(".mascot-message-source")?.textContent'),
+    "local"
+  );
+  assert.equal(
+    await planner.browser.evaluate('document.querySelectorAll(".mascot-message.assistant li").length > 0'),
+    true
+  );
+
+  await planner.browser.evaluate('document.querySelector("[data-view-target=todayView]").click()');
+  await planner.browser.waitForExpression('location.search.includes("view=todayView")');
+  await planner.browser.waitForExpression(`document.documentElement.dataset.plannerReady === "true"
+    && document.getElementById("todayView")?.classList.contains("active")`);
+  assert.equal(await planner.browser.evaluate('document.querySelectorAll("iframe").length'), 0);
+  assert.deepEqual(planner.browser.errors(), []);
+});

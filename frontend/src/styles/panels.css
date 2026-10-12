@@ -1,0 +1,238 @@
+/* Shared panel shell plus the per-card variants, weekly goal cards, insight title, and section heads. */
+
+.planner-main,
+.planner-side {
+  display: contents;
+}
+
+.panel {
+  border: 0;
+  border-radius: var(--radius);
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.panel-inner {
+  padding: clamp(20px, 2.2vw, 24px);
+}
+
+.goals-card,
+.life-card,
+.planned-card,
+.insight-card {
+  align-self: stretch;
+  height: 100%;
+}
+
+.goals-card {
+  grid-area: goals;
+}
+
+.money-quick-card {
+  grid-area: money;
+}
+
+.life-card {
+  grid-area: life;
+}
+
+.tasks-card {
+  grid-area: tasks;
+}
+
+.planned-card {
+  grid-area: planned;
+}
+
+.insight-card {
+  grid-area: insight;
+}
+
+.money-overview-card {
+  grid-area: overview;
+}
+
+.money-budget-card {
+  grid-area: budget;
+}
+
+.money-pacing-card {
+  grid-area: pacing;
+}
+
+.money-vendors-card {
+  grid-area: vendors;
+}
+
+.money-activity-card {
+  grid-area: activity;
+}
+
+.backup-utility {
+  margin-left: 8px;
+}
+
+.life-card .panel-inner {
+  min-height: 340px;
+}
+
+.planned-card .panel-inner {
+  min-height: 315px;
+}
+
+.insight-card .panel-inner {
+  min-height: 315px;
+}
+
+.goals-card .panel-inner {
+  min-height: 340px;
+}
+
+.weekly-goal-card {
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+  border: 1px solid rgba(224, 219, 209, 0.68);
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, rgba(255, 239, 245, 0.62), rgba(232, 251, 255, 0.72), rgba(249, 248, 212, 0.54));
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.34);
+}
+
+.insight-title {
+  margin: 0 0 10px;
+  color: var(--ink);
+  font-size: 0.96rem;
+  font-weight: 580;
+  line-height: 1.42;
+}
+
+.insight-why {
+  margin: 0 0 14px;
+  color: var(--muted);
+  font-size: 0.86rem;
+  line-height: 1.5;
+}
+
+.insight-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.insight-link-button {
+  margin-top: 10px;
+  align-self: flex-start;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: #706e92;
+  font-size: 0.8rem;
+  font-weight: 560;
+  text-decoration: underline;
+  text-decoration-color: rgba(112, 110, 146, 0.35);
+  text-underline-offset: 0.18em;
+}
+
+.insight-action {
+  min-height: 32px;
+  border: 1px solid rgba(224, 219, 209, 0.72);
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, 0.78);
+  color: #575760;
+  font-size: 0.78rem;
+  font-weight: 550;
+}
+
+.weekly-goal-track {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 560;
+}
+
+.weekly-goal-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 999px;
+  background: rgba(145, 145, 155, 0.45);
+}
+
+.weekly-goal-dot.transcendence {
+  background: #a5bfee;
+}
+
+.weekly-goal-dot.mobile-development {
+  background: #91ad61;
+}
+
+.weekly-goal-dot.portfolio-job-prep {
+  background: #9b8b4a;
+}
+
+.weekly-goal-dot.study {
+  background: #a5bfee;
+}
+
+.weekly-goal-dot.body {
+  background: #91ad61;
+}
+
+.weekly-goal-dot.mind {
+  background: #8d82c8;
+}
+
+.weekly-goal-input {
+  width: 100%;
+  min-height: 52px;
+  padding: 12px 16px;
+  border: 1px solid rgba(185, 206, 240, 0.46);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.9);
+  color: var(--ink);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+}
+
+.job-strip {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.job-strip-text {
+  margin-bottom: 0;
+  color: var(--ink);
+  font-size: 0.96rem;
+  font-weight: 560;
+  line-height: 1.35;
+}
+
+.section-head {
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  align-items: baseline;
+  margin-bottom: 14px;
+}
+
+.section-head h2,
+.section-head h3{
+  margin-bottom: 0;
+  color: var(--ink);
+  font-size: clamp(1.25rem, 2.2vw, 1.65rem);
+  font-weight: 570;
+  line-height: 1.16;
+  letter-spacing: 0;
+}
+
+.small-note,
+.hint {
+  margin-bottom: 0;
+  color: var(--muted);
+  font-weight: 450;
+}

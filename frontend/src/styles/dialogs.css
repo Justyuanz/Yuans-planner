@@ -1,0 +1,167 @@
+/* Session feedback dialog, pattern history dialog, and the shared scale fields. */
+
+.feedback-dialog {
+  width: min(680px, calc(100vw - 28px));
+  padding: 0;
+  border: 1px solid rgba(126, 116, 255, 0.28);
+  border-radius: var(--radius);
+  background: transparent;
+  box-shadow: 0 28px 80px rgba(114, 99, 135, 0.22);
+}
+
+.feedback-dialog::backdrop {
+  background: rgba(70, 61, 82, 0.22);
+  backdrop-filter: blur(5px);
+}
+
+.feedback-panel {
+  display: grid;
+  gap: 14px;
+  padding: clamp(18px, 3vw, 24px);
+  border-radius: var(--radius);
+  background:
+    radial-gradient(circle at 0% 0%, rgba(245, 202, 221, 0.2), transparent 34%),
+    rgba(255, 255, 255, 0.94);
+}
+
+.pattern-history-dialog {
+  width: min(760px, calc(100vw - 28px));
+}
+
+.pattern-history-panel {
+  gap: 16px;
+}
+
+.pattern-history-body {
+  display: grid;
+  gap: 14px;
+  max-height: min(70vh, 720px);
+  overflow: auto;
+}
+
+.pattern-history-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.pattern-history-group {
+  display: grid;
+  gap: 10px;
+}
+
+.pattern-history-group-title {
+  margin: 0;
+  color: var(--ink);
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.pattern-history-item {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  border: 1px solid rgba(224, 219, 209, 0.68);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.pattern-history-item-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.pattern-history-item-head strong {
+  color: var(--ink);
+  font-size: 0.88rem;
+  font-weight: 590;
+}
+
+.pattern-history-meta {
+  color: var(--muted);
+  font-size: 0.75rem;
+  font-weight: 560;
+}
+
+.pattern-history-summary {
+  margin: 0;
+  color: #5f5b66;
+  font-size: 0.84rem;
+  line-height: 1.52;
+}
+
+.pattern-history-evidence {
+  display: grid;
+  gap: 8px;
+}
+
+.pattern-history-evidence summary {
+  cursor: pointer;
+  color: #706e92;
+  font-size: 0.78rem;
+  font-weight: 560;
+}
+
+.pattern-history-evidence ul {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.feedback-scales {
+  display: grid;
+  gap: 10px;
+}
+
+.scale-field {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+}
+
+.scale-field legend {
+  padding: 0;
+  color: var(--ink);
+  font-weight: 560;
+}
+
+.scale-options {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.scale-option {
+  display: grid;
+  min-width: 0;
+}
+
+.scale-option input {
+  position: absolute;
+  opacity: 0;
+}
+
+.scale-option span {
+  min-height: 36px;
+  display: grid;
+  place-items: center;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 510;
+  text-align: center;
+}
+
+.scale-option input:checked + span {
+  border-color: rgba(79, 136, 133, 0.2);
+  background: var(--green-soft);
+  color: var(--green-dark);
+}

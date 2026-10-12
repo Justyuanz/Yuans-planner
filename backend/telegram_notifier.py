@@ -83,12 +83,6 @@ def parse_clock_time(value: Any) -> tuple[int, int] | None:
     return hour, minute
 
 
-def format_clock_time(parts: tuple[int, int] | None) -> str:
-    if not parts:
-        return ""
-    return f"{parts[0]:02d}:{parts[1]:02d}"
-
-
 def entry_start_datetime(entry: dict[str, Any], date_text: str) -> datetime | None:
     date_text = date_text or str(entry.get("date") or "").strip()
     time_parts = parse_clock_time(entry.get("startTime")) or parse_clock_time(entry.get("scheduledTime")) or parse_event_time(str(entry.get("title") or entry.get("label") or ""))

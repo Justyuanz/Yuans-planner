@@ -1,3 +1,13 @@
+FROM node:24-alpine AS frontend-builder
+
+WORKDIR /build
+
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci
+
+COPY frontend ./
+RUN npm run build
+
 FROM python:3.11-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -14,7 +24,7 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY backend ./backend
-COPY frontend ./frontend
+COPY --from=frontend-builder /build/dist ./frontend/dist
 
 RUN mkdir -p /app/persist
 

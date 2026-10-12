@@ -1,0 +1,505 @@
+/* Every Money surface: quick log, overview, budgets, pacing, vendors, and recent activity. */
+
+.money-soft-pill {
+  white-space: nowrap;
+}
+
+.money-quick-grid,
+.money-overview-grid,
+.money-transfer-form,
+.money-budget-list {
+  display: grid;
+  gap: 14px;
+}
+
+.money-overview-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.money-remaining-strip {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.money-quick-form {
+  display: grid;
+  grid-template-columns: minmax(0, 1.15fr) minmax(170px, 0.95fr) auto;
+  grid-template-areas:
+    "amount category save"
+    "vendor vendor vendor";
+  gap: 10px;
+  align-items: end;
+}
+
+.money-quick-form .form-row:nth-child(1) {
+  grid-area: amount;
+}
+
+.money-quick-form .form-row:nth-child(2) {
+  grid-area: category;
+}
+
+.money-quick-form .form-row:nth-child(3) {
+  grid-area: vendor;
+}
+
+.money-quick-form .primary-button {
+  grid-area: save;
+}
+
+.money-shortcuts {
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+}
+
+.money-shortcut {
+  min-height: 36px;
+  padding: 8px 10px;
+  border: 1px solid rgba(185, 206, 240, 0.48);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.8);
+  color: var(--ink);
+  text-align: left;
+  transition: transform 0.14s ease, background 0.14s ease;
+}
+
+.money-shortcut strong,
+.money-mini-stat strong,
+.money-budget-card strong,
+.money-vendor-row strong,
+.money-transfer-row strong {
+  display: block;
+  color: var(--ink);
+  font-weight: 560;
+}
+
+.money-shortcut span,
+.money-mini-stat span,
+.money-vendor-row span,
+.money-transfer-row span {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.money-shortcut:hover {
+  transform: translateY(-1px);
+  background: rgba(234, 242, 255, 0.88);
+}
+
+.money-mini-stat,
+.money-budget-row,
+.money-vendor-row,
+.money-transfer-row {
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.money-mini-stat {
+  min-height: 84px;
+  align-content: start;
+}
+
+.money-mini-stat.is-negative strong:last-child,
+.money-budget-row.is-negative .money-budget-metrics strong:last-child {
+  color: #b15f6b;
+}
+
+.money-budget-list,
+.money-vendor-list {
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.money-budget-list {
+  gap: 12px;
+}
+
+.money-budget-section {
+  overflow: hidden;
+  border: 1px solid rgba(224, 219, 209, 0.72);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.52);
+}
+
+.money-budget-section-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 12px 14px;
+  color: var(--muted);
+  font-size: 0.76rem;
+  cursor: pointer;
+  list-style: none;
+}
+
+.money-budget-section-head::-webkit-details-marker,
+.money-settings-toggle::-webkit-details-marker {
+  display: none;
+}
+
+.money-budget-section-head strong {
+  color: var(--ink);
+  font-size: 0.9rem;
+  font-weight: 560;
+}
+
+.money-budget-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 8px;
+  padding: 0 12px 12px;
+}
+
+.money-budget-row,
+.money-vendor-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: start;
+}
+
+.money-budget-row {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 14px;
+  padding: 12px 14px;
+  border-color: rgba(185, 206, 240, 0.3);
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: none;
+}
+
+.money-budget-head,
+.money-budget-metrics,
+.money-vendor-head,
+.money-vendor-metrics,
+.money-transfer-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.money-budget-metrics,
+.money-vendor-metrics {
+  justify-items: end;
+  text-align: right;
+}
+
+.money-budget-head {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 14px;
+}
+
+.money-budget-title-block {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.money-budget-summary {
+  display: grid;
+  gap: 2px;
+  justify-items: end;
+  text-align: right;
+}
+
+.money-budget-head strong,
+.money-budget-summary strong {
+  font-size: 0.9rem;
+}
+
+.money-budget-head span,
+.money-budget-summary span,
+.money-budget-metrics span {
+  font-size: 0.74rem;
+}
+
+.money-budget-inputs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 220px;
+}
+
+.money-budget-inputs input,
+.money-target-row input,
+.money-transfer-grid input,
+.money-transfer-grid select,
+.money-quick-form input,
+.money-quick-form select {
+  width: 100%;
+}
+
+.money-quick-form input,
+.money-quick-form select,
+.money-target-row input,
+.money-budget-inputs input,
+.money-transfer-grid input,
+.money-transfer-grid select {
+  min-height: 42px;
+  padding: 10px 14px;
+  border: 1px solid rgba(185, 206, 240, 0.58);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--ink);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65);
+}
+
+.money-budget-inputs input {
+  min-height: 38px;
+  padding: 7px 10px;
+  font-size: 0.88rem;
+  text-align: left;
+  font-variant-numeric: tabular-nums;
+}
+
+.money-budget-field {
+  display: grid;
+  gap: 4px;
+}
+
+.money-budget-field span {
+  color: var(--muted);
+  font-size: 0.68rem;
+  font-weight: 560;
+  letter-spacing: 0.01em;
+  text-transform: uppercase;
+}
+
+.money-quick-form input::placeholder,
+.money-target-row input::placeholder,
+.money-budget-inputs input::placeholder,
+.money-transfer-grid input::placeholder {
+  color: rgba(118, 118, 129, 0.76);
+}
+
+.money-quick-form select,
+.money-transfer-grid select {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  padding-right: 42px;
+  background-image:
+    linear-gradient(45deg, transparent 50%, #8a86ff 50%),
+    linear-gradient(135deg, #8a86ff 50%, transparent 50%),
+    linear-gradient(to right, rgba(185, 206, 240, 0.32), rgba(185, 206, 240, 0.32));
+  background-position:
+    calc(100% - 20px) calc(50% - 3px),
+    calc(100% - 14px) calc(50% - 3px),
+    calc(100% - 40px) 50%;
+  background-size: 6px 6px, 6px 6px, 1px 20px;
+  background-repeat: no-repeat;
+}
+
+.money-target-row {
+  max-width: 240px;
+  margin: 0;
+}
+
+.money-budget-kind {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 22px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: rgba(234, 242, 255, 0.8);
+  color: #68728b;
+  font-size: 0.64rem;
+  font-weight: 550;
+}
+
+.money-budget-pace {
+  min-width: 0;
+  color: var(--muted);
+  font-weight: 520;
+}
+
+.money-budget-row-fixed .money-budget-kind {
+  background: linear-gradient(90deg, rgba(226, 235, 255, 0.95), rgba(236, 233, 255, 0.95));
+  color: #6875a5;
+}
+
+.money-budget-row-flex .money-budget-kind {
+  background: linear-gradient(90deg, rgba(231, 251, 255, 0.95), rgba(240, 246, 211, 0.95));
+  color: #5d8066;
+}
+
+.money-transfer-grid {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 120px auto;
+  align-items: end;
+}
+
+.money-settings-panel,
+.money-transfer-panel {
+  border: 1px solid rgba(224, 219, 209, 0.72);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.54);
+  overflow: hidden;
+}
+
+.money-settings-toggle {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 13px 14px;
+  cursor: pointer;
+  list-style: none;
+  color: var(--ink);
+  font-weight: 550;
+}
+
+.money-settings-subtoggle {
+  padding-inline: 0;
+}
+
+.money-settings-body {
+  display: grid;
+  gap: 14px;
+  padding: 0 14px 14px;
+}
+
+.money-settings-panel[open],
+.money-transfer-panel[open] {
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.money-progress-list {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.money-progress-card {
+  border: 1px solid rgba(224, 219, 209, 0.72);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.58);
+}
+
+.money-progress-copy {
+  display: grid;
+  gap: 4px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.money-progress-track {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(185, 206, 240, 0.22);
+}
+
+.money-progress-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--teal), var(--green));
+}
+
+.money-transfer-row {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  align-items: center;
+}
+
+.money-chart-card {
+  display: grid;
+  gap: 12px;
+}
+
+.money-chart-dropdown {
+  padding: 0;
+  overflow: hidden;
+}
+
+.money-chart-summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 0;
+  cursor: pointer;
+  list-style: none;
+}
+
+.money-chart-summary::-webkit-details-marker {
+  display: none;
+}
+
+.money-chart-summary span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 520;
+}
+
+.money-activity-card .panel-inner {
+  padding-top: 0;
+}
+
+.money-overview-card .panel-inner,
+.money-pacing-card .panel-inner,
+.money-vendors-card .panel-inner,
+.money-activity-card .panel-inner,
+.money-budget-card .panel-inner,
+.guitar-goal-card .panel-inner,
+.guitar-session-card .panel-inner {
+  position: relative;
+  overflow: hidden;
+}
+
+.money-overview-card .panel-inner {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(255, 249, 204, 0.32), transparent 32%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.58), rgba(255, 252, 247, 0.92));
+}
+
+.money-pacing-card .panel-inner,
+.money-vendors-card .panel-inner,
+.money-activity-card .panel-inner,
+.money-budget-card .panel-inner {
+  background:
+    radial-gradient(circle at 0% 0%, rgba(185, 238, 238, 0.16), transparent 30%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.54), rgba(247, 249, 255, 0.76), rgba(255, 250, 245, 0.66));
+}
+
+.money-bar-list {
+  display: grid;
+  gap: 8px;
+}
+
+.money-bar-row {
+  display: grid;
+  gap: 6px;
+}
+
+.money-bar-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 0.84rem;
+}
+
+.money-bar-track {
+  height: 10px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(185, 206, 240, 0.22);
+}
+
+.money-bar-track span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+}
+
+.money-bar-track span {
+  background: linear-gradient(90deg, var(--teal), var(--green));
+}
+
+.money-budget-card .panel-inner {
+  display: grid;
+  align-content: start;
+}
