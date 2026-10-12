@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 
-import type { PlannerStore } from "../../../../api/planner-store";
+import type { PlannerStore } from "@/api/planner-store";
 import { buildJournalArchive } from "./journal-archive";
 
 interface JournalArchiveCardProps {

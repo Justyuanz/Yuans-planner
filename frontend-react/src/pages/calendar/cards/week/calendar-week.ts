@@ -1,5 +1,5 @@
-import type { PlannerStore } from "../../../../api/planner-store";
-import { calendarCategoryMeta, calendarEvents, normalizeCalendarCategory } from "../../../../shared/calendar-event-store";
+import type { PlannerStore } from "@/api/planner-store";
+import { calendarCategoryMeta, calendarEvents, normalizeCalendarCategory } from "@/shared/calendar-event-store";
 import {
   calendarDayType,
   calendarWeekDates,
@@ -8,7 +8,7 @@ import {
   type CalendarDayType,
   type CalendarWeekPlan
 } from "./calendar-week-store";
-import { humanDate, toDateKey } from "../../../../shared/planner-date";
+import { humanDate, toDateKey } from "@/shared/planner-date";
 
 export interface CalendarWeekActivity {
   categoryClass: string;

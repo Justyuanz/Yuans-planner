@@ -1,4 +1,4 @@
-import { isRecord } from "../../../../shared/is-record";
+import { isRecord } from "@/shared/is-record";
 import type { DashboardInsight } from "../insight/dashboard-insight-rules";
 import type {
   PatternHistoryItem,

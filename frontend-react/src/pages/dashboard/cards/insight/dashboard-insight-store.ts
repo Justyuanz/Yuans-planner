@@ -1,10 +1,10 @@
-import type { PlannerStore } from "../../../../api/planner-store";
-import { isRecord } from "../../../../shared/is-record";
-import { journalEntries } from "../../../../shared/journal-entry-store";
-import { toDateKey } from "../../../../shared/planner-date";
-import { decodeMoneyStore } from "../../../../shared/money-store";
+import type { PlannerStore } from "@/api/planner-store";
+import { isRecord } from "@/shared/is-record";
+import { journalEntries } from "@/shared/journal-entry-store";
+import { toDateKey } from "@/shared/planner-date";
+import { decodeMoneyStore } from "@/shared/money-store";
 import { buildPatternHistoryFromMetrics } from "../pattern-history/pattern-history-builder";
-import { decodeTasks } from "../../../../shared/tasks/tasks";
+import { decodeTasks } from "@/shared/tasks/tasks";
 import { buildDashboardInsightModel } from "./dashboard-insight";
 import { buildDashboardCrossDomainMetrics } from "./dashboard-insight-cross-domain-metrics";
 import {

@@ -1,7 +1,7 @@
-import type { PlannerStore } from "../../../../api/planner-store";
-import { isRecord } from "../../../../shared/is-record";
-import { normalizeSkateIntensity, type SkateIntensity } from "../../skate-intensity";
-import { addDays, humanDate, startOfLocalDay, toDateKey } from "../../../../shared/planner-date";
+import type { PlannerStore } from "@/api/planner-store";
+import { isRecord } from "@/shared/is-record";
+import { normalizeSkateIntensity, type SkateIntensity } from "@/pages/skate/skate-intensity";
+import { addDays, humanDate, startOfLocalDay, toDateKey } from "@/shared/planner-date";
 
 export const SKATE_SESSIONS_STORAGE_KEY = "hivePlanner.skate.sessions";
 

@@ -1,7 +1,7 @@
-import type { PlannerStore } from "../../../../api/planner-store";
+import type { PlannerStore } from "@/api/planner-store";
 import { formatMoney } from "../quick/money-quick";
-import type { MoneyCategoryState } from "../../../../shared/money-definitions";
-import { decodeMoneyStore } from "../../../../shared/money-store";
+import type { MoneyCategoryState } from "@/shared/money-definitions";
+import { decodeMoneyStore } from "@/shared/money-store";
 
 export {
   buildMoneyCategoryUpdate,

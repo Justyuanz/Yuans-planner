@@ -1,5 +1,5 @@
-import type { PlannerStore, PlannerStoreWrite } from "../../api/planner-store";
-import { isRecord } from "../../shared/is-record";
+import type { PlannerStore, PlannerStoreWrite } from "@/api/planner-store";
+import { isRecord } from "@/shared/is-record";
 import type { SkateIntensity } from "./skate-intensity";
 
 export const SKATE_CURRENT_SESSION_STORAGE_KEY = "hivePlanner.skate.currentSession";

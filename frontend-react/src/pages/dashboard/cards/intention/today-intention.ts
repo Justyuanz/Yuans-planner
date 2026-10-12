@@ -1,5 +1,5 @@
-import type { PlannerStore } from "../../../../api/planner-store";
-import { dayTypeForDate } from "../../../../shared/routine-week";
+import type { PlannerStore } from "@/api/planner-store";
+import { dayTypeForDate } from "@/shared/routine-week";
 
 export interface TodayIntentionModel {
   className: string;

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { PlannerStore } from "../../../../api/planner-store";
+import type { PlannerStore } from "@/api/planner-store";
 import { GUITAR_FOCUS_STORAGE_KEY, GUITAR_NEXT_STEP_STORAGE_KEY } from "../goal/guitar-goal";
 import {
   buildGuitarSessionModel,

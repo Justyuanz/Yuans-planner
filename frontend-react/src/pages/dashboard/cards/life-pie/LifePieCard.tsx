@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 
-import type { PlannerStore } from "../../../../api/planner-store";
-import type { ActivityPeriod } from "../../../../shared/activity-totals";
+import type { PlannerStore } from "@/api/planner-store";
+import type { ActivityPeriod } from "@/shared/activity-totals";
 import { LIFE_PIE_PERIODS } from "./life-pie-definitions";
 import { buildLifePie } from "./life-pie";
 

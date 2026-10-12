@@ -1,5 +1,5 @@
-import type { PlannerStore } from "../../../../api/planner-store";
-import { isRecord } from "../../../../shared/is-record";
+import type { PlannerStore } from "@/api/planner-store";
+import { isRecord } from "@/shared/is-record";
 
 export const WEEKLY_GOALS_STORAGE_KEY = "hivePlanner.weeklyGoals";
 

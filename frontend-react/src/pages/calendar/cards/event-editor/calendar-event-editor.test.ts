@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { PlannerStore } from "../../../../api/planner-store";
+import type { PlannerStore } from "@/api/planner-store";
 import {
   CALENDAR_GOAL_PLANNER_KEY,
   calendarEventDayPart,
@@ -10,7 +10,7 @@ import {
   emptyCalendarEventDraft,
   saveCalendarEvent
 } from "./calendar-event-editor";
-import { CALENDAR_EVENTS_STORAGE_KEY } from "../../../../shared/calendar-event-store";
+import { CALENDAR_EVENTS_STORAGE_KEY } from "@/shared/calendar-event-store";
 import { previewCalendarActivity } from "../week/calendar-week";
 
 const DATE = "2026-09-14";

@@ -1,4 +1,4 @@
-import { isRecord } from "../../shared/is-record";
+import { isRecord } from "@/shared/is-record";
 
 export interface SkateWarmupItem {
   id: string;

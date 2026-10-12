@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { PlannerStore } from "../../../../api/planner-store";
+import type { PlannerStore } from "@/api/planner-store";
 import {
   SKATE_COACH_TEMPLATE_STORAGE_KEY,
   SKATE_CURRENT_SESSION_STORAGE_KEY,

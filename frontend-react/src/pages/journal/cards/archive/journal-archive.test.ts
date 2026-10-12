@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { PlannerStore } from "../../../../api/planner-store";
+import type { PlannerStore } from "@/api/planner-store";
 import { buildJournalArchive } from "./journal-archive";
 
 const SELECTED_DATE = "2026-09-14";

@@ -1,11 +1,11 @@
 import { createPortal } from "react-dom";
 import { useCallback, useMemo, useState } from "react";
 
-import { persistPlannerWrites } from "../../app/planner-persistence";
-import { PlannerShell } from "../../app/PlannerShell";
-import { useDirectPlannerPage } from "../../app/use-direct-planner-page";
-import { usePlannerStore } from "../../app/use-planner-store";
-import { toDateKey } from "../../shared/planner-date";
+import { persistPlannerWrites } from "@/app/planner-persistence";
+import { PlannerShell } from "@/app/PlannerShell";
+import { useDirectPlannerPage } from "@/app/use-direct-planner-page";
+import { usePlannerStore } from "@/app/use-planner-store";
+import { toDateKey } from "@/shared/planner-date";
 import { SkateBodySupportCard } from "./cards/body-support/SkateBodySupportCard";
 import { SkateFeedbackDialog } from "./cards/feedback/SkateFeedbackDialog";
 import { SkateHeroCard } from "./cards/hero/SkateHeroCard";

@@ -1,8 +1,8 @@
-import type { PlannerStore, PlannerStoreWrite } from "../../../../api/planner-store";
+import type { PlannerStore, PlannerStoreWrite } from "@/api/planner-store";
 import { MEDITATION_STORAGE_KEY } from "./meditation-definitions";
 import { decodeMeditationDocument, meditationMinutesForDate } from "./meditation-store";
-import { humanDateFromKey, toDateKey } from "../../../../shared/planner-date";
-import { formatTimer } from "../../../../shared/planner-time";
+import { humanDateFromKey, toDateKey } from "@/shared/planner-date";
+import { formatTimer } from "@/shared/planner-time";
 
 export { MEDITATION_STORAGE_KEY } from "./meditation-definitions";
 

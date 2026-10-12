@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import type { PlannerStore, PlannerStoreWrite } from "../../api/planner-store";
+import type { PlannerStore, PlannerStoreWrite } from "@/api/planner-store";
 import {
   ACTIVITY_DEFINITIONS,
   normalizeActivityId,

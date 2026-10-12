@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 
-import type { PlannerStore } from "../../../../api/planner-store";
+import type { PlannerStore } from "@/api/planner-store";
 import { buildSkateRoadmapModel, type SkateRoadmapLogRequest } from "./skate-roadmap";
 
 interface SkateRoadmapCardProps {

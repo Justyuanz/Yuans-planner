@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { PlannerStore } from "../../../../api/planner-store";
+import type { PlannerStore } from "@/api/planner-store";
 import { DAY_STATE_OPTIONS, decodeDayState } from "./day-state";
 
 describe("DAY_STATE_OPTIONS", () => {

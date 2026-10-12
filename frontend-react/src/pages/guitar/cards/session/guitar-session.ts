@@ -1,7 +1,7 @@
-import type { PlannerStore } from "../../../../api/planner-store";
-import { isRecord } from "../../../../shared/is-record";
+import type { PlannerStore } from "@/api/planner-store";
+import { isRecord } from "@/shared/is-record";
 import { GUITAR_FOCUS_STORAGE_KEY, GUITAR_NEXT_STEP_STORAGE_KEY } from "../goal/guitar-goal";
-import { addDays, humanDate, toDateKey } from "../../../../shared/planner-date";
+import { addDays, humanDate, toDateKey } from "@/shared/planner-date";
 
 export const GUITAR_SESSIONS_STORAGE_KEY = "hivePlanner.guitar.sessions";
 export const GUITAR_TARGET_STORAGE_KEY = "hivePlanner.guitar.weeklyTarget";

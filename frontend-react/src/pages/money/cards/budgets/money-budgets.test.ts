@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import type { PlannerStore } from "../../../../api/planner-store";
-import { isRecord } from "../../../../shared/is-record";
-import { MONEY_SETTINGS_KEY, MONEY_TRANSACTIONS_KEY } from "../../../../shared/money-definitions";
+import type { PlannerStore } from "@/api/planner-store";
+import { isRecord } from "@/shared/is-record";
+import { MONEY_SETTINGS_KEY, MONEY_TRANSACTIONS_KEY } from "@/shared/money-definitions";
 import {
   buildMoneyBudgets,
   buildMoneyCategoryUpdate,

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type { PlannerStore } from "../../../../api/planner-store";
-import { JOURNAL_ENTRIES_STORAGE_KEY } from "../../../../shared/journal-entry-store";
+import type { PlannerStore } from "@/api/planner-store";
+import { JOURNAL_ENTRIES_STORAGE_KEY } from "@/shared/journal-entry-store";
 import {
   buildJournalEditorDraft,
   buildJournalEntryUpdate,

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 
-import type { PlannerStore, PlannerStoreWrite } from "../../../../api/planner-store";
+import type { PlannerStore, PlannerStoreWrite } from "@/api/planner-store";
 import {
   buildMeditation,
   cancelMeditation,

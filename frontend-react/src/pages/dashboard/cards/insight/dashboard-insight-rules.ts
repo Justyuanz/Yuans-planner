@@ -1,4 +1,4 @@
-import { isRecord } from "../../../../shared/is-record";
+import { isRecord } from "@/shared/is-record";
 import type { DashboardInsightAction } from "./dashboard-insight";
 
 export interface DashboardInsight {

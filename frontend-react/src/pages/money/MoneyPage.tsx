@@ -1,7 +1,7 @@
-import { PlannerShell } from "../../app/PlannerShell";
-import { persistPlannerWrites } from "../../app/planner-persistence";
-import { useDirectPlannerPage } from "../../app/use-direct-planner-page";
-import { usePlannerStore } from "../../app/use-planner-store";
+import { PlannerShell } from "@/app/PlannerShell";
+import { persistPlannerWrites } from "@/app/planner-persistence";
+import { useDirectPlannerPage } from "@/app/use-direct-planner-page";
+import { usePlannerStore } from "@/app/use-planner-store";
 import { MoneyActivityCard } from "./cards/activity/MoneyActivityCard";
 import { MoneyBudgetsCard } from "./cards/budgets/MoneyBudgetsCard";
 import { MoneyOverviewCard } from "./cards/overview/MoneyOverviewCard";

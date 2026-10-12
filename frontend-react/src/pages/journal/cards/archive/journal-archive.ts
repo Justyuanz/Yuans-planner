@@ -1,11 +1,11 @@
-import type { PlannerStore } from "../../../../api/planner-store";
+import type { PlannerStore } from "@/api/planner-store";
 import {
   filterJournalEntries,
   journalEntries,
   type JournalEntry,
   type JournalTracker
-} from "../../../../shared/journal-entry-store";
-import { humanDateFromKey } from "../../../../shared/planner-date";
+} from "@/shared/journal-entry-store";
+import { humanDateFromKey } from "@/shared/planner-date";
 
 export interface JournalArchiveItem {
   active: boolean;

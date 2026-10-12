@@ -1,11 +1,11 @@
 import { useLayoutEffect, useMemo, useRef, useState } from "react";
 
-import type { PlannerStore, PlannerStoreWrite } from "../../../../api/planner-store";
+import type { PlannerStore, PlannerStoreWrite } from "@/api/planner-store";
 import {
   CALENDAR_CATEGORY_ORDER,
   calendarCategoryMeta,
   normalizeCalendarCategory
-} from "../../../../shared/calendar-event-store";
+} from "@/shared/calendar-event-store";
 import {
   calendarEditorEvents,
   calendarEventDraft,
@@ -15,7 +15,7 @@ import {
   type CalendarEventDraft
 } from "./calendar-event-editor";
 import { buildCalendarWeek, previewCalendarActivity } from "../week/calendar-week";
-import { humanDate } from "../../../../shared/planner-date";
+import { humanDate } from "@/shared/planner-date";
 
 export interface CalendarEditorRequest {
   eventId: string | null;

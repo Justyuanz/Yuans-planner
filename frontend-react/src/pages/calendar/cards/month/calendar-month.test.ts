@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import type { PlannerStore } from "../../../../api/planner-store";
-import { CALENDAR_EVENTS_STORAGE_KEY } from "../../../../shared/calendar-event-store";
+import type { PlannerStore } from "@/api/planner-store";
+import { CALENDAR_EVENTS_STORAGE_KEY } from "@/shared/calendar-event-store";
 import { buildCalendarMonth } from "./calendar-month";
 
 const TODAY = new Date(2026, 8, 14);

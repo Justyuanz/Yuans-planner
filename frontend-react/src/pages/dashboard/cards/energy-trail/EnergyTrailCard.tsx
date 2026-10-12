@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 
-import type { PlannerStore } from "../../../../api/planner-store";
+import type { PlannerStore } from "@/api/planner-store";
 import { buildEnergyTrail } from "./energy-trail";
 
 interface EnergyTrailCardProps {

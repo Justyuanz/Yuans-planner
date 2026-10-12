@@ -1,4 +1,4 @@
-import { linkSessionToTodayTask } from "../../shared/session-task-sync";
+import { linkSessionToTodayTask } from "@/shared/session-task-sync";
 
 export interface SkateTaskSyncResult {
   label: string;

@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import type { PlannerStore } from "../../../../api/planner-store";
+import type { PlannerStore } from "@/api/planner-store";
 import { buildTodayIntentionModel } from "./today-intention";
-import { routineWeekKey } from "../../../../shared/routine-week";
+import { routineWeekKey } from "@/shared/routine-week";
 
 function weekStore(date: Date, days: readonly unknown[]): PlannerStore {
   return {

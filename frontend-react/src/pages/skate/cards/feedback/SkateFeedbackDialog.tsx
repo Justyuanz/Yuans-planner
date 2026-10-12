@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-import type { SkateIntensity } from "../../skate-intensity";
+import type { SkateIntensity } from "@/pages/skate/skate-intensity";
 import type { SkateFeedbackRequest, SkateFeedbackValue } from "./skate-session-feedback";
 
 interface SkateFeedbackDialogProps {

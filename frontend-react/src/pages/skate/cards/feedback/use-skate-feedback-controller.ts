@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import type { PlannerStore, PlannerStoreWrite } from "../../../../api/planner-store";
+import type { PlannerStore, PlannerStoreWrite } from "@/api/planner-store";
 import type { SkateHeroAction, SkateHeroState } from "../hero/skate-hero";
 import type { SkateRoadmapLogRequest } from "../roadmap/skate-roadmap";
 import {
@@ -11,7 +11,7 @@ import {
   type SkateFeedbackValue,
   type SkateSessionHeroSnapshot
 } from "./skate-session-feedback";
-import type { SkateHeroSettingsAction } from "../../skate-settings";
+import type { SkateHeroSettingsAction } from "@/pages/skate/skate-settings";
 
 interface SkateFeedbackControllerOptions {
   heroState: SkateHeroState | null;

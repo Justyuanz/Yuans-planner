@@ -209,25 +209,23 @@ Not started. Only begin once Phase 6 is finished and the complete suite is green
 - [x] make page naming consistent (Session 82)
 
 ## Current Task
-The Sessions A-D plan is complete, and the first of the two decisions it left open is now resolved: **the cross-page coupling is down from five imports to one**, and the one that remains is deliberate.
+**Everything planned is done, and both open decisions are resolved.** The migration, the bug fixes, the stylesheet, the restructure, the verification, the cross-page coupling, and the path alias are all complete.
 
 The suite is 44 Python tests, 324 React/TypeScript tests across 58 files, and 46 browser tests, with zero skips.
 
+The branch is ready to merge and is waiting only on your explicit approval. Nothing has been pushed.
+
 ## Last Completed Task
-Session F — resolved the cross-page coupling recorded in Session C.
+Session G — the `@/` path alias, the last recorded decision.
 
-Session C had written that none of the five was fixable by a move. **That was wrong, and checking what each import actually pulled is what showed it.** Two imported nothing but `isoWeekKey`, a pure ISO-week function that belongs in `shared/planner-date.ts`. A third imported the day-type model, which split cleanly: the day type moved to a new `shared/routine-week.ts`, the card kept its own label. The fourth imported the money store, which all six Money cards, the insight and the mascot read — it was never the quick card's, and it is now `shared/money-store.ts` with `shared/money-definitions.ts`.
+243 imports two or more levels deep became `@/...`, while the 88 single-level `../` imports stayed: one step up keeps a nearby relationship visible and was never the problem. The alias is configured in the two places that have to agree, `vite.config.ts` for the build and vitest and `tsconfig.json` for type checking, and `no-restricted-imports` now rejects any new `../../` import with a message pointing at `@/`.
 
-The fifth, the Dashboard rendering `MoneyQuickCard`, stays. The quick log genuinely appears on the Dashboard; moving a page's main card into a shared directory to satisfy a layering rule would make the code harder to follow.
-
-Along the way the work exposed that `hivePlanner.routine.week.*` had **two owners**: the Calendar weekly planner and the Dashboard intention card each carried their own copy of the storage key and the day-type alias table, under different names. Two features could have drifted apart on the same stored document. They share `shared/routine-week.ts` now, which has its own tests.
+The change is provably invisible: **the built JavaScript and CSS are byte-identical to the pre-change build**, hashes and filenames included.
 
 ## Next Task
-One recorded decision remains, and it is yours to make: the `@/` path alias described below. It would remove the four-deep relative imports, but it changes build configuration and every import line at once, so it is not a move and wants your go-ahead on the shape.
+Nothing is outstanding. The remaining step is yours: approve the merge into `main`, or name the next piece of work.
 
-Nothing else is outstanding. If you would rather stop here, the sensible next step is the merge: the branch is complete, verified, and waiting on your explicit approval.
-
-Do not merge into `main` until the user explicitly approves the merge. Nothing has been pushed yet.
+If you approve, the sequence is the final audit in this file, then `git push origin rewrite/react-typescript`, then the merge. Do not merge into `main` until you say so explicitly.
 
 ## Form Control Accessibility
 
@@ -465,144 +463,28 @@ Two things the work turned up:
 **accepted, not a defect**: Sprouty answers questions about every surface, so
 reading across them is its job.
 
-### Deferred — a path alias
+### Path alias — DONE (Session 86)
 
-Nesting pages two levels deep means imports like
-`"../../../../shared/planner-date"`. A `@/` alias in `tsconfig.json` and
-`vite.config.ts` would fix every one of them. It is deliberately not in this
-session: it changes build configuration and every import line at once, which is
-not a move, and it should be judged on its own.
+`@/` now means `src/`. 243 imports two or more levels deep became `@/...`; the
+88 single-level `../` imports were left alone, because a single step up keeps a
+nearby relationship visible and is not the thing that hurt.
 
-### Session D — thorough feature verification — PARTLY DONE (Session 83)
+Set in two places that must agree: `resolve.alias` in `vite.config.ts` for the
+build and for vitest, and `paths` in `tsconfig.json` for type checking. Note
+`baseUrl` is deprecated in this TypeScript version, so the `paths` target is
+written relative to the config file (`./src/*`) instead.
 
-Steps 1 and 4 are done, step 2 is done for the gaps the matrix proved, and step
-3 is done except where noted. See "Coverage matrix" below.
+`no-restricted-imports` now rejects any new `../../` import with a message
+pointing at `@/`. Verified by reintroducing one deep import and confirming
+eslint failed on it.
 
-## Coverage matrix
-
-Built by scanning each feature's own unit tests and browser tests for evidence
-of each kind of check, never from memory. The generator is
-`matrix.py` in the Session 83 scratchpad; it is ~90 lines and reproducible from
-this description: map each feature to its source directory and browser test
-files, then count regex signals per category.
-
-**Read the cells as signals, not proof.** A hit means the words appear in that
-feature's tests. Every finding below was re-read by hand before being recorded,
-and two of the first-pass readings were wrong:
-
-- "mascot has no browser coverage" was a mapping error of mine. It appears in
-  seven browser test files.
-- "phone layout barely covered" was wrong: the browser tests loop
-  `[[1280, 720], [390, 844]]`, so both viewports are covered nearly everywhere.
-
-What the matrix proved, by column, across all 37 features:
-
-| Dimension | State |
-| --- | --- |
-| happy path, empty/missing, invalid | covered everywhere |
-| create / edit / delete | covered wherever the feature supports it |
-| reload | covered everywhere |
-| desktop + phone layout | covered everywhere (1280×720 and 390×844) |
-| console clean | covered everywhere (`browser.errors()` asserted) |
-| legacy-shaped stored data | real, not just the word: tests seed unknown fields such as `legacyRootField` and assert they survive |
-| **restart** | **was zero everywhere — filled this session** |
-| **backup export/import** | **was zero in the browser — filled this session** |
-| **React↔Python record contract** | **was zero — filled this session** |
-| boundary values | present for about half the cards; the rest is signal-level and unverified |
-| cross-feature sync | thin outside tasks, insight, the calendar event editor and the session flows |
-
-### What was filled
-
-- `tests/persistence-restart.e2e.test.js` — everything else only proved data
-  survives a page reload, which a warm in-memory cache would also pass. This
-  restarts the Python process against the same SQLite file and checks a task
-  created through the real form, plus two keys written through the API,
-  including an unknown legacy field. `planner-server.js` gained a `restart()`
-  that keeps the port and database and respawns the process.
-- `tests/backup-tools.e2e.test.js` — the decode rules had unit tests but nothing
-  checked the two buttons were wired to them. Drives the real Export button with
-  the download intercepted, and the real file input for import, asserting the
-  payload shape, the transient-key exclusion, that the import reaches SQLite and
-  survives a reload, and that a non-JSON file is refused without destroying
-  anything.
-- `tests/reminder-contract.e2e.test.js` — creates a task through the form, then
-  runs the real Python collector against the same database. This is the seam
-  that had no test at all.
-
-Each of the three was mutation-checked: the behavior was deliberately broken and
-each test was confirmed to fail with its own assertion message before being
-kept.
-
-### Measured, and worth knowing
-
-- **The two suites could not see each other.** Renaming the serialized
-  `reminderMinutes` field leaves the entire Python suite green, because nothing
-  on that side ever reads React's real output. The React suite pins what it
-  writes and the Python suite pins what it reads; nothing pinned that the two
-  describe the same record. That is now `reminder-contract.e2e.test.js`.
-- **The export-side foreign-key filter is unreachable in practice.** The server
-  rejects any key outside the `hivePlanner.` prefix, so a foreign key cannot be
-  in the store to be exported. The filter is defence in depth and is covered by
-  unit tests; the import side takes an arbitrary file, so that half is reachable
-  and is asserted.
-- A task is normalized on load (`sourceEventId`, `useSourceEventReminder` gain
-  defaults), so an exported task is the normalized record, not the bytes seeded.
-
-### Closed in Session 84 — the two unverified columns
-
-Both remaining columns were verified one feature at a time, and **both were
-largely false alarms of the signal scan**. The word "boundary" or "clamp" simply
-does not appear in tests that exercise boundaries with concrete values.
-
-**Boundary values.** Of the eleven features flagged, three have no numeric input
-at all (day-state, intention, task-progress), so there is nothing to bound; that
-is a verified "not applicable", not a gap. Of the rest, the boundaries were
-already exercised: the calendar month's four-pill cap and its 20-character chip
-truncation, the energy trail's seven-day window, the Skate hero's
-before-the-season case, and the feedback scale coming down from 99 to 5 and up
-from a falsy answer to 3. Three real gaps were left and are now filled:
-
-- the journal archive's 132-character preview cut, including the trim that stops
-  a space sitting in front of the ellipsis;
-- the Skate hero's upper week clamp, past the end of the 21-week season;
-- the feedback scale's lower clamp and a zero duration.
-
-**Cross-feature synchronization.** Also mostly a false alarm: each consumer's
-unit tests already seed the other feature's stored data and assert the derived
-output, which is the coupling. What was genuinely untested is the *internal*
-live path. The existing browser sync tests fire a synthetic `StorageEvent`,
-which is the external path; nothing covered a real action in one card
-refreshing another card beside it through React state.
-
-`tests/dashboard-cross-card-sync.e2e.test.js` now does: a spend logged through
-the real Money quick form on the Dashboard must move the insight card next to
-it, which belongs to another page's feature, with no reload and no synthetic
-event, then reach SQLite and still agree after a reload. Mutation-checked by
-freezing the insight model on its first value, which makes the test time out
-instead of pass.
-
-### Still open
-
-- Nothing from the Sessions A-D plan. The remaining items are design decisions,
-  not work: the five cross-page couplings and the `@/` path alias, both recorded
-  in Session C with their evidence.
-- A note on method for whoever builds the next matrix: a keyword scan is a way
-  to find candidates, not a measurement. Four of its findings this time were
-  wrong, in both directions, and each one had to be read before it could be
-  believed.
-
-### Deferred decision — scoped CSS
-
-Replacing the global class names with CSS Modules or similar is the textbook
-answer for the stylesheet, and it is deliberately **not** in this plan. The
-verification net is anchored on those names: the tests use 492 distinct class
-selectors across 801 string occurrences, and the pinned contracts assert class
-names directly. Hashed class names would break all of it at once, which would
-mean removing the net that protects visual parity in the same change that risks
-it. Doing it safely needs a prior session or two re-anchoring every browser test
-on `data-testid` or ARIA selectors. Worth doing one day; it needs its own
-decision, and the dead-rule removal plus tokens plus co-location in Session B
-already delivers most of the practical benefit.
+**The proof this changed nothing is unusually strong:** the built JavaScript and
+CSS are byte-identical to the pre-change build, hashes and filenames included
+(`index-IPzjF0KP.js`, `index-BNgGG6ag.css`). `dist/` holds only those two plus
+an untouched favicon and an `index.html` generated from an untouched template
+that references those same filenames. A live browser pass was therefore not run
+for this change and would have added nothing: the server is serving the same
+bytes it served before.
 
 ## Architecture Refactor Plan — EXECUTED (Session 82)
 
@@ -795,7 +677,7 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Dead CSS is now zero by the class-name audit, but that audit only sees class selectors. Element, attribute, and descendant-only rules were not covered, so "no dead classes" is not the same as "no dead rules".
 - Time/date parsing and normalization are duplicated between the frontend and the backend integrations. Within the frontend the duplication is gone: Session 82 removed the last copy, `formatPlannerDate`, which was `toDateKey` under another name.
 - One cross-page import remains, the Dashboard rendering the Money quick card, and it is deliberate. The other four were resolved in Session 85; the mascot's nine page imports are accepted by design. See "Cross-page coupling".
-- Page nesting makes some imports four levels deep (`../../../../shared/...`). A `@/` path alias would fix them; it is deferred with its reason.
+- Imports reach outside their own directory through `@/`, which means `src/`. A lint rule rejects new `../../` imports. The alias has to be kept in step in both `vite.config.ts` and `tsconfig.json`.
 - Eight legacy-only key families remain in the live database with no consumer; backups preserve them and a test pins that. See the Storage Key Audit.
 - The default `node` on the inspected machine is Node 14 and cannot run `node --test`; use the installed modern Node runtime or fix the local PATH before relying on `scripts/test.sh` without `NODE_BIN`.
 - Browser coverage protects task and activity-session lifecycles, all six direct primary pages, and every migrated React boundary. The untested flows that remain are all in the retired reference code, which no longer runs.
@@ -814,15 +696,6 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 
 ## Session Log
 
-### Session 83
-
-- Ran Session D. Built the coverage matrix from the tests themselves with a throwaway scanner rather than from memory, and treated its output as signals to verify rather than findings. That caught two wrong readings of my own before they reached this file: the mascot is covered by seven browser files, and both viewports are covered nearly everywhere.
-- Filled the three dimensions that were genuinely at zero, each with a test that asserts behavior rather than that a page loads: a server restart against the same SQLite file, backup export and import driven through the real button and the real file input, and the React-to-Python record contract.
-- Mutation-checked all three rather than trusting a green run: pointed the restart at a fresh database, emptied the transient-key exclusion, and renamed the field the collector reads. Each test failed with its own assertion message, then passed again once the code was restored.
-- Checked a claim I had written into a test comment instead of leaving it asserted. The claim was that a field rename would leave both suites green; the mutation showed the React suite catches an inconsistency introduced inside React. The accurate and more useful finding is that the Python suite stays green regardless, because it never sees React's real output, so a rename carried through the React side and its own expectations would break every reminder silently. The comment now says that.
-- Found while writing the backup test that the export-side foreign-key filter is unreachable through the real store, because the server refuses any key outside the `hivePlanner.` prefix. Recorded it as defence in depth rather than deleting the filter or pretending the test covers it.
-- Verification: 44 Python tests, 312 React/TypeScript tests across 57 files, lint, strict typecheck, production build, and 45 browser tests with zero skips. The built stylesheet hash was unchanged. No live pass was run and none was needed: the session changed only tests and the test fixture, no production source.
-
 ### Session 84
 
 - Verified the two coverage columns Session 83 had left as signals, one feature at a time, rather than trusting or repeating the scan. Both were largely false alarms: boundaries are exercised with concrete values in tests that never use the word, and cross-feature coupling is already covered at unit level because each consumer's tests seed the other feature's stored data. Three of the eleven flagged features have no numeric input at all, so they are a verified "not applicable".
@@ -839,6 +712,14 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Split the day type out of the intention card so the Calendar month can read it without importing the Dashboard, and moved the money store and its definitions to `shared/`, where the calendar event store and the journal entry store already live. The money store was read by all six Money cards, the insight and the mascot, so it was never the quick card's.
 - Left the last coupling alone on purpose. The Dashboard renders `MoneyQuickCard` because the quick log really does appear there; moving a page's main card into a shared directory to satisfy a layering rule would make the code harder to read, not easier.
 - Verification: 44 Python tests, 324 React/TypeScript tests across 58 files, lint, strict typecheck, production build, and 46 browser tests with zero skips, the built stylesheet byte-identical with its asset name unchanged, and a live pass over all six pages at desktop and 375px with no console errors and every request 200.
+
+### Session 86
+
+- Took the last open decision, the `@/` path alias, and applied it to the 243 imports that were two or more levels deep. Left the 88 single-level `../` imports alone: one step up keeps a nearby relationship visible, and deep chains were the thing worth removing.
+- Configured it in the two places that have to agree, `vite.config.ts` and `tsconfig.json`, and hit the detail that `baseUrl` is deprecated in this TypeScript version, so the `paths` target is written relative to the config file instead.
+- Added `no-restricted-imports` so a new `../../` import fails lint with a message pointing at `@/`, then checked the guard actually fires by reintroducing a deep import rather than trusting a clean run.
+- The verification for this one is stronger than a test suite: the built JavaScript and CSS came out byte-identical to the pre-change build, hashes and filenames included, and `dist/` holds nothing else but an untouched favicon and an `index.html` generated from an untouched template. No live pass was run, and it would have added nothing, because the server is serving the same bytes as before.
+- Verification: 44 Python tests, 324 React/TypeScript tests across 58 files, lint, strict typecheck, production build, and 46 browser tests with zero skips.
 
 ---
 

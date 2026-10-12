@@ -1,7 +1,7 @@
-import type { PlannerStore, PlannerStoreWrite } from "../../../../api/planner-store";
-import { isRecord } from "../../../../shared/is-record";
-import { isoWeekKey } from "../../../../shared/planner-date";
-import { DAY_TYPE_ALIASES, routineWeekKey } from "../../../../shared/routine-week";
+import type { PlannerStore, PlannerStoreWrite } from "@/api/planner-store";
+import { isRecord } from "@/shared/is-record";
+import { isoWeekKey } from "@/shared/planner-date";
+import { DAY_TYPE_ALIASES, routineWeekKey } from "@/shared/routine-week";
 
 export type CalendarDayTypeId = "high" | "normal" | "recovery";
 

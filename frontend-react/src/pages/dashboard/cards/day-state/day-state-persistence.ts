@@ -1,7 +1,7 @@
-import type { PlannerStore, PlannerStoreWrite } from "../../../../api/planner-store";
-import { decodeActivityLog } from "../../../../shared/activity-log";
-import { isRecord } from "../../../../shared/is-record";
-import { ACTIVITY_LOG_KEY } from "../../../../shared/tasks/tasks";
+import type { PlannerStore, PlannerStoreWrite } from "@/api/planner-store";
+import { decodeActivityLog } from "@/shared/activity-log";
+import { isRecord } from "@/shared/is-record";
+import { ACTIVITY_LOG_KEY } from "@/shared/tasks/tasks";
 import {
   DAY_STATE_STORAGE_KEY,
   type DayStateId

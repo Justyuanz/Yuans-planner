@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import type { PlannerStore, PlannerStoreWrite } from "../../../../api/planner-store";
+import type { PlannerStore, PlannerStoreWrite } from "@/api/planner-store";
 import type { PlannedActualRow } from "./planned-actual";
 import {
   ACTIVITY_LOG_KEY,

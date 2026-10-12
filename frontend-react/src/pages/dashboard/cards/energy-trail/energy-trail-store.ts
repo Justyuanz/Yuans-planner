@@ -1,8 +1,8 @@
-import type { PlannerStore } from "../../../../api/planner-store";
-import { isRecord } from "../../../../shared/is-record";
-import { journalEntries } from "../../../../shared/journal-entry-store";
-import { toDateKey } from "../../../../shared/planner-date";
-import { leadingTimeMinutes } from "../../../../shared/planner-time";
+import type { PlannerStore } from "@/api/planner-store";
+import { isRecord } from "@/shared/is-record";
+import { journalEntries } from "@/shared/journal-entry-store";
+import { toDateKey } from "@/shared/planner-date";
+import { leadingTimeMinutes } from "@/shared/planner-time";
 
 export interface EnergyTrailEntry {
   context: string;

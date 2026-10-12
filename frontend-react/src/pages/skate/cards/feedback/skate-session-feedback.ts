@@ -1,21 +1,21 @@
-import type { PlannerStore, PlannerStoreWrite } from "../../../../api/planner-store";
-import { isRecord } from "../../../../shared/is-record";
-import { isSkateIntensity, normalizeSkateIntensity, type SkateIntensity } from "../../skate-intensity";
+import type { PlannerStore, PlannerStoreWrite } from "@/api/planner-store";
+import { isRecord } from "@/shared/is-record";
+import { isSkateIntensity, normalizeSkateIntensity, type SkateIntensity } from "@/pages/skate/skate-intensity";
 import { SKATE_SESSIONS_STORAGE_KEY } from "../roadmap/skate-roadmap";
-import { linkSkateSessionToTodayTask } from "../../skate-session-task-sync";
+import { linkSkateSessionToTodayTask } from "@/pages/skate/skate-session-task-sync";
 import {
   decodeSkateCoachTemplate,
   type SkateCoachTemplate,
   type SkateWarmupItem
-} from "../../skate-session-template";
+} from "@/pages/skate/skate-session-template";
 import {
   SKATE_CURRENT_SESSION_STORAGE_KEY,
   SKATE_SETTINGS_STORAGE_KEY
-} from "../../skate-settings";
-import { strictDateKey } from "../../../../shared/planner-date";
+} from "@/pages/skate/skate-settings";
+import { strictDateKey } from "@/shared/planner-date";
 
 export const SKATE_COACH_TEMPLATE_STORAGE_KEY = "hivePlanner.skate.coachTemplate";
-export { SKATE_CURRENT_SESSION_STORAGE_KEY, SKATE_SETTINGS_STORAGE_KEY } from "../../skate-settings";
+export { SKATE_CURRENT_SESSION_STORAGE_KEY, SKATE_SETTINGS_STORAGE_KEY } from "@/pages/skate/skate-settings";
 
 interface FocusCardState {
   goals: [boolean, boolean, boolean];

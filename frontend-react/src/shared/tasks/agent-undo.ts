@@ -1,4 +1,4 @@
-import type { PlannerStore, PlannerStoreWrite } from "../../api/planner-store";
+import type { PlannerStore, PlannerStoreWrite } from "@/api/planner-store";
 import { decodeActivityLog } from "../activity-log";
 import { isRecord } from "../is-record";
 import { ACTIVITY_LOG_KEY, decodeTasks } from "./tasks";

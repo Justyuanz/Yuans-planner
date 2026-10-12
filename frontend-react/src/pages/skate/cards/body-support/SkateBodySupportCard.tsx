@@ -1,7 +1,7 @@
 import { useState } from "react";
 
-import type { PlannerStore, PlannerStoreWrite } from "../../../../api/planner-store";
-import { makeTaskRelatedId } from "../../../../shared/tasks/task-options";
+import type { PlannerStore, PlannerStoreWrite } from "@/api/planner-store";
+import { makeTaskRelatedId } from "@/shared/tasks/task-options";
 import {
   BODY_SUPPORT_OPTIONS,
   buildBodySupportModel,

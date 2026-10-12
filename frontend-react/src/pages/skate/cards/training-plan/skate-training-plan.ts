@@ -1,18 +1,18 @@
-import type { PlannerStore } from "../../../../api/planner-store";
+import type { PlannerStore } from "@/api/planner-store";
 import {
   isSkateIntensity,
   SKATE_INTENSITY_META,
   type SkateIntensity
-} from "../../skate-intensity";
-import { SKATE_PROGRAM } from "../../skate-program-data";
+} from "@/pages/skate/skate-intensity";
+import { SKATE_PROGRAM } from "@/pages/skate/skate-program-data";
 import {
   decodeSkateSettings,
   SKATE_SETTINGS_STORAGE_KEY,
   type SkateSettings
-} from "../../skate-settings";
-import { startOfLocalDay } from "../../../../shared/planner-date";
+} from "@/pages/skate/skate-settings";
+import { startOfLocalDay } from "@/shared/planner-date";
 
-export { SKATE_SETTINGS_STORAGE_KEY } from "../../skate-settings";
+export { SKATE_SETTINGS_STORAGE_KEY } from "@/pages/skate/skate-settings";
 
 const SKATE_TOTAL_WEEKS = 21;
 const SKATE_SEASON_START = new Date(2026, 7, 29);

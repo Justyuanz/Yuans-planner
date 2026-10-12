@@ -1,5 +1,5 @@
-import type { PlannerStore, PlannerStoreWrite } from "../../../../api/planner-store";
-import { decodeActivityLog } from "../../../../shared/activity-log";
+import type { PlannerStore, PlannerStoreWrite } from "@/api/planner-store";
+import { decodeActivityLog } from "@/shared/activity-log";
 import {
   hasJournalTrackerContent,
   journalEntries,
@@ -9,7 +9,7 @@ import {
   type JournalEntry,
   type JournalFocusState,
   type JournalTracker
-} from "../../../../shared/journal-entry-store";
+} from "@/shared/journal-entry-store";
 
 export const JOURNAL_ACTIVITY_LOG_KEY = "hivePlanner.activityLog";
 

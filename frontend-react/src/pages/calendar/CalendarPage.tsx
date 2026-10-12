@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 
-import { persistPlannerWrites } from "../../app/planner-persistence";
-import { PlannerShell } from "../../app/PlannerShell";
-import { useDirectPlannerPage } from "../../app/use-direct-planner-page";
-import { usePlannerStore } from "../../app/use-planner-store";
-import { toDateKey } from "../../shared/planner-date";
-import { buildCalendarTaskReconciliation } from "../../shared/tasks/calendar-task-reconciliation";
-import { makeTaskRelatedId } from "../../shared/tasks/task-options";
+import { persistPlannerWrites } from "@/app/planner-persistence";
+import { PlannerShell } from "@/app/PlannerShell";
+import { useDirectPlannerPage } from "@/app/use-direct-planner-page";
+import { usePlannerStore } from "@/app/use-planner-store";
+import { toDateKey } from "@/shared/planner-date";
+import { buildCalendarTaskReconciliation } from "@/shared/tasks/calendar-task-reconciliation";
+import { makeTaskRelatedId } from "@/shared/tasks/task-options";
 import { CalendarEventEditor, type CalendarEditorRequest } from "./cards/event-editor/CalendarEventEditor";
 import { MonthlyCalendarCard } from "./cards/month/MonthlyCalendarCard";
 import { dateFromKey, shiftMonth } from "./cards/month/calendar-month";

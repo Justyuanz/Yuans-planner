@@ -1,6 +1,6 @@
-import type { PlannerStore } from "../../../../api/planner-store";
+import type { PlannerStore } from "@/api/planner-store";
 import { energyTrailEntries, energyTrailPattern } from "./energy-trail-store";
-import { humanDateFromKey } from "../../../../shared/planner-date";
+import { humanDateFromKey } from "@/shared/planner-date";
 
 export interface EnergyTrailItem {
   context: string;

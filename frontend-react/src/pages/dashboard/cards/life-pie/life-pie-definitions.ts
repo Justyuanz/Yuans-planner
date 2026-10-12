@@ -1,5 +1,5 @@
-import type { TrackedActivityId } from "../../../../shared/activity-categories";
-import type { ActivityPeriod } from "../../../../shared/activity-totals";
+import type { TrackedActivityId } from "@/shared/activity-categories";
+import type { ActivityPeriod } from "@/shared/activity-totals";
 
 export interface LifePieActivityDefinition {
   id: TrackedActivityId;

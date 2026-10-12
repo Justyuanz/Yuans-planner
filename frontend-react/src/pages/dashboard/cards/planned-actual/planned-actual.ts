@@ -1,14 +1,14 @@
-import type { PlannerStore } from "../../../../api/planner-store";
-import { isRecord } from "../../../../shared/is-record";
-import { formatHours } from "../../../../shared/format-hours";
-import { activityTotalsForPeriod } from "../../../../shared/activity-totals";
-import { migratePlannedActivityValues } from "../../../../shared/activity-categories";
+import type { PlannerStore } from "@/api/planner-store";
+import { isRecord } from "@/shared/is-record";
+import { formatHours } from "@/shared/format-hours";
+import { activityTotalsForPeriod } from "@/shared/activity-totals";
+import { migratePlannedActivityValues } from "@/shared/activity-categories";
 import {
   PLANNED_GROUPS,
   type PlannedActivityId,
   type PlannedGroupId
 } from "./planned-actual-definitions";
-import { isoWeekKey } from "../../../../shared/planner-date";
+import { isoWeekKey } from "@/shared/planner-date";
 
 export { ACTIVITY_LOG_KEY, appendPlannedActivityLog } from "./planned-actual-log";
 export type { PlannedActivityId, PlannedGroupId } from "./planned-actual-definitions";

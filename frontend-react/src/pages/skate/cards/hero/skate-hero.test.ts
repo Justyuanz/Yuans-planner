@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { buildSkateHeroState } from "./skate-hero";
 import { SKATE_SESSIONS_STORAGE_KEY } from "../roadmap/skate-roadmap";
-import { SKATE_SETTINGS_STORAGE_KEY } from "../../skate-settings";
+import { SKATE_SETTINGS_STORAGE_KEY } from "@/pages/skate/skate-settings";
 
 const TODAY = new Date(2026, 8, 14, 12);
 

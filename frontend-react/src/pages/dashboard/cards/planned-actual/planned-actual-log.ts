@@ -1,4 +1,4 @@
-import { isRecord } from "../../../../shared/is-record";
+import { isRecord } from "@/shared/is-record";
 import type { PlannedActivityId, PlannedGroupId } from "./planned-actual-definitions";
 
 const ACTIVITY_LOG_KEY = "hivePlanner.activityLog";

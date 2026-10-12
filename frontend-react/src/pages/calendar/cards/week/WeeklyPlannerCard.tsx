@@ -1,6 +1,6 @@
 import { useState, type MouseEvent, type ReactNode } from "react";
 
-import type { PlannerStore, PlannerStoreWrite } from "../../../../api/planner-store";
+import type { PlannerStore, PlannerStoreWrite } from "@/api/planner-store";
 import { dateFromKey } from "../month/calendar-month";
 import { buildCalendarWeek, recoveryTypeChangeReason } from "./calendar-week";
 import {

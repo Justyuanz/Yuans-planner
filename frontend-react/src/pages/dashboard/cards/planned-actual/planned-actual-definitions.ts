@@ -1,4 +1,4 @@
-import type { TrackedActivityId } from "../../../../shared/activity-categories";
+import type { TrackedActivityId } from "@/shared/activity-categories";
 
 export type PlannedActivityId = TrackedActivityId;
 export type PlannedGroupId = "study" | "leisure";

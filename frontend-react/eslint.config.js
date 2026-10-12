@@ -27,7 +27,15 @@ export default defineConfig([
     rules: {
       "@typescript-eslint/no-explicit-any": "error",
       "no-var": "error",
-      "prefer-const": "error"
+      "prefer-const": "error",
+      // Reach outside your own corner through "@/", not through "../../".
+      // A single "../" is fine: it keeps a nearby relationship visible.
+      "no-restricted-imports": ["error", {
+        patterns: [{
+          group: ["../../*"],
+          message: "Import from outside this directory with \"@/\" instead of a deep relative path."
+        }]
+      }]
     }
   }
 ]);

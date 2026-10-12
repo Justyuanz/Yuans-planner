@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { PlannerStore } from "../../api/planner-store";
+import type { PlannerStore } from "@/api/planner-store";
 import { buildAgentUndoWrites } from "./agent-undo";
 import { ACTIVITY_LOG_KEY, type PlannerTask } from "./tasks";
 

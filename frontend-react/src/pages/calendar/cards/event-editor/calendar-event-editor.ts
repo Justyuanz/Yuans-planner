@@ -1,12 +1,12 @@
-import type { PlannerStore, PlannerStoreWrite } from "../../../../api/planner-store";
-import { isRecord } from "../../../../shared/is-record";
+import type { PlannerStore, PlannerStoreWrite } from "@/api/planner-store";
+import { isRecord } from "@/shared/is-record";
 import {
   CALENDAR_EVENTS_STORAGE_KEY,
   calendarCategoryMeta,
   calendarEvents,
   normalizeCalendarCategory,
   type CalendarEvent
-} from "../../../../shared/calendar-event-store";
+} from "@/shared/calendar-event-store";
 import { calendarActivityDuration, normalizeCalendarClock } from "../week/calendar-week";
 
 export const CALENDAR_GOAL_PLANNER_KEY = "hivePlanner.goalPlanner.items";

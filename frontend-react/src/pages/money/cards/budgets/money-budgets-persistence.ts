@@ -1,9 +1,9 @@
-import type { PlannerStore, PlannerStoreWrite } from "../../../../api/planner-store";
-import { isRecord } from "../../../../shared/is-record";
+import type { PlannerStore, PlannerStoreWrite } from "@/api/planner-store";
+import { isRecord } from "@/shared/is-record";
 import {
   DEFAULT_CATEGORIES,
   MONEY_SETTINGS_KEY
-} from "../../../../shared/money-definitions";
+} from "@/shared/money-definitions";
 
 export type MoneyBudgetField = "budgetCents" | "weeklyBudgetCents";
 

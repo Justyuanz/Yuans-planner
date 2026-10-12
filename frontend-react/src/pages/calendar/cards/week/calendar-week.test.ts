@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { routineWeekKey } from "../../../../shared/routine-week";
-import type { PlannerStore } from "../../../../api/planner-store";
-import { CALENDAR_EVENTS_STORAGE_KEY } from "../../../../shared/calendar-event-store";
+import { routineWeekKey } from "@/shared/routine-week";
+import type { PlannerStore } from "@/api/planner-store";
+import { CALENDAR_EVENTS_STORAGE_KEY } from "@/shared/calendar-event-store";
 import {
   buildCalendarWeek,
   previewCalendarActivity,

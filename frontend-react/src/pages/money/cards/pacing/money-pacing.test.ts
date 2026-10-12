@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { PlannerStore } from "../../../../api/planner-store";
+import type { PlannerStore } from "@/api/planner-store";
 import { buildMoneyPacing } from "./money-pacing";
 
 const TODAY = new Date(2026, 8, 14);

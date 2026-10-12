@@ -1,4 +1,4 @@
-import type { PlannerStore, PlannerStoreWrite } from "../../api/planner-store";
+import type { PlannerStore, PlannerStoreWrite } from "@/api/planner-store";
 import { isRecord } from "../is-record";
 import type { ActivityId } from "../activity-categories";
 import {

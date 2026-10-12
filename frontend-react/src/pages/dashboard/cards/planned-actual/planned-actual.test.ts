@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import type { PlannerStore } from "../../../../api/planner-store";
+import type { PlannerStore } from "@/api/planner-store";
 import { applyPlannedInput, appendPlannedActivityLog, buildPlannedActual, plannedStorageKey } from "./planned-actual";
-import { } from "../../../../shared/planner-date";
+import { } from "@/shared/planner-date";
 
 const TODAY = new Date(2026, 8, 13);
 const NOW_MS = new Date(2026, 8, 13, 12).getTime();

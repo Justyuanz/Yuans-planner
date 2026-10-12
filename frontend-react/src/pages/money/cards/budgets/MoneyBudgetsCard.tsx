@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 
-import type { PlannerStore, PlannerStoreWrite } from "../../../../api/planner-store";
+import type { PlannerStore, PlannerStoreWrite } from "@/api/planner-store";
 import { MONEY_SETTINGS_KEY, parseAmountToCents } from "../quick/money-quick";
 import {
   buildMoneyBudgets,

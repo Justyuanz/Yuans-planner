@@ -1,12 +1,12 @@
-import type { PlannerStore } from "../../../../api/planner-store";
-import { dayTypeForDate } from "../../../../shared/routine-week";
+import type { PlannerStore } from "@/api/planner-store";
+import { dayTypeForDate } from "@/shared/routine-week";
 import {
   calendarCategoryMeta,
   calendarEvents,
   type CalendarEvent
-} from "../../../../shared/calendar-event-store";
-import { humanDate, toDateKey } from "../../../../shared/planner-date";
-import { leadingTimeMinutes } from "../../../../shared/planner-time";
+} from "@/shared/calendar-event-store";
+import { humanDate, toDateKey } from "@/shared/planner-date";
+import { leadingTimeMinutes } from "@/shared/planner-time";
 
 export interface CalendarMonthPill {
   categoryClass: string;

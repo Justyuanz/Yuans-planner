@@ -1,5 +1,5 @@
 import type { SkateHeroAction, SkateHeroState } from "./skate-hero";
-import { SKATE_INTENSITIES } from "../../skate-intensity";
+import { SKATE_INTENSITIES } from "@/pages/skate/skate-intensity";
 
 interface SkateHeroCardProps {
   onAction: (action: SkateHeroAction) => void;

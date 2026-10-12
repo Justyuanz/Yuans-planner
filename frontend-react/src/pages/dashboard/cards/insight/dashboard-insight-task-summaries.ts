@@ -1,11 +1,11 @@
-import { isRecord } from "../../../../shared/is-record";
+import { isRecord } from "@/shared/is-record";
 import {
   finiteNonNegative,
   isValidDateKey,
   roundMetric,
   taskMetricWindowDateKeys
 } from "./dashboard-insight-metric-utils";
-import { leadingTimeMinutes } from "../../../../shared/planner-time";
+import { leadingTimeMinutes } from "@/shared/planner-time";
 
 const MORNING_END_MINUTES = 12 * 60;
 const EVENING_START_MINUTES = 18 * 60;

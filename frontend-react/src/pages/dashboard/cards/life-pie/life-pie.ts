@@ -1,10 +1,10 @@
-import type { PlannerStore } from "../../../../api/planner-store";
-import type { TrackedActivityId } from "../../../../shared/activity-categories";
-import { activityTotalsForPeriod, type ActivityPeriod } from "../../../../shared/activity-totals";
-import { formatHours } from "../../../../shared/format-hours";
+import type { PlannerStore } from "@/api/planner-store";
+import type { TrackedActivityId } from "@/shared/activity-categories";
+import { activityTotalsForPeriod, type ActivityPeriod } from "@/shared/activity-totals";
+import { formatHours } from "@/shared/format-hours";
 import { LIFE_PIE_GROUPS } from "./life-pie-definitions";
 
-export type { ActivityPeriod } from "../../../../shared/activity-totals";
+export type { ActivityPeriod } from "@/shared/activity-totals";
 
 export interface LifePieActivity {
   color: string;

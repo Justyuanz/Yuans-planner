@@ -1,4 +1,4 @@
-import type { PlannerStore, PlannerStoreWrite } from "../../../../api/planner-store";
+import type { PlannerStore, PlannerStoreWrite } from "@/api/planner-store";
 
 export const GUITAR_FOCUS_STORAGE_KEY = "hivePlanner.guitar.focus";
 export const GUITAR_NEXT_STEP_STORAGE_KEY = "hivePlanner.guitar.nextStep";

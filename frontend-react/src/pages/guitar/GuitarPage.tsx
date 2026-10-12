@@ -1,11 +1,11 @@
 import { useCallback } from "react";
 import { createPortal } from "react-dom";
 
-import { persistPlannerWrites } from "../../app/planner-persistence";
-import { PlannerShell } from "../../app/PlannerShell";
-import { useDirectPlannerPage } from "../../app/use-direct-planner-page";
-import { usePlannerStore } from "../../app/use-planner-store";
-import { toDateKey } from "../../shared/planner-date";
+import { persistPlannerWrites } from "@/app/planner-persistence";
+import { PlannerShell } from "@/app/PlannerShell";
+import { useDirectPlannerPage } from "@/app/use-direct-planner-page";
+import { usePlannerStore } from "@/app/use-planner-store";
+import { toDateKey } from "@/shared/planner-date";
 import { GuitarGoalCard } from "./cards/goal/GuitarGoalCard";
 import { GuitarSessionCard } from "./cards/session/GuitarSessionCard";
 import { GuitarSessionDialog } from "./cards/session/GuitarSessionDialog";

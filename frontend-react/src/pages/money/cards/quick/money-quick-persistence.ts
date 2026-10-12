@@ -1,14 +1,14 @@
-import type { PlannerStore, PlannerStoreWrite } from "../../../../api/planner-store";
-import { decodeActivityLog } from "../../../../shared/activity-log";
-import { isRecord } from "../../../../shared/is-record";
-import { toDateKey } from "../../../../shared/planner-date";
+import type { PlannerStore, PlannerStoreWrite } from "@/api/planner-store";
+import { decodeActivityLog } from "@/shared/activity-log";
+import { isRecord } from "@/shared/is-record";
+import { toDateKey } from "@/shared/planner-date";
 import {
   DEFAULT_VENDOR_RULES,
   MONEY_ACTIVITY_LOG_KEY,
   MONEY_TRANSACTIONS_KEY,
   MONEY_VENDOR_RULES_KEY,
   type MoneyTransaction
-} from "../../../../shared/money-definitions";
+} from "@/shared/money-definitions";
 
 interface MoneyTransactionInput {
   amountCents: number;

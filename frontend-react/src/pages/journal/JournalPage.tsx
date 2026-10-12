@@ -1,14 +1,14 @@
 import { useMemo, useState } from "react";
 
-import type { PlannerStore } from "../../api/planner-store";
-import { persistPlannerWrites } from "../../app/planner-persistence";
-import { PlannerShell } from "../../app/PlannerShell";
-import { useDirectPlannerPage } from "../../app/use-direct-planner-page";
-import { usePlannerStore } from "../../app/use-planner-store";
+import type { PlannerStore } from "@/api/planner-store";
+import { persistPlannerWrites } from "@/app/planner-persistence";
+import { PlannerShell } from "@/app/PlannerShell";
+import { useDirectPlannerPage } from "@/app/use-direct-planner-page";
+import { usePlannerStore } from "@/app/use-planner-store";
 import { JournalArchiveCard } from "./cards/archive/JournalArchiveCard";
 import { JournalEditorCard } from "./cards/editor/JournalEditorCard";
 import type { JournalEntryUpdate } from "./cards/editor/journal-editor";
-import { toDateKey } from "../../shared/planner-date";
+import { toDateKey } from "@/shared/planner-date";
 import { MeditationCard } from "./cards/meditation/MeditationCard";
 
 interface JournalPageProps {

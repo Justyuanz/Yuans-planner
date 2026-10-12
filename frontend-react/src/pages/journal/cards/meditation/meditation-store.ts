@@ -1,11 +1,11 @@
-import type { PlannerStore } from "../../../../api/planner-store";
-import { isRecord } from "../../../../shared/is-record";
+import type { PlannerStore } from "@/api/planner-store";
+import { isRecord } from "@/shared/is-record";
 import {
   MEDITATION_STORAGE_KEY,
   type MeditationActiveTimer,
   type MeditationDocument
 } from "./meditation-definitions";
-import { dateKeyFromValue } from "../../../../shared/planner-date";
+import { dateKeyFromValue } from "@/shared/planner-date";
 
 function finiteNumber(value: unknown): number | null {
   const number = Number(value);

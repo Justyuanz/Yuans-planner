@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 
-import type { PlannerStore } from "../../../../api/planner-store";
+import type { PlannerStore } from "@/api/planner-store";
 import { buildMoneyOverview } from "./money-overview";
 
 interface MoneyOverviewCardProps {

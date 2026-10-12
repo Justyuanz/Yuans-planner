@@ -1,6 +1,6 @@
-import type { PlannerStore } from "../../../../api/planner-store";
+import type { PlannerStore } from "@/api/planner-store";
 import { formatMoney } from "../quick/money-quick";
-import { decodeMoneyStore } from "../../../../shared/money-store";
+import { decodeMoneyStore } from "@/shared/money-store";
 
 export interface MoneyOverviewModel {
   monthLabel: string;

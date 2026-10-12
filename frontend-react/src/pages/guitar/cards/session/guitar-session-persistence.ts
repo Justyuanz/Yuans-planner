@@ -1,5 +1,5 @@
-import type { PlannerStore, PlannerStoreWrite } from "../../../../api/planner-store";
-import { linkSessionToTodayTask } from "../../../../shared/session-task-sync";
+import type { PlannerStore, PlannerStoreWrite } from "@/api/planner-store";
+import { linkSessionToTodayTask } from "@/shared/session-task-sync";
 import { GUITAR_FOCUS_STORAGE_KEY, GUITAR_NEXT_STEP_STORAGE_KEY } from "../goal/guitar-goal";
 import {
   GUITAR_SESSIONS_STORAGE_KEY,
