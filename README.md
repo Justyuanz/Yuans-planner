@@ -21,8 +21,6 @@ This is a hobby project with AI assistance. I built it for myself, and I use it 
 </tr>
 </table>
 
-<sub>The dashboard: weekly goals and where the hours actually went, next to today's focus.</sub>
-
 </div>
 
 <br />
