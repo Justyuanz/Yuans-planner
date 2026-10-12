@@ -124,19 +124,6 @@
   font-weight: 540;
 }
 
-.journal-status {
-  display: inline-flex;
-  align-items: center;
-  min-height: 32px;
-  padding: 6px 11px;
-  border: 1px solid rgba(126, 116, 255, 0.14);
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.72);
-  color: #9a7b47;
-  font-size: 0.79rem;
-  font-weight: 560;
-}
-
 .journal-title-row,
 .journal-entry-row {
   position: relative;

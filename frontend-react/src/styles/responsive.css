@@ -242,21 +242,17 @@
     min-height: auto;
   }
 
-  .balance-meter,
-  .balance-note,
-  .goal-plan-card,
-  .week-day-panel {
+  .week-day-panel{
     padding: 10px;
   }
 
   .money-remaining-strip,
-  .money-transfer-grid,
-  .money-budget-inputs,
-  .money-budget-grid,
-  .money-budget-row,
-  .money-vendor-row,
-  .money-transfer-row,
-  .money-average-summary {
+.money-transfer-grid,
+.money-budget-inputs,
+.money-budget-grid,
+.money-budget-row,
+.money-vendor-row,
+.money-transfer-row{
     grid-template-columns: 1fr;
   }
 
@@ -316,16 +312,6 @@
     font-size: 0.72rem;
     line-height: 1.25;
     text-align: right;
-  }
-
-  .goal-step-row {
-    grid-template-columns: 18px minmax(0, 1fr);
-  }
-
-  .goal-step-row .task-category-select,
-  .goal-step-row .week-overview-action,
-  .goal-step-row .goal-step-status {
-    grid-column: 2;
   }
 
   .section-head {
@@ -477,16 +463,8 @@
     padding: 8px;
   }
 
-  .job-input-row {
-    grid-template-columns: 1fr;
-  }
-
   .body-log-form,
   .scale-options {
-    grid-template-columns: 1fr;
-  }
-
-  .week-overview-list {
     grid-template-columns: 1fr;
   }
 
@@ -494,12 +472,7 @@
     grid-template-columns: minmax(0, 1fr) 68px 52px;
   }
 
-  .trend-row {
-    grid-template-columns: 62px minmax(0, 1fr) 62px;
-  }
-
-  .skate-focus-metrics,
-  .skate-hero-metrics {
+  .skate-hero-metrics{
     grid-template-columns: 1fr;
   }
 

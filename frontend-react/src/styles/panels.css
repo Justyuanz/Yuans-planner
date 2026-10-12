@@ -221,8 +221,7 @@
 }
 
 .section-head h2,
-.section-head h3,
-.calendar-title {
+.section-head h3{
   margin-bottom: 0;
   color: var(--ink);
   font-size: clamp(1.25rem, 2.2vw, 1.65rem);

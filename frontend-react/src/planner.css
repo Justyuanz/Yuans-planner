@@ -1,9 +1,36 @@
-/* Canonical Planner stylesheet.
+/* Canonical Planner stylesheet — the single entry point for every page.
 
-   The parts below are imported in cascade order: later files intentionally
-   override earlier ones, so do not reorder them. Keep each part focused on the
-   surface named in its header comment. */
+   CASCADE CONTRACT. These parts are one stylesheet split by surface, not a set
+   of independent files. Specificity alone does not decide the winner here:
+   several parts deliberately restyle the same selector, so source order is part
+   of the design and this import list is the only place it is recorded.
 
+   The order must stay as written:
+
+   1. tokens.css      — custom properties only. First, because every later part
+                        reads them and a custom property must be declared before
+                        the rule that uses it is evaluated.
+   2. base.css        — element defaults and the resets the shell builds on.
+   3. shell.css       — page frame, header, navigation.
+   4. ...the surface parts, each named for the screen it mainly styles. They are
+      not cleanly separated: 17 selectors are styled in two parts each, for
+      example `.task-list` in activity-goals.css and tasks.css, and `.event-pill`
+      in calendar.css and tasks.css. In every such pair the later part wins, so
+      moving one of these parts changes the rendered page. See "Cross-surface CSS
+      overlap" in AGENT_HANDOFF.md before reordering or splitting them.
+   5. responsive.css  — second to last. It holds the media queries for every
+                        surface, so it has to come after all of them; moving a
+                        surface part below it would silently win at phone size.
+   6. overrides.css   — last. It exists precisely to win, and anything added
+                        after it would defeat that purpose.
+
+   Adding a part means deciding where it sits in this list, not appending it.
+   The built stylesheet is covered by pinned computed-style, geometry and
+   rendered-image contracts in tests/helpers/, so a reorder that changes nothing
+   visible still has to prove it: an untouched-stylesheet change must leave the
+   built CSS byte-identical. */
+
+@import "./styles/tokens.css";
 @import "./styles/base.css";
 @import "./styles/shell.css";
 @import "./styles/goal-planner.css";
@@ -15,7 +42,6 @@
 @import "./styles/life-pie.css";
 @import "./styles/calendar.css";
 @import "./styles/skate-guitar.css";
-@import "./styles/coach.css";
 @import "./styles/dialogs.css";
 @import "./styles/mascot.css";
 @import "./styles/responsive.css";

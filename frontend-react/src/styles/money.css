@@ -464,33 +464,6 @@
     linear-gradient(135deg, rgba(255, 255, 255, 0.54), rgba(247, 249, 255, 0.76), rgba(255, 250, 245, 0.66));
 }
 
-.money-average-summary {
-  display: grid;
-  gap: 10px;
-}
-
-.money-average-summary {
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.money-average-pill {
-  padding: 10px 12px;
-  border: 1px solid rgba(224, 219, 209, 0.72);
-  border-radius: 15px;
-  background: rgba(255, 255, 255, 0.58);
-}
-
-.money-average-pill strong {
-  display: block;
-  margin-bottom: 2px;
-  font-size: 0.86rem;
-}
-
-.money-average-pill span {
-  color: var(--muted);
-  font-size: 0.8rem;
-}
-
 .money-bar-list {
   display: grid;
   gap: 8px;

@@ -139,19 +139,3 @@
   gap: 22px;
   align-items: start;
 }
-
-.goal-planner-shell {
-  display: grid;
-  gap: 18px;
-}
-
-.intention-list,
-.goal-planner-intro,
-.goal-planner-list {
-  display: grid;
-  gap: 10px;
-}
-
-.goal-planner-intro:empty {
-  display: none;
-}

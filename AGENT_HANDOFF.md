@@ -202,27 +202,28 @@ Complete.
 ### Phase 7 — Architecture Refactor
 Not started. Only begin once Phase 6 is finished and the complete suite is green. See "Architecture Refactor Plan" below, and the Refactor Phase rules in `AGENTS.md`. Structural only: no behavior, visual, API, or storage change.
 
+- [x] Phase 7a — the stylesheet: dead rules removed, `tokens.css` extracted, cascade contract documented (Session 81)
 - [ ] split the shared kernel out of `features/life-pie/`
 - [ ] regroup `features/` into `pages/` plus a named `shared/` layer
 - [ ] move the mascot modules out of `app/`
 - [ ] make page naming consistent
 
 ## Current Task
-All five phases are complete. Every former Node/CommonJS unit-test dependency on the old `frontend/js/` modules was replaced by strict React/TypeScript production boundaries and tests, and browser-reference retirement finished. The legacy routes, legacy server mode, Docker legacy copy, dead test infrastructure, and finally `frontend/` itself have all been removed. **The rewrite is complete:** the application is React + strict TypeScript on a Python server with SQLite, and no production code or test refers to the retired frontend.
+Phase 6 is finished and Phase 7 has started. **Session B (Phase 7a, the stylesheet) is complete**: the dead rules are gone, the design tokens live in their own first-imported part, and the cascade order is documented where it is declared.
 
-Work now moves to Phase 6 (bugs and maintenance) and then Phase 7 (the architecture refactor), in that order. The refactor is structural only and must be verified more thoroughly than normal work: see the Refactor Phase rules in `AGENTS.md` and the Architecture Refactor Plan below.
+Phase 7 continues with Session C (the React restructure) and then Session D (thorough feature verification). The refactor is structural only and must be verified more thoroughly than normal work: see the Refactor Phase rules in `AGENTS.md` and the Architecture Refactor Plan below.
 
 ## Last Completed Task
-Deleted the retired `frontend/` directory, the last trace of the legacy application, after the user approved it on the condition that the feature and end-to-end tests pass.
+Session B — the stylesheet. Measured 467 class names and found 93 genuinely dead after accounting for the 23 dynamic `className` sites (only `intensity-` is a true prefix concatenation, so the earlier estimate of 107 was 14 too high). Removed 166 whole rules and trimmed 11 selector lists, taking `src/styles` from 5,677 to 4,596 lines and the built stylesheet from 81,766 to 67,615 bytes, a 17% reduction. A diff of the built output confirmed exactly 93 class names removed, none added, and none of the removed ones still referenced.
 
-Verification before deleting: the complete suite passed with the directory still present. Verification after deleting: rebuilt the production bundle, re-ran the complete suite with the directory absent (44 Python tests, 277 React/TypeScript tests across 53 files, lint, strict typecheck, build, and all 42 browser tests, no skips), then repeated the live pass on the production server. All six pages rendered real seeded data with no console errors, every request returned 200, no page overflowed at 375px, `/js/*` and `/css/styles.css` returned 404 while `%2e%2e` traversal still returned 403, and `/legacy` fell back to the React shell like any other client path. A task created through the Dashboard UI reached SQLite with its `task_created` audit record, sorted into the right position, and survived a reload.
+Then, with the build byte-identical as the gate: folded the misleadingly-named `coach.css` remainder (45 lines after pruning, none of it coach styling) into the end of the adjacent `skate-guitar.css`, which preserves order, and extracted the `:root` design variables into a new first-imported `tokens.css`. Removed the one genuinely dead id selector, `#studyOverview`; the other 40 "unreferenced ids" my first audit reported were hex colour fragments, a false positive of the regex, and drove no deletions.
 
 ## Next Task
-Session A is done, so start **Session B — the stylesheet** in the plan below, then C and D. Each is one session and one commit, ending with the complete suite green and the live six-page pass.
+**Session C — the React restructure (Phase 7b)**, in the plan below, then Session D. Each is one session and one commit, ending with the complete suite green and the live six-page pass.
 
-Before deleting any CSS in Session B, read the warning at the end of the Storage Key Audit: dead styling does **not** imply a dead storage key.
+Read "Cross-surface CSS overlap" below before moving any stylesheet part in Session C: five selectors are resolved by import order alone, so co-locating the parts is only safe if the import order in `planner.css` is preserved exactly.
 
-Do not merge into `main` until the user explicitly approves the merge. Nothing has been pushed yet; the branch is one commit ahead of `origin/rewrite/react-typescript`.
+Do not merge into `main` until the user explicitly approves the merge. Nothing has been pushed yet.
 
 ## Form Control Accessibility
 
@@ -332,43 +333,65 @@ mattered more than the planned task it interrupted.
    the old Study/Body weekly-overview path. Keep every key the database still
    holds so backups stay complete, and write down which are legacy-only.
 
-### Session B — the stylesheet (Phase 7a)
+### Session B — the stylesheet (Phase 7a) — DONE (Session 81)
 
-The measured state: 467 class names across 16 parts, of which **107 are
-referenced nowhere** in the React source or the tests.
+Steps 1, 2, 3 and 5 are done. **Step 4, co-locating each part with the page it
+styles, was deliberately deferred to Session C** and is recorded there: moving a
+stylesheet part next to its component means moving it again when Session C
+regroups `features/` into `pages/`, so doing it now is double churn on the files
+most at risk. The deferral costs nothing, because the clarity win of step 4
+depends on the page directories Session C creates.
 
-| Part | Lines | Dead classes |
+What was measured and removed:
+
+- 93 of 467 class names were dead, not the 107 first estimated. The 14-name gap
+  is the dynamic `className` sites: of the 23 that build a class from data, only
+  `intensity-${...}` is a true prefix concatenation, and its generated names are
+  live. Check that list again before trusting any future dead-class count.
+- 166 whole rules removed and 11 selector lists trimmed. `src/styles` went from
+  5,677 to 4,596 lines; the built stylesheet from 81,766 to 67,615 bytes.
+- Verified by diffing the built output, not by eye: exactly 93 class names
+  disappeared, none appeared, and no removed class is still referenced. A
+  re-audit then reported zero dead classes remaining.
+- One dead id selector, `#studyOverview`, removed. Its 15 bytes are the only
+  difference between the post-prune build and the final one, which is what makes
+  the final byte count a check rather than an observation.
+
+Structural moves, each gated on a byte-identical build:
+
+- `coach.css` was down to 45 lines after pruning, none of it coach styling, and
+  the name had become misleading. Folded into the end of `skate-guitar.css`,
+  which is the adjacent import, so the cascade order is unchanged.
+- The `:root` design variables were extracted into a new `tokens.css`, imported
+  first. Both moves rebuilt byte-identical, which proves they changed nothing.
+
+### Cross-surface CSS overlap
+
+Found while documenting the cascade contract, and the reason that comment does
+not claim the parts are cleanly separated: **17 selectors are styled in two
+surface parts each, and 5 of those have conflicting property values that only
+the import order resolves.**
+
+| Selector | Parts (cascade order) | Conflicting properties |
 | --- | --- | --- |
-| `coach.css` | 535 | 30 of 42 (71%) |
-| `goal-planner.css` | 622 | 28 of 66 (42%) |
-| `life-pie.css` | 384 | 19 of 40 (48%) |
-| `shell.css` | 158 | 4 of 17 (24%) |
-| `responsive.css` | 510 | 11 of 89 (12%) |
-| `skate-guitar.css` | 818 | 9 of 80 (11%) |
-| the other ten parts | 2,138 | 6 of 123 (under 4%) |
+| `.task-list` | activity-goals.css → tasks.css | `gap`, `padding` |
+| `.task-hours input` | activity-goals.css → tasks.css | `width`, `min-height`, `padding` |
+| `.event-pill` | tasks.css → calendar.css | `width`, `min-height`, `padding` |
+| `.icon-button` | tasks.css → calendar.css | `border`, `border-radius`, `background` |
+| `.money-vendor-list` | money.css → activity-goals.css | `padding`, `border`, `background` |
 
-1. **Verify before deleting.** A class can be built dynamically: there are 23
-   `className={`...`}` sites that append a data-driven suffix, such as
-   `intensity-${day.intensity}`. Check each candidate against those patterns
-   before removing it. The large dead clusters (`coach-*`, `goal-card-*`,
-   `frequency-*`, `balance-meter`) correspond to legacy features that were never
-   migrated because they were already dead in the legacy app.
-2. **Delete the dead rules**, one part per stage, expecting `coach.css` to
-   disappear almost entirely.
-3. **Extract `tokens.css`** holding the `:root` design variables, as the first
-   import, so the design values live in one named place.
-4. **Co-locate** each remaining part with the page or feature it styles, while
-   `planner.css` keeps importing them in explicit cascade order. Locating the
-   file next to its component is the clarity win; keeping the order explicit in
-   one index is what makes it safe.
-5. **Document the cascade contract** at the top of `planner.css`: why the order
-   is fixed, and that `responsive.css` then `overrides.css` must stay last.
+The other twelve overlap without conflicting (`.backup-utility`, `.weekday`,
+`.soft-stat`, `.scale-field`, `.pie-breakdown`, `.money-shortcuts`,
+`.money-remaining-strip`, `.journal-paper` and its `::after`,
+`.journal-entry-row textarea`, and the two `.guitar-*-card .panel-inner` rules).
 
-The byte-identical-build gate does not apply here, because deleting rules
-changes the output on purpose. The gate is instead: the pinned computed-style
-and geometry contracts, the 8x8 render signatures, and the live six-page pass.
-Before deleting, diff the built stylesheet and confirm every removed declaration
-belongs to a selector that was deliberately deleted.
+Consequence for Session C: a part may be moved to a new directory, but its
+position in the `planner.css` import list must not change, and a part must not
+be split into per-page pieces without first resolving the five conflicts above.
+Doing that is a visible design change and needs explicit approval, so it is not
+part of the structural refactor. The evidence was produced by parsing top-level
+rules out of the eleven surface parts and comparing declarations pairwise; the
+script is reproducible from this description in a few lines.
 
 ### Session C — the React restructure (Phase 7b)
 
@@ -602,7 +625,9 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 ## Known Problems
 - The retired `frontend/` directory (891-line reference HTML plus 17 legacy JavaScript files, 13,944 lines in all) was deleted once the complete suite passed without it. Its history is still in Git and on `main` if any detail ever needs checking.
 - `backend/app.py` is now a 58-line process bootstrap, the clean Python structure milestone is complete, and `http_server.py` serves the compiled React application at the root. The legacy directory remains reachable only through explicit compatibility and shared-asset routes.
-- `frontend-react/src/planner.css` is now a 22-line index that imports 16 focused parts from `frontend-react/src/styles/` in cascade order. The split was proved safe: the built stylesheet is byte-identical to the pre-split build (same content hash), so it changed nothing visually. The parts must not be reordered; `responsive.css` and then `overrides.css` stay last because they intentionally override earlier declarations.
+- `frontend-react/src/planner.css` is an index that imports 16 focused parts from `frontend-react/src/styles/` in cascade order, with the cascade contract documented in its header. The original split was proved safe by a byte-identical build, as were the two Session 81 moves (`coach.css` folded into `skate-guitar.css`, `tokens.css` extracted as the first import). The parts must not be reordered; `responsive.css` and then `overrides.css` stay last because they intentionally override earlier declarations.
+- The surface parts are not cleanly separated: 17 selectors are styled in two parts each and 5 of those conflict, so import order alone decides what renders. See "Cross-surface CSS overlap". This is the main constraint on any future stylesheet move or split.
+- Dead CSS is now zero by the class-name audit, but that audit only sees class selectors. Element, attribute, and descendant-only rules were not covered, so "no dead classes" is not the same as "no dead rules".
 - Time/date parsing and normalization are duplicated across frontend modules and backend integrations.
 - Eight legacy-only key families remain in the live database with no consumer; backups preserve them and a test pins that. See the Storage Key Audit.
 - The default `node` on the inspected machine is Node 14 and cannot run `node --test`; use the installed modern Node runtime or fix the local PATH before relying on `scripts/test.sh` without `NODE_BIN`.
@@ -618,13 +643,6 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - No browser file starts the legacy frontend or the Vite dev server; all 42 root browser tests run against the production React build. The fixture no longer has a frontend-mode option and `tests/helpers/react-preview-server.js` is deleted.
 
 ## Session Log
-
-### Session 78
-
-- Re-read the repository instructions and complete handoff, confirmed the clean rewrite branch/history/diff, and continued browser-reference retirement with the four-file Calendar group.
-- Converted Calendar month, Calendar week, the event editor, and the direct Calendar page to production-React-only browser regressions in `9b17281`, `8155684`, `84c96e2`, and `8ee1212`. Pinned their verified legacy-derived desktop/mobile state, computed styles, and geometry while retaining navigation, keyboard selection, event editing, week setup rules, validation, CRUD, task synchronization, persistence, reload, routing, and clean-console behavior.
-- Added a compact tolerant 8×8 RGB signature for the direct Calendar page in `0a20492`, preserving rendered desktop/mobile visual regression coverage without retaining a live legacy screenshot dependency. Reduced the mechanical default legacy-fixture count from 24 to 20.
-- Verification: 42 Python tests, 274 React/TypeScript tests, lint, strict typecheck, production build, all four Calendar browser checks, and all 43 root browser tests pass.
 
 ### Session 79
 
@@ -653,6 +671,16 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Gave the five genuinely unlabelled form controls an accessible name and an id, and confirmed in Chrome's accessibility tree that the names resolve. Two of the seven flagged controls were false positives, and the task hours input and form selects turned out to be correctly labelled already; the browser pane's rendering of combobox names had made them look otherwise. Corrected the recorded figure.
 - Audited the live database against the React key prefixes: eight legacy-only key families remain, all inactive in the legacy app too, and `BackupTools.test.ts` now pins a round trip over those exact key names. Found and recorded the trap that dead `coach-*` and `goal-card-*` styling does not mean the matching storage keys are dead, because the Skate feedback dialog and the Calendar event editor still read them.
 - Verification: 44 Python tests, 312 React/TypeScript tests across 55 files, lint, strict typecheck, production build, all 42 browser tests with zero skips, the built stylesheet hash unchanged from the session baseline, and a live six-page pass at desktop and 375px with no console errors and every request returning 200.
+
+### Session 81
+
+- Started Phase 7 with Session B, the stylesheet. Removed 93 dead class names (166 whole rules, 11 trimmed selector lists), taking `src/styles` from 5,677 to 4,596 lines and the built stylesheet from 81,766 to 67,615 bytes. Verified by diffing the built output rather than by eye: exactly 93 class names gone, none added, none still referenced, and a re-audit reporting zero dead.
+- Corrected the recorded dead-class figure from 107 to 93. The gap is the dynamic `className` sites: of the 23 that build a class from data, only `intensity-${...}` is a true prefix concatenation, and its generated names are live. Checking them first is what kept 14 live classes from being deleted.
+- Folded the 45-line `coach.css` remainder into the adjacent `skate-guitar.css` and extracted the `:root` variables into a first-imported `tokens.css`, each gated on the built stylesheet coming out byte-identical, which proves neither move changed anything.
+- Treated my own id audit as suspect when its result looked wrong: 41 "unreferenced ids" were 40 hex colour fragments matched by a sloppy regex plus one real dead selector. Only `#studyOverview` was removed, and its 15 bytes account exactly for the difference between the post-prune and final builds.
+- Documented the cascade contract in the `planner.css` header, then found while writing it that the rule I had just written was false. Measured instead: 17 selectors are styled in two surface parts each and 5 conflict, so import order alone resolves them. Rewrote the comment to describe the real constraint and recorded the table under "Cross-surface CSS overlap"; it is the governing constraint on Session C's file moves.
+- Deferred step 4 of the Session B plan, co-locating each part with its page, to Session C with its reason written down: it would move the same files twice and the clarity win depends on the page directories Session C creates.
+- Verification: 44 Python tests, 312 React/TypeScript tests across 55 files, lint, strict typecheck, production build, and all 42 browser tests with zero skips, plus a live six-page pass at desktop and 375px with no console errors and every request returning 200. The pinned computed-style, geometry, and render-signature contracts all held against the smaller stylesheet, which is the gate that replaces the byte-identical check when rules are deliberately deleted.
 
 ---
 

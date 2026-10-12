@@ -1,18 +1,14 @@
-/* Weekly goal activity list, its category dots, the day banner, and the progress pill. */
-
 .goal-list,
 .task-list,
 .planned-grid,
 .pie-summary,
 .pie-breakdown,
-.skate-checklist,
 .chart-stack,
-#studyOverview,
 .goal,
 .money-remaining-strip,
 .money-shortcuts,
 .money-transfer-list,
-.money-vendor-list {
+.money-vendor-list{
   position: relative;
   display: grid;
   gap: 8px;
@@ -72,11 +68,10 @@
 .event-form textarea,
 .event-form select,
 .planned-row input,
-.job-input-row input,
 .body-log-form input,
 .body-log-form select,
 .form-row input,
-.form-row textarea {
+.form-row textarea{
   width: 100%;
   min-height: 42px;
   padding: 9px 12px;
@@ -109,11 +104,10 @@ textarea {
 .event-form textarea:focus,
 .event-form select:focus,
 .planned-row input:focus,
-.job-input-row input:focus,
 .body-log-form input:focus,
 .body-log-form select:focus,
 .form-row input:focus,
-.form-row textarea:focus {
+.form-row textarea:focus{
   border-color: #8b86ff;
   box-shadow: 0 0 0 4px rgba(126, 121, 255, 0.14);
 }

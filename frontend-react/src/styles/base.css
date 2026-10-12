@@ -1,40 +1,4 @@
-/* Design tokens, document reset, and bare element defaults. */
-
-:root {
-  color-scheme: light;
-  --ink: #171820;
-  --muted: #767681;
-  --paper: #fbf7f8;
-  --line: rgba(224, 219, 209, 0.72);
-  --panel: rgba(255, 255, 255, 0.86);
-  --purple: #b9cef0;
-  --purple-soft: #eaf2ff;
-  --violet: #716bff;
-  --violet-soft: #ecebff;
-  --green: #d3df8f;
-  --green-dark: #667643;
-  --green-soft: #f0f6d3;
-  --amber: #f6f0a8;
-  --amber-dark: #817640;
-  --amber-soft: #fff9cc;
-  --teal: #b9eeee;
-  --teal-dark: #4f8885;
-  --teal-soft: #e3fbfa;
-  --pink: #f5cade;
-  --pink-soft: #ffe7f1;
-  --peach: #efc9a6;
-  --peach-dark: #a97a56;
-  --gym: #c7e6ff;
-  --gym-dark: #4f79a8;
-  --gym-soft: #edf6ff;
-  --mist: #d9d2f3;
-  --mist-dark: #7b72a9;
-  --mint-soft: #e8f7ee;
-  --mint-dark: #6f9a7c;
-  --guitar: var(--mist-dark);
-  --shadow: 0 14px 36px rgba(40, 40, 55, 0.055);
-  --radius: 18px;
-}
+/* Document reset and bare element defaults. Design tokens live in tokens.css. */
 
 * {
   box-sizing: border-box;

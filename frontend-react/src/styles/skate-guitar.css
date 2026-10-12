@@ -82,13 +82,6 @@
   margin-bottom: 18px;
 }
 
-.skate-focus-metrics {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 18px;
-}
-
 .skate-hero-metrics {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -313,10 +306,6 @@
   font-weight: 550;
 }
 
-.skate-target-stat input {
-  max-width: 120px;
-}
-
 .skate-session-card .form-row {
   gap: 10px;
 }
@@ -462,16 +451,6 @@
 .skate-roadmap-day.intensity-empty {
   background: rgba(241, 244, 249, 0.9);
   border-color: rgba(185, 206, 240, 0.34);
-}
-
-.skate-session-details {
-  margin-bottom: 16px;
-}
-
-.skate-session-details summary {
-  cursor: pointer;
-  color: var(--teal-dark);
-  font-weight: 600;
 }
 
 .skate-plan-stack {
@@ -714,98 +693,6 @@
   white-space: nowrap;
 }
 
-.trend-row {
-  display: grid;
-  grid-template-columns: 82px minmax(0, 1fr) 86px;
-  gap: 9px;
-  align-items: end;
-  margin-top: 9px;
-  color: var(--muted);
-  font-size: 0.82rem;
-}
-
-.trend-row strong {
-  color: var(--ink);
-  font-weight: 540;
-}
-
-.trend-dots {
-  display: grid;
-  grid-template-columns: repeat(7, minmax(5px, 1fr));
-  gap: 4px;
-  align-items: end;
-  min-height: 44px;
-  padding: 6px;
-  border-radius: 12px;
-  background: rgba(185, 206, 240, 0.12);
-}
-
-.trend-dots span {
-  min-height: 6px;
-  border-radius: 999px 999px 4px 4px;
-  background: var(--teal);
-}
-
-.trend-row.gym .trend-dots span {
-  background: var(--gym);
-}
-
-.trend-row.mobile-development .trend-dots span {
-  background: var(--green);
-}
-
-.frequency-row {
-  display: grid;
-  grid-template-columns: 58px minmax(0, 1fr) auto;
-  gap: 12px;
-  align-items: center;
-}
-
-.frequency-row + .frequency-row {
-  margin-top: 10px;
-}
-
-.frequency-row strong {
-  color: var(--ink);
-  font-weight: 560;
-}
-
-.frequency-bar {
-  height: 10px;
-  border-radius: 999px;
-  background: rgba(238, 242, 252, 0.9);
-  overflow: hidden;
-}
-
-.frequency-fill {
-  display: block;
-  height: 100%;
-  border-radius: inherit;
-  background: linear-gradient(90deg, rgba(185, 238, 238, 0.95), rgba(211, 228, 111, 0.82));
-}
-
-.frequency-row.mobile-development .frequency-fill {
-  background: linear-gradient(90deg, rgba(240, 246, 211, 0.96), rgba(185, 238, 238, 0.82));
-}
-
-.frequency-row.portfolio-job-prep .frequency-fill {
-  background: linear-gradient(90deg, rgba(255, 249, 204, 0.98), rgba(239, 201, 166, 0.72));
-}
-
-.frequency-row em {
-  color: var(--muted);
-  font-size: 0.88rem;
-  font-style: normal;
-  font-weight: 520;
-}
-
-.trend-empty {
-  margin: 0;
-  color: var(--muted);
-  font-size: 0.88rem;
-  line-height: 1.4;
-}
-
 .skate-session-card .panel-inner {
   display: grid;
   gap: 14px;
@@ -814,4 +701,52 @@
 .skate-coach-flow {
   display: grid;
   gap: 10px;
+}
+
+/* Late refinements that followed the retired Skate coach flow. They stay
+   here, after everything above, because that is where they were authored;
+   the narrow-screen block also touches the Journal paper. */
+
+.skate-session-card .form-actions {
+  margin-top: 2px;
+  padding-top: 10px;
+  border-top: 1px solid rgba(224, 219, 209, 0.48);
+}
+
+.guitar-session-card .panel-inner,
+.guitar-goal-card .panel-inner {
+  display: grid;
+  gap: 14px;
+}
+
+@media (max-width: 640px) {
+  .skate-session-card .panel-inner {
+    gap: 12px;
+  }
+
+  .journal-paper {
+    padding: 18px;
+    border-radius: 22px;
+  }
+
+  .journal-paper::after {
+    left: 16px;
+  }
+
+  .journal-entry-row textarea {
+    min-height: 320px;
+    padding-left: 18px;
+  }
+
+  .guitar-page {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "story"
+      "goal"
+      "session";
+  }
+
+  .guitar-session-summary {
+    grid-template-columns: 1fr;
+  }
 }
