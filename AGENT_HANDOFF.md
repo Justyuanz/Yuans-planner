@@ -209,21 +209,29 @@ Not started. Only begin once Phase 6 is finished and the complete suite is green
 - [x] make page naming consistent (Session 82)
 
 ## Current Task
-Phase 7b is complete. **Session C (the React restructure) is done**: `features/` no longer exists. The source is now `pages/` (six pages, each with its cards beneath), a real `shared/` layer, `mascot/` as its own feature, and an `app/` holding only the shell, routing, store, and persistence.
+Phase 7 is complete through Session C, and Session D's verification work is mostly done. The coverage matrix exists, the three gaps it proved were filled with mutation-checked regression tests, and the matrix is recorded below so later sessions inherit it rather than rebuilding it.
 
-What remains of Phase 7 is Session D, thorough feature verification. See the plan below.
+What remains is narrow and written down: boundary coverage for about half the cards is signal-level and unverified, and cross-feature synchronization is thin outside four areas.
 
 ## Last Completed Task
-Session C — the React restructure, done in five verified stages.
+Session D — thorough feature verification.
 
-1. **The shared kernel out of `life-pie/`.** The first measurement changed the task: `formatPlannerDate` in `life-pie-store.ts` was a byte-identical duplicate of `shared/planner-date.ts`'s `toDateKey`, which Session 79's consolidation had missed because it was hiding under a different name. Removing it replaced 73 call sites across 21 files and shrank the kernel to almost nothing. What was left then moved honestly: the totals engine to `shared/activity-totals.ts` (renamed `activityTotalsForPeriod` / `ActivityTotals` / `ActivityPeriod`, since "life pie" is one of its three consumers, not its subject), `activity-categories` to `shared/`, the hours formatter to `shared/format-hours.ts`, and `plannerDateFromSearch` to `app/planner-navigation.ts`, which is the module that owns the URL. Each moved function kept its tests, split into files that match their new homes.
-2. **The mascot out of `app/`.** Fourteen files to `src/mascot/`. They turned out to be self-contained: every outward import stayed valid at the same depth, so only `PlannerShell`'s one import changed.
-3. **Shared features out of `features/`.** `tasks` (6 consumers), `sessions` (2), and `journal-entry-store` (6) are used across pages, so they are in `shared/` now rather than sitting as siblings of the cards that happen to be near them.
-4. **Pages regrouped**, Money first and Dashboard last, as planned.
-5. **Consistent granularity.** Calendar, Skate and Guitar were still flat, Skate at 24 files. All three now have `cards/`, so every page follows one rule, and `shared/` was flattened so a single-concern module is a single file.
+Built the coverage matrix by scanning the tests rather than recalling them, which immediately corrected two of my own first-pass readings: the mascot is covered by seven browser files (my feature map had missed the link), and both viewports are covered nearly everywhere (the browser tests loop 1280×720 and 390×844).
+
+Three dimensions were genuinely at zero, and each is now a real regression test, each confirmed to fail when the behavior is deliberately broken:
+
+- **Server restart.** Nothing restarted the Python process, so every persistence test could have passed on a warm cache. `tests/persistence-restart.e2e.test.js` restarts against the same SQLite file.
+- **Backup export and import.** The decode rules had unit tests; nothing checked the buttons were wired to them. `tests/backup-tools.e2e.test.js` drives the real Export button and the real file input.
+- **The React↔Python record contract.** `tests/reminder-contract.e2e.test.js` creates a task through the form and runs the real Python reminder collector against the same database.
+
+The suite is 44 Python, 312 React/TypeScript across 57 files, and **45** browser tests, up from 42, with zero skips.
 
 ## Next Task
-**Session D — thorough feature verification**, in the plan below. Read "Remaining cross-page coupling" first: it is a list of real findings this restructure exposed, and deciding what to do about them is a design question, not a move.
+No planned session remains. The useful next pieces, in order of value:
+
+1. Verify the boundary-value coverage the matrix could only guess at, one feature at a time.
+2. Strengthen cross-feature synchronization coverage, starting at the five cross-page imports recorded in Session C, since that is where such a bug would live.
+3. Decide what to do about those five couplings and the `@/` path alias, both of which are design questions rather than moves.
 
 Do not merge into `main` until the user explicitly approves the merge. Nothing has been pushed yet.
 
@@ -461,22 +469,94 @@ Nesting pages two levels deep means imports like
 session: it changes build configuration and every import line at once, which is
 not a move, and it should be judged on its own.
 
-### Session D — thorough feature verification
+### Session D — thorough feature verification — PARTLY DONE (Session 83)
 
-The user asked for every feature to be tested thoroughly, end to end included.
+Steps 1 and 4 are done, step 2 is done for the gaps the matrix proved, and step
+3 is done except where noted. See "Coverage matrix" below.
 
-1. **Build a coverage matrix** of feature against test type: happy path, empty
-   and missing data, invalid and malformed input, boundary values, create, edit,
-   delete, reload, restart, cross-feature synchronization, desktop layout, phone
-   layout, and console cleanliness. Fill it from the existing tests rather than
-   from memory.
-2. **Fill the gaps it exposes**, writing the missing cases as real behavior
-   assertions, not smoke tests.
-3. **Full end-to-end sweep** on the production build: every primary page at both
-   viewports, create/edit/delete through the UI for each feature that supports
-   it, reload and server restart persistence, backup export and import, reminder
-   scheduling, and legacy-shaped stored data.
-4. Record the matrix in this file so later sessions inherit it.
+## Coverage matrix
+
+Built by scanning each feature's own unit tests and browser tests for evidence
+of each kind of check, never from memory. The generator is
+`matrix.py` in the Session 83 scratchpad; it is ~90 lines and reproducible from
+this description: map each feature to its source directory and browser test
+files, then count regex signals per category.
+
+**Read the cells as signals, not proof.** A hit means the words appear in that
+feature's tests. Every finding below was re-read by hand before being recorded,
+and two of the first-pass readings were wrong:
+
+- "mascot has no browser coverage" was a mapping error of mine. It appears in
+  seven browser test files.
+- "phone layout barely covered" was wrong: the browser tests loop
+  `[[1280, 720], [390, 844]]`, so both viewports are covered nearly everywhere.
+
+What the matrix proved, by column, across all 37 features:
+
+| Dimension | State |
+| --- | --- |
+| happy path, empty/missing, invalid | covered everywhere |
+| create / edit / delete | covered wherever the feature supports it |
+| reload | covered everywhere |
+| desktop + phone layout | covered everywhere (1280×720 and 390×844) |
+| console clean | covered everywhere (`browser.errors()` asserted) |
+| legacy-shaped stored data | real, not just the word: tests seed unknown fields such as `legacyRootField` and assert they survive |
+| **restart** | **was zero everywhere — filled this session** |
+| **backup export/import** | **was zero in the browser — filled this session** |
+| **React↔Python record contract** | **was zero — filled this session** |
+| boundary values | present for about half the cards; the rest is signal-level and unverified |
+| cross-feature sync | thin outside tasks, insight, the calendar event editor and the session flows |
+
+### What was filled
+
+- `tests/persistence-restart.e2e.test.js` — everything else only proved data
+  survives a page reload, which a warm in-memory cache would also pass. This
+  restarts the Python process against the same SQLite file and checks a task
+  created through the real form, plus two keys written through the API,
+  including an unknown legacy field. `planner-server.js` gained a `restart()`
+  that keeps the port and database and respawns the process.
+- `tests/backup-tools.e2e.test.js` — the decode rules had unit tests but nothing
+  checked the two buttons were wired to them. Drives the real Export button with
+  the download intercepted, and the real file input for import, asserting the
+  payload shape, the transient-key exclusion, that the import reaches SQLite and
+  survives a reload, and that a non-JSON file is refused without destroying
+  anything.
+- `tests/reminder-contract.e2e.test.js` — creates a task through the form, then
+  runs the real Python collector against the same database. This is the seam
+  that had no test at all.
+
+Each of the three was mutation-checked: the behavior was deliberately broken and
+each test was confirmed to fail with its own assertion message before being
+kept.
+
+### Measured, and worth knowing
+
+- **The two suites could not see each other.** Renaming the serialized
+  `reminderMinutes` field leaves the entire Python suite green, because nothing
+  on that side ever reads React's real output. The React suite pins what it
+  writes and the Python suite pins what it reads; nothing pinned that the two
+  describe the same record. That is now `reminder-contract.e2e.test.js`.
+- **The export-side foreign-key filter is unreachable in practice.** The server
+  rejects any key outside the `hivePlanner.` prefix, so a foreign key cannot be
+  in the store to be exported. The filter is defence in depth and is covered by
+  unit tests; the import side takes an arbitrary file, so that half is reachable
+  and is asserted.
+- A task is normalized on load (`sourceEventId`, `useSourceEventReminder` gain
+  defaults), so an exported task is the normalized record, not the bytes seeded.
+
+### Still open
+
+- **Boundary values** for roughly half the cards are signal-level only. The
+  honest next step is to read those tests one feature at a time rather than
+  trust the count.
+- **Cross-feature synchronization** is thin outside the four areas named above,
+  and the five cross-page imports recorded in Session C are exactly where a
+  synchronization bug would live.
+- Step 3's sweep is otherwise complete. No live pass was run this session and
+  none was needed: the session changed only tests and the test fixture, no
+  production source at all, and the built stylesheet hash was unchanged. The
+  Session 82 live pass over all six pages at both viewports therefore still
+  describes this build.
 
 ### Deferred decision — scoped CSS
 
@@ -693,17 +773,13 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - The direct shell's Sprouty surface now sends grounded task, insight, journal, planning, activity, day-state, Money, and Skate context; restores state-aware quick prompts; handles server failure with evidence-based local answers; appends question-aware action suggestions; and preserves pointer-follow, drag persistence, click suppression, and mobile motion behavior. Shared-shell Sprouty parity is complete.
 - The React visual regression test skips when Chrome or `frontend-react` dependencies are unavailable, matching the existing browser-test prerequisite policy.
 - Browser-capable root Node test files run serially to avoid Chrome/Vite startup timeouts under parallel process saturation.
+- The suite is now 44 Python, 312 React/TypeScript across 57 files, and 45 browser tests, zero skips. The browser count rose from 42 when Session 83 added the restart, backup, and reminder-contract tests.
+- The Python and React suites cannot see each other. Each pins its own half of a shared record and nothing but `tests/reminder-contract.e2e.test.js` pins that the halves agree; renaming a serialized field leaves the entire Python suite green.
+- Boundary-value coverage for about half the cards is signal-level and unverified, and cross-feature synchronization is thin outside tasks, insight, the calendar event editor, and the session flows.
 - The Session 80 complete run passed 44 Python tests, 312 React/TypeScript tests across 55 files, lint, strict typecheck, the production build, and all 42 root browser tests, with the built stylesheet hash unchanged from the session baseline. The count dropped from 43 because the duplicate legacy budgets interaction test was merged into the React one. Treat any repeated failure as actionable rather than accepting it as a combined-run flake.
 - No browser file starts the legacy frontend or the Vite dev server; all 42 root browser tests run against the production React build. The fixture no longer has a frontend-mode option and `tests/helpers/react-preview-server.js` is deleted.
 
 ## Session Log
-
-### Session 80
-
-- Completed Phase 6. Consolidated the four leading-time parsers and the two `formatTimer` copies into `shared/planner-time.ts` with 12 unit tests, after characterizing each group: the parsers agreed on all 24 string inputs and diverged only on numeric input, so each caller keeps its own coercion, and the two formatters matched across all 43,201 finite second values checked.
-- Gave the five genuinely unlabelled form controls an accessible name and an id, and confirmed in Chrome's accessibility tree that the names resolve. Two of the seven flagged controls were false positives, and the task hours input and form selects turned out to be correctly labelled already; the browser pane's rendering of combobox names had made them look otherwise. Corrected the recorded figure.
-- Audited the live database against the React key prefixes: eight legacy-only key families remain, all inactive in the legacy app too, and `BackupTools.test.ts` now pins a round trip over those exact key names. Found and recorded the trap that dead `coach-*` and `goal-card-*` styling does not mean the matching storage keys are dead, because the Skate feedback dialog and the Calendar event editor still read them.
-- Verification: 44 Python tests, 312 React/TypeScript tests across 55 files, lint, strict typecheck, production build, all 42 browser tests with zero skips, the built stylesheet hash unchanged from the session baseline, and a live six-page pass at desktop and 375px with no console errors and every request returning 200.
 
 ### Session 81
 
@@ -724,6 +800,15 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Investigated a typecheck that reported exit 1 with no diagnostics instead of re-running it. The cause was my own shell: `ls pages/*/ -d` failed on `-d` as a filename and broke the `&&` chain, so typecheck never ran and `$?` reported the failed `ls`. Not flaky, and nothing wrong with the code.
 - Recorded rather than forced: five cross-page imports and ten mascot-to-page imports. The restructure exposed them, it did not create them, and fixing the first four means splitting a store out of its card, which is a logic change and needs its own step. The mascot's reach across pages is accepted by design, written down so it is not mistaken for an oversight later. A `@/` path alias is deferred for the same reason: it is not a move.
 - Verification: 44 Python tests, 312 React/TypeScript tests across 57 files, lint, strict typecheck, production build, and all 42 browser tests with zero skips, plus a live pass over all six pages at desktop and 375px with no console errors and every request returning 200. The stylesheet hash and even the published asset name were unchanged from the session baseline, which is the proof that a restructure of 186 source files changed nothing the user can see.
+
+### Session 83
+
+- Ran Session D. Built the coverage matrix from the tests themselves with a throwaway scanner rather than from memory, and treated its output as signals to verify rather than findings. That caught two wrong readings of my own before they reached this file: the mascot is covered by seven browser files, and both viewports are covered nearly everywhere.
+- Filled the three dimensions that were genuinely at zero, each with a test that asserts behavior rather than that a page loads: a server restart against the same SQLite file, backup export and import driven through the real button and the real file input, and the React-to-Python record contract.
+- Mutation-checked all three rather than trusting a green run: pointed the restart at a fresh database, emptied the transient-key exclusion, and renamed the field the collector reads. Each test failed with its own assertion message, then passed again once the code was restored.
+- Checked a claim I had written into a test comment instead of leaving it asserted. The claim was that a field rename would leave both suites green; the mutation showed the React suite catches an inconsistency introduced inside React. The accurate and more useful finding is that the Python suite stays green regardless, because it never sees React's real output, so a rename carried through the React side and its own expectations would break every reminder silently. The comment now says that.
+- Found while writing the backup test that the export-side foreign-key filter is unreachable through the real store, because the server refuses any key outside the `hivePlanner.` prefix. Recorded it as defence in depth rather than deleting the filter or pretending the test covers it.
+- Verification: 44 Python tests, 312 React/TypeScript tests across 57 files, lint, strict typecheck, production build, and 45 browser tests with zero skips. The built stylesheet hash was unchanged. No live pass was run and none was needed: the session changed only tests and the test fixture, no production source.
 
 ---
 

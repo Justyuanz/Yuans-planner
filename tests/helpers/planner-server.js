@@ -83,11 +83,8 @@ function waitForProcessExit(processHandle) {
   });
 }
 
-async function startPlannerServer() {
-  const port = await reservePort();
-  const temporaryDirectory = await mkdtemp(path.join(tmpdir(), "yuan-planner-e2e-"));
-  const databasePath = path.join(temporaryDirectory, "planner.db");
-  const processHandle = spawn(process.env.PYTHON_BIN || "python3", ["backend/app.py"], {
+function spawnPlannerProcess(port, databasePath) {
+  return spawn(process.env.PYTHON_BIN || "python3", ["backend/app.py"], {
     cwd: PROJECT_ROOT,
     env: {
       ...process.env,
@@ -98,13 +95,30 @@ async function startPlannerServer() {
     },
     stdio: "ignore"
   });
+}
+
+async function waitForPlannerReady(url) {
+  await waitFor(async function () {
+    const payload = await requestJson(`${url}/api/kv`);
+    return payload && payload.data ? payload : null;
+  });
+}
+
+async function stopPlannerProcess(processHandle) {
+  // SIGINT lets the local server stop its reminder thread cleanly.
+  processHandle.kill("SIGINT");
+  await waitForProcessExit(processHandle);
+}
+
+async function startPlannerServer() {
+  const port = await reservePort();
+  const temporaryDirectory = await mkdtemp(path.join(tmpdir(), "yuan-planner-e2e-"));
+  const databasePath = path.join(temporaryDirectory, "planner.db");
+  let processHandle = spawnPlannerProcess(port, databasePath);
   const url = `http://127.0.0.1:${port}`;
 
   try {
-    await waitFor(async function () {
-      const payload = await requestJson(`${url}/api/kv`);
-      return payload && payload.data ? payload : null;
-    });
+    await waitForPlannerReady(url);
   } catch (error) {
     processHandle.kill("SIGTERM");
     await waitForProcessExit(processHandle);
@@ -114,15 +128,22 @@ async function startPlannerServer() {
 
   return {
     url,
+    databasePath,
     waitFor,
     async readPlannerData() {
       const payload = await requestJson(`${url}/api/kv`);
       return payload.data;
     },
+    // Stops the Python process and starts a fresh one on the same port against
+    // the same SQLite file, so a test can prove data outlives the process
+    // rather than only the page.
+    async restart() {
+      await stopPlannerProcess(processHandle);
+      processHandle = spawnPlannerProcess(port, databasePath);
+      await waitForPlannerReady(url);
+    },
     async close() {
-      // SIGINT lets the local server stop its reminder thread cleanly.
-      processHandle.kill("SIGINT");
-      await waitForProcessExit(processHandle);
+      await stopPlannerProcess(processHandle);
       await rm(temporaryDirectory, { recursive: true, force: true });
     }
   };
