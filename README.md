@@ -7,23 +7,7 @@
 Tasks, money, journal, calendar and practice tracking, all in one place.
 This is a hobby project with AI assistance. I built it for myself, and I use it every day.
 
-![React](https://img.shields.io/badge/React-19-61dafb?logo=react&logoColor=white)
-![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white)
-![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab?logo=python&logoColor=white)
-![SQLite](https://img.shields.io/badge/SQLite-003b57?logo=sqlite&logoColor=white)
-
-<br />
-
-<table>
-<tr>
-<td width="50%"><img src="docs/images/dashboard.jpg" alt="Weekly goals and a life pie of where the hours went" /></td>
-<td width="50%"><img src="docs/images/dashboard-tasks.jpg" alt="Today's intention and the day's tasks with timers" /></td>
-</tr>
-</table>
-
 </div>
-
-<br />
 
 ## Why I built it
 
@@ -36,7 +20,19 @@ out, and how the days actually went.
 It has made a real difference to how I live. My weeks have far more structure
 now, and I can see what I actually did with them instead of guessing.
 
-I host it myself. There is no public demo, since it holds my real data.
+I host it myself. There is no public demo, since it holds real data.
+
+<br />
+
+<table>
+<tr>
+<td width="50%"><img src="docs/images/dashboard.jpg" alt="Weekly goals and a life pie of where the hours went" /></td>
+<td width="50%"><img src="docs/images/dashboard-tasks.jpg" alt="Today's intention and the day's tasks with timers" /></td>
+</tr>
+</table>
+
+
+<br />
 
 ## What's inside
 
