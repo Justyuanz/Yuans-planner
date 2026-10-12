@@ -2,11 +2,10 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const { startBrowserPlanner } = require("./helpers/browser-planner");
-const { compareScreenshots } = require("./helpers/png-compare");
-const { startReactPreviewServer } = require("./helpers/react-preview-server");
 
 const TEST_DATE = "2026-09-17";
 const TASKS_KEY = `hivePlanner.dailyTasks.${TEST_DATE}`;
+const FONT_FAMILY = 'ui-rounded, "SF Pro Rounded", Nunito, "Avenir Next", -apple-system, "system-ui", "Segoe UI", system-ui, sans-serif';
 
 async function putStoredValue(serverUrl, key, value) {
   const response = await fetch(`${serverUrl}/api/kv`, {
@@ -73,45 +72,64 @@ function progressVisualContract(documentExpression = "document") {
   })()`;
 }
 
-function bannerClip(documentExpression = "document", frameExpression = "null") {
-  return `(() => {
-    const documentRoot = ${documentExpression};
-    const rect = documentRoot.querySelector(".day-banner").getBoundingClientRect();
-    const frame = ${frameExpression};
-    const frameRect = frame ? frame.getBoundingClientRect() : { x: 0, y: 0 };
-    return {
-      x: frameRect.x + rect.x + (frame ? 0 : documentRoot.defaultView.scrollX),
-      y: frameRect.y + rect.y + (frame ? 0 : documentRoot.defaultView.scrollY),
-      width: rect.width,
-      height: rect.height
-    };
-  })()`;
-}
-
-async function scrollToProgress(browser, documentExpression = "document") {
-  await browser.evaluate(`(() => {
-    const documentRoot = ${documentExpression};
-    const mascot = documentRoot.querySelector(".mascot-card");
-    documentRoot.documentElement.style.scrollBehavior = "auto";
-    if (mascot) {
-      mascot.style.visibility = "hidden";
+function expectedProgressVisual(bannerWidth, bannerHeight) {
+  const shared = {
+    color: "rgb(79, 136, 133)",
+    fontFamily: FONT_FAMILY,
+    fontSize: "16px",
+    fontWeight: "560",
+    lineHeight: "23.2px"
+  };
+  return {
+    banner: {
+      alignItems: "center",
+      background: "rgba(0, 0, 0, 0) linear-gradient(90deg, rgb(231, 251, 255), rgb(245, 246, 214)) repeat scroll 0% 0% / auto padding-box border-box",
+      border: "1px solid rgba(79, 136, 133, 0.13)",
+      borderRadius: "15px",
+      ...shared,
+      display: "flex",
+      flexWrap: "wrap",
+      gap: "10px",
+      height: bannerHeight,
+      justifyContent: "space-between",
+      margin: "0px 0px 14px",
+      minHeight: "0px",
+      padding: "10px 12px",
+      width: bannerWidth
+    },
+    message: {
+      alignItems: "normal",
+      background: "rgba(0, 0, 0, 0) none repeat scroll 0% 0% / auto padding-box border-box",
+      border: "0px none rgb(79, 136, 133)",
+      borderRadius: "0px",
+      ...shared,
+      display: "block",
+      flexWrap: "nowrap",
+      gap: "normal",
+      height: 23.1875,
+      justifyContent: "normal",
+      margin: "0px",
+      minHeight: "auto",
+      padding: "0px",
+      width: 279.640625
+    },
+    progress: {
+      alignItems: "center",
+      background: "rgba(255, 255, 255, 0.74) none repeat scroll 0% 0% / auto padding-box border-box",
+      border: "0px none rgb(79, 136, 133)",
+      borderRadius: "999px",
+      ...shared,
+      display: "flex",
+      flexWrap: "nowrap",
+      gap: "normal",
+      height: 35.1875,
+      justifyContent: "normal",
+      margin: "0px",
+      minHeight: "34px",
+      padding: "6px 11px",
+      width: 185.546875
     }
-    documentRoot.querySelector(".day-banner").scrollIntoView({ block: "center" });
-  })()`);
-  await browser.waitForExpression(`(() => {
-    const documentRoot = ${documentExpression};
-    const rect = documentRoot.querySelector(".day-banner").getBoundingClientRect();
-    return rect.top >= 0 && rect.bottom <= documentRoot.defaultView.innerHeight;
-  })()`);
-  await browser.evaluate(`new Promise((resolve) => {
-    const view = (${documentExpression}).defaultView;
-    view.requestAnimationFrame(() => view.requestAnimationFrame(resolve));
-  })`);
-}
-
-function assertSameScreenshot(actual, expected, label) {
-  const comparison = compareScreenshots(actual, expected);
-  assert.equal(comparison.matches, true, `${label}: ${JSON.stringify(comparison)}`);
+  };
 }
 
 const STORED_TASKS = [
@@ -123,20 +141,20 @@ const STORED_TASKS = [
 ];
 
 test("task progress preserves filtering, completion updates, and reload behavior", { timeout: 60_000 }, async function (context) {
-  const planner = await startBrowserPlanner(context);
+  const planner = await startBrowserPlanner(context, { frontendMode: "react" });
   if (!planner) {
     return;
   }
 
   await planner.browser.setViewport(1280, 720);
-  await openPlanner(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
+  await openPlanner(planner.browser, `${planner.server.url}/?view=todayView&date=${TEST_DATE}`);
   assert.deepEqual(await planner.browser.evaluate(progressState()), {
     message: "Tasks from your calendar and planner.",
     progress: "0 / 0 tasks done today"
   });
 
   await putStoredValue(planner.server.url, TASKS_KEY, STORED_TASKS);
-  await openPlanner(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
+  await openPlanner(planner.browser, `${planner.server.url}/?view=todayView&date=${TEST_DATE}`);
   assert.deepEqual(await planner.browser.evaluate(progressState()), {
     message: "Tasks from your calendar and planner.",
     progress: "2 / 3 tasks done today"
@@ -158,74 +176,34 @@ test("task progress preserves filtering, completion updates, and reload behavior
   assert.deepEqual(planner.browser.errors(), []);
 });
 
-test("task progress records the legacy desktop and mobile visual contract", { timeout: 60_000 }, async function (context) {
-  const planner = await startBrowserPlanner(context);
+test("task progress preserves its desktop and mobile visual contract", { timeout: 60_000 }, async function (context) {
+  const planner = await startBrowserPlanner(context, { frontendMode: "react" });
   if (!planner) {
     return;
   }
   await putStoredValue(planner.server.url, TASKS_KEY, STORED_TASKS.slice(0, 3));
-  const preview = await startReactPreviewServer(planner.server.url);
-  if (!preview) {
-    context.skip("Install frontend-react dependencies to run React visual regression tests.");
-    return;
-  }
-  context.after(async function () {
-    await preview.close();
-  });
 
   await planner.browser.setViewport(1280, 720);
-  await openPlanner(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
-  const legacyDesktopState = await planner.browser.evaluate(progressState());
-  const legacyDesktop = await planner.browser.evaluate(progressVisualContract());
-  await scrollToProgress(planner.browser);
-  const legacyDesktopScreenshot = await planner.browser.captureScreenshot(bannerClip());
-  assert.deepEqual({
-    bannerWidth: legacyDesktop.banner.width,
-    bannerHeight: legacyDesktop.banner.height,
-    progressWidth: legacyDesktop.progress.width,
-    progressHeight: legacyDesktop.progress.height
-  }, {
-    bannerWidth: 892,
-    bannerHeight: 57.1875,
-    progressWidth: 185.546875,
-    progressHeight: 35.1875
+  await openPlanner(planner.browser, `${planner.server.url}/?view=todayView&date=${TEST_DATE}`);
+  assert.deepEqual(await planner.browser.evaluate(progressState()), {
+    message: "Tasks from your calendar and planner.",
+    progress: "2 / 3 tasks done today"
   });
-
-  await openPlanner(planner.browser, `${preview.url}/?view=todayView&date=${TEST_DATE}`);
-  const previewDesktopState = await planner.browser.evaluate(progressState());
-  const previewDesktop = await planner.browser.evaluate(progressVisualContract());
-  await scrollToProgress(planner.browser);
-  const previewDesktopScreenshot = await planner.browser.captureScreenshot(bannerClip());
-  assert.deepEqual(previewDesktopState, legacyDesktopState);
-  assert.deepEqual(previewDesktop, legacyDesktop);
-  assertSameScreenshot(previewDesktopScreenshot, legacyDesktopScreenshot, "desktop task-progress screenshot");
+  assert.deepEqual(
+    await planner.browser.evaluate(progressVisualContract()),
+    expectedProgressVisual(892, 57.1875)
+  );
 
   await planner.browser.setViewport(390, 844, true);
-  await openPlanner(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
-  const legacyMobileState = await planner.browser.evaluate(progressState());
-  const legacyMobile = await planner.browser.evaluate(progressVisualContract());
-  await scrollToProgress(planner.browser);
-  const legacyMobileScreenshot = await planner.browser.captureScreenshot(bannerClip());
-  assert.deepEqual({
-    bannerWidth: legacyMobile.banner.width,
-    bannerHeight: legacyMobile.banner.height,
-    progressWidth: legacyMobile.progress.width,
-    progressHeight: legacyMobile.progress.height
-  }, {
-    bannerWidth: 338,
-    bannerHeight: 90.375,
-    progressWidth: 185.546875,
-    progressHeight: 35.1875
+  await openPlanner(planner.browser, `${planner.server.url}/?view=todayView&date=${TEST_DATE}`);
+  assert.deepEqual(await planner.browser.evaluate(progressState()), {
+    message: "Tasks from your calendar and planner.",
+    progress: "2 / 3 tasks done today"
   });
-
-  await openPlanner(planner.browser, `${preview.url}/?view=todayView&date=${TEST_DATE}`);
-  const previewMobileState = await planner.browser.evaluate(progressState());
-  const previewMobile = await planner.browser.evaluate(progressVisualContract());
-  await scrollToProgress(planner.browser);
-  const previewMobileScreenshot = await planner.browser.captureScreenshot(bannerClip());
-  assert.deepEqual(previewMobileState, legacyMobileState);
-  assert.deepEqual(previewMobile, legacyMobile);
-  assertSameScreenshot(previewMobileScreenshot, legacyMobileScreenshot, "mobile task-progress screenshot");
+  assert.deepEqual(
+    await planner.browser.evaluate(progressVisualContract()),
+    expectedProgressVisual(338, 90.375)
+  );
 
   await planner.browser.evaluate(`(() => {
     const task = [...document.querySelectorAll(".task")]
