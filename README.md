@@ -14,9 +14,14 @@ I built it for myself, and I use it every day.
 
 <br />
 
-<img src="docs/images/dashboard.jpg" alt="The dashboard: weekly goals, a life pie of tracked hours, and today's tasks" width="900" />
+<table>
+<tr>
+<td width="50%"><img src="docs/images/dashboard.jpg" alt="Weekly goals and a life pie of where the hours went" /></td>
+<td width="50%"><img src="docs/images/dashboard-tasks.jpg" alt="Today's intention and the day's tasks with timers" /></td>
+</tr>
+</table>
 
-<sub>The dashboard: weekly goals, where the hours actually went, and today's tasks.</sub>
+<sub>The dashboard: weekly goals and where the hours actually went, next to today's focus.</sub>
 
 </div>
 
