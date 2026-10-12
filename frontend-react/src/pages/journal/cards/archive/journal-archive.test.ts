@@ -31,6 +31,35 @@ describe("Journal archive model", () => {
     });
   });
 
+  // The preview is cut at 132 characters. Every other case in this file is
+  // short enough to pass through untouched, so the cutting branch itself was
+  // never exercised.
+  it("cuts a long preview at the legacy length and keeps a short one whole", () => {
+    const justShort = "a".repeat(132);
+    const justLong = "a".repeat(133);
+
+    const [shortItem] = buildJournalArchive(
+      storeWithEntries([{ id: "short", date: SELECTED_DATE, content: justShort }]), SELECTED_DATE, ""
+    ).items;
+    expect(shortItem?.preview).toBe(justShort);
+
+    const [longItem] = buildJournalArchive(
+      storeWithEntries([{ id: "long", date: SELECTED_DATE, content: justLong }]), SELECTED_DATE, ""
+    ).items;
+    expect(longItem?.preview).toBe(`${"a".repeat(131)}\u2026`);
+    expect(longItem?.preview).toHaveLength(132);
+  });
+
+  // Trailing spaces are trimmed before the ellipsis, so the cut never leaves a
+  // gap in front of it.
+  it("trims the space before the ellipsis when the cut lands on one", () => {
+    const text = `${"b".repeat(130)} ccc`;
+    const [item] = buildJournalArchive(
+      storeWithEntries([{ id: "spaced", date: SELECTED_DATE, content: text }]), SELECTED_DATE, ""
+    ).items;
+    expect(item?.preview).toBe(`${"b".repeat(130)}\u2026`);
+  });
+
   it("normalizes entries and matches legacy ordering, labels, metadata, and previews", () => {
     const model = buildJournalArchive(storeWithEntries([
       { id: "older", date: "2026-09-13", content: "Cafe notes after class." },

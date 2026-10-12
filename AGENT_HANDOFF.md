@@ -209,29 +209,31 @@ Not started. Only begin once Phase 6 is finished and the complete suite is green
 - [x] make page naming consistent (Session 82)
 
 ## Current Task
-Phase 7 is complete through Session C, and Session D's verification work is mostly done. The coverage matrix exists, the three gaps it proved were filled with mutation-checked regression tests, and the matrix is recorded below so later sessions inherit it rather than rebuilding it.
+**The Sessions A-D plan is complete.** Migration, bug fixes, the stylesheet, the restructure, and the verification work are all done, and every item that was deferred along the way is recorded with its evidence.
 
-What remains is narrow and written down: boundary coverage for about half the cards is signal-level and unverified, and cross-feature synchronization is thin outside four areas.
+The suite is 44 Python tests, 316 React/TypeScript tests across 57 files, and 46 browser tests, with zero skips.
 
 ## Last Completed Task
-Session D — thorough feature verification.
+Session E — verified the two columns the Session D matrix could only guess at, one feature at a time, and filled what was genuinely missing.
 
-Built the coverage matrix by scanning the tests rather than recalling them, which immediately corrected two of my own first-pass readings: the mascot is covered by seven browser files (my feature map had missed the link), and both viewports are covered nearly everywhere (the browser tests loop 1280×720 and 390×844).
+Both columns turned out to be **largely false alarms of the keyword scan**, which is worth knowing before anyone trusts a matrix like that again. Boundaries were being exercised with concrete values in tests that never use the word "boundary"; cross-feature coupling was already covered at unit level, because each consumer's tests seed the other feature's stored data. Three of the eleven boundary-flagged features have no numeric input at all.
 
-Three dimensions were genuinely at zero, and each is now a real regression test, each confirmed to fail when the behavior is deliberately broken:
+Four real gaps came out of the verification and are now tested:
 
-- **Server restart.** Nothing restarted the Python process, so every persistence test could have passed on a warm cache. `tests/persistence-restart.e2e.test.js` restarts against the same SQLite file.
-- **Backup export and import.** The decode rules had unit tests; nothing checked the buttons were wired to them. `tests/backup-tools.e2e.test.js` drives the real Export button and the real file input.
-- **The React↔Python record contract.** `tests/reminder-contract.e2e.test.js` creates a task through the form and runs the real Python reminder collector against the same database.
+- the journal archive's 132-character preview cut, with the trim in front of the ellipsis;
+- the Skate hero's upper week clamp, past the end of the 21-week season;
+- the feedback scale's lower clamp and a zero duration;
+- the live cross-card path on the Dashboard: a spend logged in the Money quick card must move the insight card beside it with no reload and no synthetic storage event. Mutation-checked by freezing the insight model, which makes the test time out.
 
-The suite is 44 Python, 312 React/TypeScript across 57 files, and **45** browser tests, up from 42, with zero skips.
+One assumption was wrong and the code was right: the Skate hero's day count is not clamped alongside its week, because it is a stored setting the skater advances by hand. The test says so now.
 
 ## Next Task
-No planned session remains. The useful next pieces, in order of value:
+No planned work remains. What is left are decisions rather than tasks, both recorded with evidence in Session C:
 
-1. Verify the boundary-value coverage the matrix could only guess at, one feature at a time.
-2. Strengthen cross-feature synchronization coverage, starting at the five cross-page imports recorded in Session C, since that is where such a bug would live.
-3. Decide what to do about those five couplings and the `@/` path alias, both of which are design questions rather than moves.
+1. The five cross-page couplings — four are a card owning a store another page reads. Splitting each store out into `shared/` is a logic change, so it needs its own step and its own tests.
+2. The `@/` path alias, which would remove the four-deep relative imports but touches build configuration and every import line at once.
+
+Both change code without changing behavior, so they want your go-ahead on the shape before anyone starts.
 
 Do not merge into `main` until the user explicitly approves the merge. Nothing has been pushed yet.
 
@@ -544,19 +546,48 @@ kept.
 - A task is normalized on load (`sourceEventId`, `useSourceEventReminder` gain
   defaults), so an exported task is the normalized record, not the bytes seeded.
 
+### Closed in Session 84 — the two unverified columns
+
+Both remaining columns were verified one feature at a time, and **both were
+largely false alarms of the signal scan**. The word "boundary" or "clamp" simply
+does not appear in tests that exercise boundaries with concrete values.
+
+**Boundary values.** Of the eleven features flagged, three have no numeric input
+at all (day-state, intention, task-progress), so there is nothing to bound; that
+is a verified "not applicable", not a gap. Of the rest, the boundaries were
+already exercised: the calendar month's four-pill cap and its 20-character chip
+truncation, the energy trail's seven-day window, the Skate hero's
+before-the-season case, and the feedback scale coming down from 99 to 5 and up
+from a falsy answer to 3. Three real gaps were left and are now filled:
+
+- the journal archive's 132-character preview cut, including the trim that stops
+  a space sitting in front of the ellipsis;
+- the Skate hero's upper week clamp, past the end of the 21-week season;
+- the feedback scale's lower clamp and a zero duration.
+
+**Cross-feature synchronization.** Also mostly a false alarm: each consumer's
+unit tests already seed the other feature's stored data and assert the derived
+output, which is the coupling. What was genuinely untested is the *internal*
+live path. The existing browser sync tests fire a synthetic `StorageEvent`,
+which is the external path; nothing covered a real action in one card
+refreshing another card beside it through React state.
+
+`tests/dashboard-cross-card-sync.e2e.test.js` now does: a spend logged through
+the real Money quick form on the Dashboard must move the insight card next to
+it, which belongs to another page's feature, with no reload and no synthetic
+event, then reach SQLite and still agree after a reload. Mutation-checked by
+freezing the insight model on its first value, which makes the test time out
+instead of pass.
+
 ### Still open
 
-- **Boundary values** for roughly half the cards are signal-level only. The
-  honest next step is to read those tests one feature at a time rather than
-  trust the count.
-- **Cross-feature synchronization** is thin outside the four areas named above,
-  and the five cross-page imports recorded in Session C are exactly where a
-  synchronization bug would live.
-- Step 3's sweep is otherwise complete. No live pass was run this session and
-  none was needed: the session changed only tests and the test fixture, no
-  production source at all, and the built stylesheet hash was unchanged. The
-  Session 82 live pass over all six pages at both viewports therefore still
-  describes this build.
+- Nothing from the Sessions A-D plan. The remaining items are design decisions,
+  not work: the five cross-page couplings and the `@/` path alias, both recorded
+  in Session C with their evidence.
+- A note on method for whoever builds the next matrix: a keyword scan is a way
+  to find candidates, not a measurement. Four of its findings this time were
+  wrong, in both directions, and each one had to be read before it could be
+  believed.
 
 ### Deferred decision — scoped CSS
 
@@ -773,23 +804,13 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - The direct shell's Sprouty surface now sends grounded task, insight, journal, planning, activity, day-state, Money, and Skate context; restores state-aware quick prompts; handles server failure with evidence-based local answers; appends question-aware action suggestions; and preserves pointer-follow, drag persistence, click suppression, and mobile motion behavior. Shared-shell Sprouty parity is complete.
 - The React visual regression test skips when Chrome or `frontend-react` dependencies are unavailable, matching the existing browser-test prerequisite policy.
 - Browser-capable root Node test files run serially to avoid Chrome/Vite startup timeouts under parallel process saturation.
-- The suite is now 44 Python, 312 React/TypeScript across 57 files, and 45 browser tests, zero skips. The browser count rose from 42 when Session 83 added the restart, backup, and reminder-contract tests.
+- The suite is now 44 Python, 316 React/TypeScript across 57 files, and 46 browser tests, zero skips. The browser count rose from 42 across Sessions 83 and 84: the restart, backup, reminder-contract, and Dashboard cross-card tests.
 - The Python and React suites cannot see each other. Each pins its own half of a shared record and nothing but `tests/reminder-contract.e2e.test.js` pins that the halves agree; renaming a serialized field leaves the entire Python suite green.
-- Boundary-value coverage for about half the cards is signal-level and unverified, and cross-feature synchronization is thin outside tasks, insight, the calendar event editor, and the session flows.
+- Boundary and cross-feature coverage were verified feature by feature in Session 84; the gaps were four, and all four are now tested. The scan that flagged them was wrong in both directions, so treat a keyword matrix as a way to find candidates, never as a measurement.
 - The Session 80 complete run passed 44 Python tests, 312 React/TypeScript tests across 55 files, lint, strict typecheck, the production build, and all 42 root browser tests, with the built stylesheet hash unchanged from the session baseline. The count dropped from 43 because the duplicate legacy budgets interaction test was merged into the React one. Treat any repeated failure as actionable rather than accepting it as a combined-run flake.
 - No browser file starts the legacy frontend or the Vite dev server; all 42 root browser tests run against the production React build. The fixture no longer has a frontend-mode option and `tests/helpers/react-preview-server.js` is deleted.
 
 ## Session Log
-
-### Session 81
-
-- Started Phase 7 with Session B, the stylesheet. Removed 93 dead class names (166 whole rules, 11 trimmed selector lists), taking `src/styles` from 5,677 to 4,596 lines and the built stylesheet from 81,766 to 67,615 bytes. Verified by diffing the built output rather than by eye: exactly 93 class names gone, none added, none still referenced, and a re-audit reporting zero dead.
-- Corrected the recorded dead-class figure from 107 to 93. The gap is the dynamic `className` sites: of the 23 that build a class from data, only `intensity-${...}` is a true prefix concatenation, and its generated names are live. Checking them first is what kept 14 live classes from being deleted.
-- Folded the 45-line `coach.css` remainder into the adjacent `skate-guitar.css` and extracted the `:root` variables into a first-imported `tokens.css`, each gated on the built stylesheet coming out byte-identical, which proves neither move changed anything.
-- Treated my own id audit as suspect when its result looked wrong: 41 "unreferenced ids" were 40 hex colour fragments matched by a sloppy regex plus one real dead selector. Only `#studyOverview` was removed, and its 15 bytes account exactly for the difference between the post-prune and final builds.
-- Documented the cascade contract in the `planner.css` header, then found while writing it that the rule I had just written was false. Measured instead: 17 selectors are styled in two surface parts each and 5 conflict, so import order alone resolves them. Rewrote the comment to describe the real constraint and recorded the table under "Cross-surface CSS overlap"; it is the governing constraint on Session C's file moves.
-- Deferred step 4 of the Session B plan, co-locating each part with its page, to Session C with its reason written down: it would move the same files twice and the clarity win depends on the page directories Session C creates.
-- Verification: 44 Python tests, 312 React/TypeScript tests across 55 files, lint, strict typecheck, production build, and all 42 browser tests with zero skips, plus a live six-page pass at desktop and 375px with no console errors and every request returning 200. The pinned computed-style, geometry, and render-signature contracts all held against the smaller stylesheet, which is the gate that replaces the byte-identical check when rules are deliberately deleted.
 
 ### Session 82
 
@@ -809,6 +830,14 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Checked a claim I had written into a test comment instead of leaving it asserted. The claim was that a field rename would leave both suites green; the mutation showed the React suite catches an inconsistency introduced inside React. The accurate and more useful finding is that the Python suite stays green regardless, because it never sees React's real output, so a rename carried through the React side and its own expectations would break every reminder silently. The comment now says that.
 - Found while writing the backup test that the export-side foreign-key filter is unreachable through the real store, because the server refuses any key outside the `hivePlanner.` prefix. Recorded it as defence in depth rather than deleting the filter or pretending the test covers it.
 - Verification: 44 Python tests, 312 React/TypeScript tests across 57 files, lint, strict typecheck, production build, and 45 browser tests with zero skips. The built stylesheet hash was unchanged. No live pass was run and none was needed: the session changed only tests and the test fixture, no production source.
+
+### Session 84
+
+- Verified the two coverage columns Session 83 had left as signals, one feature at a time, rather than trusting or repeating the scan. Both were largely false alarms: boundaries are exercised with concrete values in tests that never use the word, and cross-feature coupling is already covered at unit level because each consumer's tests seed the other feature's stored data. Three of the eleven flagged features have no numeric input at all, so they are a verified "not applicable".
+- Filled the four real gaps the verification found: the journal archive's 132-character preview cut including the trim before the ellipsis, the Skate hero's upper week clamp past the end of the season, the feedback scale's lower clamp with a zero duration, and the live cross-card path on the Dashboard.
+- The Dashboard test is the one that needed a new idea. Every existing sync test fires a synthetic `StorageEvent`, which is the external path; nothing covered a real action in one card refreshing a card beside it through React state. It logs a spend through the real Money quick form and waits for the insight card, which belongs to another page's feature, to change before any reload. Mutation-checked by freezing the insight model on its first value, which makes the test time out rather than pass.
+- Dropped an assumption when the code disagreed with it. I expected the Skate hero's day count to clamp to 60 alongside the week; it reports 1, because the SkateIQ day is a stored setting the skater advances by hand rather than a date-derived value. The code was right, the test now states the distinction.
+- Verification: 44 Python tests, 316 React/TypeScript tests across 57 files, lint, strict typecheck, production build, and 46 browser tests with zero skips, stylesheet hash unchanged. No production source changed; the only non-test edit was reverted after its mutation check.
 
 ---
 

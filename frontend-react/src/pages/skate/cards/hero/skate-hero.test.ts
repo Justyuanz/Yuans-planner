@@ -97,4 +97,16 @@ describe("Skate hero model", () => {
       weekCount: "1 / 21"
     }));
   });
+
+  // The week is derived from the date and clamped to the 21-week season that
+  // starts on 29 Aug 2026. The test above covers a date before the season; this
+  // covers one past the end of it. The SkateIQ day is deliberately not clamped
+  // alongside it: it is a stored setting the skater advances by hand, so it
+  // stays where they left it however much time passes.
+  it("holds at the last week past the end of the season, leaving the stored day alone", () => {
+    const state = buildSkateHeroState({}, new Date(2027, 9, 3, 12));
+
+    expect(state.weekCount).toBe("21 / 21");
+    expect(state.dayCount).toBe("1 / 60");
+  });
 });

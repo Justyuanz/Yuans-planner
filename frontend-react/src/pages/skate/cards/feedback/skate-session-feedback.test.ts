@@ -248,4 +248,32 @@ describe("buildSkateSessionSave", () => {
       timerSeconds: 2700
     })]);
   });
+
+  // The two scale answers are stored 1-5. The retroactive test above covers a
+  // falsy answer defaulting to 3 and a far-too-high one coming down to 5; a
+  // negative answer is the remaining edge, and a duration of zero must not
+  // store a zero-length session.
+  it("holds the scale answers and the duration inside their stored range", () => {
+    const result = buildSkateSessionSave({}, {
+      confidence: -4,
+      dateKey: TODAY_KEY,
+      durationMinutes: 0,
+      improvedNote: "",
+      intensity: "blue",
+      nextFocusNote: "",
+      progressToday: 5.6
+    }, {
+      hero,
+      nowIso: "2026-09-14T18:00:00.000Z",
+      sessionId: "clamped",
+      sessionStartedAt: "2026-09-14T17:00:00.000Z",
+      todayKey: TODAY_KEY
+    });
+
+    expect(result.savedSession).toMatchObject({
+      confidence: 1,
+      progressToday: 5
+    });
+    expect(result.savedSession.durationHours).toBeGreaterThan(0);
+  });
 });
