@@ -5,7 +5,7 @@
 **A soft little map for the shape of your day.**
 
 Tasks, money, journal, calendar and practice tracking, all in one place.
-I built it for myself, and I use it every day.
+This is a hobby project with AI assistance. I built it for myself, and I use it every day.
 
 ![React](https://img.shields.io/badge/React-19-61dafb?logo=react&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white)
@@ -24,8 +24,8 @@ I built it for myself, and I use it every day.
 
 ## Why I built it
 
-I was always busy, and somehow still reached the end of the week with little to
-show for it. I never really knew where my time had gone, or my money.
+I was always feeling busy, and somehow still reached the end of the week with little to
+show for it. I never really knew where my time had gone, nor my money.
 
 So I built something that shows me both: the hours going in, the money going
 out, and how the days actually went.
