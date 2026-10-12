@@ -181,13 +181,13 @@ For each feature:
 - [ ] remove legacy implementation only after tests pass
 
 ## Current Task
-Phase 3 and the production-serving cutover are complete. Phase 4 is now in browser-reference retirement. All former Node/CommonJS unit-test dependencies on `frontend/js/` have been replaced by strict React/TypeScript production boundaries and tests, and the focused Dashboard browser-reference group is complete. Twenty-four browser files still start the legacy-mode server, although several use it only as an API host; convert those fixtures incrementally until `frontend/` and its compatibility server support can be deleted.
+Phase 3 and the production-serving cutover are complete. Phase 4 is now in browser-reference retirement. All former Node/CommonJS unit-test dependencies on `frontend/js/` have been replaced by strict React/TypeScript production boundaries and tests, and the focused Dashboard and Calendar browser-reference groups are complete. Twenty browser files still start the legacy-mode server, although several use it only as an API host; convert those fixtures incrementally until `frontend/` and its compatibility server support can be deleted.
 
 ## Last Completed Task
-Retired the remaining five focused Dashboard browser dependencies from the standalone legacy frontend. Day State, Pattern Noticed, Pattern History, Energy Trail, and Planned vs Actual now run against the production React server with pinned legacy-derived desktop/mobile text, computed-style, and geometry contracts while retaining empty/populated states, interaction routing, same-window synchronization, compatibility writes, persistence, and reload behavior in `220c05a`, `44481e5`, `31911cb`, `59b0138`, and `bbff77b`. All 15 Dashboard browser checks and the complete repository suite pass.
+Retired all four Calendar browser dependencies from the standalone legacy frontend. Calendar month, Calendar week, the event editor, and the direct Calendar page now run against the production React server with pinned legacy-derived desktop/mobile state, computed-style, geometry, and full-page rendered-image contracts while retaining navigation, keyboard selection, setup validation, CRUD, task synchronization, compatibility writes, persistence, reload, routing, and clean-console behavior in `9b17281`, `8155684`, `84c96e2`, `8ee1212`, and `0a20492`. All four Calendar browser checks and the complete repository suite pass.
 
 ## Next Task
-Convert the Calendar browser-reference group next: `calendar-month.e2e.test.js`, `calendar-week.e2e.test.js`, `calendar-event-editor.e2e.test.js`, and `react-calendar-page.e2e.test.js`. Keep the focused behavior, persistence, desktop/mobile computed-style, and geometry assertions against the production React server while retaining rendered screenshot coverage at the direct full-page boundary. Then convert Money, Journal, shared Dashboard/task page boundaries, Guitar, and Skate. Remove `/legacy/`, `/js/`, legacy server mode, Docker legacy copies, and `frontend/` only after no browser fixture starts or loads the standalone application.
+Convert the Money browser-reference group next: `money-overview.e2e.test.js`, `money-quick.e2e.test.js`, `money-budgets.e2e.test.js`, `money-pacing.e2e.test.js`, `money-recent-activity.e2e.test.js`, `money-vendors.e2e.test.js`, and `react-money-page.e2e.test.js`. Keep the focused behavior, synchronization, persistence, desktop/mobile computed-style, and geometry assertions against the production React server while retaining rendered screenshot coverage at the direct full-page boundary. Then convert Journal, shared Dashboard/task page boundaries, Guitar, and Skate. Remove `/legacy/`, `/js/`, legacy server mode, Docker legacy copies, and `frontend/` only after no browser fixture starts or loads the standalone application.
 
 ## Upstream Legacy Change — Activity Categories (2026-10-05)
 
@@ -285,6 +285,7 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Visual regression coverage must compare the legacy and React versions at identical desktop and mobile viewports, including computed styles/geometry and a rendered screenshot where stable.
 - Once a focused component has already matched the standalone page, its browser regression may retire the live legacy dependency by pinning that verified text, computed-style, and geometry contract and running interactions against the production React server. Rendered screenshot coverage remains at the corresponding direct full-page boundary so removing a duplicate component screenshot does not remove screen-level visual protection.
 - Screenshot comparisons decode Chrome PNG pixels and allow at most 1% of pixels to differ by more than eight channel values; exact DOM content and computed style/geometry comparisons remain mandatory so minor cross-frame antialiasing does not create false failures.
+- A direct full-page test may retire its live legacy screenshot only after the match is established and a pinned rendered-image signature replaces it. The signature averages an 8×8 grid of RGB tiles and permits at most 5% of tiles to differ by more than eight channel values, while separate DOM and geometry contracts continue to catch localized structural drift.
 - The legacy document publishes `data-planner-ready="true"` only after asynchronous hydration, rendering, event binding, and initial-view selection finish. Browser visual helpers wait for this marker before scrolling, so a late `setActiveView` cannot reset capture position; card-only screenshots hide the unrelated animated mascot with `visibility: hidden` while preserving layout.
 - New code must be split into small, clear, single-responsibility modules with short focused functions and short explanatory comments for non-obvious logic; do not create new monolithic files.
 - Smoke tests alone are insufficient; migration tests must cover behavior, edge cases, persistence/compatibility, and critical cross-feature flows.
@@ -337,20 +338,13 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Browser smoke tests skip when Chrome/Chromium or Node WebSocket support is unavailable; they run with the documented Node 24 runtime on the inspected machine.
 - A local Python start returns `503` at the UI root when `frontend-react/dist` has not been built. This is intentional and documented; Docker always builds the bundle.
 - `frontend-react/src/app/App.tsx` is now a 20-line React-only route dispatcher. Unknown explicit values safely render the Dashboard.
-- `frontend/` now contains only the 891-line reference HTML and 17 legacy JavaScript files; production React does not depend on them. No Node unit test imports those modules anymore. Twenty-four browser files still call the default legacy-mode server fixture after the focused Dashboard retirement. Several use the legacy server only as an API host, but every default fixture call must be converted before the legacy server mode can be removed.
+- `frontend/` now contains only the 891-line reference HTML and 17 legacy JavaScript files; production React does not depend on them. No Node unit test imports those modules anymore. Twenty browser files still call the default legacy-mode server fixture after the focused Calendar retirement. Several use the legacy server only as an API host, but every default fixture call must be converted before the legacy server mode can be removed.
 - The direct shell's Sprouty surface now sends grounded task, insight, journal, planning, activity, day-state, Money, and Skate context; restores state-aware quick prompts; handles server failure with evidence-based local answers; appends question-aware action suggestions; and preserves pointer-follow, drag persistence, click suppression, and mobile motion behavior. Shared-shell Sprouty parity is complete.
 - The React visual regression test skips when Chrome or `frontend-react` dependencies are unavailable, matching the existing browser-test prerequisite policy.
 - Browser-capable root Node test files run serially to avoid Chrome/Vite startup timeouts under parallel process saturation.
-- The Session 77 complete run passed all 43 root browser tests after the focused Dashboard retirement. Treat any repeated failure as actionable rather than accepting it as a combined-run flake.
+- The Session 78 complete run passed all 43 root browser tests after the Calendar retirement. Treat any repeated failure as actionable rather than accepting it as a combined-run flake.
 
 ## Session Log
-
-### Session 75
-
-- Re-read the repository instructions and full handoff, confirmed the clean rewrite branch/history/diff, and audited all eight remaining legacy JavaScript unit-test imports against their public React/TypeScript production boundaries.
-- Migrated activity-category compatibility, Calendar core, Money core, day-state, insight metrics/rules, and Sprouty retrieval assertions; removed the obsolete agent mutation assertions that are intentionally outside the wording-only direct React chat contract. Deleted all eight CommonJS unit files in `b32addb`, `8fa10a2`, `afb0580`, `024deae`, `4f868d3`, and `f1aa4d4`.
-- Added strict-TypeScript server-first hydration and wired it into the React store loader so missing browser-only Planner values remain visible and are backfilled to SQLite without overriding server values. Removed the final legacy storage unit dependency in `7b0f6f5`. No unit test now imports `frontend/js/`; only the 18 browser reference files remain.
-- Verification: 42 Python tests, 274 React tests, lint, strict typecheck, production build, and all 44 root browser tests pass.
 
 ### Session 76
 
@@ -365,6 +359,13 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Converted Day State, Pattern Noticed, Pattern History, Energy Trail, and Planned vs Actual to production-React-only browser regressions in `220c05a`, `44481e5`, `31911cb`, `59b0138`, and `bbff77b`. Pinned their verified legacy-derived desktop/mobile text, computed styles, and geometry while retaining default/empty/populated states, routing, disclosures, task-driven refresh, cross-feature Journal synchronization, compatibility-safe planned-hour edits, audit writes, unrelated task writes, persistence, and reload behavior.
 - Reduced the mechanical default legacy-fixture count from 29 to 24. The remaining files are the Calendar, Money, Journal, shared page/task boundaries, Guitar, and Skate browser groups; no legacy source was deleted early.
 - Verification: 42 Python tests, 274 React/TypeScript tests, lint, strict typecheck, production build, all 15 Dashboard browser checks, and all 43 root browser tests pass.
+
+### Session 78
+
+- Re-read the repository instructions and complete handoff, confirmed the clean rewrite branch/history/diff, and continued browser-reference retirement with the four-file Calendar group.
+- Converted Calendar month, Calendar week, the event editor, and the direct Calendar page to production-React-only browser regressions in `9b17281`, `8155684`, `84c96e2`, and `8ee1212`. Pinned their verified legacy-derived desktop/mobile state, computed styles, and geometry while retaining navigation, keyboard selection, event editing, week setup rules, validation, CRUD, task synchronization, persistence, reload, routing, and clean-console behavior.
+- Added a compact tolerant 8×8 RGB signature for the direct Calendar page in `0a20492`, preserving rendered desktop/mobile visual regression coverage without retaining a live legacy screenshot dependency. Reduced the mechanical default legacy-fixture count from 24 to 20.
+- Verification: 42 Python tests, 274 React/TypeScript tests, lint, strict typecheck, production build, all four Calendar browser checks, and all 43 root browser tests pass.
 
 ---
 

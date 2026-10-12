@@ -2,8 +2,10 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const { startBrowserPlanner } = require("./helpers/browser-planner");
-const { compareScreenshots } = require("./helpers/png-compare");
-const { startReactPreviewServer } = require("./helpers/react-preview-server");
+const {
+  expectedWeekState,
+  expectedWeekVisual
+} = require("./helpers/calendar-week-contract");
 
 const TEST_DATE = "2026-09-14";
 const WEEK_KEY = "hivePlanner.routine.week.2026-W38";
@@ -100,38 +102,6 @@ function weekVisualContract() {
   })()`;
 }
 
-async function prepareWeekScreenshot(browser) {
-  await browser.evaluate(`(() => {
-    const documentRoot = document;
-    documentRoot.documentElement.style.scrollBehavior = "auto";
-    const style = documentRoot.createElement("style");
-    style.textContent = ".week-day-panel{transition:none!important}";
-    documentRoot.head.appendChild(style);
-    const mascot = documentRoot.querySelector(".mascot-card");
-    if (mascot) mascot.style.visibility = "hidden";
-    documentRoot.querySelector(".weekly-planner-card").scrollIntoView({ block: "start" });
-  })()`);
-  await browser.evaluate("new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))");
-}
-
-function weekClip() {
-  return `(() => {
-    const documentRoot = document;
-    const rect = documentRoot.querySelector(".weekly-planner-card").getBoundingClientRect();
-    return {
-      x: rect.x + documentRoot.defaultView.scrollX,
-      y: rect.y + documentRoot.defaultView.scrollY,
-      width: rect.width,
-      height: Math.min(rect.height, 620)
-    };
-  })()`;
-}
-
-function assertSameScreenshot(actual, expected, label) {
-  const comparison = compareScreenshots(actual, expected);
-  assert.equal(comparison.matches, true, `${label}: ${JSON.stringify(comparison)}`);
-}
-
 async function clickSetupType(browser, rowIndex, label) {
   await browser.evaluate(`(() => {
     const documentRoot = document;
@@ -140,47 +110,26 @@ async function clickSetupType(browser, rowIndex, label) {
   })()`);
 }
 
-test("Calendar weekly planner preserves legacy visuals, setup rules, navigation, and persistence", { timeout: 90_000 }, async function (context) {
-  const planner = await startBrowserPlanner(context);
+test("Calendar weekly planner preserves visuals, setup rules, navigation, and persistence", { timeout: 90_000 }, async function (context) {
+  const planner = await startBrowserPlanner(context, { frontendMode: "react" });
   if (!planner) return;
-  const preview = await startReactPreviewServer(planner.server.url);
-  if (!preview) {
-    context.skip("Install frontend-react dependencies to run React visual regression tests.");
-    return;
-  }
-  context.after(async function () {
-    await preview.close();
-  });
   await seedWeek(planner.server.url);
 
-  const legacyUrl = `${planner.server.url}/?view=calendarView&date=${TEST_DATE}`;
-  const previewUrl = `${preview.url}/?view=calendarView&date=${TEST_DATE}`;
+  const pageUrl = `${planner.server.url}/?view=calendarView&date=${TEST_DATE}`;
 
   for (const [width, height] of [[1280, 720], [390, 844]]) {
     await planner.browser.setViewport(width, height, width < 500);
-    await openCalendar(planner.browser, legacyUrl);
-    const legacyState = await planner.browser.evaluate(weekState());
-    const legacyVisual = await planner.browser.evaluate(weekVisualContract());
-    await prepareWeekScreenshot(planner.browser);
-    const legacyScreenshot = width >= 500
-      ? await planner.browser.captureScreenshot(weekClip())
-      : null;
-
-    await openCalendar(planner.browser, previewUrl);
+    await openCalendar(planner.browser, pageUrl);
     assert.equal(await planner.browser.evaluate('document.querySelector("iframe")'), null);
-    const reactState = await planner.browser.evaluate(weekState());
-    const reactVisual = await planner.browser.evaluate(weekVisualContract());
-    await prepareWeekScreenshot(planner.browser);
-    assert.deepEqual(reactState, legacyState);
-    assert.deepEqual(reactVisual, legacyVisual);
-    if (legacyScreenshot !== null) {
-      const reactScreenshot = await planner.browser.captureScreenshot(weekClip());
-      assertSameScreenshot(reactScreenshot, legacyScreenshot, `${width}px Calendar weekly planner`);
-    }
+    assert.deepEqual(await planner.browser.evaluate(weekState()), expectedWeekState());
+    assert.deepEqual(
+      await planner.browser.evaluate(weekVisualContract()),
+      expectedWeekVisual(width < 500)
+    );
   }
 
   await planner.browser.setViewport(1280, 720);
-  await openCalendar(planner.browser, previewUrl);
+  await openCalendar(planner.browser, pageUrl);
   await planner.browser.evaluate('document.querySelectorAll("#weeklyPlannerMount .week-day-panel")[1].click()');
   await planner.browser.waitForExpression('document.getElementById("eventEditorCard").hidden === false');
   assert.deepEqual(await planner.browser.evaluate(`(() => {

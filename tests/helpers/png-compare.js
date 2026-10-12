@@ -4,6 +4,10 @@ const PNG_SIGNATURE_BYTES = 8;
 const CHANNEL_TOLERANCE = 8;
 // A small tolerance absorbs cross-frame antialiasing noise while still rejecting visible redesigns.
 const MAX_DIFFERENT_PIXEL_RATIO = 0.01;
+const SIGNATURE_COLUMNS = 8;
+const SIGNATURE_ROWS = 8;
+const SIGNATURE_CHANNEL_TOLERANCE = 8;
+const MAX_DIFFERENT_SIGNATURE_TILE_RATIO = 0.05;
 
 function paethPredictor(left, above, upperLeft) {
   const estimate = left + above - upperLeft;
@@ -125,6 +129,68 @@ function compareScreenshots(actualBase64, expectedBase64) {
   };
 }
 
+function createScreenshotSignature(base64) {
+  const image = decodeChromeScreenshot(base64);
+  const tiles = [];
+
+  // Coarse color tiles keep rendered regressions visible without storing large PNG fixtures.
+  for (let tileY = 0; tileY < SIGNATURE_ROWS; tileY += 1) {
+    const startY = Math.floor(tileY * image.height / SIGNATURE_ROWS);
+    const endY = Math.floor((tileY + 1) * image.height / SIGNATURE_ROWS);
+    for (let tileX = 0; tileX < SIGNATURE_COLUMNS; tileX += 1) {
+      const startX = Math.floor(tileX * image.width / SIGNATURE_COLUMNS);
+      const endX = Math.floor((tileX + 1) * image.width / SIGNATURE_COLUMNS);
+      const totals = [0, 0, 0];
+      let pixelCount = 0;
+
+      for (let y = startY; y < endY; y += 1) {
+        for (let x = startX; x < endX; x += 1) {
+          const offset = (y * image.width + x) * image.channels;
+          for (let channel = 0; channel < totals.length; channel += 1) {
+            totals[channel] += image.pixels[offset + channel];
+          }
+          pixelCount += 1;
+        }
+      }
+      tiles.push(totals.map((total) => Math.round(total / pixelCount)));
+    }
+  }
+
+  return { height: image.height, tiles, width: image.width };
+}
+
+function compareScreenshotSignature(actualBase64, expected) {
+  const actual = createScreenshotSignature(actualBase64);
+  if (actual.width !== expected.width || actual.height !== expected.height) {
+    return { matches: false, reason: "Screenshot dimensions differ from the visual signature." };
+  }
+  if (actual.tiles.length !== expected.tiles.length) {
+    return { matches: false, reason: "Screenshot tile count differs from the visual signature." };
+  }
+
+  let differentTiles = 0;
+  for (let index = 0; index < actual.tiles.length; index += 1) {
+    const differs = actual.tiles[index].some(
+      (channel, channelIndex) => (
+        Math.abs(channel - expected.tiles[index][channelIndex]) > SIGNATURE_CHANNEL_TOLERANCE
+      )
+    );
+    if (differs) {
+      differentTiles += 1;
+    }
+  }
+
+  const differentTileRatio = differentTiles / actual.tiles.length;
+  return {
+    differentTileRatio,
+    differentTiles,
+    matches: differentTileRatio <= MAX_DIFFERENT_SIGNATURE_TILE_RATIO,
+    totalTiles: actual.tiles.length
+  };
+}
+
 module.exports = {
-  compareScreenshots
+  compareScreenshotSignature,
+  compareScreenshots,
+  createScreenshotSignature
 };

@@ -2,8 +2,12 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const { startBrowserPlanner } = require("./helpers/browser-planner");
-const { compareScreenshots } = require("./helpers/png-compare");
-const { startReactPreviewServer } = require("./helpers/react-preview-server");
+const {
+  expectedCalendarPageGeometry,
+  expectedCalendarPageScreenshot,
+  expectedCalendarPageState
+} = require("./helpers/calendar-page-contract");
+const { compareScreenshotSignature } = require("./helpers/png-compare");
 
 const TEST_DATE = "2026-09-14";
 const EVENTS_KEY = "hivePlanner.events";
@@ -111,11 +115,6 @@ function monthClip() {
   })()`;
 }
 
-function assertSameScreenshot(actual, expected, label) {
-  const comparison = compareScreenshots(actual, expected);
-  assert.equal(comparison.matches, true, `${label}: ${JSON.stringify(comparison)}`);
-}
-
 async function setInput(browser, id, value) {
   await browser.evaluate(`(() => {
     const input = document.getElementById(${JSON.stringify(id)});
@@ -124,53 +123,36 @@ async function setInput(browser, id, value) {
   })()`);
 }
 
-test("Calendar is a direct React page with complete legacy parity and persistence", { timeout: 90_000 }, async function (context) {
-  const planner = await startBrowserPlanner(context);
+test("Calendar is a direct React page with responsive layout and persistence", { timeout: 90_000 }, async function (context) {
+  const planner = await startBrowserPlanner(context, { frontendMode: "react" });
   if (!planner) return;
-  const preview = await startReactPreviewServer(planner.server.url);
-  if (!preview) {
-    context.skip("Install frontend-react dependencies to run direct Calendar tests.");
-    return;
-  }
-  context.after(async function () {
-    await preview.close();
-  });
   await seedCalendar(planner.server.url);
 
-  const legacyUrl = `${planner.server.url}/?view=calendarView&date=${TEST_DATE}`;
-  const previewUrl = `${preview.url}/?view=calendarView&date=${TEST_DATE}`;
+  const pageUrl = `${planner.server.url}/?view=calendarView&date=${TEST_DATE}`;
   for (const [width, height] of [[1280, 720], [390, 844]]) {
     await planner.browser.setViewport(width, height, width < 500);
-    await openReady(planner.browser, legacyUrl);
-    const legacyState = await planner.browser.evaluate(pageState());
-    const legacyGeometry = await planner.browser.evaluate(pageGeometry());
+    await openReady(planner.browser, pageUrl);
+    assert.deepEqual(await planner.browser.evaluate(pageState()), expectedCalendarPageState());
+    assert.deepEqual(
+      await planner.browser.evaluate(pageGeometry()),
+      expectedCalendarPageGeometry(width < 500)
+    );
     await prepareScreenshot(planner.browser);
-    const legacyScreenshot = await planner.browser.captureScreenshot(monthClip());
-
-    await openReady(planner.browser, previewUrl);
-    const reactState = await planner.browser.evaluate(pageState());
-    const reactGeometry = await planner.browser.evaluate(pageGeometry());
-    await prepareScreenshot(planner.browser);
-    const reactScreenshot = await planner.browser.captureScreenshot(monthClip());
-
-    assert.deepEqual(reactState, { ...legacyState, iframeCount: 0 });
-    assert.deepEqual(reactGeometry, legacyGeometry);
-    assertSameScreenshot(reactScreenshot, legacyScreenshot, `${width}px direct Calendar month`);
-    assert.equal(reactGeometry.overflow, false);
+    const screenshot = await planner.browser.captureScreenshot(monthClip());
+    const comparison = compareScreenshotSignature(
+      screenshot,
+      expectedCalendarPageScreenshot(width < 500)
+    );
+    assert.equal(
+      comparison.matches,
+      true,
+      `${width}px Calendar screenshot: ${JSON.stringify(comparison)}`
+    );
   }
 
   await planner.browser.setViewport(1280, 720);
-  await openReady(planner.browser, previewUrl);
-  assert.deepEqual(await planner.browser.evaluate(pageState()), {
-    activeTab: "Calendar",
-    activeView: "calendarView",
-    dayCells: 42,
-    eventPills: ["09:00Deep work", "12:00Lunch reminder"],
-    iframeCount: 0,
-    month: "September 2026",
-    selected: "Select Mon Sep 14",
-    weekDays: ["Mon Sep 14", "Tue Sep 15", "Wed Sep 16", "Thu Sep 17", "Fri Sep 18", "Sat Sep 19", "Sun Sep 20"]
-  });
+  await openReady(planner.browser, pageUrl);
+  assert.deepEqual(await planner.browser.evaluate(pageState()), expectedCalendarPageState());
 
   await planner.browser.evaluate('document.querySelector(".day-cell.selected .event-pill").click()');
   await planner.browser.waitForExpression('document.getElementById("eventSaveButton").textContent === "Update activity"');

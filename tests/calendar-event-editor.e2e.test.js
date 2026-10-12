@@ -2,8 +2,10 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const { startBrowserPlanner } = require("./helpers/browser-planner");
-const { compareScreenshots } = require("./helpers/png-compare");
-const { startReactPreviewServer } = require("./helpers/react-preview-server");
+const {
+  expectedEditorState,
+  expectedEditorVisual
+} = require("./helpers/calendar-event-editor-contract");
 
 const TEST_DATE = "2026-09-14";
 const EVENTS_KEY = "hivePlanner.events";
@@ -126,35 +128,6 @@ function editorVisualContract() {
   })()`;
 }
 
-async function prepareScreenshot(browser) {
-  await browser.evaluate(`(() => {
-    const documentRoot = document;
-    documentRoot.documentElement.style.scrollBehavior = "auto";
-    const mascot = documentRoot.querySelector(".mascot-card");
-    if (mascot) mascot.style.visibility = "hidden";
-    documentRoot.getElementById("eventEditorCard").scrollIntoView({ block: "start" });
-  })()`);
-  await browser.evaluate("new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))");
-}
-
-function editorClip() {
-  return `(() => {
-    const documentRoot = document;
-    const rect = documentRoot.getElementById("eventEditorCard").getBoundingClientRect();
-    return {
-      x: rect.x + documentRoot.defaultView.scrollX,
-      y: rect.y + documentRoot.defaultView.scrollY,
-      width: rect.width,
-      height: Math.min(rect.height, 620)
-    };
-  })()`;
-}
-
-function assertSameScreenshot(actual, expected, label) {
-  const comparison = compareScreenshots(actual, expected);
-  assert.equal(comparison.matches, true, `${label}: ${JSON.stringify(comparison)}`);
-}
-
 async function setInput(browser, id, value, prototypeName = "HTMLInputElement") {
   await browser.evaluate(`(() => {
     const documentRoot = document;
@@ -165,47 +138,26 @@ async function setInput(browser, id, value, prototypeName = "HTMLInputElement") 
   })()`);
 }
 
-test("Calendar event editor preserves legacy visuals, validation, CRUD, task sync, and reload", { timeout: 90_000 }, async function (context) {
-  const planner = await startBrowserPlanner(context);
+test("Calendar event editor preserves visuals, validation, CRUD, task sync, and reload", { timeout: 90_000 }, async function (context) {
+  const planner = await startBrowserPlanner(context, { frontendMode: "react" });
   if (!planner) return;
-  const preview = await startReactPreviewServer(planner.server.url);
-  if (!preview) {
-    context.skip("Install frontend-react dependencies to run React visual regression tests.");
-    return;
-  }
-  context.after(async function () {
-    await preview.close();
-  });
   await seedEditor(planner.server.url);
 
-  const legacyUrl = `${planner.server.url}/?view=calendarView&date=${TEST_DATE}`;
-  const previewUrl = `${preview.url}/?view=calendarView&date=${TEST_DATE}`;
+  const pageUrl = `${planner.server.url}/?view=calendarView&date=${TEST_DATE}`;
 
   for (const [width, height] of [[1280, 720], [390, 844]]) {
     await planner.browser.setViewport(width, height, width < 500);
-    await openExpandedEditor(planner.browser, legacyUrl);
-    const legacyState = await planner.browser.evaluate(editorState());
-    const legacyVisual = await planner.browser.evaluate(editorVisualContract());
-    await prepareScreenshot(planner.browser);
-    const legacyScreenshot = width >= 500
-      ? await planner.browser.captureScreenshot(editorClip())
-      : null;
-
-    await openExpandedEditor(planner.browser, previewUrl);
+    await openExpandedEditor(planner.browser, pageUrl);
     assert.equal(await planner.browser.evaluate('document.querySelector("iframe")'), null);
-    const reactState = await planner.browser.evaluate(editorState());
-    const reactVisual = await planner.browser.evaluate(editorVisualContract());
-    await prepareScreenshot(planner.browser);
-    assert.deepEqual(reactState, legacyState);
-    assert.deepEqual(reactVisual, legacyVisual);
-    if (legacyScreenshot !== null) {
-      const reactScreenshot = await planner.browser.captureScreenshot(editorClip());
-      assertSameScreenshot(reactScreenshot, legacyScreenshot, `${width}px Calendar event editor`);
-    }
+    assert.deepEqual(await planner.browser.evaluate(editorState()), expectedEditorState());
+    assert.deepEqual(
+      await planner.browser.evaluate(editorVisualContract()),
+      expectedEditorVisual(width < 500)
+    );
   }
 
   await planner.browser.setViewport(1280, 720);
-  await openExpandedEditor(planner.browser, previewUrl);
+  await openExpandedEditor(planner.browser, pageUrl);
   await planner.browser.evaluate('document.getElementById("plannerAddActivityButton").click()');
   await planner.browser.waitForExpression('document.querySelectorAll("#plannerActivityOptions .planner-activity-option").length === 12');
   await planner.browser.evaluate(`(() => {
