@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import TypeGuard
 
 from db import delete_value, import_values, put_value, read_all_values
 
@@ -15,7 +14,7 @@ class ApiRequestError(ValueError):
     """Raised when a Planner API payload violates the public contract."""
 
 
-def is_planner_key(value: object) -> TypeGuard[str]:
+def is_planner_key(value: object) -> bool:
     return isinstance(value, str) and value.startswith(PLANNER_KEY_PREFIX)
 
 

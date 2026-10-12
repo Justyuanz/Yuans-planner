@@ -106,7 +106,8 @@ Every page is fully responsive and works on the phone.
 
 ## Quick start
 
-You need **Python 3.10+** and **Node.js 20.19+**.
+You need **Python 3.9+** and **Node.js 20.19+**. The Python that ships with
+macOS works, so there is nothing to install on a Mac beyond Node.
 
 ```sh
 git clone https://github.com/Justyuanz/Yuans-planner.git YuanPlanner

@@ -18,11 +18,18 @@ jobs:
   backend:
     name: Python tests
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # 3.9 is what macOS ships as python3, so someone cloning the repo runs
+        # it without installing anything. Testing the floor keeps a 3.10-only
+        # import from sneaking back in and breaking them with an ImportError.
+        python-version: ["3.9", "3.13"]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: "3.13"
+          python-version: ${{ matrix.python-version }}
       - name: Run Python tests
         run: python3 -m unittest discover -s tests -p '*_test.py' --verbose
 
