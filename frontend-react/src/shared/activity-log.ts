@@ -1,4 +1,4 @@
-import { migrateLegacyActivityReference } from "../features/activity-categories/activity-categories";
+import { migrateLegacyActivityReference } from "./activity-categories";
 import { isRecord } from "./is-record";
 
 export interface ActivityLogEntry {

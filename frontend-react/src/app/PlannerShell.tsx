@@ -1,12 +1,11 @@
 import { useState, type ReactNode } from "react";
 
 import type { PlannerStore } from "../api/planner-store";
-import { formatPlannerDate } from "../features/life-pie/life-pie-store";
 import { BackupTools } from "./BackupTools";
 import { navigateToPlannerView } from "./planner-navigation";
 import { persistPlannerWrites } from "./planner-persistence";
-import { PlannerMascot } from "./PlannerMascot";
-import { humanDate } from "../shared/planner-date";
+import { PlannerMascot } from "../mascot/PlannerMascot";
+import { humanDate, toDateKey } from "../shared/planner-date";
 
 const VIEWS = [
   ["todayView", "Dashboard"],
@@ -67,7 +66,7 @@ export function PlannerShell({ activeView, children, store, today }: PlannerShel
             >
               Ask Sprouty
             </button>
-            <BackupTools dateKey={formatPlannerDate(today)} store={store} />
+            <BackupTools dateKey={toDateKey(today)} store={store} />
           </div>
         </header>
         {children}

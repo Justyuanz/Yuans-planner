@@ -1,12 +1,12 @@
 import { useMemo } from "react";
 
-import { CalendarPage } from "../features/calendar/CalendarPage";
-import { DashboardPage } from "../features/dashboard-page/DashboardPage";
-import { GuitarPage } from "../features/guitar/GuitarPage";
-import { JournalPage } from "../features/journal-page/JournalPage";
-import { plannerDateFromSearch } from "../features/life-pie/life-pie";
-import { MoneyPage } from "../features/money-page/MoneyPage";
-import { SkatePage } from "../features/skate/SkatePage";
+import { CalendarPage } from "../pages/calendar/CalendarPage";
+import { DashboardPage } from "../pages/dashboard/DashboardPage";
+import { GuitarPage } from "../pages/guitar/GuitarPage";
+import { JournalPage } from "../pages/journal/JournalPage";
+import { plannerDateFromSearch } from "./planner-navigation";
+import { MoneyPage } from "../pages/money/MoneyPage";
+import { SkatePage } from "../pages/skate/SkatePage";
 
 export function App() {
   const today = useMemo(() => plannerDateFromSearch(window.location.search, new Date()), []);

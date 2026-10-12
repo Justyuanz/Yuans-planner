@@ -203,25 +203,27 @@ Complete.
 Not started. Only begin once Phase 6 is finished and the complete suite is green. See "Architecture Refactor Plan" below, and the Refactor Phase rules in `AGENTS.md`. Structural only: no behavior, visual, API, or storage change.
 
 - [x] Phase 7a — the stylesheet: dead rules removed, `tokens.css` extracted, cascade contract documented (Session 81)
-- [ ] split the shared kernel out of `features/life-pie/`
-- [ ] regroup `features/` into `pages/` plus a named `shared/` layer
-- [ ] move the mascot modules out of `app/`
-- [ ] make page naming consistent
+- [x] split the shared kernel out of `features/life-pie/` (Session 82)
+- [x] regroup `features/` into `pages/` plus a named `shared/` layer (Session 82)
+- [x] move the mascot modules out of `app/` (Session 82)
+- [x] make page naming consistent (Session 82)
 
 ## Current Task
-Phase 6 is finished and Phase 7 has started. **Session B (Phase 7a, the stylesheet) is complete**: the dead rules are gone, the design tokens live in their own first-imported part, and the cascade order is documented where it is declared.
+Phase 7b is complete. **Session C (the React restructure) is done**: `features/` no longer exists. The source is now `pages/` (six pages, each with its cards beneath), a real `shared/` layer, `mascot/` as its own feature, and an `app/` holding only the shell, routing, store, and persistence.
 
-Phase 7 continues with Session C (the React restructure) and then Session D (thorough feature verification). The refactor is structural only and must be verified more thoroughly than normal work: see the Refactor Phase rules in `AGENTS.md` and the Architecture Refactor Plan below.
+What remains of Phase 7 is Session D, thorough feature verification. See the plan below.
 
 ## Last Completed Task
-Session B — the stylesheet. Measured 467 class names and found 93 genuinely dead after accounting for the 23 dynamic `className` sites (only `intensity-` is a true prefix concatenation, so the earlier estimate of 107 was 14 too high). Removed 166 whole rules and trimmed 11 selector lists, taking `src/styles` from 5,677 to 4,596 lines and the built stylesheet from 81,766 to 67,615 bytes, a 17% reduction. A diff of the built output confirmed exactly 93 class names removed, none added, and none of the removed ones still referenced.
+Session C — the React restructure, done in five verified stages.
 
-Then, with the build byte-identical as the gate: folded the misleadingly-named `coach.css` remainder (45 lines after pruning, none of it coach styling) into the end of the adjacent `skate-guitar.css`, which preserves order, and extracted the `:root` design variables into a new first-imported `tokens.css`. Removed the one genuinely dead id selector, `#studyOverview`; the other 40 "unreferenced ids" my first audit reported were hex colour fragments, a false positive of the regex, and drove no deletions.
+1. **The shared kernel out of `life-pie/`.** The first measurement changed the task: `formatPlannerDate` in `life-pie-store.ts` was a byte-identical duplicate of `shared/planner-date.ts`'s `toDateKey`, which Session 79's consolidation had missed because it was hiding under a different name. Removing it replaced 73 call sites across 21 files and shrank the kernel to almost nothing. What was left then moved honestly: the totals engine to `shared/activity-totals.ts` (renamed `activityTotalsForPeriod` / `ActivityTotals` / `ActivityPeriod`, since "life pie" is one of its three consumers, not its subject), `activity-categories` to `shared/`, the hours formatter to `shared/format-hours.ts`, and `plannerDateFromSearch` to `app/planner-navigation.ts`, which is the module that owns the URL. Each moved function kept its tests, split into files that match their new homes.
+2. **The mascot out of `app/`.** Fourteen files to `src/mascot/`. They turned out to be self-contained: every outward import stayed valid at the same depth, so only `PlannerShell`'s one import changed.
+3. **Shared features out of `features/`.** `tasks` (6 consumers), `sessions` (2), and `journal-entry-store` (6) are used across pages, so they are in `shared/` now rather than sitting as siblings of the cards that happen to be near them.
+4. **Pages regrouped**, Money first and Dashboard last, as planned.
+5. **Consistent granularity.** Calendar, Skate and Guitar were still flat, Skate at 24 files. All three now have `cards/`, so every page follows one rule, and `shared/` was flattened so a single-concern module is a single file.
 
 ## Next Task
-**Session C — the React restructure (Phase 7b)**, in the plan below, then Session D. Each is one session and one commit, ending with the complete suite green and the live six-page pass.
-
-Read "Cross-surface CSS overlap" below before moving any stylesheet part in Session C: five selectors are resolved by import order alone, so co-locating the parts is only safe if the import order in `planner.css` is preserved exactly.
+**Session D — thorough feature verification**, in the plan below. Read "Remaining cross-page coupling" first: it is a list of real findings this restructure exposed, and deciding what to do about them is a design question, not a move.
 
 Do not merge into `main` until the user explicitly approves the merge. Nothing has been pushed yet.
 
@@ -393,24 +395,71 @@ part of the structural refactor. The evidence was produced by parsing top-level
 rules out of the eleven surface parts and comparing declarations pairwise; the
 script is reproducible from this description in a few lines.
 
-### Session C — the React restructure (Phase 7b)
+### Session C — the React restructure (Phase 7b) — DONE (Session 82)
 
-Target shape and findings are in the Architecture Refactor Plan below. Scale:
-181 files, 21,391 lines, and 313 cross-directory import lines across 133 files.
-The churn is mechanical and scriptable; the risk is in moving too much at once.
+All five stages landed. The shape now is:
 
-Stages, each verified by the complete suite:
+```text
+src/
+  pages/      calendar/ dashboard/ guitar/ journal/ money/ skate/
+              each: <Name>Page.tsx + cards/<card>/
+  shared/     activity-categories, activity-log, activity-totals,
+              calendar-event-store, format-hours, is-record,
+              journal-entry-store, planner-date, planner-time,
+              session-task-sync, tasks/
+  mascot/     14 files, its own feature
+  app/        shell, routing, store, persistence (11 files, 527 lines)
+  api/  styles/
+```
 
-1. Split the shared kernel out of `features/life-pie/` and move
-   `formatPlannerDate` into `shared/planner-date.ts` as `toDateKey`. This is the
-   fix for `app/App.tsx` importing its date helper from a dashboard card.
-2. Move the six mascot modules out of `app/` into their own feature, leaving
-   `app/` as shell, routing, store, and persistence only.
-3. Make page naming consistent.
-4. Regroup one page at a time into `pages/<page>/` with its cards beneath:
-   Money first (five self-contained cards), then Journal, Calendar, Skate,
-   Guitar, and Dashboard last because it composes eleven features.
-5. Consolidate `shared/` and confirm no page imports another page.
+Measured after: 131 files and 15,863 lines under `pages/`, 2,952 under
+`shared/`, 1,873 under `mascot/`, 527 under `app/`. `features/` is gone.
+
+Verification at every stage: typecheck and the unit suite between steps, the
+complete suite at each stage boundary, the built stylesheet byte-identical
+throughout (`21adb2c8d63b7cb649fdee4d53056ed0`, and the published asset name
+`index-BNgGG6ag.css` never changed), and a live six-page pass at desktop and
+375px with no console errors and every request 200.
+
+Two tools written for this and worth reusing, in the session scratchpad:
+`move-dirs.py` and `move-files.py`. They resolve every relative import to a
+source-relative path, map it through the move, and re-render it from the
+importing file's new location, so a regroup is one command and touches nothing
+but import specifiers.
+
+### Remaining cross-page coupling
+
+The regroup did not create these; it made them visible. They were invisible
+while every feature was a sibling in one flat directory. **None is fixable by a
+move**, so each is recorded rather than done:
+
+| Importer | Imports | Why it exists |
+| --- | --- | --- |
+| `pages/calendar/cards/month/calendar-month` | dashboard `today-intention` | the month grid shows each day's type |
+| `pages/calendar/cards/week/calendar-week-store` | dashboard `planned-actual` | the week view reads planned hours |
+| `pages/skate/cards/body-support/skate-body-support` | dashboard `planned-actual` | same planned hours |
+| `pages/dashboard/cards/insight/dashboard-insight-store` | money `money-quick-store` | insights read spending |
+| `pages/dashboard/DashboardPage` | money `MoneyQuickCard` | deliberate: the quick log is rendered on the Dashboard too |
+
+The first four are one shape: a card owns a store that other pages read. The
+clean fix is to split each store out of its card into `shared/`, which is a
+logic change, not a move, so it needs its own step and its own tests. The fifth
+is intentional component reuse and only needs a home that says so, such as a
+shared card directory.
+
+Separately, `mascot/` imports ten modules from four pages (day-state, insight
+rules and store, planned-actual, money-quick-store, skate program data and body
+support). This one is **accepted, not a defect**: Sprouty answers questions
+about every surface, so reading across them is its job. It is recorded here so
+a later session does not mistake it for an oversight.
+
+### Deferred — a path alias
+
+Nesting pages two levels deep means imports like
+`"../../../../shared/planner-date"`. A `@/` alias in `tsconfig.json` and
+`vite.config.ts` would fix every one of them. It is deliberately not in this
+session: it changes build configuration and every import line at once, which is
+not a move, and it should be judged on its own.
 
 ### Session D — thorough feature verification
 
@@ -442,9 +491,12 @@ on `data-testid` or ARIA selectors. Worth doing one day; it needs its own
 decision, and the dead-rule removal plus tokens plus co-location in Session B
 already delivers most of the practical benefit.
 
-## Architecture Refactor Plan
+## Architecture Refactor Plan — EXECUTED (Session 82)
 
-The modules themselves are small, single-purpose, and tested. What reads as messy is the top-level map: `features/` is a flat list of 28 sibling directories that hides the real shape of the app. These findings were measured in Session 79, so they do not need re-deriving:
+The target shape below was carried out in Session C; see that section for what
+landed and what was deliberately left. Kept for the reasoning behind the shape.
+
+The modules themselves are small, single-purpose, and tested. What read as messy was the top-level map: `features/` is a flat list of 28 sibling directories that hides the real shape of the app. These findings were measured in Session 79, so they do not need re-deriving:
 
 - **An accidental kernel with a misleading name.** `app/App.tsx` imports its date helper from `features/life-pie/life-pie`, and `life-pie` has eleven consumers including `app/`. It is shared infrastructure wearing a dashboard card's name.
 - **Inconsistent page naming.** `dashboard-page`, `money-page`, and `journal-page`, but then plain `calendar`, `skate`, and `guitar`.
@@ -628,7 +680,9 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - `frontend-react/src/planner.css` is an index that imports 16 focused parts from `frontend-react/src/styles/` in cascade order, with the cascade contract documented in its header. The original split was proved safe by a byte-identical build, as were the two Session 81 moves (`coach.css` folded into `skate-guitar.css`, `tokens.css` extracted as the first import). The parts must not be reordered; `responsive.css` and then `overrides.css` stay last because they intentionally override earlier declarations.
 - The surface parts are not cleanly separated: 17 selectors are styled in two parts each and 5 of those conflict, so import order alone decides what renders. See "Cross-surface CSS overlap". This is the main constraint on any future stylesheet move or split.
 - Dead CSS is now zero by the class-name audit, but that audit only sees class selectors. Element, attribute, and descendant-only rules were not covered, so "no dead classes" is not the same as "no dead rules".
-- Time/date parsing and normalization are duplicated across frontend modules and backend integrations.
+- Time/date parsing and normalization are duplicated between the frontend and the backend integrations. Within the frontend the duplication is gone: Session 82 removed the last copy, `formatPlannerDate`, which was `toDateKey` under another name.
+- Five cross-page imports and ten mascot-to-page imports remain. They predate the restructure, which only made them visible. See "Remaining cross-page coupling" for each one and why it is not a move.
+- Page nesting makes some imports four levels deep (`../../../../shared/...`). A `@/` path alias would fix them; it is deferred with its reason.
 - Eight legacy-only key families remain in the live database with no consumer; backups preserve them and a test pins that. See the Storage Key Audit.
 - The default `node` on the inspected machine is Node 14 and cannot run `node --test`; use the installed modern Node runtime or fix the local PATH before relying on `scripts/test.sh` without `NODE_BIN`.
 - Browser coverage protects task and activity-session lifecycles, all six direct primary pages, and every migrated React boundary. The untested flows that remain are all in the retired reference code, which no longer runs.
@@ -643,27 +697,6 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - No browser file starts the legacy frontend or the Vite dev server; all 42 root browser tests run against the production React build. The fixture no longer has a frontend-mode option and `tests/helpers/react-preview-server.js` is deleted.
 
 ## Session Log
-
-### Session 79
-
-- Started Phase 6 by consolidating the duplicated React date helpers into `shared/planner-date.ts` with 22 unit tests, characterizing each group against a matrix of valid and malformed inputs first and merging only the provably identical ones. Removed 9 `humanDate` copies, 4 `addDays`, 3 `localDay`, 3 tolerant key parses, 2 `localDateKey`, 2 strict validators, and 10 stray month/weekday arrays. Investigated the Python parsers and deliberately left them separate, since unifying them would change which labels produce a Telegram reminder; the evidence is written up under Date Helper Consolidation.
-- Recorded the post-migration work order the user set: migration, then tests green, then bug fixes, and only then the architecture refactor. Added a Refactor Phase section to `AGENTS.md` with its carefulness and verification rules, added Phase 6 and Phase 7 to this file, and wrote down the measured refactor findings and target structure so the next session does not have to re-derive them. While in `AGENTS.md`, also corrected the now-deleted legacy frontend as the visual reference (the pinned contracts and Git history replace it) and aligned the commit guidance with the one-commit-per-session rule.
-- Deleted `frontend/` with the user's approval once the gate they set was met. Rebuilt, re-ran the complete suite with the directory absent, and repeated the live six-page pass on the production server, including creating a task through the UI and confirming it reached SQLite and survived a reload. Removed the README line describing the directory; the Docker image never copied it after the earlier change.
-- Split `frontend-react/src/planner.css` (5,663 lines) into 16 focused parts under `frontend-react/src/styles/`, with `planner.css` left as an ordered index. The cuts are contiguous and in source order, a script asserted that every non-blank line is accounted for exactly once, and the built stylesheet came out byte-identical to the pre-split build, which proves the cascade is unchanged. One dead `@media (max-width: 720px) {}` block was dropped; the minifier was already discarding it.
-- Fixed a real persistence race found by investigating a 1-in-3 flake in the Journal page test rather than rerunning it. Instrumenting the writes showed six rapid edits issuing six whole-array PUTs, with an earlier snapshot completing after the newest one and overwriting the saved value. All server writes now share one queue in `planner-persistence.ts`, hydration backfills included. The previously flaky test passed 8/8 afterwards, and re-probing showed writes no longer overlap at all. Added three focused unit tests for the ordering guarantee, the within-batch order, and queue survival after a failed write.
-- Removed the legacy serving surface after the browser retirement: the `/legacy/`, `/js/*`, and `/css/styles.css` routes, the legacy-mode branch and `planner_frontend_mode`, the Docker legacy copy, the fixture's frontend-mode option across 33 test files, and the now-unused Vite preview helper. Rewrote `tests/config_test.py`, which had only covered the retired flag, to protect the surviving configuration behavior rather than dropping the file.
-- Ran the final audit against the production server: six pages clean at desktop and 375px with no console errors and no `/js`, `/css`, or `/legacy` requests; retired routes return 404 while traversal still returns 403; export, import, and SQLite data survived a server restart. Kept `frontend/` on disk as a comparison reference at the user's request.
-- Completed browser-reference retirement: converted the final six Skate files and `session-flow`, so no test starts the legacy frontend or the Vite dev server. Built a small reusable capture-and-generate workflow for the repetitive Skate contracts rather than hand-writing six near-identical pinned objects.
-- Retired the Guitar and shared Dashboard/task browser dependencies after the Journal group, pinning each page's legacy-derived state, geometry, and rendered-image signature into focused helper modules. Only the six Skate files still start the legacy server.
-- Retired all three Journal browser dependencies after the Money group: the archive, the Meditation card, and the direct Journal page now assert pinned legacy-derived contracts against the production React server. Ported the legacy-only Meditation flows (the below-minimum submit that writes nothing, the running-timer disabled/countdown state, and reload restoration) instead of dropping them, and replaced the editor screenshot with a pinned 8x8 RGB signature.
-- Probed the Meditation expiry path on both implementations before pinning it, confirming identical completion shape, single-append behavior, unknown-root removal, and unknown-session-field preservation.
-- Reduced the mechanical default legacy-fixture count from 13 to 10.
-- Completed the first-time project audit: re-read `AGENTS.md` and this handoff, confirmed the clean `rewrite/react-typescript` branch 186 commits ahead of `main` with an untouched original worktree, reviewed the rewrite history and representative diffs, cross-checked the handoff against the source and tests, and established a green baseline with the complete suite before changing anything.
-- Retired all seven Money browser dependencies on the standalone legacy frontend. For each card, captured the legacy state and visual contract while the legacy reference was still live, pinned it in a focused `tests/helpers/money-*-contract.js` module, then reran the regression against the production React server.
-- Ported the legacy-only flows instead of dropping them: the quick log now exercises the comma decimal amount, vendor trimming, the unknown-vendor and remembered-vendor-rule category rules, the shortcut focus behavior, and the invalid-amount rejection on the React route; budgets now covers the rejected same-category transfer. Merged the duplicate legacy budgets interaction test into the React one, and replaced the Money page's live legacy screenshot with a pinned 8x8 RGB signature.
-- Investigated the one contract mismatch rather than adjusting the expectation blindly: the outer budget settings disclosure is reset by the card re-render that follows a toggle, and direct probes confirmed legacy and React behave identically in both click sequences. Corrected the handoff decision that claimed every edit collapses it.
-- Reduced the mechanical default legacy-fixture count from 20 to 13. No legacy source was deleted.
-- Verification: 42 Python tests, 274 React/TypeScript tests (52 files), lint, strict typecheck, production build, and all 42 root browser tests pass with zero skips. The browser suite now runs in about 57s instead of 87s because no Vite or legacy server starts.
 
 ### Session 80
 
@@ -681,6 +714,16 @@ Legacy `main` commit `01d6c6d` changed the activity/time-tracking contract and i
 - Documented the cascade contract in the `planner.css` header, then found while writing it that the rule I had just written was false. Measured instead: 17 selectors are styled in two surface parts each and 5 conflict, so import order alone resolves them. Rewrote the comment to describe the real constraint and recorded the table under "Cross-surface CSS overlap"; it is the governing constraint on Session C's file moves.
 - Deferred step 4 of the Session B plan, co-locating each part with its page, to Session C with its reason written down: it would move the same files twice and the clarity win depends on the page directories Session C creates.
 - Verification: 44 Python tests, 312 React/TypeScript tests across 55 files, lint, strict typecheck, production build, and all 42 browser tests with zero skips, plus a live six-page pass at desktop and 375px with no console errors and every request returning 200. The pinned computed-style, geometry, and render-signature contracts all held against the smaller stylesheet, which is the gate that replaces the byte-identical check when rules are deliberately deleted.
+
+### Session 82
+
+- Ran Session C, the React restructure, in five stages, each verified by the complete suite with the built stylesheet byte-identical throughout. `features/` no longer exists: the source is `pages/` with six pages and their cards, a real `shared/` layer, `mascot/`, and an `app/` down to 11 files and 527 lines.
+- Measured before moving, and the measurement changed stage 1. The "shared kernel" inside `features/life-pie/` was mostly `formatPlannerDate`, a byte-identical duplicate of `shared/planner-date.ts`'s `toDateKey` that Session 79 had missed because the name differed. Deduplicating it rewrote 73 call sites across 21 files and left very little kernel to split.
+- Moved what was genuinely shared and renamed it for what it is: the totals engine became `shared/activity-totals.ts` with `activityTotalsForPeriod`, since the Life Pie card is one of its three consumers rather than its subject. `activity-categories`, the hours formatter, `tasks`, `sessions`, `journal-entry-store`, and `calendar-event-store` all moved to `shared/`; `plannerDateFromSearch` moved to the module that owns the URL. Every moved function kept its tests, split into files matching the new homes.
+- Wrote two reusable movers rather than hand-editing imports: they resolve each relative specifier to a source-relative path, map it through the move, and re-render it from the importing file's new location. A seven-directory regroup is then one command that touches nothing but import specifiers.
+- Investigated a typecheck that reported exit 1 with no diagnostics instead of re-running it. The cause was my own shell: `ls pages/*/ -d` failed on `-d` as a filename and broke the `&&` chain, so typecheck never ran and `$?` reported the failed `ls`. Not flaky, and nothing wrong with the code.
+- Recorded rather than forced: five cross-page imports and ten mascot-to-page imports. The restructure exposed them, it did not create them, and fixing the first four means splitting a store out of its card, which is a logic change and needs its own step. The mascot's reach across pages is accepted by design, written down so it is not mistaken for an oversight later. A `@/` path alias is deferred for the same reason: it is not a move.
+- Verification: 44 Python tests, 312 React/TypeScript tests across 57 files, lint, strict typecheck, production build, and all 42 browser tests with zero skips, plus a live pass over all six pages at desktop and 375px with no console errors and every request returning 200. The stylesheet hash and even the published asset name were unchanged from the session baseline, which is the proof that a restructure of 186 source files changed nothing the user can see.
 
 ---
 
