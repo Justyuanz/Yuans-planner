@@ -83,8 +83,7 @@ function waitForProcessExit(processHandle) {
   });
 }
 
-async function startPlannerServer(options = {}) {
-  const frontendMode = options.frontendMode || "legacy";
+async function startPlannerServer() {
   const port = await reservePort();
   const temporaryDirectory = await mkdtemp(path.join(tmpdir(), "yuan-planner-e2e-"));
   const databasePath = path.join(temporaryDirectory, "planner.db");
@@ -93,7 +92,6 @@ async function startPlannerServer(options = {}) {
     env: {
       ...process.env,
       YUAN_PLANNER_DB_PATH: databasePath,
-      YUAN_PLANNER_FRONTEND_MODE: frontendMode,
       YUAN_PLANNER_HOST: "127.0.0.1",
       YUAN_PLANNER_PORT: String(port),
       YUAN_PLANNER_TELEGRAM_ENABLED: "0"

@@ -2,6 +2,7 @@ import type { PlannerStore, PlannerStoreWrite } from "../../api/planner-store";
 import { formatPlannerDate } from "../life-pie/life-pie-store";
 import { MEDITATION_STORAGE_KEY } from "./meditation-definitions";
 import { decodeMeditationDocument, meditationMinutesForDate } from "./meditation-store";
+import { humanDateFromKey } from "../../shared/planner-date";
 
 export { MEDITATION_STORAGE_KEY } from "./meditation-definitions";
 
@@ -17,17 +18,7 @@ export interface MeditationUpdate {
   write: PlannerStoreWrite;
 }
 
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
-const MONTHS = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-] as const;
 
-function humanDate(dateKey: string): string {
-  const parts = dateKey.split("-").map(Number);
-  const date = new Date(parts[0] ?? 0, (parts[1] ?? 1) - 1, parts[2] ?? 1);
-  return `${WEEKDAYS[date.getDay()] ?? ""} ${MONTHS[date.getMonth()] ?? ""} ${date.getDate()}`;
-}
 
 function pad(value: number): string {
   return String(value).padStart(2, "0");
@@ -62,7 +53,7 @@ export function buildMeditation(
       ? "Ready"
       : formatTimer(Math.max(0, Math.ceil((document.active.endsAt - nowMs) / 1000))),
     savedMinutes,
-    status: `${savedMinutes} min saved for ${humanDate(selectedDate)}.`
+    status: `${savedMinutes} min saved for ${humanDateFromKey(selectedDate)}.`
   };
 }
 

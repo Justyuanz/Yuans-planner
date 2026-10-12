@@ -2,8 +2,16 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const { startBrowserPlanner } = require("./helpers/browser-planner");
-const { compareScreenshots } = require("./helpers/png-compare");
-const { startReactPreviewServer } = require("./helpers/react-preview-server");
+const { compareScreenshotSignature } = require("./helpers/png-compare");
+const {
+  bodySupportState,
+  bodySupportVisualContract,
+  cardClip,
+  expectedSkateBodySupportScreenshot,
+  expectedSkateBodySupportState,
+  expectedSkateBodySupportVisual,
+  prepareBodySupportScreenshot
+} = require("./helpers/skate-body-support-contract");
 
 const TEST_DATE = "2026-09-14";
 const BODY_SUPPORT_KEY = "hivePlanner.physical.logs";
@@ -77,115 +85,14 @@ async function openSkate(browser, url, populated = true) {
   })()`);
 }
 
-function bodySupportState() {
-  return `(() => {
-    const documentRoot = document;
-    const type = documentRoot.getElementById("bodyWorkoutType");
-    const minutes = documentRoot.getElementById("bodyWorkoutMinutes");
-    const note = documentRoot.getElementById("bodyWorkoutName");
-    return {
-      button: documentRoot.querySelector("#bodyLogForm button").textContent.trim(),
-      chips: [...documentRoot.querySelectorAll("#skateWeeklyMetrics .body-support-chip")].map((chip) => ({
-        text: chip.textContent.trim(),
-        title: chip.title
-      })),
-      form: {
-        minutes: {
-          inputMode: minutes.inputMode,
-          max: minutes.max,
-          min: minutes.min,
-          placeholder: minutes.placeholder,
-          step: minutes.step,
-          type: minutes.type,
-          value: minutes.value
-        },
-        note: {
-          autocomplete: note.autocomplete,
-          maxLength: note.maxLength,
-          placeholder: note.placeholder,
-          value: note.value
-        },
-        options: [...type.options].map((option) => ({ label: option.textContent, value: option.value })),
-        type: type.value
-      },
-      heading: documentRoot.querySelector(".body-log-card h2").textContent.trim(),
-      week: documentRoot.getElementById("skateWeekLabel").textContent.trim()
-    };
-  })()`;
+async function captureBodySupportSignature(browser) {
+  await browser.evaluate(prepareBodySupportScreenshot());
+  await browser.evaluate("new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))");
+  return browser.captureScreenshot(cardClip());
 }
 
-function bodySupportVisualContract() {
-  return `(() => {
-    const documentRoot = document;
-    const view = documentRoot.defaultView;
-    const pick = (element) => {
-      const rect = element.getBoundingClientRect();
-      const style = view.getComputedStyle(element);
-      const dimension = (value) => Math.round(value * 1000) / 1000;
-      return {
-        alignItems: style.alignItems,
-        background: style.background,
-        border: style.border,
-        borderRadius: style.borderRadius,
-        boxShadow: style.boxShadow,
-        color: style.color,
-        display: style.display,
-        fontFamily: style.fontFamily,
-        fontSize: style.fontSize,
-        fontWeight: style.fontWeight,
-        gap: style.gap,
-        gridColumn: style.gridColumn,
-        gridTemplateColumns: style.gridTemplateColumns,
-        height: dimension(rect.height),
-        marginTop: style.marginTop,
-        padding: style.padding,
-        width: dimension(rect.width)
-      };
-    };
-    const card = documentRoot.querySelector(".body-log-card");
-    const form = card.querySelector(".body-log-form");
-    return {
-      button: pick(form.querySelector("button")),
-      card: pick(card),
-      chip: pick(card.querySelector(".body-support-chip")),
-      form: pick(form),
-      metrics: pick(card.querySelector(".body-support-metrics")),
-      minutes: pick(card.querySelector("#bodyWorkoutMinutes")),
-      note: pick(card.querySelector("#bodyWorkoutName")),
-      noteRow: pick(card.querySelector(".body-log-note")),
-      panel: pick(card.querySelector(".panel-inner")),
-      sectionHead: pick(card.querySelector(".section-head")),
-      select: pick(card.querySelector("#bodyWorkoutType"))
-    };
-  })()`;
-}
-
-async function prepareScreenshot(browser) {
-  await browser.evaluate(`(() => {
-    const documentRoot = document;
-    documentRoot.documentElement.style.scrollBehavior = "auto";
-    const mascot = documentRoot.querySelector(".mascot-card");
-    if (mascot) mascot.style.visibility = "hidden";
-    documentRoot.querySelector(".body-log-card").scrollIntoView({ block: "start" });
-  })()`);
-  await browser.evaluate('new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
-}
-
-function cardClip() {
-  return `(() => {
-    const documentRoot = document;
-    const rect = documentRoot.querySelector(".body-log-card").getBoundingClientRect();
-    return {
-      x: rect.x + documentRoot.defaultView.scrollX,
-      y: rect.y + documentRoot.defaultView.scrollY,
-      width: rect.width,
-      height: rect.height
-    };
-  })()`;
-}
-
-function assertSameScreenshot(actual, expected, label) {
-  const comparison = compareScreenshots(actual, expected);
+function assertMatchesSignature(actual, expected, label) {
+  const comparison = compareScreenshotSignature(actual, expected);
   assert.equal(comparison.matches, true, `${label}: ${JSON.stringify(comparison)}`);
 }
 
@@ -201,48 +108,38 @@ function gymLifePieSummary() {
 test("Skate Body support preserves weekly metrics, persistence, totals, and visual parity", { timeout: 90_000 }, async function (context) {
   const planner = await startBrowserPlanner(context);
   if (!planner) return;
-  const preview = await startReactPreviewServer(planner.server.url);
-  if (!preview) {
-    context.skip("Install frontend-react dependencies to run React visual regression tests.");
-    return;
-  }
-  context.after(async function () {
-    await preview.close();
-  });
 
   await putPlannerValue(planner.server.url, BODY_SUPPORT_KEY, SEEDED_LOGS);
 
-  const legacyUrl = `${planner.server.url}/?view=skateView&date=${TEST_DATE}`;
-  const previewUrl = `${preview.url}/?view=skateView&date=${TEST_DATE}`;
+  const pageUrl = `${planner.server.url}/?view=skateView&date=${TEST_DATE}`;
 
   for (const [width, height] of [[1280, 720], [390, 844]]) {
     await planner.browser.setViewport(width, height, width < 500);
-    await openSkate(planner.browser, legacyUrl);
-    const legacyState = await planner.browser.evaluate(bodySupportState());
-    const legacyVisual = await planner.browser.evaluate(bodySupportVisualContract());
-    await prepareScreenshot(planner.browser);
-    const legacyScreenshot = await planner.browser.captureScreenshot(cardClip());
-
-    await openSkate(planner.browser, previewUrl);
+    await openSkate(planner.browser, pageUrl);
     assert.equal(await planner.browser.evaluate('document.querySelector("iframe")'), null);
-    const reactState = await planner.browser.evaluate(bodySupportState());
-    const reactVisual = await planner.browser.evaluate(bodySupportVisualContract());
-    await prepareScreenshot(planner.browser);
-    const reactScreenshot = await planner.browser.captureScreenshot(cardClip());
-
-    assert.deepEqual(reactState, legacyState);
-    assert.equal(reactState.week, "2026-W38");
-    assert.deepEqual(reactState.chips, [
+    const state = await planner.browser.evaluate(bodySupportState());
+    assert.deepEqual(state, expectedSkateBodySupportState());
+    assert.equal(state.week, "2026-W38");
+    // Unknown kinds fall back to Other, skipped logs drop out, and a
+    // zero-minute log shows as Logged.
+    assert.deepEqual(state.chips, [
       { text: "Gym2x45 min", title: "Leg day" },
       { text: "Other1x5 min", title: "" },
       { text: "Recovery1xLogged", title: "" }
     ]);
-    assert.deepEqual(reactVisual, legacyVisual);
-    assertSameScreenshot(reactScreenshot, legacyScreenshot, `${width}px Skate Body support`);
+    assert.deepEqual(
+      await planner.browser.evaluate(bodySupportVisualContract()),
+      expectedSkateBodySupportVisual(width < 500)
+    );
+    assertMatchesSignature(
+      await captureBodySupportSignature(planner.browser),
+      expectedSkateBodySupportScreenshot(width < 500),
+      `${width}px Skate Body support`
+    );
   }
 
   await planner.browser.setViewport(1280, 720);
-  await openSkate(planner.browser, previewUrl);
+  await openSkate(planner.browser, pageUrl);
   const beforeSaveData = await planner.server.readPlannerData();
   await planner.browser.evaluate(`(() => {
     const documentRoot = document;
@@ -305,12 +202,12 @@ test("Skate Body support preserves weekly metrics, persistence, totals, and visu
       && documentRoot.getElementById("bodyWorkoutName").value === "";
   })()`);
 
-  await planner.browser.open(`${preview.url}/?view=todayView&date=${TEST_DATE}`);
+  await planner.browser.open(`${planner.server.url}/?view=todayView&date=${TEST_DATE}`);
   await planner.browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
   await planner.browser.waitForExpression('document.querySelectorAll("#lifeBreakdown .breakdown-row").length === 6');
   assert.equal(await planner.browser.evaluate(gymLifePieSummary()), "100% · 1.42h");
 
-  await openSkate(planner.browser, previewUrl);
+  await openSkate(planner.browser, pageUrl);
   const reloaded = await planner.browser.evaluate(bodySupportState());
   assert.deepEqual(reloaded.chips, [
     { text: "Gym2x45 min", title: "Leg day" },
@@ -319,17 +216,10 @@ test("Skate Body support preserves weekly metrics, persistence, totals, and visu
     { text: "Yoga1x35 min", title: "Yin yoga" }
   ]);
 
-  const emptyLegacyUrl = `${planner.server.url}/?view=skateView&date=2026-09-21`;
-  const emptyPreviewUrl = `${preview.url}/?view=skateView&date=2026-09-21`;
-  await openSkate(planner.browser, emptyLegacyUrl, false);
-  const legacyEmpty = await planner.browser.evaluate(
+  // A week with no logs shows only the empty-state note.
+  await openSkate(planner.browser, `${planner.server.url}/?view=skateView&date=2026-09-21`, false);
+  assert.equal(await planner.browser.evaluate(
     'document.querySelector("#skateWeeklyMetrics .body-support-empty").textContent.trim()'
-  );
-  await openSkate(planner.browser, emptyPreviewUrl, false);
-  const reactEmpty = await planner.browser.evaluate(
-    'document.querySelector("#skateWeeklyMetrics .body-support-empty").textContent.trim()'
-  );
-  assert.equal(reactEmpty, legacyEmpty);
-  assert.equal(reactEmpty, "Saved body support from this week will appear here.");
+  ), "Saved body support from this week will appear here.");
   assert.deepEqual(planner.browser.errors(), []);
 });

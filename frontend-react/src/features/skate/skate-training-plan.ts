@@ -10,6 +10,7 @@ import {
   SKATE_SETTINGS_STORAGE_KEY,
   type SkateSettings
 } from "./skate-settings";
+import { startOfLocalDay } from "../../shared/planner-date";
 
 export { SKATE_SETTINGS_STORAGE_KEY } from "./skate-settings";
 
@@ -62,12 +63,9 @@ export interface SkateTrainingPlanState {
 
 type SkateProgramDay = typeof SKATE_PROGRAM.days[number];
 
-function localDay(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-}
 
 function isBeforeSeason(date: Date): boolean {
-  return Math.round((localDay(date).getTime() - SKATE_SEASON_START.getTime()) / DAY_MS) + 1 <= 0;
+  return Math.round((startOfLocalDay(date).getTime() - SKATE_SEASON_START.getTime()) / DAY_MS) + 1 <= 0;
 }
 
 function dayPlan(dayNumber: number): SkateProgramDay {

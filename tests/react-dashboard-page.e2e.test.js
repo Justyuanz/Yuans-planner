@@ -2,8 +2,15 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const { startBrowserPlanner } = require("./helpers/browser-planner");
-const { compareScreenshots } = require("./helpers/png-compare");
-const { startReactPreviewServer } = require("./helpers/react-preview-server");
+const {
+  dashboardClip,
+  dashboardPageGeometry,
+  dashboardPageState,
+  expectedDashboardPageGeometry,
+  expectedDashboardPageScreenshot,
+  expectedDashboardPageState
+} = require("./helpers/dashboard-page-contract");
+const { compareScreenshotSignature, compareScreenshots } = require("./helpers/png-compare");
 
 const TEST_DATE = "2026-09-14";
 
@@ -40,45 +47,8 @@ async function openReady(browser, url) {
   await browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
 }
 
-function pageState() {
-  return `(() => ({
-    activeTab: document.querySelector(".tab-button.active")?.textContent.trim(),
-    dashboardActive: document.getElementById("todayView")?.classList.contains("active"),
-    date: document.getElementById("dashboardDate")?.textContent.trim(),
-    headings: [...document.querySelectorAll("#todayView article h2, #todayView article h3")]
-      .map((heading) => heading.textContent.trim()),
-    iframeCount: document.querySelectorAll("iframe").length,
-    insightTitle: document.getElementById("dashboardInsightTitle")?.textContent.trim(),
-    taskCount: document.querySelectorAll("#tasksMount .task").length
-  }))()`;
-}
-
-function pageGeometry() {
-  return `(() => {
-    const rect = (selector) => {
-      const value = document.querySelector(selector).getBoundingClientRect();
-      return { height: value.height, width: value.width, x: value.x, y: value.y };
-    };
-    return {
-      dashboard: rect(".today-dashboard"),
-      goals: rect(".goals-card"),
-      life: rect(".life-card"),
-      tasks: rect(".tasks-card"),
-      planned: rect(".planned-card"),
-      insight: rect(".insight-card"),
-      money: rect(".money-quick-card"),
-      taskParts: {
-        banner: rect(".day-banner"),
-        form: rect("#taskForm"),
-        intention: rect(".intention-block"),
-        list: rect("#tasksMount"),
-        state: rect(".day-state-strip")
-      },
-      overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth
-    };
-  })()`;
-}
-
+// The animated mascot is hidden before capture so it cannot add noise, while
+// its layout space is preserved.
 async function prepareScreenshot(browser) {
   await browser.evaluate(`(() => {
     document.documentElement.style.scrollBehavior = "auto";
@@ -91,65 +61,39 @@ async function prepareScreenshot(browser) {
   })`);
 }
 
-function dashboardClip() {
-  return `(() => {
-    const rect = document.querySelector(".today-dashboard").getBoundingClientRect();
-    return {
-      x: rect.x,
-      y: rect.y,
-      width: rect.width,
-      height: Math.min(rect.height, document.defaultView.innerHeight - rect.y)
-    };
-  })()`;
-}
-
 test("Dashboard is a direct React page with legacy layout and Pattern behavior", { timeout: 90_000 }, async function (context) {
   const planner = await startBrowserPlanner(context);
   if (!planner) return;
-  const preview = await startReactPreviewServer(planner.server.url);
-  if (!preview) {
-    context.skip("Install frontend-react dependencies to run React page tests.");
-    return;
-  }
-  context.after(async function () {
-    await preview.close();
-  });
   await seedDashboard(planner.server.url);
-  const legacyUrl = `${planner.server.url}/?view=todayView&date=${TEST_DATE}`;
-  const previewUrl = `${preview.url}/?view=todayView&date=${TEST_DATE}`;
-  const rootPreviewUrl = `${preview.url}/?date=${TEST_DATE}`;
+  const pageUrl = `${planner.server.url}/?view=todayView&date=${TEST_DATE}`;
+  const rootUrl = `${planner.server.url}/?date=${TEST_DATE}`;
 
   for (const [width, height] of [[1280, 720], [390, 844]]) {
     await planner.browser.setViewport(width, height, width < 500);
-    await openReady(planner.browser, legacyUrl);
-    const legacyState = await planner.browser.evaluate(pageState());
-    const legacyGeometry = await planner.browser.evaluate(pageGeometry());
+    await openReady(planner.browser, pageUrl);
+    assert.deepEqual(await planner.browser.evaluate(dashboardPageState()), expectedDashboardPageState());
+    const geometry = await planner.browser.evaluate(dashboardPageGeometry());
+    assert.deepEqual(geometry, expectedDashboardPageGeometry(width < 500));
+    assert.equal(geometry.overflow, false);
     await prepareScreenshot(planner.browser);
-    const legacyScreenshot = await planner.browser.captureScreenshot(dashboardClip());
-
-    await openReady(planner.browser, previewUrl);
-    const reactState = await planner.browser.evaluate(pageState());
-    const reactGeometry = await planner.browser.evaluate(pageGeometry());
-    await prepareScreenshot(planner.browser);
-    const reactScreenshot = await planner.browser.captureScreenshot(dashboardClip());
-
-    assert.deepEqual(reactState, { ...legacyState, iframeCount: 0 });
-    assert.deepEqual(reactGeometry, legacyGeometry);
-    const comparison = compareScreenshots(reactScreenshot, legacyScreenshot);
+    const comparison = compareScreenshotSignature(
+      await planner.browser.captureScreenshot(dashboardClip()),
+      expectedDashboardPageScreenshot(width < 500)
+    );
     assert.equal(comparison.matches, true, `${width}px Dashboard screenshot: ${JSON.stringify(comparison)}`);
-    assert.equal(reactGeometry.overflow, false);
   }
 
+  // The no-view entry path must render exactly the same Dashboard.
   await planner.browser.setViewport(1280, 720);
-  await openReady(planner.browser, previewUrl);
-  const explicitState = await planner.browser.evaluate(pageState());
-  const explicitGeometry = await planner.browser.evaluate(pageGeometry());
+  await openReady(planner.browser, pageUrl);
+  const explicitState = await planner.browser.evaluate(dashboardPageState());
+  const explicitGeometry = await planner.browser.evaluate(dashboardPageGeometry());
   await prepareScreenshot(planner.browser);
   const explicitScreenshot = await planner.browser.captureScreenshot(dashboardClip());
 
-  await openReady(planner.browser, rootPreviewUrl);
-  const rootState = await planner.browser.evaluate(pageState());
-  const rootGeometry = await planner.browser.evaluate(pageGeometry());
+  await openReady(planner.browser, rootUrl);
+  const rootState = await planner.browser.evaluate(dashboardPageState());
+  const rootGeometry = await planner.browser.evaluate(dashboardPageGeometry());
   await prepareScreenshot(planner.browser);
   const rootScreenshot = await planner.browser.captureScreenshot(dashboardClip());
   assert.deepEqual(rootState, explicitState);
@@ -158,7 +102,7 @@ test("Dashboard is a direct React page with legacy layout and Pattern behavior",
   assert.equal(rootState.date, "Mon Sep 14");
   assert.equal(compareScreenshots(rootScreenshot, explicitScreenshot).matches, true);
 
-  await openReady(planner.browser, `${preview.url}/`);
+  await openReady(planner.browser, `${planner.server.url}/`);
   assert.deepEqual(
     await planner.browser.evaluate(`(() => ({
       activeTab: document.querySelector(".tab-button.active")?.textContent.trim(),
@@ -167,7 +111,7 @@ test("Dashboard is a direct React page with legacy layout and Pattern behavior",
     { activeTab: "Dashboard", iframeCount: 0 }
   );
 
-  await openReady(planner.browser, rootPreviewUrl);
+  await openReady(planner.browser, rootUrl);
   await planner.browser.evaluate('document.querySelector("[data-view-target=moneyView]").click()');
   await planner.browser.waitForExpression('location.search.includes("view=moneyView")');
   await planner.browser.waitForExpression(
@@ -176,7 +120,7 @@ test("Dashboard is a direct React page with legacy layout and Pattern behavior",
   assert.equal(await planner.browser.evaluate('location.search.includes("date=2026-09-14")'), true);
   assert.equal(await planner.browser.evaluate('document.querySelectorAll("iframe").length'), 0);
 
-  await openReady(planner.browser, `${preview.url}/?view=journalView&date=${TEST_DATE}`);
+  await openReady(planner.browser, `${planner.server.url}/?view=journalView&date=${TEST_DATE}`);
   assert.deepEqual(
     await planner.browser.evaluate(`(() => ({
       active: document.getElementById("journalView").classList.contains("active"),
@@ -185,7 +129,7 @@ test("Dashboard is a direct React page with legacy layout and Pattern behavior",
     { active: true, iframeCount: 0 }
   );
 
-  await openReady(planner.browser, `${preview.url}/?view=calendarView&date=${TEST_DATE}`);
+  await openReady(planner.browser, `${planner.server.url}/?view=calendarView&date=${TEST_DATE}`);
   await planner.browser.waitForExpression('document.querySelectorAll("#calendarGrid .day-cell").length === 42');
   assert.deepEqual(
     await planner.browser.evaluate(`(() => ({
@@ -195,7 +139,7 @@ test("Dashboard is a direct React page with legacy layout and Pattern behavior",
     { active: true, iframeCount: 0 }
   );
 
-  await openReady(planner.browser, `${preview.url}/?view=skateView&date=${TEST_DATE}`);
+  await openReady(planner.browser, `${planner.server.url}/?view=skateView&date=${TEST_DATE}`);
   await planner.browser.waitForExpression('document.getElementById("skateCurrentDay") !== null');
   assert.deepEqual(
     await planner.browser.evaluate(`({
@@ -205,7 +149,7 @@ test("Dashboard is a direct React page with legacy layout and Pattern behavior",
     { active: true, iframeCount: 0 }
   );
 
-  await planner.browser.open(`${preview.url}/?view=guitarView&date=${TEST_DATE}`);
+  await planner.browser.open(`${planner.server.url}/?view=guitarView&date=${TEST_DATE}`);
   await planner.browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
   await planner.browser.waitForExpression('document.getElementById("guitarSessionSummary") !== null');
   assert.deepEqual(
@@ -216,7 +160,7 @@ test("Dashboard is a direct React page with legacy layout and Pattern behavior",
     { active: true, iframeCount: 0 }
   );
 
-  await openReady(planner.browser, previewUrl);
+  await openReady(planner.browser, pageUrl);
   await planner.browser.evaluate('document.querySelector("#dashboardInsightActions .insight-action").click()');
   assert.equal(await planner.browser.evaluate('document.activeElement === document.getElementById("taskTitle")'), true);
 

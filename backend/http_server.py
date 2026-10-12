@@ -8,7 +8,6 @@ from http.server import BaseHTTPRequestHandler
 from pathlib import Path
 from urllib.parse import parse_qs, unquote, urlparse
 
-from config import planner_frontend_mode
 from openai_mascot import ask_mascot, openai_enabled
 from planner_api import (
     ApiRequestError,
@@ -22,9 +21,7 @@ from telegram_notifier import send_telegram_message, telegram_status
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-LEGACY_FRONTEND_DIR = PROJECT_ROOT / "frontend"
 REACT_FRONTEND_DIR = PROJECT_ROOT / "frontend-react" / "dist"
-REACT_STYLESHEET = PROJECT_ROOT / "frontend-react" / "src" / "planner.css"
 
 
 class PlannerHandler(BaseHTTPRequestHandler):
@@ -141,34 +138,6 @@ class PlannerHandler(BaseHTTPRequestHandler):
         self.send_json(response)
 
     def serve_static(self, path: str, include_body: bool = True) -> None:
-        if path == "/css/styles.css":
-            self.send_static_file(REACT_STYLESHEET, include_body)
-            return
-        if path == "/legacy" or path.startswith("/legacy/"):
-            legacy_path = path[len("/legacy"):]
-            self.serve_legacy_static(legacy_path or "/", include_body)
-            return
-        if path.startswith("/js/"):
-            self.serve_legacy_static(path, include_body)
-            return
-        if planner_frontend_mode() == "legacy":
-            self.serve_legacy_static(path, include_body)
-            return
-        self.serve_react_static(path, include_body)
-
-    def serve_legacy_static(self, path: str, include_body: bool) -> None:
-        target = self.resolve_static_target(
-            LEGACY_FRONTEND_DIR,
-            "/index.html" if path == "/" else path,
-        )
-        if target is None:
-            return
-        if not target.is_file():
-            self.send_error(404)
-            return
-        self.send_static_file(target, include_body)
-
-    def serve_react_static(self, path: str, include_body: bool) -> None:
         index_path = REACT_FRONTEND_DIR / "index.html"
         if not index_path.is_file():
             self.send_error(503, "React frontend build is missing")

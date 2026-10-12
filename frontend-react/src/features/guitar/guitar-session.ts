@@ -2,6 +2,7 @@ import type { PlannerStore } from "../../api/planner-store";
 import { isRecord } from "../../shared/is-record";
 import { formatPlannerDate } from "../life-pie/life-pie-store";
 import { GUITAR_FOCUS_STORAGE_KEY, GUITAR_NEXT_STEP_STORAGE_KEY } from "./guitar-goal";
+import { addDays, humanDate } from "../../shared/planner-date";
 
 export const GUITAR_SESSIONS_STORAGE_KEY = "hivePlanner.guitar.sessions";
 export const GUITAR_TARGET_STORAGE_KEY = "hivePlanner.guitar.weeklyTarget";
@@ -33,8 +34,6 @@ export interface GuitarSessionModel {
   summary: GuitarSummaryItem[];
 }
 
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
-const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"] as const;
 
 function parsedArray(rawValue: string | undefined): unknown[] {
   try {
@@ -49,9 +48,6 @@ function displaySessions(rawValue: string | undefined): Record<string, unknown>[
   return parsedArray(rawValue).filter(isRecord);
 }
 
-function addDays(date: Date, amount: number): Date {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + amount);
-}
 
 function weekRange(today: Date): { end: string; start: string } {
   const mondayOffset = today.getDay() === 0 ? -6 : 1 - today.getDay();
@@ -74,10 +70,11 @@ function textValue(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
 
-function humanDate(dateKey: string): string {
+// Guitar parses a session key with zero defaults, so a partial key rolls back
+// instead of clamping to the first of the month. Only the label is shared.
+function humanGuitarDate(dateKey: string): string {
   const [year = 0, month = 0, day = 0] = dateKey.split("-").map(Number);
-  const date = new Date(year, month - 1, day);
-  return `${WEEKDAYS[date.getDay()]} ${MONTHS[date.getMonth()]} ${date.getDate()}`;
+  return humanDate(new Date(year, month - 1, day));
 }
 
 function recentHistory(sessions: readonly Record<string, unknown>[]): GuitarHistoryItem[] {
@@ -89,7 +86,7 @@ function recentHistory(sessions: readonly Record<string, unknown>[]): GuitarHist
       const focus = textValue(session.focus);
       const nextStep = textValue(session.nextStep);
       return {
-        date: humanDate(normalizedDateKey(session.finishedAt)),
+        date: humanGuitarDate(normalizedDateKey(session.finishedAt)),
         minutes: durationMinutes(session),
         note: textValue(session.note) || focus || nextStep || "Saved session",
         title: [focus, nextStep].filter(Boolean).join(" · ")

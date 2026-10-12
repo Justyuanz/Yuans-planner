@@ -141,7 +141,7 @@ const STORED_TASKS = [
 ];
 
 test("task progress preserves filtering, completion updates, and reload behavior", { timeout: 60_000 }, async function (context) {
-  const planner = await startBrowserPlanner(context, { frontendMode: "react" });
+  const planner = await startBrowserPlanner(context);
   if (!planner) {
     return;
   }
@@ -177,7 +177,7 @@ test("task progress preserves filtering, completion updates, and reload behavior
 });
 
 test("task progress preserves its desktop and mobile visual contract", { timeout: 60_000 }, async function (context) {
-  const planner = await startBrowserPlanner(context, { frontendMode: "react" });
+  const planner = await startBrowserPlanner(context);
   if (!planner) {
     return;
   }

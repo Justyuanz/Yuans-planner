@@ -2,6 +2,7 @@ import type { PlannerStore } from "../../api/planner-store";
 import { isRecord } from "../../shared/is-record";
 import { formatPlannerDate } from "../life-pie/life-pie-store";
 import { normalizeSkateIntensity, type SkateIntensity } from "./skate-intensity";
+import { addDays, humanDate, startOfLocalDay } from "../../shared/planner-date";
 
 export const SKATE_SESSIONS_STORAGE_KEY = "hivePlanner.skate.sessions";
 
@@ -11,7 +12,6 @@ const MONTH_NAMES = [
   "January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December"
 ] as const;
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
 
 interface StoredSkateSession {
   dateKey: string;
@@ -94,17 +94,8 @@ function decodeSessions(rawValue: string | undefined): StoredSkateSession[] {
   }
 }
 
-function localDay(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-}
 
-function addDays(date: Date, amount: number): Date {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + amount);
-}
 
-function humanDate(date: Date): string {
-  return `${WEEKDAYS[date.getDay()]!} ${MONTH_NAMES[date.getMonth()]!.slice(0, 3)} ${date.getDate()}`;
-}
 
 function sessionsByDate(store: PlannerStore): Map<string, StoredSkateSession[]> {
   const grouped = new Map<string, StoredSkateSession[]>();
@@ -134,8 +125,8 @@ function roadmapDay(date: Date, sessions: StoredSkateSession[]): SkateRoadmapDay
 }
 
 export function buildSkateRoadmapModel(store: PlannerStore, referenceDate: Date): SkateRoadmapModel {
-  const end = localDay(referenceDate);
-  const start = localDay(SKATE_SEASON_START);
+  const end = startOfLocalDay(referenceDate);
+  const start = startOfLocalDay(SKATE_SEASON_START);
   if (end < start) {
     return { columnCount: 0, days: [], emptyMessage: EMPTY_MESSAGE, leadingBlanks: 0, months: [] };
   }

@@ -15,6 +15,7 @@ import {
   type CalendarEventDraft
 } from "./calendar-event-editor";
 import { buildCalendarWeek, previewCalendarActivity } from "./calendar-week";
+import { humanDate } from "../../shared/planner-date";
 
 export interface CalendarEditorRequest {
   eventId: string | null;
@@ -47,11 +48,14 @@ function resetDraft(date: string, category: string): CalendarEventDraft {
   };
 }
 
-function humanDate(date: string): string {
-  const value = new Date(Number(date.slice(0, 4)), Number(date.slice(5, 7)) - 1, Number(date.slice(8, 10)));
-  const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  return `${weekdays[value.getDay()]} ${months[value.getMonth()]} ${value.getDate()}`;
+// The editor reads the value of a date input, so it parses by fixed character
+// positions rather than splitting on dashes. Only the label is shared.
+function humanEditorDate(date: string): string {
+  return humanDate(new Date(
+    Number(date.slice(0, 4)),
+    Number(date.slice(5, 7)) - 1,
+    Number(date.slice(8, 10))
+  ));
 }
 
 function guidance(store: PlannerStore, date: string): string {
@@ -138,7 +142,7 @@ export function CalendarEventEditor({
     setEditingEventId("");
     setActivityPickerOpen(false);
     setDraft(resetDraft(eventDate, draft.category));
-    setFormHint(`${wasEditing ? "Updated " : "Saved for "}${humanDate(eventDate)}.`);
+    setFormHint(`${wasEditing ? "Updated " : "Saved for "}${humanEditorDate(eventDate)}.`);
   }
 
   function removeEvent(eventId: string, title: string): void {
@@ -160,7 +164,7 @@ export function CalendarEventEditor({
   return (
     <>
       <div className="section-head">
-        <h2 id="selectedDateHeading">{humanDate(selectedDate)}</h2>
+        <h2 id="selectedDateHeading">{humanEditorDate(selectedDate)}</h2>
         <p className="small-note" id="selectedDateHint">{guidance(store, selectedDate)}</p>
       </div>
       <ul className="selected-events" id="selectedDateEvents" aria-label="Selected date events">

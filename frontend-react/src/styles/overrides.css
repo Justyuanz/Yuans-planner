@@ -1,0 +1,36 @@
+/* Late rules that must stay last: they intentionally override earlier declarations, including the responsive blocks above. */
+
+.life-dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 8px; }
+.meditation-card { margin-bottom: 22px; padding: 20px; border: 1px solid #e9e2f1; border-radius: 22px; background: linear-gradient(110deg, #faf7fd, #f6faf7); }
+.meditation-controls { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; margin: 14px 0 10px; }
+.meditation-controls label { display: flex; align-items: center; gap: 10px; color: var(--muted); }
+.meditation-controls input, .journal-minutes input { width: 85px; }
+.meditation-controls output { font-size: 1.3rem; font-variant-numeric: tabular-nums; min-width: 75px; }
+.journal-minutes { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-bottom: 20px; }
+.meditation-controls input, .journal-minutes input { padding: 10px 12px; border: 1px solid var(--line); border-radius: 14px; background: rgba(255,255,255,.85); color: var(--ink); font: inherit; }
+.meditation-controls input:focus-visible, .journal-minutes input:focus-visible { outline: 2px solid var(--violet); outline-offset: 2px; }
+.meditation-controls button:disabled { opacity: .5; cursor: default; }
+
+/* Compact month pills: start time and title share one row. */
+.finnish-block {
+  border-color: rgba(177, 216, 186, 0.56);
+  background: linear-gradient(180deg, rgba(239, 249, 241, 0.96), rgba(222, 240, 227, 0.88));
+  color: #64856d;
+}
+.event-pill-name {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+.event-pill { gap: 5px; }
+.event-pill-start {
+  flex: 0 0 auto;
+  font-size: 0.85em;
+  font-variant-numeric: tabular-nums;
+  opacity: 0.85;
+}
+@media (max-width: 600px) {
+  .event-pill { gap: 2px; }
+}

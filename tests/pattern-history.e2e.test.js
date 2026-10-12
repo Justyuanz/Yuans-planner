@@ -390,7 +390,7 @@ function expectedHistoryVisual(mobile) {
 }
 
 test("Pattern history preserves empty, grouped, action, disclosure, and refresh behavior", { timeout: 60_000 }, async function (context) {
-  const planner = await startBrowserPlanner(context, { frontendMode: "react" });
+  const planner = await startBrowserPlanner(context);
   if (!planner) {
     return;
   }
@@ -434,7 +434,7 @@ test("Pattern history preserves empty, grouped, action, disclosure, and refresh 
 });
 
 test("Pattern history preserves its desktop and mobile visual contract", { timeout: 60_000 }, async function (context) {
-  const planner = await startBrowserPlanner(context, { frontendMode: "react" });
+  const planner = await startBrowserPlanner(context);
   if (!planner) {
     return;
   }

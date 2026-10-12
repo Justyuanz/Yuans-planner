@@ -2,8 +2,14 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const { startBrowserPlanner } = require("./helpers/browser-planner");
-const { compareScreenshots } = require("./helpers/png-compare");
-const { startReactPreviewServer } = require("./helpers/react-preview-server");
+const {
+  cardClip,
+  expectedGuitarCardScreenshot,
+  expectedGuitarContract,
+  guitarContract,
+  prepareCardScreenshot
+} = require("./helpers/guitar-contract");
+const { compareScreenshotSignature } = require("./helpers/png-compare");
 
 const TEST_DATE = "2026-09-14";
 const FOCUS_KEY = "hivePlanner.guitar.focus";
@@ -69,96 +75,15 @@ async function seedGuitar(serverUrl) {
   }
 }
 
-function guitarContract(documentExpression) {
-  return `(() => {
-    const documentRoot = ${documentExpression};
-    const view = documentRoot.defaultView;
-    const goalCard = documentRoot.querySelector(".guitar-goal-card");
-    const sessionCard = documentRoot.querySelector(".guitar-session-card");
-    const pick = (element) => {
-      const style = view.getComputedStyle(element);
-      const rect = element.getBoundingClientRect();
-      return {
-        background: style.background,
-        border: style.border,
-        borderRadius: style.borderRadius,
-        boxShadow: style.boxShadow,
-        color: style.color,
-        display: style.display,
-        fontFamily: style.fontFamily,
-        fontSize: style.fontSize,
-        fontWeight: style.fontWeight,
-        gap: style.gap,
-        height: rect.height,
-        lineHeight: style.lineHeight,
-        padding: style.padding,
-        width: rect.width,
-        x: rect.x,
-        y: rect.y
-      };
-    };
-    return {
-      activeView: documentRoot.querySelector(".view.active")?.id,
-      focus: documentRoot.getElementById("guitarFocusInput")?.value,
-      focusInput: pick(documentRoot.getElementById("guitarFocusInput")),
-      goalCard: pick(goalCard),
-      goalPanel: pick(goalCard.querySelector(".panel-inner")),
-      heading: documentRoot.getElementById("guitarHeading")?.textContent.trim(),
-      history: [...documentRoot.querySelectorAll("#guitarRecentSessions > *")].map((row) => ({
-        text: row.textContent.trim(),
-        title: row.getAttribute("title")
-      })),
-      nextStep: documentRoot.getElementById("guitarNextStepInput")?.value,
-      iframeCount: documentRoot.querySelectorAll("iframe").length,
-      overflow: documentRoot.documentElement.scrollWidth > documentRoot.documentElement.clientWidth,
-      plan: documentRoot.getElementById("guitarSessionPlan")?.textContent.trim(),
-      sessionCard: pick(sessionCard),
-      sessionHint: documentRoot.getElementById("guitarSessionHint")?.textContent.trim(),
-      sessionStatus: documentRoot.getElementById("guitarSessionStatus")?.textContent.trim(),
-      summary: [...documentRoot.querySelectorAll("#guitarSessionSummary .guitar-summary-card")]
-        .map((card) => card.textContent.trim()),
-      timerButtons: [...documentRoot.querySelectorAll("#startGuitarSession, #finishGuitarSession")]
-        .map((button) => ({ disabled: button.disabled, text: button.textContent.trim() }))
-    };
-  })()`;
-}
-
-async function prepareCardScreenshot(browser, documentExpression, selector) {
-  await browser.evaluate(`(() => {
-    const documentRoot = ${documentExpression};
-    documentRoot.documentElement.style.scrollBehavior = "auto";
-    documentRoot.body.style.paddingBottom = "1000px";
-    const mascot = documentRoot.querySelector(".mascot-card");
-    if (mascot) mascot.style.visibility = "hidden";
-    documentRoot.querySelector(${JSON.stringify(selector)}).scrollIntoView({ block: "start" });
-  })()`);
-  await browser.evaluate("new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))");
-}
-
-function cardClip(documentExpression, selector, frameExpression = "null") {
-  return `(() => {
-    const documentRoot = ${documentExpression};
-    const rect = documentRoot.querySelector(${JSON.stringify(selector)}).getBoundingClientRect();
-    const frame = ${frameExpression};
-    const frameRect = frame ? frame.getBoundingClientRect() : { x: 0, y: 0 };
-    return {
-      x: frameRect.x + rect.x + (frame ? 0 : documentRoot.defaultView.scrollX),
-      y: frameRect.y + rect.y + (frame ? 0 : documentRoot.defaultView.scrollY),
-      width: rect.width,
-      height: Math.min(rect.height, documentRoot.defaultView.innerHeight)
-    };
-  })()`;
-}
-
-function assertSameScreenshot(actual, expected, label) {
-  const comparison = compareScreenshots(actual, expected);
+function assertMatchesSignature(actual, expected, label) {
+  const comparison = compareScreenshotSignature(actual, expected);
   assert.equal(comparison.matches, true, `${label}: ${JSON.stringify(comparison)}`);
 }
 
-async function waitForLegacyGuitar(browser) {
-  await browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
-  await browser.waitForExpression('document.getElementById("guitarView").classList.contains("active")');
-  await browser.waitForExpression('document.querySelectorAll("#guitarSessionSummary .guitar-summary-card").length === 4');
+async function captureCardSignature(browser, selector) {
+  await browser.evaluate(prepareCardScreenshot(selector));
+  await browser.evaluate("new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))");
+  return browser.captureScreenshot(cardClip(selector));
 }
 
 async function waitForReactGuitar(browser, expectedFocus = "Clean chord changes") {
@@ -182,68 +107,28 @@ async function setField(browser, id, value) {
 test("Guitar is a direct React page with complete legacy parity and persistence", { timeout: 90_000 }, async function (context) {
   const planner = await startBrowserPlanner(context);
   if (!planner) return;
-  const preview = await startReactPreviewServer(planner.server.url);
-  if (!preview) {
-    context.skip("Install frontend-react dependencies to run Guitar migration tests.");
-    return;
-  }
-  context.after(async function () {
-    await preview.close();
-  });
   await seedGuitar(planner.server.url);
 
-  const legacyUrl = `${planner.server.url}/?view=guitarView&date=${TEST_DATE}`;
-  const previewUrl = `${preview.url}/?view=guitarView&date=${TEST_DATE}`;
+  const pageUrl = `${planner.server.url}/?view=guitarView&date=${TEST_DATE}`;
   for (const [width, height] of [[1280, 900], [390, 844]]) {
     await planner.browser.setViewport(width, height, width < 500);
-    await planner.browser.open(legacyUrl);
-    await waitForLegacyGuitar(planner.browser);
-    const legacyState = await planner.browser.evaluate(guitarContract("document"));
-    await prepareCardScreenshot(planner.browser, "document", ".guitar-goal-card");
-    const legacyGoalScreenshot = await planner.browser.captureScreenshot(cardClip(
-      "document",
-      ".guitar-goal-card"
-    ));
-    await prepareCardScreenshot(planner.browser, "document", ".guitar-session-card");
-    const legacySessionScreenshot = await planner.browser.captureScreenshot(cardClip(
-      "document",
-      ".guitar-session-card"
-    ));
-
-    await planner.browser.open(previewUrl);
+    await planner.browser.open(pageUrl);
     await waitForReactGuitar(planner.browser);
-    const reactState = await planner.browser.evaluate(guitarContract("document"));
-    await prepareCardScreenshot(planner.browser, "document", ".guitar-goal-card");
-    const reactGoalScreenshot = await planner.browser.captureScreenshot(cardClip(
-      "document",
-      ".guitar-goal-card"
-    ));
-    await prepareCardScreenshot(planner.browser, "document", ".guitar-session-card");
-    const reactSessionScreenshot = await planner.browser.captureScreenshot(cardClip(
-      "document",
-      ".guitar-session-card"
-    ));
-
-    assert.deepEqual(reactState, legacyState);
-    assert.deepEqual(reactState.summary, [
-      "This week2 / 4",
-      "Weekly target4",
-      "Minutes played75 min",
-      "Average session38 min"
-    ]);
-    assert.equal(reactState.plan, "This week: 75 / 120 min. 2 more sessions and about 45 min to hit the target. Practice next: Play the bridge slowly. Current focus: Clean chord changes.");
-    assert.equal(reactState.iframeCount, 0);
-    assert.equal(reactState.overflow, false);
-    assertSameScreenshot(reactGoalScreenshot, legacyGoalScreenshot, `${width}px Guitar goal card`);
-    assertSameScreenshot(
-      reactSessionScreenshot,
-      legacySessionScreenshot,
-      `${width}px Guitar session card`
+    assert.deepEqual(
+      await planner.browser.evaluate(guitarContract()),
+      expectedGuitarContract(width < 500)
     );
+    for (const selector of [".guitar-goal-card", ".guitar-session-card"]) {
+      assertMatchesSignature(
+        await captureCardSignature(planner.browser, selector),
+        expectedGuitarCardScreenshot(width < 500, selector),
+        `${width}px Guitar ${selector}`
+      );
+    }
   }
 
   await planner.browser.setViewport(1280, 900);
-  await planner.browser.open(previewUrl);
+  await planner.browser.open(pageUrl);
   await waitForReactGuitar(planner.browser);
   await setField(planner.browser, "guitarFocusInput", "Arpeggios");
   await setField(planner.browser, "guitarNextStepInput", "Play bar 8 slowly");

@@ -2,6 +2,7 @@ import type { PlannerStore, PlannerStoreWrite } from "../../api/planner-store";
 import { isRecord } from "../../shared/is-record";
 import { formatPlannerDate } from "../life-pie/life-pie-store";
 import { isoWeekKey } from "../planned-actual/planned-actual";
+import { addDays, strictDateKey } from "../../shared/planner-date";
 
 export const BODY_SUPPORT_STORAGE_KEY = "hivePlanner.physical.logs";
 export const BODY_SUPPORT_OPTIONS = [
@@ -83,17 +84,11 @@ function normalizedMinutes(value: unknown): number {
   return Number.isFinite(minutes) ? Math.max(0, minutes) : 0;
 }
 
-function normalizedDateKey(value: unknown): string {
-  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return "";
-  const [year = 0, month = 0, day = 0] = value.split("-").map(Number);
-  const date = new Date(year, month - 1, day);
-  return formatPlannerDate(date) === value ? value : "";
-}
 
 export function decodeBodySupportLogs(rawValue: string | undefined): BodySupportLog[] {
   return parseStoredArray(rawValue).flatMap((candidate) => {
     if (!isRecord(candidate) || !candidate.name) return [];
-    const date = normalizedDateKey(candidate.date);
+    const date = strictDateKey(candidate.date);
     if (!date) return [];
     let requestedKind = candidate.name;
     if (candidate.kind) requestedKind = candidate.kind;
@@ -109,9 +104,6 @@ export function decodeBodySupportLogs(rawValue: string | undefined): BodySupport
   });
 }
 
-function addDays(date: Date, amount: number): Date {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + amount);
-}
 
 function weekDateKeys(date: Date): { end: string; start: string } {
   const day = date.getDay();

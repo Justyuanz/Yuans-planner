@@ -111,7 +111,7 @@ async function clickSetupType(browser, rowIndex, label) {
 }
 
 test("Calendar weekly planner preserves visuals, setup rules, navigation, and persistence", { timeout: 90_000 }, async function (context) {
-  const planner = await startBrowserPlanner(context, { frontendMode: "react" });
+  const planner = await startBrowserPlanner(context);
   if (!planner) return;
   await seedWeek(planner.server.url);
 

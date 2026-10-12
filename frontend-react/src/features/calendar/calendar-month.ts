@@ -6,6 +6,7 @@ import {
   calendarEvents,
   type CalendarEvent
 } from "./calendar-event-store";
+import { humanDate } from "../../shared/planner-date";
 
 export interface CalendarMonthPill {
   categoryClass: string;
@@ -103,9 +104,6 @@ function chipLabel(title: string): string {
   return label.length <= 20 ? label : `${label.slice(0, 17).trimEnd()}...`;
 }
 
-function humanDate(date: Date): string {
-  return `${WEEKDAYS[date.getDay()]} ${MONTHS[date.getMonth()]?.slice(0, 3)} ${date.getDate()}`;
-}
 
 function pillForEvent(event: CalendarEvent): CalendarMonthPill {
   const startMinutes = eventStartMinutes(event);

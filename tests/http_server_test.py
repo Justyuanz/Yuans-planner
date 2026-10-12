@@ -6,7 +6,6 @@ import sys
 import tempfile
 import threading
 import unittest
-from html.parser import HTMLParser
 from http.server import ThreadingHTTPServer
 from pathlib import Path
 from unittest import mock
@@ -19,18 +18,6 @@ import http_server
 
 FIXTURE_PATH = Path(__file__).resolve().parent / "fixtures" / "planner-v2-compatibility.json"
 
-
-class AssetParser(HTMLParser):
-    def __init__(self):
-        super().__init__()
-        self.urls = []
-
-    def handle_starttag(self, tag, attrs):
-        attrs = dict(attrs)
-        if tag == "script" and attrs.get("src"):
-            self.urls.append(attrs["src"])
-        if tag == "link" and attrs.get("rel") == "stylesheet":
-            self.urls.append(attrs["href"])
 
 
 class HttpTests(unittest.TestCase):
@@ -213,53 +200,7 @@ class HttpTests(unittest.TestCase):
                     status, _, _ = self.request(method, path, {})
                     self.assertEqual(status, 404)
 
-    def test_legacy_mode_preserves_static_assets_head_and_missing_paths(self):
-        with mock.patch.object(http_server, "planner_frontend_mode", return_value="legacy"):
-            status, headers, body = self.request("GET", "/")
-            self.assertEqual(status, 200)
-            self.assertEqual(
-                body,
-                (http_server.LEGACY_FRONTEND_DIR / "index.html").read_bytes(),
-            )
-            parser = AssetParser()
-            parser.feed(body.decode())
-            self.assertTrue(parser.urls)
-            storage_script = next(
-                url for url in parser.urls if url.startswith("/js/storage-core.js")
-            )
-            activity_categories_script = next(
-                url for url in parser.urls if url.startswith("/js/activity-categories.js")
-            )
-            calendar_task_script = next(
-                url for url in parser.urls if url.startswith("/js/calendar-task-sync.js")
-            )
-            app_script = next(url for url in parser.urls if url.startswith("/js/app.js"))
-            self.assertLess(parser.urls.index(storage_script), parser.urls.index(app_script))
-            self.assertLess(
-                parser.urls.index(activity_categories_script),
-                parser.urls.index(app_script),
-            )
-            self.assertLess(
-                parser.urls.index(calendar_task_script),
-                parser.urls.index(app_script),
-            )
-            for url in ["/"] + parser.urls:
-                with self.subTest(url=url):
-                    status, headers, body = self.request("GET", url)
-                    self.assertEqual(status, 200)
-                    head_status, head_headers, head_body = self.request("HEAD", url)
-                    self.assertEqual(head_status, 200)
-                    self.assertEqual(head_body, b"")
-                    self.assertEqual(head_headers["Content-Length"], str(len(body)))
-                    self.assertEqual(head_headers["Content-Type"], headers["Content-Type"])
-            self.assertEqual(self.request("GET", "/favicon.ico")[0], 204)
-            self.assertEqual(self.request("GET", "/missing-file")[0], 404)
-            self.assertEqual(
-                self.request("GET", "/%2e%2e/backend/config.py")[0],
-                403,
-            )
-
-    def test_react_build_serves_root_assets_routes_and_legacy_compatibility(self):
+    def test_react_build_serves_root_assets_routes_and_blocks_traversal(self):
         react_dir = self.temporary_path / "react-dist"
         assets_dir = react_dir / "assets"
         assets_dir.mkdir(parents=True)
@@ -268,10 +209,7 @@ class HttpTests(unittest.TestCase):
         (react_dir / "index.html").write_bytes(react_index)
         (assets_dir / "app.js").write_bytes(react_script)
 
-        with (
-            mock.patch.object(http_server, "REACT_FRONTEND_DIR", react_dir),
-            mock.patch.object(http_server, "planner_frontend_mode", return_value="react"),
-        ):
+        with mock.patch.object(http_server, "REACT_FRONTEND_DIR", react_dir):
             self.assertEqual(self.request("GET", "/"), (
                 200,
                 mock.ANY,
@@ -287,25 +225,19 @@ class HttpTests(unittest.TestCase):
             self.assertEqual(head_headers["Content-Length"], str(len(react_script)))
             self.assertEqual(head_body, b"")
             self.assertEqual(self.request("GET", "/missing.js")[0], 404)
+            # The retired legacy compatibility routes are gone; they now fall
+            # back to the React shell like any other extensionless path.
+            self.assertEqual(self.request("GET", "/legacy")[2], react_index)
+            self.assertEqual(self.request("GET", "/css/styles.css")[0], 404)
+            self.assertEqual(self.request("GET", "/js/app.js")[0], 404)
             self.assertEqual(
-                self.request("GET", "/css/styles.css")[2],
-                http_server.REACT_STYLESHEET.read_bytes(),
-            )
-            self.assertEqual(
-                self.request("GET", "/legacy/")[2],
-                (http_server.LEGACY_FRONTEND_DIR / "index.html").read_bytes(),
-            )
-            self.assertEqual(
-                self.request("GET", "/legacy/%2e%2e/backend/config.py")[0],
+                self.request("GET", "/%2e%2e/backend/config.py")[0],
                 403,
             )
 
     def test_react_mode_reports_a_missing_build(self):
         missing_build = self.temporary_path / "missing-react-dist"
-        with (
-            mock.patch.object(http_server, "REACT_FRONTEND_DIR", missing_build),
-            mock.patch.object(http_server, "planner_frontend_mode", return_value="react"),
-        ):
+        with mock.patch.object(http_server, "REACT_FRONTEND_DIR", missing_build):
             status, _, body = self.request("GET", "/")
 
         self.assertEqual(status, 503)

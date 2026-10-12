@@ -1,0 +1,144 @@
+/* Weekly goal activity list, its category dots, the day banner, and the progress pill. */
+
+.goal-list,
+.task-list,
+.planned-grid,
+.pie-summary,
+.pie-breakdown,
+.skate-checklist,
+.chart-stack,
+#studyOverview,
+.goal,
+.money-remaining-strip,
+.money-shortcuts,
+.money-transfer-list,
+.money-vendor-list {
+  position: relative;
+  display: grid;
+  gap: 8px;
+  overflow: hidden;
+  padding: 12px 14px 13px 17px;
+  border: 1px solid rgba(245, 202, 221, 0.3);
+  border-radius: 18px;
+  background:
+    radial-gradient(circle at 6% 18%, rgba(245, 202, 221, 0.26), transparent 34%),
+    linear-gradient(112deg, rgba(255, 255, 255, 0.72), rgba(185, 238, 238, 0.16) 52%, rgba(255, 248, 184, 0.18));
+}
+
+.goal::before {
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 5px;
+  border-radius: 18px 0 0 18px;
+  background: linear-gradient(180deg, rgba(245, 202, 221, 0.9), rgba(185, 238, 238, 0.85), rgba(255, 248, 184, 0.9));
+  content: "";
+}
+
+.goal label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: #6d7280;
+  font-size: 0.82rem;
+  font-weight: 510;
+}
+
+.dot {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 10px;
+  border-radius: 50%;
+  background: #7d8798;
+  box-shadow: 0 0 0 5px rgba(255, 255, 255, 0.54);
+}
+
+.goal.mobile-development .dot {
+  background: var(--green-dark);
+}
+
+.goal.portfolio-job-prep .dot {
+  background: var(--amber-dark);
+}
+
+.goal.gym .dot {
+  background: var(--gym-dark);
+}
+
+.goal input,
+.task-form input,
+.task-form select,
+.task-hours input,
+.event-form input,
+.event-form textarea,
+.event-form select,
+.planned-row input,
+.job-input-row input,
+.body-log-form input,
+.body-log-form select,
+.form-row input,
+.form-row textarea {
+  width: 100%;
+  min-height: 42px;
+  padding: 9px 12px;
+  border: 1px solid rgba(185, 206, 240, 0.46);
+  border-radius: 15px;
+  background: rgba(255, 255, 255, 0.72);
+  color: #2d2f2b;
+  outline: none;
+  font-weight: 430;
+  line-height: 1.25;
+}
+
+.goal input {
+  font-size: clamp(0.96rem, 1.2vw, 1.04rem);
+}
+
+textarea {
+  resize: vertical;
+}
+
+.event-form textarea {
+  min-height: 136px;
+}
+
+.goal input:focus,
+.task-form input:focus,
+.task-form select:focus,
+.task-hours input:focus,
+.event-form input:focus,
+.event-form textarea:focus,
+.event-form select:focus,
+.planned-row input:focus,
+.job-input-row input:focus,
+.body-log-form input:focus,
+.body-log-form select:focus,
+.form-row input:focus,
+.form-row textarea:focus {
+  border-color: #8b86ff;
+  box-shadow: 0 0 0 4px rgba(126, 121, 255, 0.14);
+}
+
+.day-banner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  border: 1px solid rgba(79, 136, 133, 0.13);
+  border-radius: 15px;
+  background: linear-gradient(90deg, #e7fbff, #f5f6d6);
+  color: var(--teal-dark);
+  font-weight: 560;
+}
+
+.progress-pill {
+  display: inline-flex;
+  align-items: center;
+  min-height: 34px;
+  padding: 6px 11px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.74);
+  color: var(--teal-dark);
+}

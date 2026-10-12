@@ -4,10 +4,10 @@ import {
   applyPlannerStorageChange,
   fetchPlannerStore,
   mergePlannerHydrationSources,
-  putPlannerStoreValue,
   readPlannerBrowserStore,
   type PlannerStore
 } from "../api/planner-store";
+import { queuePlannerServerWrites } from "./planner-persistence";
 
 export type PlannerStoreState =
   | { status: "loading" }
@@ -31,9 +31,9 @@ export function usePlannerStore(): PlannerStoreState {
           // Server storage remains authoritative when browser storage is blocked.
         }
         const hydration = mergePlannerHydrationSources(serverStore, browserStore);
-        void Promise.all(hydration.serverBackfills.map(({ key, value }) => (
-          putPlannerStoreValue(key, value)
-        ))).catch(() => undefined);
+        // Backfills share the write queue so one cannot land after, and then
+        // overwrite, an edit the user makes to the same key straight away.
+        void queuePlannerServerWrites(hydration.serverBackfills);
         if (acceptsUpdates) {
           setState({ status: "ready", store: hydration.store });
         }

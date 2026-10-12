@@ -2,8 +2,16 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const { startBrowserPlanner } = require("./helpers/browser-planner");
-const { compareScreenshots } = require("./helpers/png-compare");
-const { startReactPreviewServer } = require("./helpers/react-preview-server");
+const { compareScreenshotSignature } = require("./helpers/png-compare");
+const {
+  expectedSkatePageGeometry,
+  expectedSkatePageScreenshot,
+  expectedSkatePageState,
+  heroClip,
+  prepareSkatePageScreenshot,
+  skatePageGeometry,
+  skatePageState
+} = require("./helpers/skate-page-contract");
 
 const TEST_DATE = "2026-09-14";
 const SETTINGS_KEY = "hivePlanner.skate.settings";
@@ -51,74 +59,14 @@ async function openReady(browser, url) {
   await browser.waitForExpression('document.querySelectorAll("#skateCoachFlow .skate-plan-row").length === 7');
 }
 
-function pageState() {
-  return `(() => {
-    const text = (id) => document.getElementById(id)?.textContent.trim();
-    return {
-      activeTab: document.querySelector(".tab-button.active")?.textContent.trim(),
-      activeView: document.querySelector(".view.active")?.id,
-      bodyMetrics: [...document.querySelectorAll("#skateWeeklyMetrics .body-support-chip")]
-        .map((chip) => chip.textContent.trim()),
-      cards: document.querySelectorAll(".skate-page > .panel").length,
-      currentDay: document.getElementById("skateCurrentDay")?.value,
-      hero: {
-        boardHours: text("skateBoardHours"),
-        dayCount: text("skateDayCount"),
-        intensity: document.querySelector("#skateIntensityToggle .active")?.dataset.intensity,
-        phase: text("skatePhaseBadge"),
-        sessionDays: text("skateSessionDaysCount"),
-        subtitle: text("skateHeroSubtitle")
-      },
-      iframeCount: document.querySelectorAll("iframe").length,
-      roadmapDays: document.querySelectorAll("#skateTrendCharts .skate-roadmap-day").length,
-      roadmapLogged: document.querySelectorAll("#skateTrendCharts .skate-roadmap-day:not(.intensity-empty)").length,
-      trainingDay: document.querySelector(".skate-plan-today .skate-plan-kicker")?.textContent.trim(),
-      trainingRows: document.querySelectorAll("#skateCoachFlow .skate-plan-row").length
-    };
-  })()`;
-}
-
-function pageGeometry() {
-  return `(() => {
-    const rect = (selector) => {
-      const value = document.querySelector(selector).getBoundingClientRect();
-      return { height: value.height, width: value.width, x: value.x, y: value.y };
-    };
-    return {
-      body: rect(".body-log-card"),
-      hero: rect(".skate-hero-card"),
-      overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth,
-      page: rect(".skate-page"),
-      roadmap: rect(".skate-trends-card"),
-      training: rect(".skate-session-card")
-    };
-  })()`;
-}
-
-async function prepareScreenshot(browser) {
-  await browser.evaluate(`(() => {
-    document.documentElement.style.scrollBehavior = "auto";
-    const mascot = document.querySelector(".mascot-card");
-    if (mascot) mascot.style.visibility = "hidden";
-    document.querySelector(".skate-hero-card").scrollIntoView({ block: "start" });
-  })()`);
+async function captureHeroSignature(browser) {
+  await browser.evaluate(prepareSkatePageScreenshot());
   await browser.evaluate("new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))");
+  return browser.captureScreenshot(heroClip());
 }
 
-function heroClip() {
-  return `(() => {
-    const rect = document.querySelector(".skate-hero-card").getBoundingClientRect();
-    return {
-      x: rect.x + scrollX,
-      y: rect.y + scrollY,
-      width: rect.width,
-      height: Math.min(rect.height, innerHeight)
-    };
-  })()`;
-}
-
-function assertSameScreenshot(actual, expected, label) {
-  const comparison = compareScreenshots(actual, expected);
+function assertMatchesSignature(actual, expected, label) {
+  const comparison = compareScreenshotSignature(actual, expected);
   assert.equal(comparison.matches, true, `${label}: ${JSON.stringify(comparison)}`);
 }
 
@@ -138,42 +86,28 @@ async function setField(browser, id, value, eventName = "change") {
 test("Skate is a direct React page with complete legacy parity and persistence", { timeout: 90_000 }, async function (context) {
   const planner = await startBrowserPlanner(context);
   if (!planner) return;
-  const preview = await startReactPreviewServer(planner.server.url);
-  if (!preview) {
-    context.skip("Install frontend-react dependencies to run direct Skate tests.");
-    return;
-  }
-  context.after(async function () {
-    await preview.close();
-  });
   await seedSkate(planner.server.url);
 
-  const legacyUrl = `${planner.server.url}/?view=skateView&date=${TEST_DATE}`;
-  const previewUrl = `${preview.url}/?view=skateView&date=${TEST_DATE}`;
+  const pageUrl = `${planner.server.url}/?view=skateView&date=${TEST_DATE}`;
   for (const [width, height] of [[1280, 900], [390, 844]]) {
     await planner.browser.setViewport(width, height, width < 500);
-    await openReady(planner.browser, legacyUrl);
-    const legacyState = await planner.browser.evaluate(pageState());
-    const legacyGeometry = await planner.browser.evaluate(pageGeometry());
-    await prepareScreenshot(planner.browser);
-    const legacyScreenshot = await planner.browser.captureScreenshot(heroClip());
-
-    await openReady(planner.browser, previewUrl);
-    const reactState = await planner.browser.evaluate(pageState());
-    const reactGeometry = await planner.browser.evaluate(pageGeometry());
-    await prepareScreenshot(planner.browser);
-    const reactScreenshot = await planner.browser.captureScreenshot(heroClip());
-
-    assert.deepEqual(reactState, legacyState);
-    assert.equal(reactState.iframeCount, 0);
-    assert.equal(reactState.cards, 4);
-    assert.deepEqual(reactGeometry, legacyGeometry);
-    assert.equal(reactGeometry.overflow, false);
-    assertSameScreenshot(reactScreenshot, legacyScreenshot, `${width}px direct Skate hero`);
+    await openReady(planner.browser, pageUrl);
+    const state = await planner.browser.evaluate(skatePageState());
+    assert.deepEqual(state, expectedSkatePageState());
+    assert.equal(state.iframeCount, 0);
+    assert.equal(state.cards, 4);
+    const geometry = await planner.browser.evaluate(skatePageGeometry());
+    assert.deepEqual(geometry, expectedSkatePageGeometry(width < 500));
+    assert.equal(geometry.overflow, false);
+    assertMatchesSignature(
+      await captureHeroSignature(planner.browser),
+      expectedSkatePageScreenshot(width < 500),
+      `${width}px direct Skate hero`
+    );
   }
 
   await planner.browser.setViewport(1280, 900);
-  await openReady(planner.browser, previewUrl);
+  await openReady(planner.browser, pageUrl);
   await setField(planner.browser, "skateRestDay", "2");
   await setField(planner.browser, "skateExtraRestDay", "4");
   await planner.browser.evaluate('document.querySelector("#skateIntensityToggle [data-intensity=green]").click()');

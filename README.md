@@ -41,14 +41,13 @@ YUAN_PLANNER_PORT=8876 ./scripts/start.sh
 ```text
 backend/        HTTP server, SQLite storage, configuration, and integrations
 frontend-react/ React + strict TypeScript application, styles, and production build
-frontend/       Legacy HTML/JavaScript reference used during migration testing
 scripts/       Start, open, and test commands
 tests/         Backend, browser, compatibility, and end-to-end tests
 docs/          Design notes and future plans
 data/          Local database and runtime files (ignored by Git)
 ```
 
-`backend/app.py` is the server entry point; `config.py` handles settings and `db.py` handles persistence. The server serves `frontend-react/dist` at the application root. All six primary views render directly in React. The legacy frontend remains available at `/legacy/` for the explicit compatibility shell and as the visual reference during migration.
+`backend/app.py` is the server entry point; `config.py` handles settings and `db.py` handles persistence. The server serves `frontend-react/dist` at the application root, and all six primary views render directly in React.
 
 Design notes: [agent roadmap](docs/agent-intelligence-roadmap.md) and [planner load model](docs/planner-load-model/design.md). These describe design intent and plans, rather than a complete inventory of shipped features.
 
@@ -61,7 +60,6 @@ The backend reads an optional `.env` file in the project root. Existing shell en
 | `YUAN_PLANNER_HOST` | `0.0.0.0` (all interfaces); use `127.0.0.1` for local-only access |
 | `YUAN_PLANNER_PORT` | `8765` |
 | `YUAN_PLANNER_DB_PATH` | `data/planner.db`; relative paths resolve from the project root |
-| `YUAN_PLANNER_FRONTEND_MODE` | `react`; set to `legacy` only for compatibility or visual-reference testing |
 | `YUAN_PLANNER_TIMEZONE` | `Europe/Helsinki` |
 | `OPENAI_API_KEY` | Optional key for mascot chat |
 | `YUAN_PLANNER_OPENAI_MODEL` | `gpt-5-mini` |

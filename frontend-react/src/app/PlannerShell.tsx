@@ -6,6 +6,7 @@ import { BackupTools } from "./BackupTools";
 import { navigateToPlannerView } from "./planner-navigation";
 import { persistPlannerWrites } from "./planner-persistence";
 import { PlannerMascot } from "./PlannerMascot";
+import { humanDate } from "../shared/planner-date";
 
 const VIEWS = [
   ["todayView", "Dashboard"],
@@ -23,11 +24,6 @@ interface PlannerShellProps {
   today: Date;
 }
 
-function humanDate(date: Date): string {
-  const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
-  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  return `${weekdays[date.getDay()]} ${months[date.getMonth()]} ${date.getDate()}`;
-}
 
 export function PlannerShell({ activeView, children, store, today }: PlannerShellProps) {
   const [chatOpen, setChatOpen] = useState(false);

@@ -124,7 +124,7 @@ async function setInput(browser, id, value) {
 }
 
 test("Calendar is a direct React page with responsive layout and persistence", { timeout: 90_000 }, async function (context) {
-  const planner = await startBrowserPlanner(context, { frontendMode: "react" });
+  const planner = await startBrowserPlanner(context);
   if (!planner) return;
   await seedCalendar(planner.server.url);
 

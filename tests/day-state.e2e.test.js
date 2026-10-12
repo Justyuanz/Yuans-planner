@@ -171,7 +171,7 @@ function expectedDayStateVisual(stripWidth, stripHeight, optionsWidth, optionsHe
 }
 
 test("day state preserves defaults, storage, audit logging, side effects, and reload behavior", { timeout: 60_000 }, async function (context) {
-  const planner = await startBrowserPlanner(context, { frontendMode: "react" });
+  const planner = await startBrowserPlanner(context);
   if (!planner) {
     return;
   }
@@ -257,7 +257,7 @@ test("day state preserves defaults, storage, audit logging, side effects, and re
 });
 
 test("day state preserves its desktop and mobile visual contract", { timeout: 60_000 }, async function (context) {
-  const planner = await startBrowserPlanner(context, { frontendMode: "react" });
+  const planner = await startBrowserPlanner(context);
   if (!planner) {
     return;
   }

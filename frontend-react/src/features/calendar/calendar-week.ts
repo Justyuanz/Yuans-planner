@@ -9,6 +9,7 @@ import {
   type CalendarDayType,
   type CalendarWeekPlan
 } from "./calendar-week-store";
+import { humanDate } from "../../shared/planner-date";
 
 export interface CalendarWeekActivity {
   categoryClass: string;
@@ -64,10 +65,6 @@ interface NormalizedWeekActivity extends CalendarWeekActivity {
 }
 
 const DAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"] as const;
-const MONTHS = [
-  "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-  "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
-] as const;
 const CATEGORY_LOAD: Readonly<Record<string, number>> = {
   "Study/school": 1,
   Finnish: 1,
@@ -248,10 +245,6 @@ export function previewCalendarActivity(
   };
 }
 
-function humanDate(date: Date): string {
-  const weekday = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"][date.getDay()];
-  return `${weekday} ${MONTHS[date.getMonth()]} ${date.getDate()}`;
-}
 
 export function buildCalendarWeek(
   store: PlannerStore,

@@ -2,101 +2,49 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const { startBrowserPlanner } = require("./helpers/browser-planner");
-const { compareScreenshots } = require("./helpers/png-compare");
-const { startReactPreviewServer } = require("./helpers/react-preview-server");
+const {
+  DEFAULT_SUMMARY,
+  IDLE_IMPACT,
+  INVALID_IMPACT,
+  SEEDED_SUMMARY,
+  expectedIdleForm,
+  expectedMoneyQuickVisual,
+  moneyQuickState,
+  moneyQuickVisualContract
+} = require("./helpers/money-quick-contract");
 
 const TEST_DATE = "2026-09-14";
+const SETTINGS_KEY = "hivePlanner.money.settings";
 const TRANSACTIONS_KEY = "hivePlanner.money.transactions";
 const VENDOR_RULES_KEY = "hivePlanner.money.vendorRules";
 const ACTIVITY_LOG_KEY = "hivePlanner.activityLog";
 
-function moneyQuickState() {
-  return `(() => {
-    const documentRoot = document;
-    const amount = documentRoot.getElementById("moneyQuickAmount");
-    const category = documentRoot.getElementById("moneyQuickCategory");
-    const vendor = documentRoot.getElementById("moneyQuickVendor");
-    return {
-      amount: {
-        autocomplete: amount.autocomplete,
-        inputMode: amount.inputMode,
-        placeholder: amount.placeholder,
-        value: amount.value
-      },
-      badge: documentRoot.getElementById("moneyPaceBadge").textContent.trim(),
-      category: {
-        ariaLabel: category.getAttribute("aria-label"),
-        options: [...category.options].map((option) => [option.value, option.textContent.trim()]),
-        value: category.value
-      },
-      impact: documentRoot.getElementById("moneyQuickImpact").textContent.trim(),
-      shortcuts: [...documentRoot.querySelectorAll("#moneyQuickShortcuts .money-shortcut")].map((button) => ({
-        text: button.textContent.trim(),
-        type: button.type
-      })),
-      summary: [...documentRoot.querySelectorAll("#moneyQuickSummary .money-mini-stat")].map((item) => ({
-        className: item.className,
-        text: item.textContent.trim()
-      })),
-      vendor: {
-        autocomplete: vendor.autocomplete,
-        maxLength: vendor.maxLength,
-        placeholder: vendor.placeholder,
-        value: vendor.value
-      }
-    };
-  })()`;
+// The pinned visual contract is captured from this exact stored state.
+const VISUAL_TRANSACTION = {
+  amountCents: 1_250,
+  categoryId: "groceries",
+  createdAt: "2026-09-14T08:00:00.000Z",
+  date: TEST_DATE,
+  id: "seeded",
+  vendor: "Wolt Market"
+};
+
+async function putValue(serverUrl, key, value) {
+  const response = await fetch(`${serverUrl}/api/kv`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ key, value: JSON.stringify(value) })
+  });
+  assert.equal(response.ok, true);
 }
 
-function moneyQuickVisualContract() {
-  return `(() => {
-    const documentRoot = document;
-    const view = documentRoot.defaultView;
-    const panel = documentRoot.querySelector(".money-quick-card");
-    const pick = (element) => {
-      const style = view.getComputedStyle(element);
-      const rect = element.getBoundingClientRect();
-      return {
-        alignItems: style.alignItems,
-        background: style.background,
-        border: style.border,
-        borderRadius: style.borderRadius,
-        color: style.color,
-        display: style.display,
-        fontFamily: style.fontFamily,
-        fontSize: style.fontSize,
-        fontWeight: style.fontWeight,
-        gap: style.gap,
-        gridTemplateAreas: style.gridTemplateAreas,
-        gridTemplateColumns: style.gridTemplateColumns,
-        height: rect.height,
-        lineHeight: style.lineHeight,
-        padding: style.padding,
-        width: rect.width
-      };
-    };
-    return {
-      badge: pick(documentRoot.getElementById("moneyPaceBadge")),
-      form: pick(documentRoot.getElementById("moneyQuickForm")),
-      heading: { text: panel.querySelector("h2").textContent.trim(), visual: pick(panel.querySelector("h2")) },
-      impact: pick(documentRoot.getElementById("moneyQuickImpact")),
-      inputs: ["moneyQuickAmount", "moneyQuickCategory", "moneyQuickVendor"].map((id) => pick(documentRoot.getElementById(id))),
-      note: { text: panel.querySelector(".small-note").textContent.trim(), visual: pick(panel.querySelector(".small-note")) },
-      panel: pick(panel),
-      shortcuts: [...panel.querySelectorAll(".money-shortcut")].map((item) => ({ text: item.textContent.trim(), visual: pick(item) })),
-      state: ${moneyQuickState()},
-      summary: [...panel.querySelectorAll(".money-mini-stat")].map((item) => ({ text: item.textContent.trim(), visual: pick(item) }))
-    };
-  })()`;
+async function openDashboard(browser, pageUrl) {
+  await browser.open(pageUrl);
+  await browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
+  await browser.waitForExpression('document.querySelectorAll("#moneyQuickSummary .money-mini-stat").length === 2');
 }
-
-const MONEY_QUICK_CLIP = `(() => {
-  const rect = document.querySelector(".money-quick-card").getBoundingClientRect();
-  return { x: rect.x + scrollX, y: rect.y + scrollY, width: rect.width, height: rect.height };
-})()`;
 
 async function scrollToMoneyQuick(browser) {
-  await browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
   await browser.evaluate(`(() => {
     const documentRoot = document;
     const card = documentRoot.querySelector(".money-quick-card");
@@ -112,119 +60,112 @@ async function scrollToMoneyQuick(browser) {
     const rect = documentRoot.querySelector(".money-quick-card").getBoundingClientRect();
     return rect.top < documentRoot.defaultView.innerHeight && rect.bottom > 0;
   })()`);
-  await browser.evaluate(`new Promise((resolve) => {
-    requestAnimationFrame(() => requestAnimationFrame(resolve));
+}
+
+// React controls these fields, so a value change must be dispatched the way the
+// browser would rather than assigned straight onto the element.
+const SET_FIELD = `const setField = (element, value) => {
+  const prototype = element instanceof HTMLSelectElement
+    ? HTMLSelectElement.prototype
+    : HTMLInputElement.prototype;
+  Object.getOwnPropertyDescriptor(prototype, "value").set.call(element, value);
+  element.dispatchEvent(new Event(element instanceof HTMLSelectElement ? "change" : "input", { bubbles: true }));
+};`;
+
+async function submitQuickEntry(browser, { amount, category, vendor }) {
+  await browser.evaluate(`(() => {
+    ${SET_FIELD}
+    setField(document.getElementById("moneyQuickAmount"), ${JSON.stringify(amount)});
+    setField(document.getElementById("moneyQuickCategory"), ${JSON.stringify(category)});
+    setField(document.getElementById("moneyQuickVendor"), ${JSON.stringify(vendor)});
+    document.getElementById("moneyQuickForm").dispatchEvent(
+      new Event("submit", { bubbles: true, cancelable: true })
+    );
+  })()`);
+}
+
+async function assertInvalidAmountIsRejected(browser) {
+  await browser.evaluate(`(() => {
+    ${SET_FIELD}
+    setField(document.getElementById("moneyQuickAmount"), "nope");
+    document.getElementById("moneyQuickForm").dispatchEvent(
+      new Event("submit", { bubbles: true, cancelable: true })
+    );
+  })()`);
+  await browser.waitForExpression(`document.getElementById("moneyQuickImpact").textContent === ${JSON.stringify(INVALID_IMPACT)}`);
+  assert.equal(await browser.evaluate("document.activeElement.id"), "moneyQuickAmount");
+}
+
+async function assertVendorRuleBehavior(browser) {
+  // An unknown vendor must leave the category the user picked alone.
+  await browser.evaluate(`(() => {
+    ${SET_FIELD}
+    setField(document.getElementById("moneyQuickCategory"), "fun");
+    const vendor = document.getElementById("moneyQuickVendor");
+    setField(vendor, "Totally New Shop");
+    vendor.focus();
+    vendor.blur();
+  })()`);
+  assert.equal(await browser.evaluate('document.getElementById("moneyQuickCategory").value'), "fun");
+
+  // A remembered vendor rule selects its category on blur.
+  await browser.evaluate(`(() => {
+    ${SET_FIELD}
+    const vendor = document.getElementById("moneyQuickVendor");
+    setField(vendor, "Apple Services");
+    vendor.focus();
+    vendor.blur();
+  })()`);
+  await browser.waitForExpression('document.getElementById("moneyQuickCategory").value === "subscriptions"');
+}
+
+function readCategoryAndFocus(browser) {
+  return browser.evaluate(`({
+    activeId: document.activeElement.id,
+    category: document.getElementById("moneyQuickCategory").value
   })`);
 }
 
-function assertSameScreenshot(actual, expected, label) {
-  const comparison = compareScreenshots(actual, expected);
-  assert.equal(comparison.matches, true, `${label}: ${JSON.stringify(comparison)}`);
+// A shortcut selects its category and returns focus to the amount field.
+async function assertShortcutSelectsCategory(browser) {
+  await browser.evaluate(`(() => {
+    [...document.querySelectorAll(".money-shortcut")]
+      .find((button) => button.textContent.includes("Therapy")).click();
+  })()`);
+  assert.deepEqual(await readCategoryAndFocus(browser), { activeId: "moneyQuickAmount", category: "therapy" });
 }
 
-function assertInitialState(state) {
-  assert.deepEqual(state.summary, [
-    { className: "money-mini-stat", text: "Remaining this week€107.45" },
-    { className: "money-mini-stat", text: "Remaining this month€261.11" }
-  ]);
-  assert.equal(state.badge, "On pace");
-  assert.deepEqual(state.category.options, [
-    ["groceries", "Groceries"],
-    ["therapy", "Therapy"],
-    ["fun", "Fun"],
-    ["eating-out", "Eating out"],
-    ["resq", "ResQ"],
-    ["health", "Health"],
-    ["hsl", "HSL"],
-    ["contact-lenses", "Lenses"],
-    ["other", "Other"],
-    ["pets", "Pets"],
-    ["rent", "Rent"],
-    ["skate-school", "Skate"],
-    ["subscriptions", "Subscriptions"]
-  ]);
-  assert.equal(state.category.value, "groceries");
-  assert.equal(state.category.ariaLabel, "Money category");
-  assert.deepEqual(state.shortcuts, [
-    { text: "Groceries€30.00 / week", type: "button" },
-    { text: "Therapy€28.00 / week", type: "button" },
-    { text: "Eating out€8.75 / week", type: "button" },
-    { text: "Other€4.03 / week", type: "button" }
-  ]);
-  assert.deepEqual(state.amount, {
-    autocomplete: "off",
-    inputMode: "decimal",
-    placeholder: "12.50",
-    value: ""
-  });
-  assert.deepEqual(state.vendor, {
-    autocomplete: "off",
-    maxLength: 80,
-    placeholder: "Lidl, K-Market, HSL...",
-    value: ""
-  });
-  assert.equal(
-    state.impact,
-    "Saving a transaction will update the rest of the week and month immediately."
-  );
-}
+test("Money quick log preserves entry, persistence, and visual behavior", { timeout: 90_000 }, async function (context) {
+  const planner = await startBrowserPlanner(context);
+  if (!planner) {
+    return;
+  }
 
-async function exerciseLegacyForm(planner) {
-  await planner.browser.evaluate(`(() => {
-    const amount = document.getElementById("moneyQuickAmount");
-    amount.value = "nope";
-    document.getElementById("moneyQuickForm").dispatchEvent(
-      new Event("submit", { bubbles: true, cancelable: true })
-    );
-  })()`);
-  assert.deepEqual(await planner.browser.evaluate(`({
-    activeId: document.activeElement.id,
-    impact: document.getElementById("moneyQuickImpact").textContent.trim()
-  })`), { activeId: "moneyQuickAmount", impact: "Add a valid amount before saving." });
+  const pageUrl = `${planner.server.url}/?view=todayView&date=${TEST_DATE}`;
 
-  await planner.browser.evaluate(`(() => {
-    const vendor = document.getElementById("moneyQuickVendor");
-    document.getElementById("moneyQuickCategory").value = "fun";
-    vendor.focus();
-    vendor.value = "Wolt Market";
-    vendor.blur();
-  })()`);
-  assert.equal(await planner.browser.evaluate('document.getElementById("moneyQuickCategory").value'), "groceries");
+  await planner.browser.setViewport(1280, 720);
+  await openDashboard(planner.browser, pageUrl);
+  assert.equal(await planner.browser.evaluate('document.querySelector("iframe")'), null);
+  assert.deepEqual(await planner.browser.evaluate(moneyQuickState()), expectedIdleForm(DEFAULT_SUMMARY));
 
-  await planner.browser.evaluate(`(() => {
-    const shortcut = [...document.querySelectorAll(".money-shortcut")]
-      .find((button) => button.textContent.includes("Therapy"));
-    shortcut.click();
-  })()`);
-  assert.deepEqual(await planner.browser.evaluate(`({
-    activeId: document.activeElement.id,
-    category: document.getElementById("moneyQuickCategory").value
-  })`), { activeId: "moneyQuickAmount", category: "therapy" });
+  await assertInvalidAmountIsRejected(planner.browser);
+  await assertVendorRuleBehavior(planner.browser);
+  await assertShortcutSelectsCategory(planner.browser);
 
-  await planner.browser.evaluate(`(() => {
-    document.getElementById("moneyQuickAmount").value = "12,50";
-    document.getElementById("moneyQuickCategory").value = "groceries";
-    document.getElementById("moneyQuickVendor").value = " Wolt Market ";
-    document.getElementById("moneyQuickForm").dispatchEvent(
-      new Event("submit", { bubbles: true, cancelable: true })
-    );
-  })()`);
+  // A comma decimal is accepted and the vendor is trimmed before storage.
+  await submitQuickEntry(planner.browser, { amount: "12,50", category: "groceries", vendor: " Wolt Market " });
   await planner.browser.waitForExpression('document.querySelector("#moneyQuickSummary .money-mini-stat strong").textContent === "€102.34"');
-  const state = await planner.browser.evaluate(moneyQuickState());
-  assert.equal(state.amount.value, "");
-  assert.equal(state.vendor.value, "");
-  assert.equal(state.badge, "On pace");
-  assert.deepEqual(state.summary.map((item) => item.text), [
-    "Remaining this week€102.34",
-    "Remaining this month€248.61"
-  ]);
+  const afterSave = await planner.browser.evaluate(moneyQuickState());
+  assert.equal(afterSave.amount.value, "");
+  assert.equal(afterSave.vendor.value, "");
+  assert.equal(afterSave.badge, "On pace");
+  assert.deepEqual(afterSave.summary.map((item) => item.text), SEEDED_SUMMARY);
   assert.equal(
-    state.impact,
+    afterSave.impact,
     "Saved €12.50 to Groceries. This week's remaining changed by €5.11. Groceries now has €107.50 left this month and about €30.00 for the week. This week now has €102.34 left and this month has €1,287.50 left."
   );
-}
 
-async function assertLegacyWrites(planner) {
+  // The transaction, its vendor rule, and the audit record all reach SQLite.
   await planner.server.waitFor(async function () {
     const stored = await planner.server.readPlannerData();
     const transactions = JSON.parse(stored[TRANSACTIONS_KEY] || "[]");
@@ -244,73 +185,19 @@ async function assertLegacyWrites(planner) {
       && latest?.after?.id === transaction.id
       && latest?.meta?.amountCents === 1250;
   });
-}
 
-async function exerciseReactForm(planner) {
-  await planner.browser.evaluate(`(() => {
-    const input = document.getElementById("moneyQuickAmount");
-    const setValue = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
-    setValue.call(input, "bad");
-    input.dispatchEvent(new Event("input", { bubbles: true }));
-    document.getElementById("moneyQuickForm").dispatchEvent(
-      new Event("submit", { bubbles: true, cancelable: true })
-    );
-  })()`);
-  await planner.browser.waitForExpression('document.getElementById("moneyQuickImpact").textContent === "Add a valid amount before saving."');
-  assert.equal(await planner.browser.evaluate('document.activeElement.id'), "moneyQuickAmount");
+  // Reload keeps the stored totals but resets the transient impact line.
+  await openDashboard(planner.browser, pageUrl);
+  const afterReload = await planner.browser.evaluate(moneyQuickState());
+  assert.deepEqual(afterReload.summary.map((item) => item.text), SEEDED_SUMMARY);
+  assert.equal(afterReload.impact, IDLE_IMPACT);
 
-  await planner.browser.evaluate(`(() => {
-    const select = document.getElementById("moneyQuickCategory");
-    const vendor = document.getElementById("moneyQuickVendor");
-    const setSelect = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set;
-    const setInput = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
-    setSelect.call(select, "fun");
-    select.dispatchEvent(new Event("change", { bubbles: true }));
-    setInput.call(vendor, "Apple Services");
-    vendor.dispatchEvent(new Event("input", { bubbles: true }));
-    vendor.focus();
-    vendor.blur();
-  })()`);
-  await planner.browser.waitForExpression('document.getElementById("moneyQuickCategory").value === "subscriptions"');
-
-  await planner.browser.evaluate(`(() => {
-    [...document.querySelectorAll(".money-shortcut")]
-      .find((button) => button.textContent.includes("Therapy")).click();
-  })()`);
-  assert.deepEqual(await planner.browser.evaluate(`(() => {
-    return {
-      activeId: document.activeElement.id,
-      category: document.getElementById("moneyQuickCategory").value
-    };
-  })()`), { activeId: "moneyQuickAmount", category: "therapy" });
-
-  await planner.browser.evaluate(`(() => {
-    const setInput = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
-    const setSelect = Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set;
-    const amount = document.getElementById("moneyQuickAmount");
-    const category = document.getElementById("moneyQuickCategory");
-    const vendor = document.getElementById("moneyQuickVendor");
-    setInput.call(amount, "7.25");
-    amount.dispatchEvent(new Event("input", { bubbles: true }));
-    setSelect.call(category, "eating-out");
-    category.dispatchEvent(new Event("change", { bubbles: true }));
-    setInput.call(vendor, "Cafe Test");
-    vendor.dispatchEvent(new Event("input", { bubbles: true }));
-    document.getElementById("moneyQuickForm").dispatchEvent(
-      new Event("submit", { bubbles: true, cancelable: true })
-    );
-  })()`);
+  await submitQuickEntry(planner.browser, { amount: "7.25", category: "eating-out", vendor: "Cafe Test" });
   await planner.browser.waitForExpression('document.querySelector("#moneyQuickSummary .money-mini-stat strong").textContent === "€99.33"');
-  const state = await planner.browser.evaluate(moneyQuickState());
-  assert.deepEqual(state.summary.map((item) => item.text), [
-    "Remaining this week€99.33",
-    "Remaining this month€241.36"
-  ]);
   assert.equal(
-    state.impact,
+    (await planner.browser.evaluate(moneyQuickState())).impact,
     "Saved €7.25 to Eating out. This week's remaining changed by €3.01. Eating out now has €27.75 left this month and about €8.75 for the week. This week now has €99.33 left and this month has €1,280.25 left."
   );
-
   await planner.server.waitFor(async function () {
     const stored = await planner.server.readPlannerData();
     const transactions = JSON.parse(stored[TRANSACTIONS_KEY] || "[]");
@@ -325,9 +212,9 @@ async function exerciseReactForm(planner) {
         && entry.entityId === transactions[0]?.id
         && entry.meta?.amountCents === 725);
   });
-}
 
-async function updateDirectGroceriesBudget(planner) {
+  // The saved transaction reaches the Money page, and a budget edited there
+  // feeds straight back into the Dashboard summary.
   await planner.browser.evaluate('document.querySelector(\'[data-view-target="moneyView"]\').click()');
   await planner.browser.waitForExpression('document.querySelector("#moneyRecentActivity .money-vendor-row")?.textContent.includes("Cafe Test")');
   await planner.browser.evaluate(`(() => {
@@ -337,79 +224,29 @@ async function updateDirectGroceriesBudget(planner) {
   })()`);
   await planner.server.waitFor(async function () {
     const stored = await planner.server.readPlannerData();
-    const settings = JSON.parse(stored["hivePlanner.money.settings"] || "{}");
+    const settings = JSON.parse(stored[SETTINGS_KEY] || "{}");
     return settings.categories?.some((category) => category.id === "groceries"
       && category.budgetCents === 13_000
       && category.weeklyBudgetCents === 2_600);
   });
   await planner.browser.evaluate('document.querySelector(\'[data-view-target="todayView"]\').click()');
   await planner.browser.waitForExpression('document.querySelector("#moneyQuickSummary .money-mini-stat strong").textContent === "€103.46"');
-}
 
-test("Money quick log preserves entry, persistence, and visual behavior", { timeout: 60_000 }, async function (context) {
-  const planner = await startBrowserPlanner(context);
-  if (!planner) {
-    return;
+  // Reset to the stored state the pinned visual contract was captured from.
+  await putValue(planner.server.url, TRANSACTIONS_KEY, [VISUAL_TRANSACTION]);
+  await putValue(planner.server.url, SETTINGS_KEY, {});
+  await putValue(planner.server.url, VENDOR_RULES_KEY, []);
+
+  for (const [width, height] of [[1280, 720], [390, 844]]) {
+    await planner.browser.setViewport(width, height, width < 500);
+    await openDashboard(planner.browser, pageUrl);
+    await planner.browser.waitForExpression('document.querySelector("#moneyQuickSummary .money-mini-stat strong").textContent === "€102.34"');
+    await scrollToMoneyQuick(planner.browser);
+    assert.deepEqual(
+      await planner.browser.evaluate(moneyQuickVisualContract()),
+      expectedMoneyQuickVisual(width < 500, SEEDED_SUMMARY)
+    );
   }
-  const preview = await startReactPreviewServer(planner.server.url);
-  if (!preview) {
-    context.skip("Install frontend-react dependencies to run React visual regression tests.");
-    return;
-  }
-  context.after(async function () {
-    await preview.close();
-  });
 
-  await planner.browser.setViewport(1280, 720);
-  await planner.browser.open(`${planner.server.url}/?date=${TEST_DATE}`);
-  await planner.browser.waitForExpression('document.querySelectorAll("#moneyQuickSummary .money-mini-stat").length === 2');
-  assertInitialState(await planner.browser.evaluate(moneyQuickState()));
-  await exerciseLegacyForm(planner);
-  await assertLegacyWrites(planner);
-
-  await planner.browser.evaluate(`document.querySelector('[data-view-target="moneyView"]').click()`);
-  await planner.browser.waitForExpression('document.querySelector("#moneyRecentActivity .money-vendor-row")?.textContent.includes("Wolt Market")');
-  assert.match(
-    await planner.browser.evaluate('document.querySelector("#moneyRecentActivity .money-vendor-row").textContent.trim()'),
-    /GroceriesWolt Market · 2026-09-14€12\.50Groceries/
-  );
-
-  await planner.browser.open(`${planner.server.url}/?date=${TEST_DATE}`);
-  await planner.browser.waitForExpression('document.querySelector("#moneyQuickSummary .money-mini-stat strong").textContent === "€102.34"');
-  assert.equal(
-    (await planner.browser.evaluate(moneyQuickState())).impact,
-    "Saving a transaction will update the rest of the week and month immediately."
-  );
-  await scrollToMoneyQuick(planner.browser);
-  const legacyDesktop = await planner.browser.evaluate(moneyQuickVisualContract());
-  const legacyDesktopScreenshot = await planner.browser.captureScreenshot(MONEY_QUICK_CLIP);
-
-  await planner.browser.open(`${preview.url}/?view=todayView&date=${TEST_DATE}`);
-  await planner.browser.waitForExpression('document.querySelector("#moneyQuickSummary .money-mini-stat strong")?.textContent === "€102.34"');
-  await scrollToMoneyQuick(planner.browser);
-  const previewDesktop = await planner.browser.evaluate(moneyQuickVisualContract());
-  const previewDesktopScreenshot = await planner.browser.captureScreenshot(MONEY_QUICK_CLIP);
-  assert.equal(await planner.browser.evaluate('document.querySelector("iframe")'), null);
-  assert.deepEqual(previewDesktop, legacyDesktop);
-  assertSameScreenshot(previewDesktopScreenshot, legacyDesktopScreenshot, "desktop Money quick screenshot");
-  await exerciseReactForm(planner);
-  await updateDirectGroceriesBudget(planner);
-
-  await planner.browser.setViewport(390, 844, true);
-  await planner.browser.open(`${planner.server.url}/?date=${TEST_DATE}`);
-  await planner.browser.waitForExpression('document.querySelector("#moneyQuickSummary .money-mini-stat strong").textContent === "€103.46"');
-  await scrollToMoneyQuick(planner.browser);
-  const legacyMobile = await planner.browser.evaluate(moneyQuickVisualContract());
-  const legacyMobileScreenshot = await planner.browser.captureScreenshot(MONEY_QUICK_CLIP);
-
-  await planner.browser.open(`${preview.url}/?view=todayView&date=${TEST_DATE}`);
-  await planner.browser.waitForExpression('document.querySelector("#moneyQuickSummary .money-mini-stat strong")?.textContent === "€103.46"');
-  await scrollToMoneyQuick(planner.browser);
-  const previewMobile = await planner.browser.evaluate(moneyQuickVisualContract());
-  const previewMobileScreenshot = await planner.browser.captureScreenshot(MONEY_QUICK_CLIP);
-  assert.deepEqual(previewMobile, legacyMobile);
-  assert.equal(previewMobile.panel.width, 370);
-  assert.equal(previewMobile.form.gridTemplateColumns, "84px 112.75px 121.25px");
-  assertSameScreenshot(previewMobileScreenshot, legacyMobileScreenshot, "mobile Money quick screenshot");
   assert.deepEqual(planner.browser.errors(), []);
 });

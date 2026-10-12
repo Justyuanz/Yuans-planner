@@ -2,7 +2,6 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const { startBrowserPlanner } = require("./helpers/browser-planner");
-const { startReactPreviewServer } = require("./helpers/react-preview-server");
 
 const TEST_DATE = "2026-09-12";
 const TASK_STORAGE_KEY = `hivePlanner.dailyTasks.${TEST_DATE}`;
@@ -66,20 +65,11 @@ async function waitForSessionData(server) {
 }
 
 test("finished Guitar and Skate sessions sync to tasks without double-counting time", { timeout: 30_000 }, async function (context) {
-  const planner = await startBrowserPlanner(context, { frontendMode: "react" });
+  const planner = await startBrowserPlanner(context);
   if (!planner) {
     return;
   }
-  const preview = await startReactPreviewServer(planner.server.url);
-  if (!preview) {
-    context.skip("Install frontend-react dependencies to run React session tests.");
-    return;
-  }
-  context.after(async function () {
-    await preview.close();
-  });
-
-  await planner.browser.open(`${preview.url}/?view=guitarView&date=${TEST_DATE}`);
+  await planner.browser.open(`${planner.server.url}/?view=guitarView&date=${TEST_DATE}`);
   await planner.browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
   await finishGuitarSession(planner.browser);
   await planner.server.waitFor(async function () {
@@ -89,7 +79,7 @@ test("finished Guitar and Skate sessions sync to tasks without double-counting t
     return tasks.some(({ activity }) => activity === "guitar") && sessions.length === 1;
   });
 
-  await planner.browser.open(`${preview.url}/?view=skateView&date=${TEST_DATE}`);
+  await planner.browser.open(`${planner.server.url}/?view=skateView&date=${TEST_DATE}`);
   await planner.browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
   await finishSkateSession(planner.browser);
 
@@ -107,7 +97,7 @@ test("finished Guitar and Skate sessions sync to tasks without double-counting t
   assert.equal(data.skateSessions[0].trackedInTask, true);
   assert.equal(recordedHours(data.tasks, data.skateSessions, "skate"), 0.75);
 
-  await planner.browser.open(`${preview.url}/?view=todayView&date=${TEST_DATE}`);
+  await planner.browser.open(`${planner.server.url}/?view=todayView&date=${TEST_DATE}`);
   await planner.browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
   await planner.browser.waitForExpression('document.querySelectorAll(".task").length === 2');
   assert.equal(await planner.browser.evaluate('document.querySelector("iframe")'), null);

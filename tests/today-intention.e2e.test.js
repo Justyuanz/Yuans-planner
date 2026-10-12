@@ -165,7 +165,7 @@ function expectedIntentionVisual(blockWidth, headWidth) {
 }
 
 test("today intention preserves defaults, stored day types, aliases, and reload behavior", { timeout: 60_000 }, async function (context) {
-  const planner = await startBrowserPlanner(context, { frontendMode: "react" });
+  const planner = await startBrowserPlanner(context);
   if (!planner) {
     return;
   }
@@ -194,7 +194,7 @@ test("today intention preserves defaults, stored day types, aliases, and reload 
 });
 
 test("today intention preserves its desktop and mobile visual contract", { timeout: 60_000 }, async function (context) {
-  const planner = await startBrowserPlanner(context, { frontendMode: "react" });
+  const planner = await startBrowserPlanner(context);
   if (!planner) {
     return;
   }

@@ -2,6 +2,7 @@ import type { PlannerStore } from "../../api/planner-store";
 import { isRecord } from "../../shared/is-record";
 import { normalizeActivityId } from "../activity-categories/activity-categories";
 import type { LifePieActivityId, LifePiePeriod } from "./life-pie-definitions";
+import { addDays, dateKeyFromValue } from "../../shared/planner-date";
 
 export type LifePieActivityTotals = Record<LifePieActivityId, number>;
 
@@ -61,9 +62,6 @@ export function formatPlannerDate(date: Date): string {
   return [date.getFullYear(), pad(date.getMonth() + 1), pad(date.getDate())].join("-");
 }
 
-function addDays(date: Date, amount: number): Date {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate() + amount);
-}
 
 function rangeForPeriod(period: LifePiePeriod, today: Date): DateRange | null {
   if (period === "all") {
@@ -202,13 +200,6 @@ function addPhysicalLogs(
   });
 }
 
-function localDateKey(value: unknown): string {
-  if (typeof value !== "string" && typeof value !== "number") {
-    return "";
-  }
-  const date = new Date(value);
-  return Number.isFinite(date.getTime()) ? formatPlannerDate(date) : "";
-}
 
 function sessionHours(sessions: readonly unknown[], range: DateRange | null): number {
   return sessions.reduce<number>((sum, candidate) => {
@@ -217,7 +208,7 @@ function sessionHours(sessions: readonly unknown[], range: DateRange | null): nu
     }
     const dateKey = typeof candidate.dateKey === "string" && candidate.dateKey
       ? candidate.dateKey
-      : localDateKey(candidate.finishedAt);
+      : dateKeyFromValue(candidate.finishedAt);
     const hours = finiteNumber(candidate.durationHours);
     return dateKey && isInRange(dateKey, range) ? sum + Math.max(0, hours) : sum;
   }, 0);

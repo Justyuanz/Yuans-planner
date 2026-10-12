@@ -24,7 +24,6 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY backend ./backend
-COPY frontend ./frontend
 COPY --from=react-builder /build/dist ./frontend-react/dist
 
 RUN mkdir -p /app/persist

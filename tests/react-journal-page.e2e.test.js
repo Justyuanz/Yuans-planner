@@ -2,8 +2,15 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const { startBrowserPlanner } = require("./helpers/browser-planner");
-const { compareScreenshots } = require("./helpers/png-compare");
-const { startReactPreviewServer } = require("./helpers/react-preview-server");
+const {
+  editorClip,
+  expectedJournalPageGeometry,
+  expectedJournalPageScreenshot,
+  expectedJournalPageState,
+  journalPageGeometry,
+  journalPageState
+} = require("./helpers/journal-page-contract");
+const { compareScreenshotSignature } = require("./helpers/png-compare");
 
 const TEST_DATE = "2026-09-14";
 const JOURNAL_KEY = "hivePlanner.journal.entries";
@@ -54,40 +61,8 @@ async function openReady(browser, url) {
   await browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
 }
 
-function pageState() {
-  return `(() => ({
-    activeTab: document.querySelector(".tab-button.active")?.textContent.trim(),
-    activeView: document.querySelector(".view.active")?.id,
-    archiveCount: document.querySelectorAll("#journalArchiveList .journal-entry-card").length,
-    content: document.getElementById("journalContent")?.value,
-    date: document.getElementById("journalDate")?.value,
-    dateLabel: document.getElementById("journalDateLabel")?.textContent.trim(),
-    energy: document.querySelector("#journalEnergyOptions .is-active")?.dataset.energyState || "",
-    focus: document.querySelector("#journalFocusOptions .is-active")?.dataset.focusState || "",
-    iframeCount: document.querySelectorAll("iframe").length,
-    meditation: document.getElementById("meditationStatus")?.textContent.trim(),
-    minutes: document.getElementById("journalMinutes")?.value,
-    title: document.getElementById("journalTitle")?.value
-  }))()`;
-}
-
-function pageGeometry() {
-  return `(() => {
-    const rect = (selector) => {
-      const value = document.querySelector(selector).getBoundingClientRect();
-      return { height: value.height, width: value.width, x: value.x, y: value.y };
-    };
-    return {
-      archive: rect(".journal-archive-card"),
-      editor: rect(".journal-editor-card"),
-      journalPage: rect(".journal-page"),
-      meditation: rect(".meditation-card"),
-      paper: rect(".journal-paper"),
-      overflow: document.documentElement.scrollWidth > document.documentElement.clientWidth
-    };
-  })()`;
-}
-
+// The animated mascot is hidden before capture so it cannot add noise, while
+// its layout space is preserved.
 async function prepareScreenshot(browser) {
   await browser.evaluate(`(() => {
     document.documentElement.style.scrollBehavior = "auto";
@@ -100,15 +75,8 @@ async function prepareScreenshot(browser) {
   })`);
 }
 
-function editorClip() {
-  return `(() => {
-    const rect = document.querySelector(".journal-editor-card").getBoundingClientRect();
-    return { height: rect.height, width: rect.width, x: rect.x, y: rect.y };
-  })()`;
-}
-
-function assertSameScreenshot(actual, expected, label) {
-  const comparison = compareScreenshots(actual, expected);
+function assertMatchesSignature(actual, expected, label) {
+  const comparison = compareScreenshotSignature(actual, expected);
   assert.equal(comparison.matches, true, `${label}: ${JSON.stringify(comparison)}`);
 }
 
@@ -126,54 +94,26 @@ async function setField(browser, selector, value, eventName = "input") {
 test("Journal is a direct React page with legacy parity, persistence, and date navigation", { timeout: 90_000 }, async function (context) {
   const planner = await startBrowserPlanner(context);
   if (!planner) return;
-  const preview = await startReactPreviewServer(planner.server.url);
-  if (!preview) {
-    context.skip("Install frontend-react dependencies to run React page tests.");
-    return;
-  }
-  context.after(async function () {
-    await preview.close();
-  });
   await seedJournal(planner.server.url);
 
-  const legacyUrl = `${planner.server.url}/?view=journalView&date=${TEST_DATE}`;
-  const previewUrl = `${preview.url}/?view=journalView&date=${TEST_DATE}`;
+  const pageUrl = `${planner.server.url}/?view=journalView&date=${TEST_DATE}`;
   for (const [width, height] of [[1280, 720], [390, 844]]) {
     await planner.browser.setViewport(width, height, width < 500);
-    await openReady(planner.browser, legacyUrl);
-    const legacyState = await planner.browser.evaluate(pageState());
-    const legacyGeometry = await planner.browser.evaluate(pageGeometry());
+    await openReady(planner.browser, pageUrl);
+    assert.deepEqual(await planner.browser.evaluate(journalPageState()), expectedJournalPageState());
+    const geometry = await planner.browser.evaluate(journalPageGeometry());
+    assert.deepEqual(geometry, expectedJournalPageGeometry(width < 500));
+    assert.equal(geometry.overflow, false);
     await prepareScreenshot(planner.browser);
-    const legacyScreenshot = await planner.browser.captureScreenshot(editorClip());
-
-    await openReady(planner.browser, previewUrl);
-    const reactState = await planner.browser.evaluate(pageState());
-    const reactGeometry = await planner.browser.evaluate(pageGeometry());
-    await prepareScreenshot(planner.browser);
-    const reactScreenshot = await planner.browser.captureScreenshot(editorClip());
-
-    assert.deepEqual(reactState, { ...legacyState, iframeCount: 0 });
-    assert.deepEqual(reactGeometry, legacyGeometry);
-    assertSameScreenshot(reactScreenshot, legacyScreenshot, `${width}px Journal editor`);
-    assert.equal(reactGeometry.overflow, false);
+    assertMatchesSignature(
+      await planner.browser.captureScreenshot(editorClip()),
+      expectedJournalPageScreenshot(width < 500),
+      `${width}px Journal editor`
+    );
   }
 
   await planner.browser.setViewport(1280, 720);
-  await openReady(planner.browser, previewUrl);
-  assert.deepEqual(await planner.browser.evaluate(pageState()), {
-    activeTab: "Journal",
-    activeView: "journalView",
-    archiveCount: 2,
-    content: "I felt calm.\nThen I took a walk.",
-    date: TEST_DATE,
-    dateLabel: "Mon, September 14, 2026",
-    energy: "good",
-    focus: "clear",
-    iframeCount: 0,
-    meditation: "30 min saved for Mon Sep 14.",
-    minutes: "15",
-    title: "Soft start"
-  });
+  await openReady(planner.browser, pageUrl);
 
   await setField(planner.browser, "#journalTitle", "Updated feeling");
   await setField(planner.browser, "#journalContent", "A new reflection.");

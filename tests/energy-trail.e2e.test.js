@@ -229,7 +229,7 @@ function expectedEnergyTrailVisual(mobile) {
 }
 
 test("Energy trail preserves history, pattern, navigation, and its visual contract", { timeout: 60_000 }, async function (context) {
-  const planner = await startBrowserPlanner(context, { frontendMode: "react" });
+  const planner = await startBrowserPlanner(context);
   if (!planner) {
     return;
   }

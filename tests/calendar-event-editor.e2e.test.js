@@ -139,7 +139,7 @@ async function setInput(browser, id, value, prototypeName = "HTMLInputElement") 
 }
 
 test("Calendar event editor preserves visuals, validation, CRUD, task sync, and reload", { timeout: 90_000 }, async function (context) {
-  const planner = await startBrowserPlanner(context, { frontendMode: "react" });
+  const planner = await startBrowserPlanner(context);
   if (!planner) return;
   await seedEditor(planner.server.url);
 

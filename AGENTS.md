@@ -6,8 +6,8 @@ The rewrite is an architectural migration, NOT a redesign.
 
 - Preserve the existing Planner UI as closely as possible.
 - Do not change colors, fonts, spacing, sizing, borders, shadows, icons, layout, wording, responsive behavior, or interaction patterns unless explicitly requested.
-- The legacy frontend is the visual reference.
-- When migrating a screen/component, compare the new React version against the existing version at the same viewport size.
+- The visual reference is `main` plus the pinned contracts. `main` still holds the complete runnable legacy app (checked out at `/Users/yuan/Desktop/Hive/YuanPlanner`), so it can be run and compared against whenever a question comes up. The pinned contracts in `tests/helpers/*-contract.js` hold its verified text, computed styles, geometry, and rendered-image signatures.
+- When changing a screen/component, compare it against the pinned contract at the same viewport size. Changing a pinned value is a visible design change and needs explicit approval.
 - Reuse/adapt the existing CSS and design values where practical instead of inventing new styling.
 - Do not "modernize", simplify, or improve the design on your own.
 - Structural/code improvements are encouraged; visible design changes are not.
@@ -58,6 +58,30 @@ Before changing existing behavior, add regression tests that would fail if that 
 Prefer meaningful behavior assertions over shallow tests that only check that a page/function runs. Do not mock away the real integration being protected when an integration test is appropriate.
 
 
+## Refactor Phase
+
+Order of work: finish the migration, get every test green, fix known bugs — **then** start the architecture refactor. Do not begin refactoring while migration or bug work is still outstanding.
+
+The refactor is structural only:
+
+- No behavior change, no visual change, no API change, no storage or compatibility change.
+- Prefer move-only steps: move files, update imports, rename for consistency. Do not rewrite logic while moving it.
+- Never combine a move with a behavior change in one step. If a move reveals a bug, stop, write it down, and fix it separately with its own regression test.
+- Do not change CSS class names, DOM ids, or `hivePlanner.*` storage keys. The browser contracts and the compatibility of existing stored data depend on them.
+- Keep every stage revertable on its own.
+
+Be careful here, and verify more than usual:
+
+- Capture a baseline before starting: the complete suite green, and the hash of the built stylesheet.
+- Work in small stages. After **each** stage run the complete suite — Python tests, React/TypeScript tests, lint, strict type checking, the production build, and all browser tests. A subset is not enough.
+- Whenever stylesheets are untouched, the built stylesheet must stay byte-identical. A changed hash means something moved that should not have.
+- When a step deliberately changes the stylesheet, such as deleting dead rules, the gate is instead the pinned computed-style and geometry contracts, the rendered-image signatures, and the live page pass. Diff the built stylesheet and confirm every removed declaration belongs to a selector that was deliberately deleted.
+- Treat a skipped test as a failure to investigate, not a pass.
+- Re-run the live browser pass over all six pages at desktop and phone size, watching for console and network errors.
+- If a test turns flaky, find the cause before continuing. Never re-run a test until it happens to pass.
+- If a refactor step cannot be verified this thoroughly, do not take that step.
+
+
 ---
 
 
@@ -71,6 +95,31 @@ Before doing any work in this repository:
 
 Do not start implementation before completing these steps.
 
+## Plans Are Guides, Not Contracts
+
+A plan in `AGENT_HANDOFF.md` sets the intended order of work. It is not a script
+to follow past the point of sense. When something unplanned turns up during a
+session:
+
+- **Fix it** when it is small, when it sits in the code being touched anyway, or
+  when leaving it would be a real risk such as data loss or a wrong recorded
+  decision. Anything fixed gets the same verification as planned work: a
+  regression test that would have caught it, and the complete suite.
+- **Record it** when it is larger or unrelated. Add it to Known Problems or amend
+  the plan, with enough evidence that the next session does not rediscover it. A
+  discovery that exists only in a chat reply is lost.
+- **Extend the session** when finishing something matters more than stopping at
+  the planned boundary, and equally drop a planned item when a discovery makes it
+  wrong. Record whichever choice you make.
+- **Correct the plan** when a measurement contradicts it. Plans are written from
+  measurements, so a newer measurement wins.
+- Never let extra work weaken verification. If something cannot be verified
+  properly in the time remaining, record it rather than rushing it in.
+
+Investigate surprises rather than working around them. A flaky test, a figure
+that does not match the code, or a contract that fails unexpectedly is evidence
+of something real until proven otherwise.
+
 ## Working Rules
 
 - Work only on the rewrite/migration branch, not `main`.
@@ -78,7 +127,7 @@ Do not start implementation before completing these steps.
 - Preserve existing behavior unless a change is explicitly documented.
 - Add or update tests before replacing important behavior.
 - Run relevant tests after every meaningful change.
-- Make frequent, small Git commits after verified working steps.
+- Make exactly one Git commit per session. Work in small verified steps, then squash them into that single commit, with a message that keeps the steps legible.
 - Do not intentionally commit broken code.
 - Prefer simple, readable code over clever abstractions.
 - Keep files focused on one clear responsibility.
@@ -90,11 +139,12 @@ Do not start implementation before completing these steps.
 
 1. Run relevant tests.
 2. Review `git diff` and `git status`.
-3. Commit completed working changes.
+3. Commit the session's completed work as a single commit.
 4. Update `AGENT_HANDOFF.md` with:
    - what was completed
    - current task/state
    - next task
+   - anything found but not fixed, and any planned item dropped or deferred, with its evidence
    - unresolved problems
    - important decisions
    - session log

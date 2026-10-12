@@ -5,6 +5,7 @@ import {
   type JournalEntry,
   type JournalTracker
 } from "../journal/journal-entry-store";
+import { humanDateFromKey } from "../../shared/planner-date";
 
 export interface JournalArchiveItem {
   active: boolean;
@@ -21,11 +22,6 @@ export interface JournalArchiveModel {
   items: readonly JournalArchiveItem[];
 }
 
-const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"] as const;
-const MONTHS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December"
-] as const;
 const ENERGY_LABELS: Readonly<Record<string, string>> = {
   empty: "Empty",
   low: "Low",
@@ -41,11 +37,6 @@ const FOCUS_LABELS: Readonly<Record<string, string>> = {
 };
 const PREVIEW_LENGTH = 132;
 
-function humanDate(dateKey: string): string {
-  const parts = dateKey.split("-").map(Number);
-  const date = new Date(parts[0] ?? 0, (parts[1] ?? 1) - 1, parts[2] ?? 1);
-  return `${WEEKDAYS[date.getDay()] ?? ""} ${(MONTHS[date.getMonth()] ?? "").slice(0, 3)} ${date.getDate()}`;
-}
 
 function trackerMeta(tracker: JournalTracker): string {
   return [
@@ -85,7 +76,7 @@ export function buildJournalArchive(
         ? "No journal entry matches that search yet."
         : "Your old journals will stack here as soon as you write one.",
     items: entries.map((entry) => {
-      const dateLabel = humanDate(entry.date);
+      const dateLabel = humanDateFromKey(entry.date);
       return {
         active: entry.date === selectedDate,
         date: entry.date,

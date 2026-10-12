@@ -1,0 +1,817 @@
+/* Skate and Guitar pages: hero, settings, roadmap, body log, trends, and frequency rows. */
+
+.skate-page {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas:
+    "focus"
+    "trends"
+    "body"
+    "session";
+  gap: 22px;
+}
+
+.guitar-page {
+  display: grid;
+  grid-template-columns: 1fr;
+  grid-template-areas:
+    "goal"
+    "session";
+  gap: 22px;
+}
+
+.skate-hero-card {
+  grid-area: focus;
+}
+
+.guitar-goal-card {
+  grid-area: goal;
+}
+
+.skate-session-card {
+  grid-area: session;
+}
+
+.guitar-session-card {
+  grid-area: session;
+}
+
+.body-log-card {
+  grid-area: body;
+}
+
+.skate-trends-card {
+  grid-area: trends;
+}
+
+.skate-session-card .panel-inner {
+  background:
+    radial-gradient(circle at 4% 0%, rgba(245, 202, 221, 0.2), transparent 36%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.5), rgba(227, 251, 250, 0.16), rgba(255, 249, 204, 0.12));
+  border-radius: var(--radius);
+}
+
+.skate-hero-card .panel-inner,
+.skate-trends-card .panel-inner,
+.body-log-card .panel-inner {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(185, 238, 238, 0.18), transparent 34%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.56), rgba(247, 251, 255, 0.7), rgba(255, 250, 243, 0.6));
+  border-radius: var(--radius);
+}
+
+.guitar-session-card .panel-inner,
+.guitar-goal-card .panel-inner {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(217, 210, 243, 0.26), transparent 34%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.52), rgba(239, 235, 250, 0.22), rgba(227, 251, 250, 0.1));
+  border-radius: var(--radius);
+}
+
+.guitar-goal-card .panel-inner {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(217, 210, 243, 0.3), transparent 34%),
+    linear-gradient(135deg, rgba(255, 255, 255, 0.58), rgba(248, 242, 255, 0.48), rgba(227, 251, 250, 0.18));
+}
+
+.skate-page .section-head h2 {
+  font-weight: 550;
+}
+
+.skate-session-card .section-head {
+  margin-bottom: 18px;
+}
+
+.skate-focus-metrics {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.skate-hero-metrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.skate-settings-strip {
+  display: grid;
+  grid-template-columns: minmax(160px, 200px) minmax(160px, 200px) minmax(0, 1fr);
+  gap: 10px 12px;
+  align-items: end;
+  margin-top: 12px;
+}
+
+.skate-setting-field {
+  display: grid;
+  gap: 6px;
+}
+
+.skate-setting-field span,
+.skate-settings-note {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 520;
+}
+
+.skate-settings-note {
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid rgba(185, 206, 240, 0.28);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.48);
+}
+
+.soft-stat.compact {
+  padding: 12px 14px;
+  border: 1px solid rgba(185, 206, 240, 0.32);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.64);
+}
+
+.skate-phase-badge {
+  align-self: start;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(106, 201, 194, 0.14);
+  color: var(--teal-dark);
+  font-size: 0.82rem;
+  font-weight: 540;
+}
+
+.skate-hero-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(240px, 0.8fr);
+  gap: 16px;
+  margin-top: 16px;
+}
+
+.skate-hero-primary,
+.skate-hero-sidebar {
+  display: grid;
+  gap: 14px;
+}
+
+.skate-main-strip,
+.skate-intensity-card,
+.skate-session-actions-card,
+.skate-support-chip {
+  padding: 14px 16px;
+  border-radius: 18px;
+  border: 1px solid rgba(185, 206, 240, 0.34);
+  background: rgba(255, 255, 255, 0.64);
+}
+
+.skate-session-actions-card {
+  display: grid;
+  gap: 12px;
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.88), rgba(236, 248, 255, 0.74));
+}
+
+.skate-main-strip {
+  background:
+    linear-gradient(135deg, rgba(255, 255, 255, 0.9), rgba(255, 248, 228, 0.58));
+}
+
+.skate-mini-label {
+  display: inline-flex;
+  margin-bottom: 8px;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 560;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.skate-main-strip strong {
+  display: block;
+  color: #343848;
+  font-size: 0.98rem;
+  line-height: 1.35;
+  font-weight: 550;
+}
+
+.skate-main-strip p {
+  margin: 10px 0 0;
+  color: #5c6477;
+  font-size: 0.89rem;
+  line-height: 1.45;
+}
+
+.skate-support-strip {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+
+.skate-support-chip {
+  display: grid;
+  gap: 6px;
+}
+
+.skate-trends-card .section-head,
+.body-log-card .section-head,
+.skate-session-card .section-head {
+  align-items: flex-start;
+}
+
+.skate-support-chip span,
+.skate-readiness-head span {
+  color: var(--muted);
+  font-size: 0.8rem;
+  font-weight: 560;
+}
+
+.skate-support-chip strong,
+.skate-readiness-head strong,
+.skate-intensity-card strong {
+  color: #343848;
+  font-weight: 550;
+}
+
+.skate-intensity-card {
+  display: grid;
+  gap: 12px;
+}
+
+.skate-intensity-toggle {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.skate-intensity-toggle button {
+  min-height: 38px;
+  border: 1px solid rgba(185, 206, 240, 0.46);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.78);
+  color: #516072;
+  font-weight: 550;
+}
+
+.skate-intensity-toggle button.active[data-intensity="blue"] {
+  background: rgba(110, 176, 255, 0.2);
+  border-color: rgba(110, 176, 255, 0.42);
+  color: #2e5f9f;
+}
+
+.skate-intensity-toggle button.active[data-intensity="yellow"] {
+  background: rgba(243, 204, 92, 0.24);
+  border-color: rgba(243, 204, 92, 0.4);
+  color: #8a6512;
+}
+
+.skate-intensity-toggle button.active[data-intensity="green"] {
+  background: rgba(122, 205, 122, 0.22);
+  border-color: rgba(122, 205, 122, 0.42);
+  color: #2d6d3c;
+}
+
+.skate-intensity-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+  color: #5d6677;
+  font-size: 0.86rem;
+}
+
+.skate-intensity-meta strong {
+  color: var(--teal-dark);
+  font-size: 0.95rem;
+  font-weight: 550;
+}
+
+.skate-session-actions-card {
+  display: grid;
+  gap: 12px;
+}
+
+.skate-readiness-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.soft-stat {
+  display: grid;
+  gap: 6px;
+}
+
+.soft-stat strong {
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-weight: 540;
+}
+
+.soft-stat span {
+  color: var(--teal-dark);
+  font-size: 1.18rem;
+  font-weight: 550;
+}
+
+.skate-target-stat input {
+  max-width: 120px;
+}
+
+.skate-session-card .form-row {
+  gap: 10px;
+}
+
+.guitar-session-card .form-row,
+.guitar-goal-card .form-row {
+  gap: 10px;
+}
+
+.skate-session-card .form-row span {
+  color: #747481;
+  font-size: 0.9rem;
+  font-weight: 470;
+}
+
+.skate-session-card textarea {
+  border-color: rgba(190, 186, 255, 0.24);
+  background:
+    radial-gradient(circle at 100% 0%, rgba(227, 251, 250, 0.34), transparent 32%),
+    rgba(255, 255, 255, 0.68);
+  color: #3f3f47;
+}
+
+.body-log-form {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  align-items: end;
+}
+
+.body-log-note {
+  grid-column: 1 / -1;
+}
+
+.body-log-form button {
+  justify-self: start;
+}
+
+.body-support-metrics {
+  margin-top: 14px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.body-support-chip {
+  min-height: 30px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px;
+  border: 1px solid rgba(185, 206, 240, 0.46);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.62);
+  color: #5a6276;
+  font-size: 0.82rem;
+  line-height: 1.2;
+}
+
+.body-support-chip span {
+  color: #7b8497;
+}
+
+.body-support-chip strong {
+  color: var(--ink);
+  font-weight: 540;
+}
+
+.body-support-chip em {
+  color: var(--teal-dark);
+  font-style: normal;
+  font-weight: 600;
+}
+
+.skate-roadmap {
+  display: grid;
+  gap: 12px;
+}
+
+.skate-roadmap-months {
+  display: grid;
+  grid-template-columns: repeat(var(--roadmap-columns, 1), minmax(0, 1fr));
+  gap: 6px;
+}
+
+.skate-roadmap-month {
+  color: var(--muted);
+  font-size: 0.72rem;
+  font-weight: 540;
+}
+
+.skate-roadmap-grid {
+  display: grid;
+  grid-auto-flow: column;
+  grid-template-rows: repeat(7, 14px);
+  grid-auto-columns: 14px;
+  gap: 6px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.skate-roadmap-spacer {
+  width: 14px;
+  height: 14px;
+}
+
+.skate-roadmap-day {
+  width: 14px;
+  min-width: 14px;
+  height: 14px;
+  padding: 0;
+  border-radius: 4px;
+  border: 1px solid rgba(185, 206, 240, 0.28);
+  background: rgba(255, 255, 255, 0.55);
+  color: transparent;
+  cursor: pointer;
+  transition: transform 0.14s ease, box-shadow 0.14s ease, border-color 0.14s ease;
+}
+
+.skate-roadmap-day:hover,
+.skate-roadmap-day:focus-visible {
+  transform: translateY(-1px);
+  border-color: rgba(126, 121, 255, 0.45);
+  box-shadow: 0 6px 14px rgba(126, 121, 255, 0.16);
+  outline: none;
+}
+
+.skate-roadmap-day.intensity-blue {
+  background: rgba(110, 176, 255, 0.22);
+  color: #2e5f9f;
+}
+
+.skate-roadmap-day.intensity-yellow {
+  background: rgba(243, 204, 92, 0.26);
+  color: #8a6512;
+}
+
+.skate-roadmap-day.intensity-green {
+  background: rgba(122, 205, 122, 0.26);
+  color: #2d6d3c;
+}
+
+.skate-roadmap-day.intensity-empty {
+  background: rgba(241, 244, 249, 0.9);
+  border-color: rgba(185, 206, 240, 0.34);
+}
+
+.skate-session-details {
+  margin-bottom: 16px;
+}
+
+.skate-session-details summary {
+  cursor: pointer;
+  color: var(--teal-dark);
+  font-weight: 600;
+}
+
+.skate-plan-stack {
+  display: grid;
+  gap: 16px;
+}
+
+.skate-plan-card {
+  display: grid;
+  gap: 14px;
+  padding: 16px 18px;
+  border: 1px solid rgba(185, 206, 240, 0.32);
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.skate-plan-today {
+  background:
+    radial-gradient(circle at 100% 0%, rgba(227, 251, 250, 0.3), transparent 34%),
+    rgba(255, 255, 255, 0.72);
+}
+
+.skate-plan-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: start;
+}
+
+.skate-plan-head h3 {
+  margin: 6px 0 6px;
+  color: #343848;
+  font-size: 0.98rem;
+  line-height: 1.35;
+  font-weight: 550;
+}
+
+.skate-plan-head p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.45;
+}
+
+.skate-plan-kicker {
+  color: var(--teal-dark);
+  font-size: 0.78rem;
+  font-weight: 560;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.skate-plan-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.skate-plan-block {
+  display: grid;
+  gap: 7px;
+  padding: 13px 14px;
+  border: 1px solid rgba(185, 206, 240, 0.28);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.skate-plan-block span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 540;
+}
+
+.skate-plan-block strong {
+  color: #383c4a;
+  font-size: 0.88rem;
+  line-height: 1.45;
+  font-weight: 540;
+}
+
+.skate-plan-note {
+  margin: 0;
+  color: #5c6477;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.skate-plan-list {
+  display: grid;
+  gap: 10px;
+}
+
+.skate-plan-row {
+  display: grid;
+  gap: 8px;
+  padding: 14px 15px;
+  border: 1px solid rgba(185, 206, 240, 0.28);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.skate-plan-row.is-current,
+.skate-plan-row.is-preview {
+  border-color: rgba(106, 201, 194, 0.42);
+  box-shadow: inset 0 0 0 1px rgba(106, 201, 194, 0.16);
+}
+
+.skate-plan-row-top {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.skate-plan-row-top span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 540;
+  text-transform: uppercase;
+}
+
+.skate-plan-row-top strong {
+  color: #383c4a;
+  font-size: 0.89rem;
+  line-height: 1.35;
+  font-weight: 540;
+}
+
+.skate-plan-row-top em {
+  font-style: normal;
+  font-size: 0.78rem;
+  font-weight: 560;
+}
+
+.skate-plan-row.intensity-blue .skate-plan-row-top em {
+  color: #2e5f9f;
+}
+
+.skate-plan-row.intensity-yellow .skate-plan-row-top em {
+  color: #8a6512;
+}
+
+.skate-plan-row.intensity-green .skate-plan-row-top em {
+  color: #2d6d3c;
+}
+
+.skate-plan-row-copy,
+.skate-plan-row-detail {
+  margin: 0;
+  color: #5b6476;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+
+.skate-plan-row-detail {
+  color: #687185;
+}
+
+.skate-plan-pill {
+  justify-self: start;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: rgba(243, 204, 92, 0.18);
+  color: #8a6512;
+  font-size: 0.76rem;
+  font-weight: 560;
+}
+
+.body-support-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+}
+
+.guitar-session-summary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.guitar-summary-card {
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid rgba(185, 206, 240, 0.32);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.66);
+}
+
+.guitar-summary-card span {
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 540;
+}
+
+.guitar-summary-card strong {
+  color: var(--guitar);
+  font-size: 1.05rem;
+  font-weight: 610;
+}
+
+.guitar-session-plan {
+  margin: 0;
+  color: #5e5e6d;
+  font-size: 0.95rem;
+  line-height: 1.45;
+}
+
+.guitar-session-history {
+  display: grid;
+  gap: 10px;
+}
+
+.guitar-history-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: start;
+  padding: 12px 14px;
+  border: 1px solid rgba(185, 206, 240, 0.28);
+  border-radius: 16px;
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.guitar-history-item strong {
+  color: var(--ink);
+  font-weight: 570;
+}
+
+.guitar-history-item p {
+  margin: 4px 0 0;
+  color: #686878;
+  line-height: 1.4;
+}
+
+.guitar-history-item em {
+  color: var(--guitar);
+  font-style: normal;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.trend-row {
+  display: grid;
+  grid-template-columns: 82px minmax(0, 1fr) 86px;
+  gap: 9px;
+  align-items: end;
+  margin-top: 9px;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.trend-row strong {
+  color: var(--ink);
+  font-weight: 540;
+}
+
+.trend-dots {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(5px, 1fr));
+  gap: 4px;
+  align-items: end;
+  min-height: 44px;
+  padding: 6px;
+  border-radius: 12px;
+  background: rgba(185, 206, 240, 0.12);
+}
+
+.trend-dots span {
+  min-height: 6px;
+  border-radius: 999px 999px 4px 4px;
+  background: var(--teal);
+}
+
+.trend-row.gym .trend-dots span {
+  background: var(--gym);
+}
+
+.trend-row.mobile-development .trend-dots span {
+  background: var(--green);
+}
+
+.frequency-row {
+  display: grid;
+  grid-template-columns: 58px minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+}
+
+.frequency-row + .frequency-row {
+  margin-top: 10px;
+}
+
+.frequency-row strong {
+  color: var(--ink);
+  font-weight: 560;
+}
+
+.frequency-bar {
+  height: 10px;
+  border-radius: 999px;
+  background: rgba(238, 242, 252, 0.9);
+  overflow: hidden;
+}
+
+.frequency-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, rgba(185, 238, 238, 0.95), rgba(211, 228, 111, 0.82));
+}
+
+.frequency-row.mobile-development .frequency-fill {
+  background: linear-gradient(90deg, rgba(240, 246, 211, 0.96), rgba(185, 238, 238, 0.82));
+}
+
+.frequency-row.portfolio-job-prep .frequency-fill {
+  background: linear-gradient(90deg, rgba(255, 249, 204, 0.98), rgba(239, 201, 166, 0.72));
+}
+
+.frequency-row em {
+  color: var(--muted);
+  font-size: 0.88rem;
+  font-style: normal;
+  font-weight: 520;
+}
+
+.trend-empty {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.skate-session-card .panel-inner {
+  display: grid;
+  gap: 14px;
+}
+
+.skate-coach-flow {
+  display: grid;
+  gap: 10px;
+}

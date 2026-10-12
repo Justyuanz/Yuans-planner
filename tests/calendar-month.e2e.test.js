@@ -155,7 +155,7 @@ function calendarVisualContract() {
 }
 
 test("Calendar month grid preserves visuals, navigation, editing, and reload", { timeout: 90_000 }, async function (context) {
-  const planner = await startBrowserPlanner(context, { frontendMode: "react" });
+  const planner = await startBrowserPlanner(context);
   if (!planner) return;
   await seedCalendar(planner.server.url);
 

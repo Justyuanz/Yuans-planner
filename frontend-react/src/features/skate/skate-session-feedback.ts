@@ -12,6 +12,7 @@ import {
   SKATE_CURRENT_SESSION_STORAGE_KEY,
   SKATE_SETTINGS_STORAGE_KEY
 } from "./skate-settings";
+import { strictDateKey } from "../../shared/planner-date";
 
 export const SKATE_COACH_TEMPLATE_STORAGE_KEY = "hivePlanner.skate.coachTemplate";
 export { SKATE_CURRENT_SESSION_STORAGE_KEY, SKATE_SETTINGS_STORAGE_KEY } from "./skate-settings";
@@ -102,13 +103,6 @@ function storedArray(rawValue: string | undefined): unknown[] {
   return Array.isArray(value) ? value.map((entry: unknown) => entry) : [];
 }
 
-function validDateKey(value: unknown): string {
-  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return "";
-  const [year = 0, month = 0, day = 0] = value.split("-").map(Number);
-  const date = new Date(year, month - 1, day);
-  return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day
-    ? value : "";
-}
 
 function localDateKey(date: Date): string {
   return [
@@ -120,7 +114,7 @@ function localDateKey(date: Date): string {
 
 function sessionDateKey(value: unknown): string {
   if (!isRecord(value)) return "";
-  const explicit = validDateKey(value.dateKey);
+  const explicit = strictDateKey(value.dateKey);
   if (explicit) return explicit;
   const finishedAt = typeof value.finishedAt === "string" ? new Date(value.finishedAt) : null;
   return finishedAt !== null && Number.isFinite(finishedAt.getTime()) ? localDateKey(finishedAt) : "";
@@ -132,7 +126,7 @@ export function feedbackIntensityForDate(
   todayKey: string,
   todayIntensity: unknown
 ): SkateIntensity {
-  const safeDateKey = validDateKey(dateKey);
+  const safeDateKey = strictDateKey(dateKey);
   const settings = storedRecord(store[SKATE_SETTINGS_STORAGE_KEY]);
   const intensityByDate = isRecord(settings.intensityByDate) ? settings.intensityByDate : {};
   const savedIntensity = intensityByDate[safeDateKey];
@@ -297,7 +291,7 @@ export function buildSkateSessionSave(
 ): SkateSessionSaveResult {
   const template = decodeSkateCoachTemplate(store[SKATE_COACH_TEMPLATE_STORAGE_KEY]);
   const session = currentSession(store[SKATE_CURRENT_SESSION_STORAGE_KEY], template);
-  const dateKey = validDateKey(feedback.dateKey) || options.todayKey;
+  const dateKey = strictDateKey(feedback.dateKey) || options.todayKey;
   const minutes = durationMinutes(feedback.durationMinutes);
   const intensity = normalizeSkateIntensity(feedback.intensity);
   const taskKey = `hivePlanner.dailyTasks.${options.todayKey}`;

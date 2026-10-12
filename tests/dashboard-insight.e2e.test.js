@@ -225,7 +225,7 @@ function expectedInsightVisual(mobile) {
 }
 
 test("Pattern noticed preserves quiet and task-overpacking behavior", { timeout: 60_000 }, async function (context) {
-  const planner = await startBrowserPlanner(context, { frontendMode: "react" });
+  const planner = await startBrowserPlanner(context);
   if (!planner) {
     return;
   }
@@ -314,7 +314,7 @@ test("Pattern noticed preserves quiet and task-overpacking behavior", { timeout:
 });
 
 test("Pattern noticed preserves its desktop and mobile visual contract", { timeout: 60_000 }, async function (context) {
-  const planner = await startBrowserPlanner(context, { frontendMode: "react" });
+  const planner = await startBrowserPlanner(context);
   if (!planner) {
     return;
   }
@@ -350,7 +350,7 @@ test("Pattern noticed preserves its desktop and mobile visual contract", { timeo
 });
 
 test("React Pattern noticed routes actions and follows direct task changes", { timeout: 60_000 }, async function (context) {
-  const planner = await startBrowserPlanner(context, { frontendMode: "react" });
+  const planner = await startBrowserPlanner(context);
   if (!planner) {
     return;
   }

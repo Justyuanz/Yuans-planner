@@ -1,11 +1,11 @@
 import type { PlannerStore } from "../../api/planner-store";
 import { isRecord } from "../../shared/is-record";
-import { formatPlannerDate } from "../life-pie/life-pie-store";
 import {
   MEDITATION_STORAGE_KEY,
   type MeditationActiveTimer,
   type MeditationDocument
 } from "./meditation-definitions";
+import { dateKeyFromValue } from "../../shared/planner-date";
 
 function finiteNumber(value: unknown): number | null {
   const number = Number(value);
@@ -55,13 +55,6 @@ export function decodeMeditationDocument(store: PlannerStore): MeditationDocumen
   };
 }
 
-function localDateKey(value: unknown): string {
-  if (typeof value !== "string" && typeof value !== "number") {
-    return "";
-  }
-  const date = new Date(value);
-  return Number.isFinite(date.getTime()) ? formatPlannerDate(date) : "";
-}
 
 export function meditationMinutesForDate(sessions: readonly unknown[], dateKey: string): number {
   const hours = sessions.reduce<number>((sum, candidate) => {
@@ -70,7 +63,7 @@ export function meditationMinutesForDate(sessions: readonly unknown[], dateKey: 
     }
     const sessionDate = typeof candidate.dateKey === "string" && candidate.dateKey
       ? candidate.dateKey
-      : localDateKey(candidate.finishedAt);
+      : dateKeyFromValue(candidate.finishedAt);
     const durationHours = finiteNumber(candidate.durationHours) ?? 0;
     return sessionDate === dateKey ? sum + Math.max(0, durationHours) : sum;
   }, 0);

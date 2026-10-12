@@ -14,6 +14,7 @@ import {
   type SkateHeroSettingsAction,
   type SkateSettings
 } from "./skate-settings";
+import { startOfLocalDay } from "../../shared/planner-date";
 
 const SKATE_SEASON_START = new Date(2026, 7, 29);
 const SKATE_TOTAL_WEEKS = 21;
@@ -61,12 +62,9 @@ export type SkateHeroAction = SkateHeroSettingsAction
 
 type SkateProgramDay = typeof SKATE_PROGRAM.days[number];
 
-function localDay(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
-}
 
 function seasonDayNumber(date: Date): number {
-  return Math.round((localDay(date).getTime() - SKATE_SEASON_START.getTime()) / DAY_MS) + 1;
+  return Math.round((startOfLocalDay(date).getTime() - SKATE_SEASON_START.getTime()) / DAY_MS) + 1;
 }
 
 function seasonWeekNumber(dayNumber: number): number {

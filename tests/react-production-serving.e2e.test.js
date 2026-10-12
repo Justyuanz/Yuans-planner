@@ -43,7 +43,7 @@ test("Python serves a self-contained production React build", { timeout: 90_000 
     return;
   }
 
-  const planner = await startBrowserPlanner(context, { frontendMode: "react" });
+  const planner = await startBrowserPlanner(context);
   if (!planner) return;
 
   for (const [width, height] of [[1280, 720], [390, 844]]) {

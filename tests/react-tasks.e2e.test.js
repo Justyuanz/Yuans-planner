@@ -2,8 +2,13 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const { startBrowserPlanner } = require("./helpers/browser-planner");
-const { compareScreenshots } = require("./helpers/png-compare");
-const { startReactPreviewServer } = require("./helpers/react-preview-server");
+const { compareScreenshotSignature } = require("./helpers/png-compare");
+const {
+  clipExpression,
+  expectedTaskContract,
+  expectedTaskScreenshot,
+  taskContract
+} = require("./helpers/task-card-contract");
 
 const TEST_DATE = "2026-10-05";
 const TOMORROW_DATE = "2026-10-06";
@@ -50,61 +55,19 @@ function directReady(taskCount) {
     && document.querySelectorAll(".task").length === ${taskCount}`;
 }
 
-function clipExpression() {
-  return `(() => {
-    const rect = document.querySelector(".tasks-card").getBoundingClientRect();
-    return {
-      x: rect.x + window.scrollX,
-      y: rect.y + window.scrollY,
-      width: rect.width,
-      height: Math.min(rect.height, 680)
-    };
-  })()`;
-}
-
-async function scrollToTasks(browser, documentExpression) {
+// The animated mascot is hidden before capture so it cannot add noise, while
+// its layout space is preserved.
+async function scrollToTasks(browser) {
   await browser.evaluate(`(() => {
-    const root = ${documentExpression};
+    const root = document;
     root.documentElement.style.scrollBehavior = "auto";
     const mascot = root.querySelector(".mascot-card");
     if (mascot) mascot.style.visibility = "hidden";
     root.querySelector(".tasks-card").scrollIntoView({ block: "start" });
   })()`);
   await browser.evaluate(`new Promise((resolve) => {
-    const view = (${documentExpression}).defaultView;
-    view.requestAnimationFrame(() => view.requestAnimationFrame(resolve));
+    requestAnimationFrame(() => requestAnimationFrame(resolve));
   })`);
-}
-
-function taskContract(documentExpression) {
-  return `(() => {
-    const root = ${documentExpression};
-    const view = root.defaultView;
-    const card = root.querySelector(".tasks-card");
-    const rows = [...root.querySelectorAll(".task-card")];
-    const pick = (element) => {
-      const style = view.getComputedStyle(element);
-      const rect = element.getBoundingClientRect();
-      return {
-        background: style.background,
-        border: style.border,
-        borderRadius: style.borderRadius,
-        display: style.display,
-        gap: style.gap,
-        height: rect.height,
-        padding: style.padding,
-        width: rect.width
-      };
-    };
-    return {
-      card: pick(card),
-      form: pick(root.getElementById("taskForm")),
-      rows: rows.map((row) => ({
-        text: row.textContent.replace(/\\s+/g, " ").trim(),
-        visual: pick(row)
-      }))
-    };
-  })()`;
 }
 
 async function putTasks(serverUrl) {
@@ -128,40 +91,24 @@ async function putStoredValue(serverUrl, key, value) {
 test("React tasks preserve the legacy design and task lifecycle", { timeout: 60_000 }, async function (context) {
   const planner = await startBrowserPlanner(context);
   if (!planner) return;
-  const preview = await startReactPreviewServer(planner.server.url);
-  if (!preview) {
-    context.skip("Install frontend-react dependencies to run React task tests.");
-    return;
-  }
-  context.after(async function () {
-    await preview.close();
-  });
   await putTasks(planner.server.url);
-  const legacyUrl = `${planner.server.url}/?view=todayView&date=${TEST_DATE}`;
-  const previewUrl = `${preview.url}/?view=todayView&date=${TEST_DATE}`;
+  const pageUrl = `${planner.server.url}/?view=todayView&date=${TEST_DATE}`;
 
   for (const [width, height] of [[1280, 720], [390, 844]]) {
     await planner.browser.setViewport(width, height);
-    await planner.browser.open(legacyUrl);
-    await planner.browser.waitForExpression('document.querySelectorAll(".task").length === 2');
-    await planner.browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
-    await scrollToTasks(planner.browser, "document");
-    const legacyContract = await planner.browser.evaluate(taskContract("document"));
-    const legacyScreenshot = await planner.browser.captureScreenshot(clipExpression());
-
-    await planner.browser.open(previewUrl);
+    await planner.browser.open(pageUrl);
     await planner.browser.waitForExpression(directReady(2));
-    await scrollToTasks(planner.browser, "document");
-    const reactContract = await planner.browser.evaluate(taskContract("document"));
-    const reactScreenshot = await planner.browser.captureScreenshot(clipExpression());
-
-    assert.deepEqual(reactContract, legacyContract);
-    const comparison = compareScreenshots(reactScreenshot, legacyScreenshot);
+    await scrollToTasks(planner.browser);
+    assert.deepEqual(await planner.browser.evaluate(taskContract()), expectedTaskContract(width < 500));
+    const comparison = compareScreenshotSignature(
+      await planner.browser.captureScreenshot(clipExpression()),
+      expectedTaskScreenshot(width < 500)
+    );
     assert.equal(comparison.matches, true, `${width}px task screenshot: ${JSON.stringify(comparison)}`);
   }
 
   await planner.browser.setViewport(1280, 720);
-  await planner.browser.open(previewUrl);
+  await planner.browser.open(pageUrl);
   await planner.browser.waitForExpression(directReady(2));
   await planner.browser.evaluate(`(() => {
     const setInput = (selector, value) => {
@@ -298,14 +245,6 @@ test("React tasks preserve the legacy design and task lifecycle", { timeout: 60_
 test("React owns calendar-linked task reconciliation", { timeout: 60_000 }, async function (context) {
   const planner = await startBrowserPlanner(context);
   if (!planner) return;
-  const preview = await startReactPreviewServer(planner.server.url);
-  if (!preview) {
-    context.skip("Install frontend-react dependencies to run React task tests.");
-    return;
-  }
-  context.after(async function () {
-    await preview.close();
-  });
   await putTasks(planner.server.url);
   const calendarEvent = {
     category: "Transcendence",
@@ -317,7 +256,7 @@ test("React owns calendar-linked task reconciliation", { timeout: 60_000 }, asyn
     title: "Calendar React task"
   };
   await putStoredValue(planner.server.url, EVENTS_KEY, JSON.stringify([calendarEvent]));
-  await planner.browser.open(`${preview.url}/?view=todayView&date=${TEST_DATE}`);
+  await planner.browser.open(`${planner.server.url}/?view=todayView&date=${TEST_DATE}`);
   await planner.browser.waitForExpression(directReady(3));
   const linkedTask = await planner.server.waitFor(async function () {
     const data = await planner.server.readPlannerData();
@@ -373,14 +312,6 @@ test("React owns calendar-linked task reconciliation", { timeout: 60_000 }, asyn
 test("React owns agent undo persistence without the legacy bridge", { timeout: 60_000 }, async function (context) {
   const planner = await startBrowserPlanner(context);
   if (!planner) return;
-  const preview = await startReactPreviewServer(planner.server.url);
-  if (!preview) {
-    context.skip("Install frontend-react dependencies to run React task tests.");
-    return;
-  }
-  context.after(async function () {
-    await preview.close();
-  });
 
   const tomorrowBefore = [{
     ...TASKS[0],
@@ -423,7 +354,7 @@ test("React owns agent undo persistence without the legacy bridge", { timeout: 6
   await putStoredValue(planner.server.url, AGENT_UI_STATE_KEY, JSON.stringify(agentAfter));
   await putStoredValue(planner.server.url, AGENT_UNDO_KEY, JSON.stringify([undoEntry]));
 
-  await planner.browser.open(`${preview.url}/?view=todayView&date=${TEST_DATE}`);
+  await planner.browser.open(`${planner.server.url}/?view=todayView&date=${TEST_DATE}`);
   await planner.browser.waitForExpression(directReady(1));
   await planner.browser.waitForExpression('document.querySelector(".agent-focus-banner") !== null');
   await planner.browser.evaluate(

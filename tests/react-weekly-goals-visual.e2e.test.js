@@ -2,8 +2,18 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const { startBrowserPlanner } = require("./helpers/browser-planner");
-const { compareScreenshots } = require("./helpers/png-compare");
-const { startReactPreviewServer } = require("./helpers/react-preview-server");
+const { compareScreenshotSignature } = require("./helpers/png-compare");
+const {
+  GOALS_PANEL_CLIP,
+  LIFE_PANEL_CLIP,
+  expectedLifePieScreenshot,
+  expectedLifePieVisual,
+  expectedMobileShell,
+  expectedWeeklyGoalsScreenshot,
+  expectedWeeklyGoalsVisual,
+  lifePieVisualContract,
+  weeklyGoalsVisualContract
+} = require("./helpers/weekly-goals-contract");
 
 const TEST_DATE = "2026-09-13";
 const WEEKLY_GOALS = {
@@ -47,114 +57,11 @@ const EXPECTED_LIFE_PIE_PERIODS = {
   }
 };
 
-const LEGACY_GOALS_READY = `document.querySelectorAll("#weeklyGoals .weekly-goal-input").length === 3`;
 const REACT_GOALS_READY = `document.documentElement.dataset.plannerReady === "true"
   && document.querySelectorAll("#weeklyGoals .weekly-goal-input").length === 3`;
 
-const LEGACY_PANEL_CLIP = `(() => {
-  const rect = document.querySelector(".goals-card").getBoundingClientRect();
-  return { x: rect.x, y: rect.y, width: rect.width, height: rect.height };
-})()`;
-
-const LEGACY_LIFE_PANEL_CLIP = `(() => {
-  const rect = document.querySelector(".life-card").getBoundingClientRect();
-  return { x: rect.x + scrollX, y: rect.y + scrollY, width: rect.width, height: rect.height };
-})()`;
-
-function visualContract(documentExpression) {
-  return `(() => {
-    const documentRoot = ${documentExpression};
-    const panel = documentRoot.querySelector(".goals-card");
-    const list = documentRoot.getElementById("weeklyGoals");
-    const firstCard = list.querySelector(".weekly-goal-card");
-    const firstInput = list.querySelector(".weekly-goal-input");
-    const heading = panel.querySelector("h2");
-    const note = panel.querySelector(".small-note");
-    const pick = (element) => {
-      const style = getComputedStyle(element);
-      const rect = element.getBoundingClientRect();
-      return {
-        background: style.background,
-        border: style.border,
-        borderRadius: style.borderRadius,
-        boxShadow: style.boxShadow,
-        color: style.color,
-        display: style.display,
-        fontFamily: style.fontFamily,
-        fontSize: style.fontSize,
-        fontWeight: style.fontWeight,
-        gap: style.gap,
-        height: rect.height,
-        lineHeight: style.lineHeight,
-        padding: style.padding,
-        width: rect.width
-      };
-    };
-    return {
-      cards: [...list.querySelectorAll(".weekly-goal-card")].map((card) => ({
-        label: card.querySelector(".weekly-goal-track").textContent.trim(),
-        value: card.querySelector(".weekly-goal-input").value
-      })),
-      heading: { text: heading.textContent.trim(), visual: pick(heading) },
-      input: pick(firstInput),
-      list: pick(list),
-      note: { text: note.textContent.trim(), visual: pick(note) },
-      panel: pick(panel),
-      card: pick(firstCard)
-    };
-  })()`;
-}
-
-function lifePieVisualContract(documentExpression) {
-  return `(() => {
-    const documentRoot = ${documentExpression};
-    const view = documentRoot.defaultView;
-    const panel = documentRoot.querySelector(".life-card");
-    const heading = panel.querySelector("h3");
-    const donut = documentRoot.getElementById("lifeDonut");
-    const pick = (element) => {
-      const style = view.getComputedStyle(element);
-      const rect = element.getBoundingClientRect();
-      return {
-        alignItems: style.alignItems,
-        background: style.background,
-        border: style.border,
-        borderRadius: style.borderRadius,
-        boxShadow: style.boxShadow,
-        color: style.color,
-        display: style.display,
-        fontFamily: style.fontFamily,
-        fontSize: style.fontSize,
-        fontWeight: style.fontWeight,
-        gap: style.gap,
-        height: rect.height,
-        lineHeight: style.lineHeight,
-        padding: style.padding,
-        width: rect.width
-      };
-    };
-    const rows = (selector) => [...documentRoot.querySelectorAll(selector)].map((row) => ({
-      text: row.textContent.trim(),
-      visual: pick(row)
-    }));
-    return {
-      breakdown: rows("#lifeBreakdown .breakdown-row"),
-      donut: {
-        ariaLabel: donut.getAttribute("aria-label"),
-        text: donut.textContent.trim(),
-        visual: pick(donut)
-      },
-      heading: { text: heading.textContent.trim(), visual: pick(heading) },
-      lifePie: pick(panel.querySelector(".life-pie")),
-      panel: pick(panel),
-      periods: rows("#statsPeriodTabs .period-button"),
-      summary: rows("#lifeSummary .pie-summary-row")
-    };
-  })()`;
-}
-
-function assertSameScreenshot(actual, expected, label) {
-  const comparison = compareScreenshots(actual, expected);
+function assertMatchesSignature(actual, expected, label) {
+  const comparison = compareScreenshotSignature(actual, expected);
   assert.equal(comparison.matches, true, `${label}: ${JSON.stringify(comparison)}`);
 }
 
@@ -211,37 +118,25 @@ test("Direct React Dashboard preserves weekly goals and Life Pie behavior", { ti
   if (!planner) {
     return;
   }
-  const preview = await startReactPreviewServer(planner.server.url);
-  if (!preview) {
-    context.skip("Install frontend-react dependencies to run React visual regression tests.");
-    return;
-  }
-  context.after(async function () {
-    await preview.close();
-  });
   await putWeeklyGoals(planner.server.url);
   await putLifePieTasks(planner.server.url);
+  const pageUrl = `${planner.server.url}/?view=todayView&date=${TEST_DATE}`;
 
   await planner.browser.setViewport(1280, 720);
-  await planner.browser.open(`${planner.server.url}/?date=${TEST_DATE}`);
-  await planner.browser.waitForExpression(LEGACY_GOALS_READY);
-  await planner.browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
-  const legacyDesktop = await planner.browser.evaluate(visualContract("document"));
-  const legacyScreenshot = await planner.browser.captureScreenshot(LEGACY_PANEL_CLIP);
-  const legacyLifeDesktop = await planner.browser.evaluate(lifePieVisualContract("document"));
-  const legacyLifeScreenshot = await planner.browser.captureScreenshot(LEGACY_LIFE_PANEL_CLIP);
-
-  await planner.browser.open(`${preview.url}/?view=todayView&date=${TEST_DATE}`);
+  await planner.browser.open(pageUrl);
   await planner.browser.waitForExpression(REACT_GOALS_READY);
-  const reactDesktop = await planner.browser.evaluate(visualContract("document"));
-  const reactScreenshot = await planner.browser.captureScreenshot(LEGACY_PANEL_CLIP);
-  const reactLifeDesktop = await planner.browser.evaluate(lifePieVisualContract("document"));
-  const reactLifeScreenshot = await planner.browser.captureScreenshot(LEGACY_LIFE_PANEL_CLIP);
-
-  assert.deepEqual(reactDesktop, legacyDesktop);
-  assertSameScreenshot(reactScreenshot, legacyScreenshot, "desktop weekly goals screenshot");
-  assert.deepEqual(reactLifeDesktop, legacyLifeDesktop);
-  assertSameScreenshot(reactLifeScreenshot, legacyLifeScreenshot, "desktop Life Pie screenshot");
+  assert.deepEqual(await planner.browser.evaluate(weeklyGoalsVisualContract()), expectedWeeklyGoalsVisual());
+  assertMatchesSignature(
+    await planner.browser.captureScreenshot(GOALS_PANEL_CLIP),
+    expectedWeeklyGoalsScreenshot(),
+    "desktop weekly goals screenshot"
+  );
+  assert.deepEqual(await planner.browser.evaluate(lifePieVisualContract()), expectedLifePieVisual(false));
+  assertMatchesSignature(
+    await planner.browser.captureScreenshot(LIFE_PANEL_CLIP),
+    expectedLifePieScreenshot(false),
+    "desktop Life Pie screenshot"
+  );
 
   for (const label of ["Week", "Day", "Month", "All"]) {
     await selectLifePiePeriod(planner.browser, label);
@@ -288,41 +183,27 @@ test("Direct React Dashboard preserves weekly goals and Life Pie behavior", { ti
     total: document.getElementById("lifeDonutLabel").textContent.trim()
   }))()`), { active: "Week", total: "5.5h" });
 
+  // The edits above changed the stored hours, so restore the seeded totals the
+  // pinned mobile contract was captured from.
+  await putLifePieTasks(planner.server.url);
   await planner.browser.setViewport(390, 844, true);
-  await planner.browser.open(`${planner.server.url}/?date=${TEST_DATE}`);
-  await planner.browser.waitForExpression(LEGACY_GOALS_READY);
-  await planner.browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
-  const legacyMobile = await planner.browser.evaluate(`(() => ({
+  await planner.browser.open(pageUrl);
+  await planner.browser.waitForExpression(REACT_GOALS_READY);
+  await planner.browser.waitForExpression('document.getElementById("lifeDonutLabel").textContent === "3.5h"');
+  assert.deepEqual(await planner.browser.evaluate(`(() => ({
     display: getComputedStyle(document.querySelector(".goals-card")).display,
     overflow: document.documentElement.scrollWidth > innerWidth
-  }))()`);
+  }))()`), expectedMobileShell());
   await planner.browser.evaluate(`(() => {
     document.documentElement.style.scrollBehavior = "auto";
     document.querySelector(".life-card").scrollIntoView({ block: "start" });
   })()`);
   await planner.browser.waitForExpression('Math.abs(document.querySelector(".life-card").getBoundingClientRect().top) < 1');
-  const legacyLifeMobile = await planner.browser.evaluate(lifePieVisualContract("document"));
-  const legacyLifeMobileScreenshot = await planner.browser.captureScreenshot(LEGACY_LIFE_PANEL_CLIP);
-
-  await planner.browser.open(`${preview.url}/?view=todayView&date=${TEST_DATE}`);
-  await planner.browser.waitForExpression(REACT_GOALS_READY);
-  const reactMobile = await planner.browser.evaluate(`(() => {
-    return {
-      display: getComputedStyle(document.querySelector(".goals-card")).display,
-      overflow: document.documentElement.scrollWidth > innerWidth
-    };
-  })()`);
-  await planner.browser.evaluate(`(() => {
-    document.documentElement.style.scrollBehavior = "auto";
-    document.querySelector(".life-card").scrollIntoView({ block: "start" });
-  })()`);
-  await planner.browser.waitForExpression(`Math.abs(document.querySelector(".life-card").getBoundingClientRect().top) < 1`);
-  const reactLifeMobile = await planner.browser.evaluate(lifePieVisualContract("document"));
-  const reactLifeMobileScreenshot = await planner.browser.captureScreenshot(LEGACY_LIFE_PANEL_CLIP);
-
-  assert.deepEqual(reactMobile, legacyMobile);
-  assert.deepEqual(reactMobile, { display: "none", overflow: false });
-  assert.deepEqual(reactLifeMobile, legacyLifeMobile);
-  assertSameScreenshot(reactLifeMobileScreenshot, legacyLifeMobileScreenshot, "mobile Life Pie screenshot");
+  assert.deepEqual(await planner.browser.evaluate(lifePieVisualContract()), expectedLifePieVisual(true));
+  assertMatchesSignature(
+    await planner.browser.captureScreenshot(LIFE_PANEL_CLIP),
+    expectedLifePieScreenshot(true),
+    "mobile Life Pie screenshot"
+  );
   assert.deepEqual(planner.browser.errors(), []);
 });

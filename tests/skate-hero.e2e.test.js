@@ -2,8 +2,16 @@ const assert = require("node:assert/strict");
 const test = require("node:test");
 
 const { startBrowserPlanner } = require("./helpers/browser-planner");
-const { compareScreenshots } = require("./helpers/png-compare");
-const { startReactPreviewServer } = require("./helpers/react-preview-server");
+const { compareScreenshotSignature } = require("./helpers/png-compare");
+const {
+  expectedSkateHeroScreenshot,
+  expectedSkateHeroState,
+  expectedSkateHeroVisual,
+  heroClip,
+  prepareHeroScreenshot,
+  skateHeroState,
+  skateHeroVisualContract
+} = require("./helpers/skate-hero-contract");
 
 const TEST_DATE = "2026-09-14";
 const SKATE_SETTINGS_KEY = "hivePlanner.skate.settings";
@@ -40,117 +48,20 @@ async function commitProgramDay(browser, server, value, expectedDay) {
   );
 }
 
-function skateHeroState() {
-  return `(() => {
-    const documentRoot = document;
-    const text = (id) => documentRoot.getElementById(id).textContent.trim();
-    return {
-      activeView: documentRoot.querySelector(".view.active").id,
-      attemptBudget: text("skateAttemptBudget"),
-      benchmarkHidden: documentRoot.getElementById("skateBenchmarkChip").hidden,
-      benchmarkLabel: text("skateBenchmarkLabel"),
-      blockLabel: text("skateBlockLabel"),
-      boardHours: text("skateBoardHours"),
-      currentDay: documentRoot.getElementById("skateCurrentDay").value,
-      dayCount: text("skateDayCount"),
-      extraRestDay: documentRoot.getElementById("skateExtraRestDay").value,
-      finishDisabled: documentRoot.getElementById("finishSkateSession").disabled,
-      flowFocus: text("skateFlowFocus"),
-      heroSubtitle: text("skateHeroSubtitle"),
-      intensity: documentRoot.querySelector("#skateIntensityToggle .active").dataset.intensity,
-      intensityDescription: text("skateIntensityDescription"),
-      intensityEffort: text("skateIntensityEffort"),
-      mainFocus: text("skateMainFocus"),
-      phaseBadge: text("skatePhaseBadge"),
-      restDay: documentRoot.getElementById("skateRestDay").value,
-      sessionDaysCount: text("skateSessionDaysCount"),
-      sessionHint: text("skateSessionHint"),
-      skateiqBlock: text("skateSkateiqBlock"),
-      startDisabled: documentRoot.getElementById("startSkateSession").disabled,
-      weekCount: text("skateWeekCount")
-    };
-  })()`;
+async function captureHeroSignature(browser) {
+  await browser.evaluate(prepareHeroScreenshot());
+  await browser.evaluate("new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))");
+  return browser.captureScreenshot(heroClip());
 }
 
-function skateHeroVisualContract() {
-  return `(() => {
-    const documentRoot = document;
-    const view = documentRoot.defaultView;
-    const pick = (element) => {
-      const rect = element.getBoundingClientRect();
-      const style = view.getComputedStyle(element);
-      const dimension = (value) => Math.round(value * 1000) / 1000;
-      return {
-        background: style.background,
-        border: style.border,
-        borderRadius: style.borderRadius,
-        boxShadow: style.boxShadow,
-        color: style.color,
-        display: style.display,
-        fontFamily: style.fontFamily,
-        fontSize: style.fontSize,
-        fontWeight: style.fontWeight,
-        gap: style.gap,
-        height: dimension(rect.height),
-        padding: style.padding,
-        width: dimension(rect.width)
-      };
-    };
-    const card = documentRoot.querySelector(".skate-hero-card");
-    return {
-      actions: pick(card.querySelector(".skate-session-actions-card")),
-      card: pick(card),
-      intensity: pick(card.querySelector(".skate-intensity-card")),
-      layout: pick(card.querySelector(".skate-hero-layout")),
-      main: pick(card.querySelector(".skate-main-strip")),
-      metrics: pick(card.querySelector(".skate-hero-metrics")),
-      panel: pick(card.querySelector(".panel-inner")),
-      settings: pick(card.querySelector(".skate-settings-strip")),
-      support: pick(card.querySelector(".skate-support-strip"))
-    };
-  })()`;
-}
-
-async function prepareScreenshot(browser) {
-  await browser.evaluate(`(() => {
-    const documentRoot = document;
-    documentRoot.documentElement.style.scrollBehavior = "auto";
-    const mascot = documentRoot.querySelector(".mascot-card");
-    if (mascot) mascot.style.visibility = "hidden";
-    documentRoot.querySelector(".skate-hero-card").scrollIntoView({ block: "start" });
-  })()`);
-  await browser.evaluate('new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)))');
-}
-
-function heroClip() {
-  return `(() => {
-    const documentRoot = document;
-    const rect = documentRoot.querySelector(".skate-hero-card").getBoundingClientRect();
-    return {
-      x: rect.x + documentRoot.defaultView.scrollX,
-      y: rect.y + documentRoot.defaultView.scrollY,
-      width: rect.width,
-      height: Math.min(rect.height, documentRoot.defaultView.innerHeight)
-    };
-  })()`;
-}
-
-function assertSameScreenshot(actual, expected, label) {
-  const comparison = compareScreenshots(actual, expected);
+function assertMatchesSignature(actual, expected, label) {
+  const comparison = compareScreenshotSignature(actual, expected);
   assert.equal(comparison.matches, true, `${label}: ${JSON.stringify(comparison)}`);
 }
 
 test("Skate hero preserves visuals, settings, timer actions, and reload behavior", { timeout: 90_000 }, async function (context) {
   const planner = await startBrowserPlanner(context);
   if (!planner) return;
-  const preview = await startReactPreviewServer(planner.server.url);
-  if (!preview) {
-    context.skip("Install frontend-react dependencies to run React visual regression tests.");
-    return;
-  }
-  context.after(async function () {
-    await preview.close();
-  });
 
   await putPlannerValue(planner.server.url, SKATE_SETTINGS_KEY, {
     currentProgramDay: 15,
@@ -159,31 +70,26 @@ test("Skate hero preserves visuals, settings, timer actions, and reload behavior
     restDayOfWeek: 0
   });
 
-  const legacyUrl = `${planner.server.url}/?view=skateView&date=${TEST_DATE}`;
-  const previewUrl = `${preview.url}/?view=skateView&date=${TEST_DATE}`;
+  const pageUrl = `${planner.server.url}/?view=skateView&date=${TEST_DATE}`;
 
   for (const [width, height] of [[1280, 720], [390, 844]]) {
     await planner.browser.setViewport(width, height, width < 500);
-    await openSkate(planner.browser, legacyUrl);
-    const legacyState = await planner.browser.evaluate(skateHeroState());
-    const legacyVisual = await planner.browser.evaluate(skateHeroVisualContract());
-    await prepareScreenshot(planner.browser);
-    const legacyScreenshot = await planner.browser.captureScreenshot(heroClip());
-
-    await openSkate(planner.browser, previewUrl);
+    await openSkate(planner.browser, pageUrl);
     assert.equal(await planner.browser.evaluate('document.querySelector("iframe")'), null);
-    const reactState = await planner.browser.evaluate(skateHeroState());
-    const reactVisual = await planner.browser.evaluate(skateHeroVisualContract());
-    await prepareScreenshot(planner.browser);
-    const reactScreenshot = await planner.browser.captureScreenshot(heroClip());
-
-    assert.deepEqual(reactState, legacyState);
-    assert.deepEqual(reactVisual, legacyVisual);
-    assertSameScreenshot(reactScreenshot, legacyScreenshot, `${width}px Skate hero`);
+    assert.deepEqual(await planner.browser.evaluate(skateHeroState()), expectedSkateHeroState());
+    assert.deepEqual(
+      await planner.browser.evaluate(skateHeroVisualContract()),
+      expectedSkateHeroVisual(width < 500)
+    );
+    assertMatchesSignature(
+      await captureHeroSignature(planner.browser),
+      expectedSkateHeroScreenshot(width < 500),
+      `${width}px Skate hero`
+    );
   }
 
   await planner.browser.setViewport(1280, 720);
-  await openSkate(planner.browser, previewUrl);
+  await openSkate(planner.browser, pageUrl);
   await planner.browser.evaluate(`(() => {
     const documentRoot = document;
     const change = (id, value) => {
@@ -239,7 +145,7 @@ test("Skate hero preserves visuals, settings, timer actions, and reload behavior
     'document.getElementById("skateSessionHint").textContent.trim()'
   ), "Logging a skate session without the timer is okay too.");
 
-  await openSkate(planner.browser, previewUrl);
+  await openSkate(planner.browser, pageUrl);
   assert.deepEqual(await planner.browser.evaluate(`(() => {
     const documentRoot = document;
     return {
