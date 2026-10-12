@@ -24,11 +24,3 @@ export interface PatternHistoryModel {
   isEmpty: boolean;
   rangeLabel: string;
 }
-
-export function emptyPatternHistoryModel(currentDateKey: string): PatternHistoryModel {
-  return {
-    groups: [],
-    isEmpty: true,
-    rangeLabel: `Last 14 days through ${currentDateKey}`
-  };
-}

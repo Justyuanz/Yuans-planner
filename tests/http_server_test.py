@@ -209,7 +209,7 @@ class HttpTests(unittest.TestCase):
         (react_dir / "index.html").write_bytes(react_index)
         (assets_dir / "app.js").write_bytes(react_script)
 
-        with mock.patch.object(http_server, "REACT_FRONTEND_DIR", react_dir):
+        with mock.patch.object(http_server, "FRONTEND_DIR", react_dir):
             self.assertEqual(self.request("GET", "/"), (
                 200,
                 mock.ANY,
@@ -237,8 +237,8 @@ class HttpTests(unittest.TestCase):
 
     def test_react_mode_reports_a_missing_build(self):
         missing_build = self.temporary_path / "missing-react-dist"
-        with mock.patch.object(http_server, "REACT_FRONTEND_DIR", missing_build):
+        with mock.patch.object(http_server, "FRONTEND_DIR", missing_build):
             status, _, body = self.request("GET", "/")
 
         self.assertEqual(status, 503)
-        self.assertIn(b"React frontend build is missing", body)
+        self.assertIn(b"Frontend build is missing", body)

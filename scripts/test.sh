@@ -9,7 +9,7 @@ NPM_BIN="${NPM_BIN:-npm}"
 cd "$PROJECT_DIR"
 "$PYTHON_BIN" -m unittest discover -s tests -p '*_test.py'
 (
-  cd frontend-react
+  cd frontend
   "$NPM_BIN" test
   "$NPM_BIN" run lint
   "$NPM_BIN" run typecheck

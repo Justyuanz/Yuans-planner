@@ -5,7 +5,7 @@ const test = require("node:test");
 
 const { startBrowserPlanner } = require("./helpers/browser-planner");
 
-const REACT_INDEX_PATH = path.resolve(__dirname, "../frontend-react/dist/index.html");
+const REACT_INDEX_PATH = path.resolve(__dirname, "../frontend/dist/index.html");
 const TEST_DATE = "2026-09-14";
 
 async function hasReactBuild() {

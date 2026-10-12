@@ -1,0 +1,109 @@
+name: CI
+
+# The same checks scripts/test.sh runs locally, split into three jobs so a
+# failure says which layer broke. The backend is Python standard library only,
+# so there is nothing to install for it.
+
+on:
+  push:
+    branches: [main, planner-rewrite]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    name: Python tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Run Python tests
+        run: python3 -m unittest discover -s tests -p '*_test.py' --verbose
+
+  frontend:
+    name: Lint, types, unit tests, build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build
+
+  browser:
+    name: Browser and end-to-end tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      # These tests drive the production bundle through a real Chrome, so the
+      # bundle has to exist before they start.
+      - name: Build the production bundle
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+
+      # The fixture skips the whole browser suite when Chrome is missing. A
+      # silent skip would turn this job green without testing anything, so the
+      # browser is located here and the run fails if it is not found.
+      - name: Locate Chrome
+        run: |
+          for candidate in /usr/bin/google-chrome /usr/bin/google-chrome-stable /usr/bin/chromium-browser /usr/bin/chromium; do
+            if [ -x "$candidate" ]; then
+              echo "CHROME_BIN=$candidate" >> "$GITHUB_ENV"
+              "$candidate" --version
+              exit 0
+            fi
+          done
+          echo "No Chrome or Chromium found; the browser tests would skip instead of run." >&2
+          exit 1
+
+      # pipefail matters here: without it the exit code would come from tee and
+      # a failing test run would report success.
+      - name: Run browser tests
+        shell: bash
+        run: |
+          set -o pipefail
+          node --test --test-concurrency=1 tests/*.test.js | tee browser-test-output.txt
+
+      # A skipped test is treated as a failure to investigate in this project,
+      # so the run is rejected if the reporter counted any. The reporter prints
+      # "skipped <n>"; if that line is missing the format changed and the guard
+      # must fail rather than quietly pass.
+      - name: Reject skipped tests
+        shell: bash
+        run: |
+          skipped=$(grep -oE 'skipped [0-9]+' browser-test-output.txt | tail -1 | awk '{print $2}')
+          if [ -z "$skipped" ]; then
+            echo "Could not read a skip count from the test output; the reporter format changed." >&2
+            exit 1
+          fi
+          echo "skipped: $skipped"
+          if [ "$skipped" != "0" ]; then
+            echo "Browser tests were skipped. A skip hides a missing prerequisite." >&2
+            exit 1
+          fi

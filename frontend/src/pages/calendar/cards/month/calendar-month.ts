@@ -112,10 +112,6 @@ function pillForEvent(event: CalendarEvent): CalendarMonthPill {
   };
 }
 
-export function monthCursor(date: Date): Date {
-  return new Date(date.getFullYear(), date.getMonth(), 1);
-}
-
 export function shiftMonth(date: Date, amount: number): Date {
   return new Date(date.getFullYear(), date.getMonth() + amount, 1);
 }

@@ -21,7 +21,7 @@ from telegram_notifier import send_telegram_message, telegram_status
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
-REACT_FRONTEND_DIR = PROJECT_ROOT / "frontend-react" / "dist"
+FRONTEND_DIR = PROJECT_ROOT / "frontend" / "dist"
 
 
 class PlannerHandler(BaseHTTPRequestHandler):
@@ -138,13 +138,13 @@ class PlannerHandler(BaseHTTPRequestHandler):
         self.send_json(response)
 
     def serve_static(self, path: str, include_body: bool = True) -> None:
-        index_path = REACT_FRONTEND_DIR / "index.html"
+        index_path = FRONTEND_DIR / "index.html"
         if not index_path.is_file():
-            self.send_error(503, "React frontend build is missing")
+            self.send_error(503, "Frontend build is missing")
             return
 
         requested_path = "/index.html" if path == "/" else path
-        target = self.resolve_static_target(REACT_FRONTEND_DIR, requested_path)
+        target = self.resolve_static_target(FRONTEND_DIR, requested_path)
         if target is None:
             return
         if target.is_file():

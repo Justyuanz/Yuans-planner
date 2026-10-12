@@ -1,59 +1,229 @@
+<div align="center">
+
 # Yuan's Planner
 
-A hobby vibe coding project: a personal planner built with AI assistance for everyday planning, journaling, and tracking progress. It uses a React + TypeScript frontend, a Python backend, and SQLite.
+**A soft little map for the shape of your day.**
 
-## What it does
+Tasks, money, journal, calendar and practice tracking, all in one place.
+I built it for myself, and I use it every day.
 
-- Dashboard with weekly goals, daily tasks, and planning insights
-- Journal with dated entries and searchable history
-- Money tracking with budgets, transactions, and vendor summaries
-- Weekly and monthly calendar planning
-- Skate and guitar practice tracking
-- JSON backup export and import
-- Optional OpenAI mascot chat and Telegram reminders
+![React](https://img.shields.io/badge/React-19-61dafb?logo=react&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white)
+![Python](https://img.shields.io/badge/Python-3.10%2B-3776ab?logo=python&logoColor=white)
+![SQLite](https://img.shields.io/badge/SQLite-003b57?logo=sqlite&logoColor=white)
 
-## Run locally
+<br />
 
-You need Python 3.10 or newer and Node.js 20.19 or newer.
+<img src="docs/images/dashboard.jpg" alt="The dashboard: weekly goals, a life pie of tracked hours, and today's tasks" width="900" />
+
+<sub>The dashboard: weekly goals, where the hours actually went, and today's tasks.</sub>
+
+</div>
+
+<br />
+
+## Why I built it
+
+I was always busy, and somehow still reached the end of the week with little to
+show for it. I never really knew where my time had gone, or my money.
+
+So I built something that shows me both: the hours going in, the money going
+out, and how the days actually went.
+
+It has made a real difference to how I live. My weeks have far more structure
+now, and I can see what I actually did with them instead of guessing.
+
+I host it myself. There is no public demo, since it holds my real data.
+
+## What's inside
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+### Money
+
+Where the money goes. What's left this week, whether I'm on pace for the month,
+which categories are nearly out, and which shops I keep going back to.
+
+<img src="docs/images/money.jpg" alt="Money planner" />
+
+</td>
+<td width="50%" valign="top">
+
+### Journal
+
+How the day went, in my own words. Energy and focus alongside it, everything
+searchable later, and a meditation timer that counts towards the day's hours.
+
+<img src="docs/images/journal.jpg" alt="Journal" />
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+### Calendar
+
+What's planned, by month and by week. Each day is a recovery, normal or
+high-intensity day with a limit, so I can see a week is too full before I live it.
+
+<img src="docs/images/calendar.jpg" alt="Calendar" />
+
+</td>
+<td width="50%" valign="top">
+
+### Skate
+
+A 21-week plan with something to work on each day, how hard to push, and a timer
+for the session. The roadmap shows the whole season, missed days and all.
+
+<img src="docs/images/skate.jpg" alt="Skate training" />
+
+</td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+### Guitar
+
+One thing to focus on, one small thing to practise, and a timer. The weekly
+target is deliberately small, so just picking the guitar up still counts.
+
+<img src="docs/images/guitar.jpg" alt="Guitar practice" />
+
+</td>
+<td width="50%" valign="top">
+
+### Sprouty
+
+Ask it about my own data and it answers from what's actually stored: what's left
+this week, where the hours went. It says so when it doesn't know, and it works
+without an API key.
+
+<img src="docs/images/sprouty.jpg" alt="Sprouty, the mascot, with its chat open" />
+
+</td>
+</tr>
+</table>
+
+<div align="center">
+<br />
+<img src="docs/images/mobile.jpg" alt="The planner at phone width" width="260" />
+<p><sub>Every page works on the phone too.</sub></p>
+</div>
+
+<br />
+
+## Quick start
+
+You need **Python 3.10+** and **Node.js 20.19+**.
 
 ```sh
 git clone https://github.com/Justyuanz/Yuans-planner.git YuanPlanner
 cd YuanPlanner
-cd frontend-react
-npm ci
-npm run build
-cd ..
+cd frontend && npm ci && npm run build && cd ..
 ./scripts/start.sh
 ```
 
-Open [localhost:8765](http://127.0.0.1:8765). You can also start the server with `python3 backend/app.py`. On macOS, `./scripts/open-ui.sh` starts the server if needed and opens the app.
+Open **[localhost:8765](http://127.0.0.1:8765)**.
 
-For frontend development, run `npm run dev` from `frontend-react/` while the Python backend is running. Vite proxies API and legacy compatibility requests to port 8765 by default.
+<details>
+<summary><b>Other ways to run it</b></summary>
 
-To use a different port:
+<br />
+
+Start the server directly with `python3 backend/app.py`, or pick a port:
 
 ```sh
 YUAN_PLANNER_PORT=8876 ./scripts/start.sh
 ```
 
-## Project structure
+On macOS, `./scripts/open-ui.sh` starts the server if it is not already running
+and opens the app.
 
-```text
-backend/        HTTP server, SQLite storage, configuration, and integrations
-frontend-react/ React + strict TypeScript application, styles, and production build
-scripts/       Start, open, and test commands
-tests/         Backend, browser, compatibility, and end-to-end tests
-docs/          Design notes and future plans
-data/          Local database and runtime files (ignored by Git)
+For frontend work, run `npm run dev` from `frontend/` while the Python backend
+is running; Vite proxies API requests to port 8765.
+
+With Docker:
+
+```sh
+docker compose up --build
 ```
 
-`backend/app.py` is the server entry point; `config.py` handles settings and `db.py` handles persistence. The server serves `frontend-react/dist` at the application root, and all six primary views render directly in React.
+Compose mounts `./data` for persistent storage; stop it with `docker compose down`.
+The image builds the bundle in a Node stage and copies only the compiled files
+into the Python runtime image. Compose does not forward optional integration
+settings or copy your `.env`, so add any you need to the service's `environment`.
 
-Design notes: [agent roadmap](docs/agent-intelligence-roadmap.md) and [planner load model](docs/planner-load-model/design.md). These describe design intent and plans, rather than a complete inventory of shipped features.
+</details>
+
+<br />
+
+## How it is built
+
+| Layer | Choice |
+| --- | --- |
+| Frontend | React 19, TypeScript in strict mode, Vite |
+| Backend | Python standard library only, no dependencies |
+| Storage | SQLite, a single file |
+| Styling | Plain CSS, split by surface |
+
+Source is grouped by the page it belongs to:
+
+```text
+frontend/src/
+├── pages/<page>/     calendar · dashboard · guitar · journal · money · skate
+│   └── cards/        one directory per card, model and tests beside it
+├── shared/           anything two pages both need
+├── mascot/           Sprouty, which reads across every page on purpose
+├── app/              shell, routing, store, persistence
+├── api/              the HTTP client
+└── styles/           the stylesheet, split by surface
+```
+
+Imports reach outside their own directory through `@/`; a lint rule rejects
+deeper relative paths.
+
+**[docs/architecture.md](docs/architecture.md)** has the full picture: the
+request path, the storage contract, the rules the structure follows, and the two
+places where Python and TypeScript must agree on a record's shape.
+
+<br />
+
+## Tests
+
+```sh
+cd frontend && npm ci && cd ..
+NODE_BIN=$(which node) sh scripts/test.sh
+```
+
+Four layers, all of which also run in CI on every push and pull request:
+
+| Layer | Count | Covers |
+| --- | --- | --- |
+| Python `unittest` | 44 | Server, storage, config, reminders, integrations. |
+| Vitest | 324 | Models and rules, against malformed and boundary input. |
+| ESLint + `tsc --noEmit` | — | Strict types, no `any`, no deep relative imports. |
+| Node `--test` + Chrome | 47 | The production bundle in a real browser. |
+
+The browser tests assert **pinned contracts** — text, computed styles, geometry
+and tolerant image signatures — so an accidental visual change fails the build.
+They also cover persistence across a reload *and* across a server restart,
+backup export and import, and that the Python and TypeScript halves still agree
+on the records they share.
+
+That layer needs Chrome or Chromium. Without it the tests skip, and a skip counts
+as a failure here rather than a pass: CI rejects any run that reports one. Every
+test uses a temporary database, so none of it touches your planner data or calls
+an external service.
+
+<br />
 
 ## Configuration
 
-The backend reads an optional `.env` file in the project root. Existing shell environment variables take precedence. Create this file yourself if needed; keep credentials out of Git.
+The backend reads an optional `.env` in the project root; existing shell
+variables take precedence. Keep credentials out of Git.
 
 | Variable | Default / purpose |
 | --- | --- |
@@ -68,57 +238,22 @@ The backend reads an optional `.env` file in the project root. Existing shell en
 | `YUAN_PLANNER_TELEGRAM_BOT_TOKEN` | Optional Telegram bot token |
 | `YUAN_PLANNER_TELEGRAM_CHAT_ID` | Optional destination chat ID |
 
-Telegram reminders require all three Telegram settings and a running backend. The browser can be closed. Timed reminders use an event's start time or a legacy title beginning with a time such as `18:00`.
+Both integrations are optional; the planner is fully usable without them.
+Telegram reminders need all three Telegram settings and a running backend — the
+browser can be closed. A timed reminder uses an event's start time, or a title
+beginning with a time such as `18:00`.
+
+<br />
 
 ## Data and backups
 
-The server creates `data/planner.db` automatically. The frontend also uses browser local storage as a fallback. Local databases, credentials, logs, and the `backups/` directory are ignored by Git.
+The server creates `data/planner.db` on first run. Local databases, credentials,
+logs and `backups/` are ignored by Git.
 
-Use the app's export/import controls, or export the server's saved data with:
+Use the app's export and import buttons, or take a backup from the command line:
 
 ```sh
 curl http://127.0.0.1:8765/api/export -o yuan-planner-backup.json
 ```
 
-Server imports merge valid planner keys into existing data, replacing matching keys.
-
-## Tests
-
-Install the React dependencies once, then run the complete suite:
-
-```sh
-cd frontend-react
-npm ci
-cd ..
-```
-
-```sh
-sh scripts/test.sh
-```
-
-Or run them separately:
-
-```sh
-python3 -m unittest discover -s tests -p '*_test.py'
-cd frontend-react
-npm test
-npm run lint
-npm run typecheck
-npm run build
-cd ..
-node --test tests/*.test.js
-```
-
-Tests cover React feature logic, backend reminders and mascot helpers, SQLite persistence, HTTP storage/backup endpoints, production and legacy static delivery, the main task and activity-session lifecycles, and all six primary views in a real browser. Browser tests run when Chrome or Chromium and a Node.js runtime with WebSocket support are available; otherwise they are skipped. All persistence tests use temporary databases, so they do not modify your planner data or call external services.
-
-## Docker
-
-```sh
-docker compose up --build
-```
-
-Open [localhost:8765](http://127.0.0.1:8765). Compose mounts `./data` for persistent storage. Stop it with `docker compose down`.
-
-The Docker image builds the React production bundle in a Node stage, then copies only the compiled files into the Python runtime image.
-
-The default Compose configuration does not forward optional integration settings or copy your `.env` into the image. To use integrations in Docker, explicitly add the desired variables to the service's `environment` configuration.
+An import merges valid planner keys into existing data, replacing matching keys.
