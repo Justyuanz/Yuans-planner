@@ -47,6 +47,11 @@ async function openReady(browser, url) {
   await browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
 }
 
+async function reloadReady(browser) {
+  await browser.reload();
+  await browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
+}
+
 // The animated mascot is hidden before capture so it cannot add noise, while
 // its layout space is preserved.
 async function prepareScreenshot(browser) {
@@ -187,6 +192,30 @@ test("Dashboard is a direct React page with legacy layout and Pattern behavior",
   assert.equal(
     await planner.browser.evaluate('document.querySelector(".pattern-history-evidence").open'),
     false
+  );
+  assert.deepEqual(planner.browser.errors(), []);
+});
+
+test("Refreshing the Dashboard moves a stale dated URL to today", { timeout: 90_000 }, async function (context) {
+  const planner = await startBrowserPlanner(context);
+  if (!planner) return;
+
+  await openReady(planner.browser, `${planner.server.url}/?date=2000-01-01`);
+  assert.equal(
+    await planner.browser.evaluate('document.getElementById("dashboardDate").textContent'),
+    "Sat Jan 1"
+  );
+
+  await reloadReady(planner.browser);
+  assert.equal(
+    await planner.browser.evaluate(`(() => {
+      const date = new Date();
+      const weekdays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+      const expected = weekdays[date.getDay()] + " " + months[date.getMonth()] + " " + date.getDate();
+      return document.getElementById("dashboardDate").textContent === expected;
+    })()`),
+    true
   );
   assert.deepEqual(planner.browser.errors(), []);
 });
