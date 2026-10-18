@@ -85,11 +85,15 @@
 .tab-button {
   min-height: 52px;
   width: 100%;
+  display: flex;
+  align-items: center;
   border: 0;
   padding: 0 16px;
   border-radius: 14px;
   background: transparent;
   color: #92929b;
+  cursor: pointer;
+  text-decoration: none;
   text-align: left;
   font-size: 0.95rem;
   font-weight: 560;

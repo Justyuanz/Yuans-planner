@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import type { PlannerStore } from "@/api/planner-store";
-import { navigateToPlannerView } from "@/app/planner-navigation";
+import { type PlannerNavigate, usePlannerNavigation } from "@/app/planner-navigation";
 import { persistPlannerWrites } from "@/app/planner-persistence";
 import { PlannerShell } from "@/app/PlannerShell";
 import { useDirectPlannerPage } from "@/app/use-direct-planner-page";
@@ -39,10 +39,10 @@ interface DashboardPageProps {
   today: Date;
 }
 
-function directActionTarget(today: Date): DashboardInsightActionTarget {
+function directActionTarget(today: Date, navigate: PlannerNavigate): DashboardInsightActionTarget {
   return {
     focusTodayTaskInput: () => document.getElementById("taskTitle")?.focus(),
-    openMoneyView: () => navigateToPlannerView("moneyView", today),
+    openMoneyView: () => navigate("moneyView", today),
     scrollToPlannedHours: () => document.getElementById("plannedMount")?.scrollIntoView({
       behavior: "smooth",
       block: "center"
@@ -92,6 +92,7 @@ function TasksCard({ store, today }: { store: PlannerStore; today: Date }) {
 }
 
 export function DashboardPage({ today }: DashboardPageProps) {
+  const navigate = usePlannerNavigation();
   const plannerStore = usePlannerStore();
   const loadedStore = plannerStore.status === "ready" ? plannerStore.store : null;
   useDirectPlannerPage(loadedStore !== null);
@@ -118,7 +119,7 @@ export function DashboardPage({ today }: DashboardPageProps) {
   const readyStore = store;
   const insight = buildDashboardInsightFromStore(readyStore, today);
   const history = buildDashboardInsightHistoryFromStore(readyStore, today);
-  const actionTarget = directActionTarget(today);
+  const actionTarget = directActionTarget(today, navigate);
   function applyAction(actionId: string): void {
     applyDashboardInsightAction(actionTarget, actionId);
   }
@@ -130,7 +131,7 @@ export function DashboardPage({ today }: DashboardPageProps) {
   }
 
   return (
-    <PlannerShell activeView="todayView" store={readyStore} today={today}>
+    <PlannerShell store={readyStore} today={today}>
       <section className="view active" id="todayView" aria-labelledby="todayHeading">
         <div className="today-dashboard">
           <div className="planner-main">
@@ -164,7 +165,7 @@ export function DashboardPage({ today }: DashboardPageProps) {
             </div></article>
             <article className="panel state-history-card"><div className="panel-inner">
               <EnergyTrailCard
-                onOpenJournalDate={(date) => navigateToPlannerView("journalView", date)}
+                onOpenJournalDate={(date) => navigate("journalView", date)}
                 store={readyStore}
                 today={today}
               />

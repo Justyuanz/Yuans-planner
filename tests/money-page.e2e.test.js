@@ -53,7 +53,7 @@ test("Money is a direct React page with legacy parity, navigation, and persisten
   const planner = await startBrowserPlanner(context);
   if (!planner) return;
 
-  const pageUrl = `${planner.server.url}/?view=moneyView&date=${TEST_DATE}`;
+  const pageUrl = `${planner.server.url}/money?date=${TEST_DATE}`;
   await putStoredValue(
     planner.server.url,
     "hivePlanner.dayState",
@@ -283,7 +283,7 @@ test("Money is a direct React page with legacy parity, navigation, and persisten
   );
 
   await planner.browser.evaluate('document.querySelector("[data-view-target=todayView]").click()');
-  await planner.browser.waitForExpression('location.search.includes("view=todayView")');
+  await planner.browser.waitForExpression('location.pathname === "/"');
   await planner.browser.waitForExpression(`document.documentElement.dataset.plannerReady === "true"
     && document.getElementById("todayView")?.classList.contains("active")`);
   assert.equal(await planner.browser.evaluate('document.querySelectorAll("iframe").length'), 0);

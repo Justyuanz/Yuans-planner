@@ -84,7 +84,7 @@ test("Meditation preserves timer, persistence, standalone totals, and visual beh
     return;
   }
 
-  const pageUrl = `${planner.server.url}/?view=journalView&date=${TEST_DATE}`;
+  const pageUrl = `${planner.server.url}/journal?date=${TEST_DATE}`;
 
   await planner.browser.setViewport(1280, 720);
   await openJournal(planner.browser, pageUrl);

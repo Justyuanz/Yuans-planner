@@ -111,7 +111,7 @@ test("Skate Body support preserves weekly metrics, persistence, totals, and visu
 
   await putPlannerValue(planner.server.url, BODY_SUPPORT_KEY, SEEDED_LOGS);
 
-  const pageUrl = `${planner.server.url}/?view=skateView&date=${TEST_DATE}`;
+  const pageUrl = `${planner.server.url}/skate?date=${TEST_DATE}`;
 
   for (const [width, height] of [[1280, 720], [390, 844]]) {
     await planner.browser.setViewport(width, height, width < 500);
@@ -202,7 +202,7 @@ test("Skate Body support preserves weekly metrics, persistence, totals, and visu
       && documentRoot.getElementById("bodyWorkoutName").value === "";
   })()`);
 
-  await planner.browser.open(`${planner.server.url}/?view=todayView&date=${TEST_DATE}`);
+  await planner.browser.open(`${planner.server.url}/?date=${TEST_DATE}`);
   await planner.browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
   await planner.browser.waitForExpression('document.querySelectorAll("#lifeBreakdown .breakdown-row").length === 6');
   assert.equal(await planner.browser.evaluate(gymLifePieSummary()), "100% · 1.42h");
@@ -217,7 +217,7 @@ test("Skate Body support preserves weekly metrics, persistence, totals, and visu
   ]);
 
   // A week with no logs shows only the empty-state note.
-  await openSkate(planner.browser, `${planner.server.url}/?view=skateView&date=2026-09-21`, false);
+  await openSkate(planner.browser, `${planner.server.url}/skate?date=2026-09-21`, false);
   assert.equal(await planner.browser.evaluate(
     'document.querySelector("#skateWeeklyMetrics .body-support-empty").textContent.trim()'
   ), "Saved body support from this week will appear here.");

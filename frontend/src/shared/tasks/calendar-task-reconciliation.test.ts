@@ -18,14 +18,10 @@ function task(overrides: Partial<PlannerTask>): PlannerTask {
     hours: 0,
     id: "manual-task",
     label: "Manual task",
-    reminderMinutes: 0,
-    reminderSentAt: "",
-    reminderSentFor: "",
     scheduledTime: "",
     sourceEventId: "",
     timerSeconds: 0,
     timerStartedAt: null,
-    useSourceEventReminder: false,
     ...overrides
   };
 }
@@ -82,7 +78,6 @@ describe("buildCalendarTaskReconciliation", () => {
           category: "Python",
           date: DATE_KEY,
           id: "event-structured",
-          reminderMinutes: "15",
           startTime: "9:30 am",
           title: " Build mobile screen "
         },
@@ -108,10 +103,8 @@ describe("buildCalendarTaskReconciliation", () => {
         createdAt: "2026-10-05T08:00:00.000Z",
         id: "calendar-task-event-structured",
         label: "Build mobile screen",
-        reminderMinutes: 15,
         scheduledTime: "09:30",
-        sourceEventId: "event-structured",
-        useSourceEventReminder: true
+        sourceEventId: "event-structured"
       }),
       task({
         activity: "portfolioJobPrep",
@@ -119,8 +112,7 @@ describe("buildCalendarTaskReconciliation", () => {
         id: "calendar-task-event-legacy",
         label: "Solve graph problem",
         scheduledTime: "14:00",
-        sourceEventId: "event-legacy",
-        useSourceEventReminder: true
+        sourceEventId: "event-legacy"
       })
     ]);
     expect(result.write).toEqual({ key: TASK_KEY, value: JSON.stringify(result.tasks) });
@@ -133,10 +125,8 @@ describe("buildCalendarTaskReconciliation", () => {
       done: true,
       id: "linked-current",
       label: "My edited title",
-      reminderMinutes: 5,
       sourceEventId: "event-current",
-      timerSeconds: 120,
-      useSourceEventReminder: false
+      timerSeconds: 120
     });
     const stale = task({ id: "linked-stale", label: "Old event", sourceEventId: "event-stale" });
     const store: PlannerStore = {
@@ -160,8 +150,7 @@ describe("buildCalendarTaskReconciliation", () => {
         createdAt: "2026-10-05T08:00:00.000Z",
         id: "calendar-task-event-new",
         label: "New event",
-        sourceEventId: "event-new",
-        useSourceEventReminder: true
+        sourceEventId: "event-new"
       })
     ]);
 

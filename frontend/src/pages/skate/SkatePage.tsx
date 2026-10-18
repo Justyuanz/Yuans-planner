@@ -57,7 +57,7 @@ export function SkatePage({ today }: SkatePageProps) {
 
   return (
     <>
-      <PlannerShell activeView="skateView" store={store} today={today}>
+      <PlannerShell store={store} today={today}>
         <section className="view active" id="skateView" aria-labelledby="skateHeading">
           <div className="skate-page">
             <article className="panel skate-hero-card">

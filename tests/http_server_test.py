@@ -110,19 +110,12 @@ class HttpTests(unittest.TestCase):
                 self.assertIn(b"Invalid JSON", response_body)
         self.assertEqual(db.read_all_values(), {})
 
-    def test_integration_status_endpoints_return_their_current_state(self):
-        telegram_state = {"enabled": True, "configured": True, "chatHint": "...1234"}
-        with (
-            mock.patch.object(http_server, "openai_enabled", return_value=True),
-            mock.patch.object(http_server, "telegram_status", return_value=telegram_state),
-        ):
+    def test_mascot_status_endpoint_returns_its_current_state(self):
+        with mock.patch.object(http_server, "openai_enabled", return_value=True):
             mascot_status = self.request("GET", "/api/mascot/status")
-            telegram_status = self.request("GET", "/api/telegram/status")
 
         self.assertEqual(mascot_status[0], 200)
         self.assertEqual(json.loads(mascot_status[2]), {"enabled": True})
-        self.assertEqual(telegram_status[0], 200)
-        self.assertEqual(json.loads(telegram_status[2]), telegram_state)
 
     def test_mascot_chat_validates_payload_and_trims_the_question(self):
         for payload, message in [
@@ -174,24 +167,6 @@ class HttpTests(unittest.TestCase):
             json.loads(body),
             {"ok": False, "fallback": True, "error": "offline"},
         )
-
-    def test_telegram_test_reports_delivery_success_and_failure(self):
-        with mock.patch.object(http_server, "send_telegram_message") as send_message:
-            status, _, body = self.request("POST", "/api/telegram/test", {})
-
-        self.assertEqual(status, 200)
-        self.assertEqual(json.loads(body), {"ok": True})
-        send_message.assert_called_once_with("Yuan's Planner test notification.")
-
-        with mock.patch.object(
-            http_server,
-            "send_telegram_message",
-            side_effect=RuntimeError("not configured"),
-        ):
-            status, _, body = self.request("POST", "/api/telegram/test", {})
-
-        self.assertEqual(status, 503)
-        self.assertEqual(json.loads(body), {"ok": False, "error": "not configured"})
 
     def test_unknown_api_routes_return_not_found(self):
         for path in ["/api", "/api/missing"]:

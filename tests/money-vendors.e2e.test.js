@@ -76,7 +76,7 @@ test("Money vendors preserves aggregation, month comparison, limits, and visual 
     return;
   }
 
-  const pageUrl = `${planner.server.url}/?view=moneyView&date=${TEST_DATE}`;
+  const pageUrl = `${planner.server.url}/money?date=${TEST_DATE}`;
 
   await planner.browser.setViewport(1280, 720);
   await openMoney(planner.browser, pageUrl);

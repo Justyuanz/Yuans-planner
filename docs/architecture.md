@@ -14,7 +14,6 @@ browser                          python                      disk
   React app  ──── /api/kv ────▶  http_server.py  ──────▶  planner.db
   (one store                     planner_api.py            (kv_store table)
    object)   ◀─── JSON ───────   db.py
-                                 reminder_service.py ──▶ Telegram
                                  openai_mascot.py ─────▶ OpenAI (optional)
 ```
 
@@ -24,18 +23,16 @@ Python standard library only. No dependencies to install.
 
 | Module | Lines | Responsibility |
 | --- | --- | --- |
-| `app.py` | 58 | Process bootstrap: bind the socket, start the reminder thread, serve. |
-| `http_server.py` | 212 | HTTP transport, routing, and static delivery of `frontend/dist`. |
-| `planner_api.py` | 60 | The application boundary: validates keys and shapes request payloads. |
+| `app.py` | 56 | Process bootstrap: bind the socket and serve. |
+| `http_server.py` | 200 | HTTP transport, routing, and static delivery of `frontend/dist`. |
+| `planner_api.py` | 59 | The application boundary: validates keys and shapes request payloads. |
 | `db.py` | 94 | SQLite access. |
-| `config.py` | 96 | Environment and `.env` settings. |
-| `reminder_service.py` | 120 | Finds reminders that are due and marks them sent. |
-| `telegram_notifier.py` | 202 | Decides what is due, formats it, and delivers it. |
+| `config.py` | 70 | Environment and `.env` settings. |
 | `openai_mascot.py` | 325 | Optional OpenAI-backed mascot replies. |
 
 Endpoints: `/api/kv`, `/api/export`, `/api/import`, `/api/mascot/chat`,
-`/api/mascot/status`, `/api/telegram/status`, `/api/telegram/test`. Anything
-else falls through to the React shell, so client routing works on a refresh.
+`/api/mascot/status`. Anything else falls through to the React shell, so client
+routing works on a refresh.
 
 ## Storage contract
 
@@ -46,21 +43,18 @@ predates the rewrite, so renaming a key orphans real data. Examples:
 `hivePlanner.journal.entries`, `hivePlanner.money.transactions`,
 `hivePlanner.routine.week.<ISO week>`.
 
-The backend treats values as opaque strings with two exceptions, and both are
-places where the two languages must agree on a record's shape:
-
-- `hivePlanner.dailyTasks.<date>` — tasks, read for reminders.
-- `hivePlanner.events` — calendar events, read for reminders.
-
-Those two seams are pinned by `tests/reminder-contract.e2e.test.js` and
-`tests/event-reminder-contract.e2e.test.js`, which create a record through the
-real UI and then run the real Python collector against the same database. The
-Python suite cannot see the frontend's output on its own, so without those two
-tests a renamed field would break reminders with every other test still green.
+The backend treats stored values as opaque strings. Record shapes belong to the
+React application; Python only validates the key prefix and string value.
 
 ## Frontend
 
 React with TypeScript in strict mode, built by Vite.
+
+React Router maps `/`, `/journal`, `/money`, `/calendar`, `/skate` and
+`/guitar` to their page components. The optional `?date=` query selects the
+planner date. Navigation is client-side, and the backend serves the React shell
+for non-API paths so direct links and refreshes resolve correctly. Page modules
+are lazy-loaded at the route boundary to keep them out of the initial bundle.
 
 | Area | Files | Lines | Responsibility |
 | --- | --- | --- | --- |
@@ -129,7 +123,7 @@ Four layers, all run by `scripts/test.sh` and by CI:
 
 | Layer | What it covers |
 | --- | --- |
-| Python `unittest` | The server, storage, config, reminders, integrations. |
+| Python `unittest` | The server, storage, configuration, and mascot integration. |
 | Vitest | Models, decoders and rules, against malformed and boundary input. |
 | ESLint and `tsc --noEmit` | Strict types, no `any`, no deep relative imports. |
 | Node `--test` with Chrome | The production bundle in a real browser. |

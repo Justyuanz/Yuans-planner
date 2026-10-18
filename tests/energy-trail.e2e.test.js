@@ -233,7 +233,7 @@ test("Energy trail preserves history, pattern, navigation, and its visual contra
   if (!planner) {
     return;
   }
-  const pageUrl = `${planner.server.url}/?view=todayView&date=${TEST_DATE}`;
+  const pageUrl = `${planner.server.url}/?date=${TEST_DATE}`;
 
   await planner.browser.setViewport(1280, 720);
   await planner.browser.open(pageUrl);

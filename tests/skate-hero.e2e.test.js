@@ -70,7 +70,7 @@ test("Skate hero preserves visuals, settings, timer actions, and reload behavior
     restDayOfWeek: 0
   });
 
-  const pageUrl = `${planner.server.url}/?view=skateView&date=${TEST_DATE}`;
+  const pageUrl = `${planner.server.url}/skate?date=${TEST_DATE}`;
 
   for (const [width, height] of [[1280, 720], [390, 844]]) {
     await planner.browser.setViewport(width, height, width < 500);

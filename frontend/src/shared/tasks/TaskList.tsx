@@ -135,14 +135,7 @@ export function TaskList({ dateKey, onPersist, onUndoAgentAction, store }: Tasks
                       const normalized: PlannerTask = {
                         ...nextTask,
                         label: nextTask.label.trim() || before.label,
-                        scheduledTime: normalizeScheduledTime(nextTask.scheduledTime),
-                        reminderSentAt: "",
-                        reminderSentFor: "",
-                        useSourceEventReminder: nextTask.sourceEventId
-                          ? before.scheduledTime === nextTask.scheduledTime
-                            && before.reminderMinutes === nextTask.reminderMinutes
-                            && before.useSourceEventReminder
-                          : false
+                        scheduledTime: normalizeScheduledTime(nextTask.scheduledTime)
                       };
                       const nextTasks = tasks.map((candidate) => candidate.id === task.id ? normalized : candidate);
                       persist(nextTasks, "task_updated", task.id, before, normalized, "task");

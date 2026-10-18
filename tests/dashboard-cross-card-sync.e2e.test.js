@@ -59,7 +59,7 @@ test("a spend logged on the Dashboard refreshes the cards beside it without a re
   await putStoredValue(planner.server.url, SETTINGS_KEY, SETTINGS);
   await putStoredValue(planner.server.url, TRANSACTIONS_KEY, []);
 
-  const pageUrl = `${planner.server.url}/?view=todayView&date=${TEST_DATE}`;
+  const pageUrl = `${planner.server.url}/?date=${TEST_DATE}`;
   await planner.browser.setViewport(1280, 720);
   await planner.browser.open(pageUrl);
   await planner.browser.waitForExpression(`Boolean(

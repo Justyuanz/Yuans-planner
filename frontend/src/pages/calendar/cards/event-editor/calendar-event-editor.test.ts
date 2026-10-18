@@ -38,7 +38,6 @@ describe("Calendar event editor compatibility", () => {
       effort: "standard",
       endTime: "",
       note: "",
-      reminderMinutes: 0,
       reminderOnly: false,
       startTime: "",
       title: ""
@@ -51,7 +50,6 @@ describe("Calendar event editor compatibility", () => {
       date: DATE,
       title: "09:00-10:30 Deep work",
       category: "Coding",
-      reminderMinutes: "15",
       note: " Keep exact spacing "
     }]), "legacy", DATE);
     expect(draft).toEqual({
@@ -61,7 +59,6 @@ describe("Calendar event editor compatibility", () => {
       effort: "standard",
       endTime: "10:30",
       note: " Keep exact spacing ",
-      reminderMinutes: 15,
       reminderOnly: false,
       startTime: "09:00",
       title: "Deep work"
@@ -141,7 +138,7 @@ describe("Calendar event editor compatibility", () => {
     });
   });
 
-  it("previews reminder, time-order, recovery, and capacity validation", () => {
+  it("previews zero-load, time-order, recovery, and capacity validation", () => {
     const plannerStore = store([]);
     expect(previewCalendarActivity(plannerStore, DATE, {
       category: "Study/school", effort: "standard", endTime: "", reminderOnly: false, startTime: "09:00", title: "Study"
@@ -163,7 +160,6 @@ describe("Calendar event editor compatibility", () => {
       category: "Chore",
       endTime: "2 PM",
       note: " note ",
-      reminderMinutes: 10,
       startTime: "1 PM"
     }, "", "2026-09-14T10:00:00.000Z", "event-new");
     expect(parseArray(writes[0]!.value)).toEqual([
@@ -178,7 +174,6 @@ describe("Calendar event editor compatibility", () => {
         endTime: "14:00",
         id: "event-new",
         note: "note",
-        reminderMinutes: 10,
         reminderOnly: false,
         startTime: "13:00",
         title: "Chores"
@@ -186,16 +181,14 @@ describe("Calendar event editor compatibility", () => {
     ]);
   });
 
-  it("updates in place, clears sent reminder markers, and synchronizes a linked goal step", () => {
+  it("updates in place and synchronizes a linked goal step", () => {
     const plannerStore = store([{
       id: "linked",
       date: DATE,
       title: "Old",
       goalId: "goal-1",
       goalStepId: "step-1",
-      unknown: "keep",
-      reminderSentAt: "sent",
-      reminderSentFor: "old"
+      unknown: "keep"
     }], [{ id: "goal-1", extra: true, steps: [{ id: "step-1", eventId: "linked", scheduledDay: "old" }] }]);
     const writes = saveCalendarEvent(plannerStore, {
       ...emptyCalendarEventDraft("2026-09-16"),
@@ -213,7 +206,6 @@ describe("Calendar event editor compatibility", () => {
       unknown: "keep",
       updatedAt: "2026-09-14T11:00:00.000Z"
     });
-    expect(event).not.toHaveProperty("reminderSentAt");
     expect(parseArray(writes[1]!.value)).toMatchObject([{
       steps: [{ eventId: "linked", scheduledDay: "2026-09-16|evening" }]
     }]);

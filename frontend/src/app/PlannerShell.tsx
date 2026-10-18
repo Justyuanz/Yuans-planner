@@ -1,46 +1,37 @@
 import { useState, type ReactNode } from "react";
+import { NavLink } from "react-router";
 
 import type { PlannerStore } from "../api/planner-store";
 import { BackupTools } from "./BackupTools";
-import { navigateToPlannerView } from "./planner-navigation";
+import { PLANNER_ROUTES, plannerLocation } from "./planner-navigation";
 import { persistPlannerWrites } from "./planner-persistence";
 import { PlannerMascot } from "../mascot/PlannerMascot";
 import { humanDate, toDateKey } from "../shared/planner-date";
 
-const VIEWS = [
-  ["todayView", "Dashboard"],
-  ["journalView", "Journal"],
-  ["moneyView", "Money"],
-  ["calendarView", "Calendar"],
-  ["skateView", "Skate"],
-  ["guitarView", "Guitar"]
-] as const;
-
 interface PlannerShellProps {
-  activeView: string;
   children: ReactNode;
   store: PlannerStore;
   today: Date;
 }
 
 
-export function PlannerShell({ activeView, children, store, today }: PlannerShellProps) {
+export function PlannerShell({ children, store, today }: PlannerShellProps) {
   const [chatOpen, setChatOpen] = useState(false);
 
   return (
     <main className="app">
       <aside className="sidebar" aria-label="Planner navigation">
         <nav className="tabs" aria-label="Planner views">
-          {VIEWS.map(([viewId, label]) => (
-            <button
-              className={`tab-button${activeView === viewId ? " active" : ""}`}
-              data-view-target={viewId}
-              key={viewId}
-              onClick={() => navigateToPlannerView(viewId, today)}
-              type="button"
+          {PLANNER_ROUTES.map(({ id, label, path }) => (
+            <NavLink
+              className={({ isActive }) => `tab-button${isActive ? " active" : ""}`}
+              data-view-target={id}
+              end={path === "/"}
+              key={id}
+              to={plannerLocation(id, today)}
             >
               {label}
-            </button>
+            </NavLink>
           ))}
         </nav>
         <PlannerMascot

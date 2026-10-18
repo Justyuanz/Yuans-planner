@@ -37,7 +37,7 @@ export function GuitarPage({ today }: GuitarPageProps) {
 
   return (
     <>
-      <PlannerShell activeView="guitarView" store={store} today={today}>
+      <PlannerShell store={store} today={today}>
         <section className="view active" id="guitarView" aria-labelledby="guitarHeading">
           <div className="guitar-page">
             <article className="panel guitar-goal-card">

@@ -171,7 +171,7 @@ test("today intention preserves defaults, stored day types, aliases, and reload 
   }
 
   await planner.browser.setViewport(1280, 720);
-  await openPlanner(planner.browser, `${planner.server.url}/?view=todayView&date=${TEST_DATE}`);
+  await openPlanner(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
   assert.deepEqual(await planner.browser.evaluate(intentionState()), {
     label: "Today's intention",
     badge: "Normal Day",
@@ -179,7 +179,7 @@ test("today intention preserves defaults, stored day types, aliases, and reload 
   });
 
   await putStoredValue(planner.server.url, ROUTINE_KEY, routineWithThursday("skate"));
-  await openPlanner(planner.browser, `${planner.server.url}/?view=todayView&date=${TEST_DATE}`);
+  await openPlanner(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
   assert.deepEqual(await planner.browser.evaluate(intentionState()), {
     label: "Today's intention",
     badge: "High-Intensity Day",
@@ -201,7 +201,7 @@ test("today intention preserves its desktop and mobile visual contract", { timeo
   await putStoredValue(planner.server.url, ROUTINE_KEY, routineWithThursday("high"));
 
   await planner.browser.setViewport(1280, 720);
-  await openPlanner(planner.browser, `${planner.server.url}/?view=todayView&date=${TEST_DATE}`);
+  await openPlanner(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
   assert.deepEqual(await planner.browser.evaluate(intentionState()), {
     label: "Today's intention",
     badge: "High-Intensity Day",
@@ -213,7 +213,7 @@ test("today intention preserves its desktop and mobile visual contract", { timeo
   );
 
   await planner.browser.setViewport(390, 844, true);
-  await openPlanner(planner.browser, `${planner.server.url}/?view=todayView&date=${TEST_DATE}`);
+  await openPlanner(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
   assert.deepEqual(await planner.browser.evaluate(intentionState()), {
     label: "Today's intention",
     badge: "High-Intensity Day",

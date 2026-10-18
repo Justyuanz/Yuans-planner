@@ -50,7 +50,7 @@ test("Python serves a self-contained production React build", { timeout: 90_000 
     await planner.browser.setViewport(width, height, width < 500);
     await openDirectPage(
       planner.browser,
-      `${planner.server.url}/?view=todayView&date=${TEST_DATE}`
+      `${planner.server.url}/?date=${TEST_DATE}`
     );
     const state = await planner.browser.evaluate(directPageState());
     assert.equal(state.activeView, "todayView");
@@ -63,7 +63,7 @@ test("Python serves a self-contained production React build", { timeout: 90_000 
 
   await openDirectPage(
     planner.browser,
-    `${planner.server.url}/?view=moneyView&date=${TEST_DATE}`
+    `${planner.server.url}/money?date=${TEST_DATE}`
   );
   assert.deepEqual(
     await planner.browser.evaluate(`(() => ({
@@ -80,19 +80,32 @@ test("Python serves a self-contained production React build", { timeout: 90_000 
 
   await openDirectPage(
     planner.browser,
-    `${planner.server.url}/?view=legacyShell&date=${TEST_DATE}`
+    `${planner.server.url}/missing-route?date=${TEST_DATE}`
   );
   assert.deepEqual(
     await planner.browser.evaluate(`(() => ({
       activeView: document.querySelector(".view.active")?.id,
       iframeCount: document.querySelectorAll("iframe").length,
-      requestedView: new URL(location.href).searchParams.get("view")
+      pathname: location.pathname
     }))()`),
     {
       activeView: "todayView",
       iframeCount: 0,
-      requestedView: "legacyShell"
+      pathname: "/"
     }
+  );
+
+  await openDirectPage(
+    planner.browser,
+    `${planner.server.url}/?view=journalView&date=${TEST_DATE}`
+  );
+  assert.deepEqual(
+    await planner.browser.evaluate(`(() => ({
+      activeView: document.querySelector(".view.active")?.id,
+      pathname: location.pathname,
+      requestedView: new URL(location.href).searchParams.get("view")
+    }))()`),
+    { activeView: "journalView", pathname: "/journal", requestedView: null }
   );
   assert.deepEqual(planner.browser.errors(), []);
 });

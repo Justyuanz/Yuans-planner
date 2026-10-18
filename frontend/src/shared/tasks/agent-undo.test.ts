@@ -24,14 +24,10 @@ function task(id: string, label: string, done = false): PlannerTask {
     hours: 1,
     id,
     label,
-    reminderMinutes: 0,
-    reminderSentAt: "",
-    reminderSentFor: "",
     scheduledTime: "",
     sourceEventId: "",
     timerSeconds: 0,
-    timerStartedAt: null,
-    useSourceEventReminder: false
+    timerStartedAt: null
   };
 }
 

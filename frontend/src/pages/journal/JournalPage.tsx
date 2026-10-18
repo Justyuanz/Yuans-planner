@@ -64,7 +64,7 @@ export function JournalPage({ today }: JournalPageProps) {
   const readyStore = store;
   const todayDate = toDateKey(today);
   return (
-    <PlannerShell activeView="journalView" store={readyStore} today={today}>
+    <PlannerShell store={readyStore} today={today}>
       <section className="view active" id="journalView" aria-labelledby="journalHeading">
         <div className="journal-page">
           <article className="panel journal-editor-card">

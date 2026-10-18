@@ -178,7 +178,7 @@ test("Money budgets preserves editing, transfers, disclosure state, and persiste
   }
 
   await seedBudgets(planner.server.url);
-  const pageUrl = `${planner.server.url}/?view=moneyView&date=${TEST_DATE}`;
+  const pageUrl = `${planner.server.url}/money?date=${TEST_DATE}`;
 
   await planner.browser.setViewport(1280, 720);
   await openMoney(planner.browser, pageUrl);
@@ -278,7 +278,7 @@ test("Money budgets preserves its desktop and mobile visual contract", { timeout
   }
 
   await seedBudgets(planner.server.url);
-  const pageUrl = `${planner.server.url}/?view=moneyView&date=${TEST_DATE}`;
+  const pageUrl = `${planner.server.url}/money?date=${TEST_DATE}`;
 
   for (const [width, height] of [[1280, 720], [390, 844]]) {
     await planner.browser.setViewport(width, height, width < 500);

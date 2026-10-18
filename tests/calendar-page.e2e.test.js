@@ -128,7 +128,7 @@ test("Calendar is a direct React page with responsive layout and persistence", {
   if (!planner) return;
   await seedCalendar(planner.server.url);
 
-  const pageUrl = `${planner.server.url}/?view=calendarView&date=${TEST_DATE}`;
+  const pageUrl = `${planner.server.url}/calendar?date=${TEST_DATE}`;
   for (const [width, height] of [[1280, 720], [390, 844]]) {
     await planner.browser.setViewport(width, height, width < 500);
     await openReady(planner.browser, pageUrl);
@@ -182,7 +182,7 @@ test("Calendar is a direct React page with responsive layout and persistence", {
   await planner.browser.waitForExpression('document.querySelector("#weeklyPlannerMount .week-day-header > div > span").textContent === "Mon Sep 14"');
 
   await planner.browser.evaluate('document.querySelector("[data-view-target=todayView]").click()');
-  await planner.browser.waitForExpression('location.search.includes("view=todayView")');
+  await planner.browser.waitForExpression('location.pathname === "/"');
   await planner.browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
   assert.equal(await planner.browser.evaluate('document.querySelectorAll("iframe").length'), 0);
   assert.deepEqual(planner.browser.errors(), []);

@@ -27,7 +27,6 @@ function setFieldsAndSubmit() {
     };
     setInput("#taskTitle", "Survives a restart");
     setInput("#taskTime", "07:45");
-    setSelect("#taskReminder", "15");
     setSelect("#taskActivity", "guitar");
     document.getElementById("taskForm").requestSubmit();
   })()`;
@@ -41,7 +40,7 @@ test("planner data written through the UI outlives a server restart", async func
   const planner = await startBrowserPlanner(t);
   if (!planner) return;
 
-  const pageUrl = `${planner.server.url}/?view=todayView&date=${TEST_DATE}`;
+  const pageUrl = `${planner.server.url}/?date=${TEST_DATE}`;
   await planner.browser.setViewport(1280, 720);
   await planner.browser.open(pageUrl);
   await planner.browser.waitForExpression(
@@ -57,11 +56,9 @@ test("planner data written through the UI outlives a server restart", async func
   });
   assert.deepEqual({
     activity: createdTask.activity,
-    reminderMinutes: createdTask.reminderMinutes,
     scheduledTime: createdTask.scheduledTime
   }, {
     activity: "guitar",
-    reminderMinutes: 15,
     scheduledTime: "07:45"
   });
 

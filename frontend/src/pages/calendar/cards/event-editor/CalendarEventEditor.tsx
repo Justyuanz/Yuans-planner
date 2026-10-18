@@ -126,11 +126,6 @@ export function CalendarEventEditor({
   }
 
   function saveEvent(): void {
-    if (draft.reminderMinutes > 0 && !draft.startTime) {
-      setFormHint("Pick a start time to send a Telegram reminder.");
-      startRef.current?.focus();
-      return;
-    }
     if (!preview.allowed) {
       setFormHint(preview.reason);
       startRef.current?.focus();
@@ -230,7 +225,6 @@ export function CalendarEventEditor({
         <div className="form-row"><label htmlFor="eventDate">Date</label><input id="eventDate" name="eventDate" type="date" value={draft.date} onChange={(event) => updateDraft("date", event.target.value)} /></div>
         <div className="form-row"><label htmlFor="eventStartTime">Start time</label><input id="eventStartTime" name="eventStartTime" type="text" inputMode="numeric" autoComplete="off" placeholder="13:00" ref={startRef} value={draft.startTime} onChange={(event) => updateDraft("startTime", event.target.value)} /></div>
         <div className="form-row"><label htmlFor="eventEndTime">End time</label><input id="eventEndTime" name="eventEndTime" type="text" inputMode="numeric" autoComplete="off" placeholder="14:30" value={draft.endTime} onChange={(event) => updateDraft("endTime", event.target.value)} /></div>
-        <div className="form-row"><label htmlFor="eventReminder">Telegram reminder</label><select id="eventReminder" name="eventReminder" value={draft.reminderMinutes} onChange={(event) => updateDraft("reminderMinutes", Number(event.target.value))}><option value="0">No reminder</option><option value="5">Remind me 5 min before</option><option value="10">Remind me 10 min before</option><option value="15">Remind me 15 min before</option><option value="30">Remind me 30 min before</option></select></div>
         <div className="form-row planner-reminder-row"><label className="planner-checkbox" htmlFor="eventReminderOnly"><input id="eventReminderOnly" name="eventReminderOnly" type="checkbox" checked={draft.reminderOnly} onChange={(event) => updateDraft("reminderOnly", event.target.checked)} /><span>Reminder-only item. Costs 0 load hours.</span></label></div>
         <p className={`planner-load-preview${!draft.reminderOnly && preview.candidateMinutes > 0 && !preview.allowed ? " is-over" : ""}`} id="plannerLoadPreview" aria-live="polite">{previewText}</p>
         <div className="form-row"><label htmlFor="eventNote">Optional note</label><textarea id="eventNote" name="eventNote" maxLength={220} placeholder="Optional detail for this block." value={draft.note} onChange={(event) => updateDraft("note", event.target.value)} /></div>

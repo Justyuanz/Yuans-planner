@@ -17,7 +17,6 @@ from planner_api import (
     put_value_from_payload,
     read_values_document,
 )
-from telegram_notifier import send_telegram_message, telegram_status
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -47,9 +46,6 @@ class PlannerHandler(BaseHTTPRequestHandler):
             return
         if path == "/api/mascot/status":
             self.send_json({"enabled": openai_enabled()}, include_body=include_body)
-            return
-        if path == "/api/telegram/status":
-            self.send_json(telegram_status(), include_body=include_body)
             return
         if path == "/favicon.ico":
             self.send_response(204)
@@ -113,14 +109,6 @@ class PlannerHandler(BaseHTTPRequestHandler):
                 )
                 return
             self.send_json({"ok": True, "reply": reply})
-            return
-        if path == "/api/telegram/test":
-            try:
-                send_telegram_message("Yuan's Planner test notification.")
-            except Exception as error:
-                self.send_json({"ok": False, "error": str(error)}, status=503)
-                return
-            self.send_json({"ok": True})
             return
         self.send_error(404)
 

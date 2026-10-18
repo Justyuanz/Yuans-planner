@@ -147,14 +147,14 @@ test("task progress preserves filtering, completion updates, and reload behavior
   }
 
   await planner.browser.setViewport(1280, 720);
-  await openPlanner(planner.browser, `${planner.server.url}/?view=todayView&date=${TEST_DATE}`);
+  await openPlanner(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
   assert.deepEqual(await planner.browser.evaluate(progressState()), {
     message: "Tasks from your calendar and planner.",
     progress: "0 / 0 tasks done today"
   });
 
   await putStoredValue(planner.server.url, TASKS_KEY, STORED_TASKS);
-  await openPlanner(planner.browser, `${planner.server.url}/?view=todayView&date=${TEST_DATE}`);
+  await openPlanner(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
   assert.deepEqual(await planner.browser.evaluate(progressState()), {
     message: "Tasks from your calendar and planner.",
     progress: "2 / 3 tasks done today"
@@ -184,7 +184,7 @@ test("task progress preserves its desktop and mobile visual contract", { timeout
   await putStoredValue(planner.server.url, TASKS_KEY, STORED_TASKS.slice(0, 3));
 
   await planner.browser.setViewport(1280, 720);
-  await openPlanner(planner.browser, `${planner.server.url}/?view=todayView&date=${TEST_DATE}`);
+  await openPlanner(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
   assert.deepEqual(await planner.browser.evaluate(progressState()), {
     message: "Tasks from your calendar and planner.",
     progress: "2 / 3 tasks done today"
@@ -195,7 +195,7 @@ test("task progress preserves its desktop and mobile visual contract", { timeout
   );
 
   await planner.browser.setViewport(390, 844, true);
-  await openPlanner(planner.browser, `${planner.server.url}/?view=todayView&date=${TEST_DATE}`);
+  await openPlanner(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
   assert.deepEqual(await planner.browser.evaluate(progressState()), {
     message: "Tasks from your calendar and planner.",
     progress: "2 / 3 tasks done today"

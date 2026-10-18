@@ -55,7 +55,7 @@ test("Skate training plan preserves current-week content, live settings, and vis
     restDayOfWeek: 0
   });
 
-  const pageUrl = `${planner.server.url}/?view=skateView&date=${TEST_DATE}`;
+  const pageUrl = `${planner.server.url}/skate?date=${TEST_DATE}`;
 
   for (const [width, height] of [[1280, 720], [390, 844]]) {
     await planner.browser.setViewport(width, height, width < 500);
@@ -107,7 +107,7 @@ test("Skate training plan preserves current-week content, live settings, and vis
   assert.deepEqual(reloaded, updated);
 
   // Before the season starts the card previews Day 1 with no week rows.
-  await openSkate(planner.browser, `${planner.server.url}/?view=skateView&date=2026-08-28`);
+  await openSkate(planner.browser, `${planner.server.url}/skate?date=2026-08-28`);
   const preSeason = await planner.browser.evaluate(trainingPlanState());
   assert.deepEqual(preSeason, expectedPreSeasonTrainingPlanState());
   assert.equal(preSeason.today.kicker, "Day 1");
@@ -121,7 +121,7 @@ test("Skate training plan preserves current-week content, live settings, and vis
     restDayOfWeek: 0
   });
   // The shipped manual progression keeps selecting Day 60 on a later date.
-  await openSkate(planner.browser, `${planner.server.url}/?view=skateView&date=2026-11-16`);
+  await openSkate(planner.browser, `${planner.server.url}/skate?date=2026-11-16`);
   const postStreak = await planner.browser.evaluate(trainingPlanState());
   assert.deepEqual(postStreak, expectedPostStreakTrainingPlanState());
   assert.equal(postStreak.today.kicker, "Day 60");

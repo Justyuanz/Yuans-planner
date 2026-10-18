@@ -12,7 +12,7 @@ const { startPlannerServer } = require("./helpers/planner-server");
 // the storage and backup endpoints work, and that the retired legacy routes
 // stay gone. It is what CI runs in place of the browser suite.
 
-const VIEWS = ["todayView", "calendarView", "journalView", "moneyView", "skateView", "guitarView"];
+const ROUTES = ["/", "/calendar", "/journal", "/money", "/skate", "/guitar"];
 const TEST_DATE = "2026-10-12";
 
 async function get(url) {
@@ -36,11 +36,11 @@ function rawGet(origin, rawPath) {
 test("the server delivers the built application", async function () {
   const server = await startPlannerServer();
   try {
-    for (const view of VIEWS) {
-      const page = await get(`${server.url}/?view=${view}&date=${TEST_DATE}`);
-      assert.equal(page.status, 200, `${view} did not return 200`);
-      assert.match(page.body, /<div id="root"><\/div>/, `${view} did not return the React shell`);
-      assert.match(page.body, /\/assets\/index-[A-Za-z0-9_-]+\.js/, `${view} did not reference a built bundle`);
+    for (const route of ROUTES) {
+      const page = await get(`${server.url}${route}?date=${TEST_DATE}`);
+      assert.equal(page.status, 200, `${route} did not return 200`);
+      assert.match(page.body, /<div id="root"><\/div>/, `${route} did not return the React shell`);
+      assert.match(page.body, /\/assets\/index-[A-Za-z0-9_-]+\.js/, `${route} did not reference a built bundle`);
     }
 
     // The hashed assets the shell points at must actually exist.

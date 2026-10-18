@@ -28,10 +28,7 @@ const TASKS = [
     timerStartedAt: null,
     done: false,
     createdAt: "2026-10-05T08:00:00.000Z",
-    scheduledTime: "09:30",
-    reminderMinutes: 10,
-    reminderSentAt: "",
-    reminderSentFor: ""
+    scheduledTime: "09:30"
   },
   {
     id: "task-migrate-2",
@@ -42,10 +39,7 @@ const TASKS = [
     timerStartedAt: null,
     done: true,
     createdAt: "2026-10-05T09:00:00.000Z",
-    scheduledTime: "",
-    reminderMinutes: 0,
-    reminderSentAt: "",
-    reminderSentFor: ""
+    scheduledTime: ""
   }
 ];
 
@@ -92,7 +86,7 @@ test("React tasks preserve the legacy design and task lifecycle", { timeout: 60_
   const planner = await startBrowserPlanner(context);
   if (!planner) return;
   await putTasks(planner.server.url);
-  const pageUrl = `${planner.server.url}/?view=todayView&date=${TEST_DATE}`;
+  const pageUrl = `${planner.server.url}/?date=${TEST_DATE}`;
 
   for (const [width, height] of [[1280, 720], [390, 844]]) {
     await planner.browser.setViewport(width, height);
@@ -123,7 +117,6 @@ test("React tasks preserve the legacy design and task lifecycle", { timeout: 60_
     };
     setInput("#taskTitle", "React TypeScript task");
     setInput("#taskTime", "09:30");
-    setSelect("#taskReminder", "10");
     setSelect("#taskActivity", "transcendence");
     document.getElementById("taskForm").requestSubmit();
   })()`);
@@ -134,11 +127,9 @@ test("React tasks preserve the legacy design and task lifecycle", { timeout: 60_
   });
   assert.deepEqual({
     activity: createdTask.activity,
-    reminderMinutes: createdTask.reminderMinutes,
     scheduledTime: createdTask.scheduledTime
   }, {
     activity: "transcendence",
-    reminderMinutes: 10,
     scheduledTime: "09:30"
   });
 
@@ -181,18 +172,6 @@ test("React tasks preserve the legacy design and task lifecycle", { timeout: 60_
     ));
   });
   await planner.browser.evaluate(`(() => {
-    const select = document.querySelector(".task-editor-reminder");
-    Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value").set.call(select, "15");
-    select.dispatchEvent(new Event("change", { bubbles: true }));
-  })()`);
-  await planner.server.waitFor(async function () {
-    const data = await planner.server.readPlannerData();
-    const tasks = JSON.parse(data[TASK_KEY] || "[]");
-    return tasks.some(({ label, reminderMinutes }) => (
-      label === "React TypeScript task" && reminderMinutes === 15
-    ));
-  });
-  await planner.browser.evaluate(`(() => {
     const input = document.querySelector(".task-title-input");
     const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set;
     setter.call(input, "Edited React task");
@@ -206,10 +185,9 @@ test("React tasks preserve the legacy design and task lifecycle", { timeout: 60_
   await planner.server.waitFor(async function () {
     const data = await planner.server.readPlannerData();
     const tasks = JSON.parse(data[TASK_KEY] || "[]");
-    return tasks.some(({ activity, label, reminderMinutes, scheduledTime }) => (
+    return tasks.some(({ activity, label, scheduledTime }) => (
       activity === "mobileDevelopment"
       && label === "Edited React task"
-      && reminderMinutes === 15
       && scheduledTime === "10:15"
     ));
   });
@@ -251,12 +229,11 @@ test("React owns calendar-linked task reconciliation", { timeout: 60_000 }, asyn
     date: TEST_DATE,
     endTime: "11:00",
     id: "calendar-react-event",
-    reminderMinutes: 0,
     startTime: "10:15",
     title: "Calendar React task"
   };
   await putStoredValue(planner.server.url, EVENTS_KEY, JSON.stringify([calendarEvent]));
-  await planner.browser.open(`${planner.server.url}/?view=todayView&date=${TEST_DATE}`);
+  await planner.browser.open(`${planner.server.url}/?date=${TEST_DATE}`);
   await planner.browser.waitForExpression(directReady(3));
   const linkedTask = await planner.server.waitFor(async function () {
     const data = await planner.server.readPlannerData();
@@ -269,16 +246,12 @@ test("React owns calendar-linked task reconciliation", { timeout: 60_000 }, asyn
     activity: linkedTask.activity,
     done: linkedTask.done,
     label: linkedTask.label,
-    reminderMinutes: linkedTask.reminderMinutes,
-    scheduledTime: linkedTask.scheduledTime,
-    useSourceEventReminder: linkedTask.useSourceEventReminder
+    scheduledTime: linkedTask.scheduledTime
   }, {
     activity: "transcendence",
     done: false,
     label: "Calendar React task",
-    reminderMinutes: 0,
-    scheduledTime: "10:15",
-    useSourceEventReminder: true
+    scheduledTime: "10:15"
   });
   assert.deepEqual(planner.browser.errors(), []);
 
@@ -354,7 +327,7 @@ test("React owns agent undo persistence without the legacy bridge", { timeout: 6
   await putStoredValue(planner.server.url, AGENT_UI_STATE_KEY, JSON.stringify(agentAfter));
   await putStoredValue(planner.server.url, AGENT_UNDO_KEY, JSON.stringify([undoEntry]));
 
-  await planner.browser.open(`${planner.server.url}/?view=todayView&date=${TEST_DATE}`);
+  await planner.browser.open(`${planner.server.url}/?date=${TEST_DATE}`);
   await planner.browser.waitForExpression(directReady(1));
   await planner.browser.waitForExpression('document.querySelector(".agent-focus-banner") !== null');
   await planner.browser.evaluate(
@@ -373,8 +346,7 @@ test("React owns agent undo persistence without the legacy bridge", { timeout: 6
   });
   const normalizedTasks = (tasks) => tasks.map((task) => ({
     ...task,
-    sourceEventId: "",
-    useSourceEventReminder: false
+    sourceEventId: ""
   }));
   assert.deepEqual(persisted.todayTasks, normalizedTasks(TASKS));
   assert.deepEqual(persisted.tomorrowTasks, normalizedTasks(tomorrowBefore));

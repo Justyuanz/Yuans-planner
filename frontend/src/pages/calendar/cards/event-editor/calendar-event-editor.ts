@@ -18,7 +18,6 @@ export interface CalendarEventDraft {
   effort: string;
   endTime: string;
   note: string;
-  reminderMinutes: number;
   reminderOnly: boolean;
   startTime: string;
   title: string;
@@ -43,11 +42,6 @@ function parsedRecords(rawValue: string | undefined): Record<string, unknown>[] 
 
 function text(value: unknown): string {
   return typeof value === "string" ? value : "";
-}
-
-function normalizedReminder(value: unknown): number {
-  const minutes = Number(value);
-  return Number.isFinite(minutes) && minutes > 0 ? Math.round(minutes) : 0;
 }
 
 function normalizedEffort(value: unknown, category: string): string {
@@ -120,7 +114,6 @@ export function emptyCalendarEventDraft(date: string): CalendarEventDraft {
     effort: "standard",
     endTime: "",
     note: "",
-    reminderMinutes: 0,
     reminderOnly: false,
     startTime: "",
     title: ""
@@ -145,7 +138,6 @@ export function calendarEventDraft(
     effort: normalizedEffort(event.effort, category),
     endTime: normalizeCalendarClock(text(event.endTime) || fallback.endTime),
     note: text(event.note),
-    reminderMinutes: normalizedReminder(event.reminderMinutes),
     reminderOnly: Boolean(event.reminderOnly),
     startTime: normalizeCalendarClock(text(event.startTime) || fallback.startTime),
     title: calendarTitleWithoutTime(title) || title
@@ -246,7 +238,6 @@ export function saveCalendarEvent(
     effort: normalizedEffort(draft.effort, category),
     endTime: normalizeCalendarClock(draft.endTime),
     note: draft.note.trim(),
-    reminderMinutes: normalizedReminder(draft.reminderMinutes),
     reminderOnly: draft.reminderOnly,
     startTime: normalizeCalendarClock(draft.startTime),
     title: draft.title.trim() || calendarCategoryMeta(category).shortLabel
@@ -257,8 +248,6 @@ export function saveCalendarEvent(
     if (!editingEventId || !isRecord(candidate) || candidate.id !== editingEventId) return candidate;
     found = true;
     savedEvent = { ...candidate, ...eventFields, updatedAt: nowIso };
-    delete savedEvent.reminderSentAt;
-    delete savedEvent.reminderSentFor;
     return savedEvent;
   });
   if (!found) {

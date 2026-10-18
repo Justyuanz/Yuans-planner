@@ -120,7 +120,7 @@ test("Direct React Dashboard preserves weekly goals and Life Pie behavior", { ti
   }
   await putWeeklyGoals(planner.server.url);
   await putLifePieTasks(planner.server.url);
-  const pageUrl = `${planner.server.url}/?view=todayView&date=${TEST_DATE}`;
+  const pageUrl = `${planner.server.url}/?date=${TEST_DATE}`;
 
   await planner.browser.setViewport(1280, 720);
   await planner.browser.open(pageUrl);

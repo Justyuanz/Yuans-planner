@@ -94,7 +94,7 @@ test("Skate roadmap preserves season history, missed-session logging, and visual
     })
   ]);
 
-  const pageUrl = `${planner.server.url}/?view=skateView&date=${TEST_DATE}`;
+  const pageUrl = `${planner.server.url}/skate?date=${TEST_DATE}`;
 
   for (const [width, height] of [[1280, 720], [390, 844]]) {
     await planner.browser.setViewport(width, height, width < 500);
@@ -194,7 +194,7 @@ test("Skate roadmap preserves season history, missed-session logging, and visual
   ), true);
 
   // Before the season starts the roadmap shows only its empty-state note.
-  await openSkate(planner.browser, `${planner.server.url}/?view=skateView&date=2026-08-28`, false);
+  await openSkate(planner.browser, `${planner.server.url}/skate?date=2026-08-28`, false);
   assert.deepEqual(await planner.browser.evaluate(roadmapState()), expectedPreSeasonRoadmapState());
   assert.deepEqual(planner.browser.errors(), []);
 });

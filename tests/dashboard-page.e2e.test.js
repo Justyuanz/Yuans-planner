@@ -65,7 +65,7 @@ test("Dashboard is a direct React page with legacy layout and Pattern behavior",
   const planner = await startBrowserPlanner(context);
   if (!planner) return;
   await seedDashboard(planner.server.url);
-  const pageUrl = `${planner.server.url}/?view=todayView&date=${TEST_DATE}`;
+  const pageUrl = `${planner.server.url}/?date=${TEST_DATE}`;
   const rootUrl = `${planner.server.url}/?date=${TEST_DATE}`;
 
   for (const [width, height] of [[1280, 720], [390, 844]]) {
@@ -113,14 +113,14 @@ test("Dashboard is a direct React page with legacy layout and Pattern behavior",
 
   await openReady(planner.browser, rootUrl);
   await planner.browser.evaluate('document.querySelector("[data-view-target=moneyView]").click()');
-  await planner.browser.waitForExpression('location.search.includes("view=moneyView")');
+  await planner.browser.waitForExpression('location.pathname === "/money"');
   await planner.browser.waitForExpression(
     'document.documentElement.dataset.plannerReady === "true"'
   );
   assert.equal(await planner.browser.evaluate('location.search.includes("date=2026-09-14")'), true);
   assert.equal(await planner.browser.evaluate('document.querySelectorAll("iframe").length'), 0);
 
-  await openReady(planner.browser, `${planner.server.url}/?view=journalView&date=${TEST_DATE}`);
+  await openReady(planner.browser, `${planner.server.url}/journal?date=${TEST_DATE}`);
   assert.deepEqual(
     await planner.browser.evaluate(`(() => ({
       active: document.getElementById("journalView").classList.contains("active"),
@@ -129,7 +129,7 @@ test("Dashboard is a direct React page with legacy layout and Pattern behavior",
     { active: true, iframeCount: 0 }
   );
 
-  await openReady(planner.browser, `${planner.server.url}/?view=calendarView&date=${TEST_DATE}`);
+  await openReady(planner.browser, `${planner.server.url}/calendar?date=${TEST_DATE}`);
   await planner.browser.waitForExpression('document.querySelectorAll("#calendarGrid .day-cell").length === 42');
   assert.deepEqual(
     await planner.browser.evaluate(`(() => ({
@@ -139,7 +139,7 @@ test("Dashboard is a direct React page with legacy layout and Pattern behavior",
     { active: true, iframeCount: 0 }
   );
 
-  await openReady(planner.browser, `${planner.server.url}/?view=skateView&date=${TEST_DATE}`);
+  await openReady(planner.browser, `${planner.server.url}/skate?date=${TEST_DATE}`);
   await planner.browser.waitForExpression('document.getElementById("skateCurrentDay") !== null');
   assert.deepEqual(
     await planner.browser.evaluate(`({
@@ -149,7 +149,7 @@ test("Dashboard is a direct React page with legacy layout and Pattern behavior",
     { active: true, iframeCount: 0 }
   );
 
-  await planner.browser.open(`${planner.server.url}/?view=guitarView&date=${TEST_DATE}`);
+  await planner.browser.open(`${planner.server.url}/guitar?date=${TEST_DATE}`);
   await planner.browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
   await planner.browser.waitForExpression('document.getElementById("guitarSessionSummary") !== null');
   assert.deepEqual(

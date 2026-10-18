@@ -23,11 +23,7 @@ function task(overrides: Partial<PlannerTask> = {}): PlannerTask {
     done: false,
     createdAt: "2026-10-05T08:00:00.000Z",
     sourceEventId: "",
-    useSourceEventReminder: false,
     scheduledTime: "",
-    reminderMinutes: 0,
-    reminderSentAt: "",
-    reminderSentFor: "",
     ...overrides
   };
 }
