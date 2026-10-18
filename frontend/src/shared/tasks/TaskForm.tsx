@@ -6,12 +6,11 @@ import {
   normalizeActivityId,
   type ActivityId
 } from "../activity-categories";
-import { makeTaskRelatedId, TASK_REMINDERS } from "./task-options";
+import { makeTaskRelatedId } from "./task-options";
 import {
   ACTIVITY_LOG_KEY,
   buildTaskWrites,
   decodeTasks,
-  normalizeReminderMinutes,
   normalizeScheduledTime,
   type PlannerTask
 } from "./tasks";
@@ -25,7 +24,6 @@ interface TaskFormProps {
 export function TaskForm({ dateKey, onPersist, store }: TaskFormProps) {
   const [title, setTitle] = useState("");
   const [scheduledTime, setScheduledTime] = useState("");
-  const [reminderMinutes, setReminderMinutes] = useState(0);
   const [activity, setActivity] = useState<ActivityId>("other");
   const taskKey = `hivePlanner.dailyTasks.${dateKey}`;
   const titleRef = useRef<HTMLInputElement>(null);
@@ -47,11 +45,7 @@ export function TaskForm({ dateKey, onPersist, store }: TaskFormProps) {
       done: false,
       createdAt: timestamp,
       sourceEventId: "",
-      useSourceEventReminder: false,
-      scheduledTime: normalizeScheduledTime(scheduledTime),
-      reminderMinutes,
-      reminderSentAt: "",
-      reminderSentFor: ""
+      scheduledTime: normalizeScheduledTime(scheduledTime)
     };
     const tasks = [...decodeTasks(store[taskKey], timestamp), newTask];
     onPersist(buildTaskWrites({
@@ -68,8 +62,7 @@ export function TaskForm({ dateKey, onPersist, store }: TaskFormProps) {
     }));
     setTitle("");
     setScheduledTime("");
-    setReminderMinutes(0);
-  }, [activity, dateKey, onPersist, reminderMinutes, scheduledTime, store, taskKey, title]);
+  }, [activity, dateKey, onPersist, scheduledTime, store, taskKey, title]);
 
   useEffect(() => {
     const form = titleRef.current?.closest("form");
@@ -104,15 +97,6 @@ export function TaskForm({ dateKey, onPersist, store }: TaskFormProps) {
         value={scheduledTime}
       />
       <button className="secondary-button task-form-add" type="submit">Add</button>
-      <select
-        aria-label="Task Telegram reminder"
-        className="task-form-reminder"
-        id="taskReminder"
-        onChange={(event) => setReminderMinutes(normalizeReminderMinutes(event.target.value))}
-        value={reminderMinutes}
-      >
-        {TASK_REMINDERS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-      </select>
       <select
         aria-label="Task activity"
         className="task-form-activity"

@@ -115,7 +115,7 @@ test("Calendar weekly planner preserves visuals, setup rules, navigation, and pe
   if (!planner) return;
   await seedWeek(planner.server.url);
 
-  const pageUrl = `${planner.server.url}/?view=calendarView&date=${TEST_DATE}`;
+  const pageUrl = `${planner.server.url}/calendar?date=${TEST_DATE}`;
 
   for (const [width, height] of [[1280, 720], [390, 844]]) {
     await planner.browser.setViewport(width, height, width < 500);

@@ -37,7 +37,6 @@ async function seedEditor(serverUrl) {
       effort: "standard",
       id: "deep-work",
       note: "Finish the bridge",
-      reminderMinutes: 15,
       startTime: "09:00",
       title: "Deep work"
     },
@@ -82,7 +81,6 @@ function editorState() {
       loadPreview: documentRoot.getElementById("plannerLoadPreview").textContent.trim(),
       note: value("eventNote"),
       pickerHidden: documentRoot.getElementById("plannerActivityPicker").hidden,
-      reminder: value("eventReminder"),
       reminderOnly: documentRoot.getElementById("eventReminderOnly").checked,
       saveLabel: documentRoot.getElementById("eventSaveButton").textContent.trim(),
       start: value("eventStartTime"),
@@ -143,7 +141,7 @@ test("Calendar event editor preserves visuals, validation, CRUD, task sync, and 
   if (!planner) return;
   await seedEditor(planner.server.url);
 
-  const pageUrl = `${planner.server.url}/?view=calendarView&date=${TEST_DATE}`;
+  const pageUrl = `${planner.server.url}/calendar?date=${TEST_DATE}`;
 
   for (const [width, height] of [[1280, 720], [390, 844]]) {
     await planner.browser.setViewport(width, height, width < 500);
@@ -183,16 +181,9 @@ test("Calendar event editor preserves visuals, validation, CRUD, task sync, and 
     start: "10:00"
   });
   await setInput(planner.browser, "eventCategory", "Study/school", "HTMLSelectElement");
-  await setInput(planner.browser, "eventStartTime", "");
-  await setInput(planner.browser, "eventEndTime", "");
-  await setInput(planner.browser, "eventTitle", "Reminder validation");
-  await setInput(planner.browser, "eventReminder", "10", "HTMLSelectElement");
-  await planner.browser.evaluate('document.getElementById("eventForm").requestSubmit()');
-  await planner.browser.waitForExpression('document.getElementById("formHint").textContent === "Pick a start time to send a Telegram reminder."');
-  assert.equal(JSON.parse((await planner.server.readPlannerData())[EVENTS_KEY]).length, 2);
-
   await setInput(planner.browser, "eventStartTime", "13:00");
   await setInput(planner.browser, "eventEndTime", "14:00");
+  await setInput(planner.browser, "eventTitle", "Calendar validation");
   await setInput(planner.browser, "eventDate", "");
   await setInput(planner.browser, "eventNote", "Created in React", "HTMLTextAreaElement");
   await planner.browser.evaluate('document.getElementById("eventForm").requestSubmit()');
@@ -201,10 +192,9 @@ test("Calendar event editor preserves visuals, validation, CRUD, task sync, and 
     const stored = await planner.server.readPlannerData();
     const events = JSON.parse(stored[EVENTS_KEY] || "[]");
     const tasks = JSON.parse(stored[`hivePlanner.dailyTasks.${TEST_DATE}`] || "[]");
-    const event = events.find((candidate) => candidate.title === "Reminder validation");
+    const event = events.find((candidate) => candidate.title === "Calendar validation");
     return event?.date === TEST_DATE
       && event.note === "Created in React"
-      && event.reminderMinutes === 10
       && tasks.some((task) => task.sourceEventId === event.id && task.scheduledTime === "13:00");
   });
 
@@ -218,13 +208,13 @@ test("Calendar event editor preserves visuals, validation, CRUD, task sync, and 
     const documentRoot = document;
     window.confirm = () => true;
     const item = [...documentRoot.querySelectorAll("#selectedDateEvents .selected-event")]
-      .find((event) => event.textContent.includes("Reminder validation"));
+      .find((event) => event.textContent.includes("Calendar validation"));
     item.querySelector(".quiet-danger").click();
   })()`);
   await planner.browser.waitForExpression('document.querySelectorAll("#selectedDateEvents .selected-event").length === 2');
   await planner.server.waitFor(async function () {
     const stored = await planner.server.readPlannerData();
-    return !JSON.parse(stored[EVENTS_KEY] || "[]").some((event) => event.title === "Reminder validation");
+    return !JSON.parse(stored[EVENTS_KEY] || "[]").some((event) => event.title === "Calendar validation");
   });
   assert.deepEqual(planner.browser.errors(), []);
 });

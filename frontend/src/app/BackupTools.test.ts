@@ -14,7 +14,7 @@ describe("selectBackupData", () => {
   });
 });
 
-// The live database still holds these eight key families from features that are
+// The live database still holds these seven key families from features that are
 // inactive in the shipped app, and were already inactive in the legacy one. A
 // backup has to carry them even though nothing reads them, so this pins the
 // real key names rather than a synthetic one.
@@ -24,7 +24,6 @@ const LEGACY_ONLY_KEYS = [
   "hivePlanner.skate.warmupItems",
   "hivePlanner.skate.weeklyTarget",
   "hivePlanner.study.sessions",
-  "hivePlanner.telegramWater.settings",
   "hivePlanner.weekOverview.skateBody.2026-W38",
   "hivePlanner.weekOverview.study.2026-W38"
 ];

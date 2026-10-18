@@ -83,7 +83,7 @@ export function CalendarPage({ today }: CalendarPageProps) {
   );
 
   return (
-    <PlannerShell activeView="calendarView" store={readyStore} today={today}>
+    <PlannerShell store={readyStore} today={today}>
       <section className="view active" id="calendarView" aria-labelledby="calendarHeading" style={{ width: "100%" }}>
         <div className="calendar-shell" style={{ display: "flex", flexDirection: "column", gap: 26, maxWidth: "none", width: "100%" }}>
           <article className="panel weekly-planner-card" style={{ flex: "0 0 auto", maxWidth: "none", width: "100%" }}>

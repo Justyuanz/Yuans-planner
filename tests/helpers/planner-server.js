@@ -90,8 +90,7 @@ function spawnPlannerProcess(port, databasePath) {
       ...process.env,
       YUAN_PLANNER_DB_PATH: databasePath,
       YUAN_PLANNER_HOST: "127.0.0.1",
-      YUAN_PLANNER_PORT: String(port),
-      YUAN_PLANNER_TELEGRAM_ENABLED: "0"
+      YUAN_PLANNER_PORT: String(port)
     },
     stdio: "ignore"
   });
@@ -105,7 +104,6 @@ async function waitForPlannerReady(url) {
 }
 
 async function stopPlannerProcess(processHandle) {
-  // SIGINT lets the local server stop its reminder thread cleanly.
   processHandle.kill("SIGINT");
   await waitForProcessExit(processHandle);
 }

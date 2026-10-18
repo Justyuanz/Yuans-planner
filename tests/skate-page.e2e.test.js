@@ -88,7 +88,7 @@ test("Skate is a direct React page with complete legacy parity and persistence",
   if (!planner) return;
   await seedSkate(planner.server.url);
 
-  const pageUrl = `${planner.server.url}/?view=skateView&date=${TEST_DATE}`;
+  const pageUrl = `${planner.server.url}/skate?date=${TEST_DATE}`;
   for (const [width, height] of [[1280, 900], [390, 844]]) {
     await planner.browser.setViewport(width, height, width < 500);
     await openReady(planner.browser, pageUrl);
@@ -173,7 +173,7 @@ test("Skate is a direct React page with complete legacy parity and persistence",
   });
 
   await planner.browser.evaluate('document.querySelector("[data-view-target=todayView]").click()');
-  await planner.browser.waitForExpression('location.search.includes("view=todayView")');
+  await planner.browser.waitForExpression('location.pathname === "/"');
   await planner.browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
   assert.equal(await planner.browser.evaluate('document.querySelectorAll("iframe").length'), 0);
   assert.deepEqual(planner.browser.errors(), []);

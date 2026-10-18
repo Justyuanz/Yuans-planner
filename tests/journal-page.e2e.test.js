@@ -96,7 +96,7 @@ test("Journal is a direct React page with legacy parity, persistence, and date n
   if (!planner) return;
   await seedJournal(planner.server.url);
 
-  const pageUrl = `${planner.server.url}/?view=journalView&date=${TEST_DATE}`;
+  const pageUrl = `${planner.server.url}/journal?date=${TEST_DATE}`;
   for (const [width, height] of [[1280, 720], [390, 844]]) {
     await planner.browser.setViewport(width, height, width < 500);
     await openReady(planner.browser, pageUrl);
@@ -169,7 +169,7 @@ test("Journal is a direct React page with legacy parity, persistence, and date n
     && entry.entityId === "current" && entry.meta?.source === "journal-editor"), true);
 
   await planner.browser.evaluate('document.querySelector("[data-view-target=todayView]").click()');
-  await planner.browser.waitForExpression('location.search.includes("view=todayView")');
+  await planner.browser.waitForExpression('location.pathname === "/"');
   await planner.browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
   assert.equal(await planner.browser.evaluate('document.querySelectorAll("iframe").length'), 0);
   assert.deepEqual(planner.browser.errors(), []);

@@ -11,7 +11,6 @@ export interface CalendarEvent {
   endTime: string;
   id: string;
   note: string;
-  reminderMinutes: number;
   reminderOnly: boolean;
   routineManaged: boolean;
   startTime: string;
@@ -66,11 +65,6 @@ function text(value: unknown): string {
   return typeof value === "string" ? value : "";
 }
 
-function reminderMinutes(value: unknown): number {
-  const minutes = Number(value);
-  return Number.isFinite(minutes) && minutes > 0 ? Math.round(minutes) : 0;
-}
-
 export function normalizeCalendarCategory(value: unknown): string {
   const requested = typeof value === "string" ? value.trim() : "";
   const category = CATEGORY_ALIASES[requested] ?? requested;
@@ -92,7 +86,6 @@ function normalizeCalendarEvent(candidate: unknown): CalendarEvent | null {
     endTime: text(candidate.endTime),
     id: text(candidate.id),
     note: text(candidate.note),
-    reminderMinutes: reminderMinutes(candidate.reminderMinutes),
     reminderOnly: Boolean(candidate.reminderOnly),
     routineManaged: Boolean(candidate.routineManaged),
     startTime: text(candidate.startTime),

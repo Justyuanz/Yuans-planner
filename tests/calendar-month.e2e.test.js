@@ -159,7 +159,7 @@ test("Calendar month grid preserves visuals, navigation, editing, and reload", {
   if (!planner) return;
   await seedCalendar(planner.server.url);
 
-  const pageUrl = `${planner.server.url}/?view=calendarView&date=${TEST_DATE}`;
+  const pageUrl = `${planner.server.url}/calendar?date=${TEST_DATE}`;
 
   for (const [width, height] of [[1280, 720], [390, 844]]) {
     await planner.browser.setViewport(width, height, width < 500);

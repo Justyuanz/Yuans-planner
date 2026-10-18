@@ -7,7 +7,6 @@ import {
 } from "../calendar-event-store";
 import {
   decodeTasks,
-  normalizeReminderMinutes,
   normalizeScheduledTime,
   type PlannerTask
 } from "./tasks";
@@ -29,7 +28,6 @@ interface CalendarTaskReconciliation {
 interface CalendarEvent {
   activity: ActivityId;
   id: string;
-  reminderMinutes: number;
   scheduledTime: string;
   title: string;
 }
@@ -101,7 +99,6 @@ function normalizedEvent(candidate: unknown, dateKey: string): CalendarEvent | n
   return {
     activity: CATEGORY_ACTIVITY[category] ?? "other",
     id: candidate.id,
-    reminderMinutes: normalizeReminderMinutes(candidate.reminderMinutes),
     scheduledTime: structuredTime || leadingRangeStart(rawTitle),
     title: eventTitle(rawTitle, category)
   };
@@ -147,14 +144,10 @@ function createTask(event: CalendarEvent, identity: CalendarTaskIdentity): Plann
     hours: 0,
     id: identity.id,
     label: event.title,
-    reminderMinutes: event.reminderMinutes,
-    reminderSentAt: "",
-    reminderSentFor: "",
     scheduledTime: event.scheduledTime,
     sourceEventId: event.id,
     timerSeconds: 0,
-    timerStartedAt: null,
-    useSourceEventReminder: true
+    timerStartedAt: null
   };
 }
 

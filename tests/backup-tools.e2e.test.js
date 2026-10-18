@@ -28,10 +28,7 @@ const SEEDED = [
     timerStartedAt: null,
     done: false,
     createdAt: "2026-11-13T08:00:00.000Z",
-    scheduledTime: "08:00",
-    reminderMinutes: 0,
-    reminderSentAt: "",
-    reminderSentFor: ""
+    scheduledTime: "08:00"
   }]],
   [JOURNAL_KEY, { [TEST_DATE]: { text: "A quiet day.", mood: "calm" } }],
   // Deliberately excluded from a backup: a half-finished session is machine
@@ -92,7 +89,7 @@ test("backup export and import move the planner's own data and nothing else", as
     await putStoredValue(planner.server.url, key, value);
   }
 
-  const pageUrl = `${planner.server.url}/?view=todayView&date=${TEST_DATE}`;
+  const pageUrl = `${planner.server.url}/?date=${TEST_DATE}`;
   await planner.browser.setViewport(1280, 720);
   await planner.browser.open(pageUrl);
   await planner.browser.waitForExpression(
@@ -115,9 +112,8 @@ test("backup export and import move the planner's own data and nothing else", as
   });
   assert.ok(Date.parse(payload.exportedAt) > 0, "exportedAt is not a timestamp");
 
-  // The app fills task defaults (sourceEventId, useSourceEventReminder) when it
-  // loads, so the export carries the normalized task. What matters is that
-  // every seeded field survives the round trip untouched.
+  // The app fills task defaults when it loads, so the export carries the
+  // normalized task. Every seeded field must survive the round trip untouched.
   const exportedTask = JSON.parse(payload.data[TASK_KEY])[0];
   assert.deepEqual(
     Object.fromEntries(Object.keys(SEEDED[0][1][0]).map((key) => [key, exportedTask[key]])),

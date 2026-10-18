@@ -177,7 +177,7 @@ test("day state preserves defaults, storage, audit logging, side effects, and re
   }
 
   await planner.browser.setViewport(1280, 720);
-  await openPlanner(planner.browser, `${planner.server.url}/?view=todayView&date=${TEST_DATE}`);
+  await openPlanner(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
   assert.deepEqual(await planner.browser.evaluate(dayState()), {
     label: "How does today feel?",
     options: DEFAULT_OPTIONS,
@@ -202,7 +202,7 @@ test("day state preserves defaults, storage, audit logging, side effects, and re
     compatibilityField: { keep: true }
   });
   await putStoredValue(planner.server.url, ACTIVITY_LOG_KEY, [existingLog]);
-  await openPlanner(planner.browser, `${planner.server.url}/?view=todayView&date=${TEST_DATE}`);
+  await openPlanner(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
   const tiredState = await planner.browser.evaluate(dayState());
   assert.equal(tiredState.options.find((option) => option.id === "tired").active, true);
   assert.equal(tiredState.firstMascotPrompt, "I'm tired. Can you cut today down?");
@@ -264,7 +264,7 @@ test("day state preserves its desktop and mobile visual contract", { timeout: 60
   await putStoredValue(planner.server.url, DAY_STATE_KEY, { [TEST_DATE]: "good" });
 
   await planner.browser.setViewport(1280, 720);
-  await openPlanner(planner.browser, `${planner.server.url}/?view=todayView&date=${TEST_DATE}`);
+  await openPlanner(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
   assert.deepEqual(await planner.browser.evaluate(dayState()), {
     label: "How does today feel?",
     options: [
@@ -282,7 +282,7 @@ test("day state preserves its desktop and mobile visual contract", { timeout: 60
   );
 
   await planner.browser.setViewport(390, 844, true);
-  await openPlanner(planner.browser, `${planner.server.url}/?view=todayView&date=${TEST_DATE}`);
+  await openPlanner(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
   assert.deepEqual(
     await planner.browser.evaluate(dayStateVisualContract()),
     expectedDayStateVisual(338, 120.546875, 308, 68)

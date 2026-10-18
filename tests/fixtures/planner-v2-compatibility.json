@@ -4,13 +4,12 @@
   "exportedAt": "2026-09-12T12:00:00.000Z",
   "storage": "sqlite",
   "data": {
-    "hivePlanner.events": "[{\"id\":\"event-current\",\"date\":\"2026-09-12\",\"title\":\"Study block\",\"note\":\"Fixture only\",\"category\":\"Study/school\",\"effort\":\"standard\",\"dayPart\":\"morning\",\"startTime\":\"09:00\",\"endTime\":\"10:00\",\"reminderOnly\":false,\"reminderMinutes\":10,\"createdAt\":\"2026-09-12T08:00:00.000Z\",\"futureField\":{\"preserve\":true}},{\"id\":\"event-legacy\",\"date\":\"2026-09-13\",\"title\":\"14:00-15:00 Legacy appointment\",\"category\":\"Personal\",\"createdAt\":\"2026-09-12T08:05:00.000Z\"}]",
-    "hivePlanner.dailyTasks.2026-09-12": "[{\"id\":\"task-current\",\"label\":\"Study block\",\"activity\":\"cpp\",\"hours\":0,\"timerSeconds\":0,\"timerStartedAt\":null,\"done\":false,\"createdAt\":\"2026-09-12T08:00:00.000Z\",\"sourceEventId\":\"event-current\",\"useSourceEventReminder\":true,\"scheduledTime\":\"09:00\",\"reminderMinutes\":10,\"reminderSentAt\":\"\",\"reminderSentFor\":\"\",\"unknownTaskField\":\"preserve\"}]",
+    "hivePlanner.events": "[{\"id\":\"event-current\",\"date\":\"2026-09-12\",\"title\":\"Study block\",\"note\":\"Fixture only\",\"category\":\"Study/school\",\"effort\":\"standard\",\"dayPart\":\"morning\",\"startTime\":\"09:00\",\"endTime\":\"10:00\",\"reminderOnly\":false,\"createdAt\":\"2026-09-12T08:00:00.000Z\",\"futureField\":{\"preserve\":true}},{\"id\":\"event-legacy\",\"date\":\"2026-09-13\",\"title\":\"14:00-15:00 Legacy appointment\",\"category\":\"Personal\",\"createdAt\":\"2026-09-12T08:05:00.000Z\"}]",
+    "hivePlanner.dailyTasks.2026-09-12": "[{\"id\":\"task-current\",\"label\":\"Study block\",\"activity\":\"cpp\",\"hours\":0,\"timerSeconds\":0,\"timerStartedAt\":null,\"done\":false,\"createdAt\":\"2026-09-12T08:00:00.000Z\",\"sourceEventId\":\"event-current\",\"scheduledTime\":\"09:00\",\"unknownTaskField\":\"preserve\"}]",
     "hivePlanner.journal.entries": "[{\"id\":\"journal-fixture\",\"date\":\"2026-09-12\",\"title\":\"Fixture entry\",\"content\":\"Anonymized compatibility text.\",\"durationMinutes\":5,\"tracker\":{\"energy\":\"okay\",\"focus\":\"steady\",\"context\":\"fixture\"},\"createdAt\":\"2026-09-12T12:00:00.000Z\",\"updatedAt\":\"2026-09-12T12:00:00.000Z\"}]",
     "hivePlanner.money.settings": "{\"monthlyTargetCents\":100000,\"categories\":[{\"id\":\"groceries\",\"name\":\"Groceries\",\"kind\":\"flex\",\"budgetCents\":12000,\"weeklyBudgetCents\":3000,\"protected\":false}],\"transfers\":[],\"notes\":{\"averages\":[]}}",
     "hivePlanner.skate.sessions": "[{\"id\":\"skate-legacy\",\"focus\":\"Fixture focus\",\"durationHours\":1,\"trackedInTask\":false,\"startedAt\":\"2026-09-11T16:00:00.000Z\",\"finishedAt\":\"2026-09-11T17:00:00.000Z\",\"legacyFeedbackField\":\"preserve\"}]",
     "hivePlanner.skate.learningItems": "[{\"id\":\"legacy-learning\",\"name\":\"Fixture legacy item\"}]",
-    "hivePlanner.telegramWater.settings": "{\"enabled\":false,\"times\":[\"12:30\"],\"sentForBySlot\":{}}",
     "hivePlanner.future.unknown": "{\"schemaVersion\":99,\"preserve\":true}"
   }
 }

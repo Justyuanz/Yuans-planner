@@ -231,7 +231,7 @@ test("Pattern noticed preserves quiet and task-overpacking behavior", { timeout:
   }
 
   await planner.browser.setViewport(1280, 720);
-  await openDashboard(planner.browser, `${planner.server.url}/?view=todayView&date=${TEST_DATE}`);
+  await openDashboard(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
   assert.deepEqual(await planner.browser.evaluate(insightState()), {
     hidden: false,
     heading: "Pattern noticed",
@@ -243,7 +243,7 @@ test("Pattern noticed preserves quiet and task-overpacking behavior", { timeout:
   });
 
   await seedTaskOverpacking(planner.server.url);
-  await openDashboard(planner.browser, `${planner.server.url}/?view=todayView&date=${TEST_DATE}`);
+  await openDashboard(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
   assert.deepEqual(await planner.browser.evaluate(insightState()), {
     hidden: false,
     heading: "Pattern noticed",
@@ -320,7 +320,7 @@ test("Pattern noticed preserves its desktop and mobile visual contract", { timeo
   }
   await seedTaskOverpacking(planner.server.url);
 
-  const pageUrl = `${planner.server.url}/?view=todayView&date=${TEST_DATE}`;
+  const pageUrl = `${planner.server.url}/?date=${TEST_DATE}`;
   await planner.browser.setViewport(1280, 720);
   await openDashboard(planner.browser, pageUrl);
   await waitForTaskOverpacking(planner.browser);
@@ -357,7 +357,7 @@ test("React Pattern noticed routes actions and follows direct task changes", { t
   await seedTaskOverpacking(planner.server.url);
 
   await planner.browser.setViewport(1280, 720);
-  await openDashboard(planner.browser, `${planner.server.url}/?view=todayView&date=${TEST_DATE}`);
+  await openDashboard(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
   await waitForTaskOverpacking(planner.browser);
   assert.equal(await planner.browser.evaluate('document.querySelector("iframe")'), null);
 

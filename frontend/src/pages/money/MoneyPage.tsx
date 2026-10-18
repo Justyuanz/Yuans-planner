@@ -22,7 +22,7 @@ export function MoneyPage({ today }: MoneyPageProps) {
   }
 
   return (
-    <PlannerShell activeView="moneyView" store={store} today={today}>
+    <PlannerShell store={store} today={today}>
       <section className="view active" id="moneyView" aria-labelledby="moneyHeading">
         <div className="money-page">
           <article className="panel money-overview-card"><div className="panel-inner">

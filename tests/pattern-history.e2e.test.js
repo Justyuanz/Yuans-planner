@@ -396,7 +396,7 @@ test("Pattern history preserves empty, grouped, action, disclosure, and refresh 
   }
 
   await planner.browser.setViewport(1280, 720);
-  await openPlanner(planner.browser, `${planner.server.url}/?view=todayView&date=${TEST_DATE}`);
+  await openPlanner(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
   await openHistory(planner.browser);
   assert.deepEqual(await planner.browser.evaluate(historyState()), {
     open: true,
@@ -407,7 +407,7 @@ test("Pattern history preserves empty, grouped, action, disclosure, and refresh 
   });
 
   await seedTaskOverpacking(planner.server.url);
-  await openPlanner(planner.browser, `${planner.server.url}/?view=todayView&date=${TEST_DATE}`);
+  await openPlanner(planner.browser, `${planner.server.url}/?date=${TEST_DATE}`);
   await openHistory(planner.browser);
   assert.deepEqual(await planner.browser.evaluate(historyState()), POPULATED_HISTORY);
 
@@ -440,7 +440,7 @@ test("Pattern history preserves its desktop and mobile visual contract", { timeo
   }
   await seedTaskOverpacking(planner.server.url);
 
-  const pageUrl = `${planner.server.url}/?view=todayView&date=${TEST_DATE}`;
+  const pageUrl = `${planner.server.url}/?date=${TEST_DATE}`;
   await planner.browser.setViewport(1280, 720);
   await openPlanner(planner.browser, pageUrl);
   assert.equal(await planner.browser.evaluate('document.querySelector("iframe")'), null);

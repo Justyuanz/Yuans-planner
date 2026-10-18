@@ -27,7 +27,6 @@ function expectedEditorState() {
     loadPreview: "Add a valid start and end time to see this activity's load.",
     note: "",
     pickerHidden: true,
-    reminder: "0",
     reminderOnly: false,
     saveLabel: "Save activity",
     start: "",
@@ -60,7 +59,7 @@ function expectedEditorVisual(mobile) {
     card: visualBox({
       background: "rgba(0, 0, 0, 0) none repeat scroll 0px 0px / auto padding-box border-box",
       borderRadius: "18px",
-      height: mobile ? 1323.656 : 1180.828,
+      height: mobile ? 1244.625 : 1101.797,
       width: contentWidth
     }),
     event: visualBox({
@@ -77,7 +76,7 @@ function expectedEditorVisual(mobile) {
     form: visualBox({
       display: "grid",
       gap: "8px",
-      height: mobile ? 858.906 : 837.578,
+      height: mobile ? 779.875 : 758.547,
       width: contentWidth
     }),
     input: visualBox({
@@ -95,7 +94,7 @@ function expectedEditorVisual(mobile) {
       border: "",
       display: "grid",
       gap: "12px",
-      height: mobile ? 1323.656 : 1180.828,
+      height: mobile ? 1244.625 : 1101.797,
       padding: "20px 0px 0px",
       width: contentWidth
     }),

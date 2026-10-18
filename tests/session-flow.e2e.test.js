@@ -69,7 +69,7 @@ test("finished Guitar and Skate sessions sync to tasks without double-counting t
   if (!planner) {
     return;
   }
-  await planner.browser.open(`${planner.server.url}/?view=guitarView&date=${TEST_DATE}`);
+  await planner.browser.open(`${planner.server.url}/guitar?date=${TEST_DATE}`);
   await planner.browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
   await finishGuitarSession(planner.browser);
   await planner.server.waitFor(async function () {
@@ -79,7 +79,7 @@ test("finished Guitar and Skate sessions sync to tasks without double-counting t
     return tasks.some(({ activity }) => activity === "guitar") && sessions.length === 1;
   });
 
-  await planner.browser.open(`${planner.server.url}/?view=skateView&date=${TEST_DATE}`);
+  await planner.browser.open(`${planner.server.url}/skate?date=${TEST_DATE}`);
   await planner.browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
   await finishSkateSession(planner.browser);
 
@@ -97,7 +97,7 @@ test("finished Guitar and Skate sessions sync to tasks without double-counting t
   assert.equal(data.skateSessions[0].trackedInTask, true);
   assert.equal(recordedHours(data.tasks, data.skateSessions, "skate"), 0.75);
 
-  await planner.browser.open(`${planner.server.url}/?view=todayView&date=${TEST_DATE}`);
+  await planner.browser.open(`${planner.server.url}/?date=${TEST_DATE}`);
   await planner.browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
   await planner.browser.waitForExpression('document.querySelectorAll(".task").length === 2');
   assert.equal(await planner.browser.evaluate('document.querySelector("iframe")'), null);

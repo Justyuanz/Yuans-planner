@@ -1,12 +1,7 @@
 import { useState, type KeyboardEvent } from "react";
 
 import { ACTIVITY_DEFINITIONS, normalizeActivityId } from "../activity-categories";
-import { TASK_REMINDERS } from "./task-options";
-import {
-  normalizeReminderMinutes,
-  normalizeScheduledTime,
-  type PlannerTask
-} from "./tasks";
+import { normalizeScheduledTime, type PlannerTask } from "./tasks";
 
 interface TaskEditorProps {
   onCancel: () => void;
@@ -64,18 +59,6 @@ export function TaskEditor({ onCancel, onSave, task }: TaskEditorProps) {
         type="text"
         value={draft.scheduledTime}
       />
-      <select
-        aria-label="Task reminder"
-        className="task-category-select task-editor-reminder"
-        id="taskEditorReminder"
-        onChange={(event) => saveField({
-          ...draft,
-          reminderMinutes: normalizeReminderMinutes(event.target.value)
-        })}
-        value={draft.reminderMinutes}
-      >
-        {TASK_REMINDERS.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
-      </select>
       <select
         aria-label="Task activity"
         className="task-category-select task-editor-activity"

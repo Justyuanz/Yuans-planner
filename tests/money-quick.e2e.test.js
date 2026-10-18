@@ -141,7 +141,7 @@ test("Money quick log preserves entry, persistence, and visual behavior", { time
     return;
   }
 
-  const pageUrl = `${planner.server.url}/?view=todayView&date=${TEST_DATE}`;
+  const pageUrl = `${planner.server.url}/?date=${TEST_DATE}`;
 
   await planner.browser.setViewport(1280, 720);
   await openDashboard(planner.browser, pageUrl);

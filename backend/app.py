@@ -19,7 +19,6 @@ from http.server import ThreadingHTTPServer
 from config import planner_db_path, planner_host, planner_port
 from db import init_database
 from http_server import PlannerHandler
-from reminder_service import start_reminder_worker
 
 
 HOST = planner_host()
@@ -38,7 +37,6 @@ def local_network_ip() -> str:
 def main() -> None:
     init_database()
     server = ThreadingHTTPServer((HOST, PORT), PlannerHandler)
-    start_reminder_worker()
     lan_ip = local_network_ip()
     print(f"Yuan's Planner listening at http://127.0.0.1:{PORT}")
     print(f"LAN URL: http://{lan_ip}:{PORT}")

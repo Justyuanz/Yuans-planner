@@ -97,7 +97,6 @@ Also in there:
 - **Energy trail** — how energy and focus moved over the past days.
 - **Pattern noticed** — one observation at a time, with the evidence behind it,
   and a history of the earlier ones.
-- **Telegram reminders** — optional, for anything with a time on it.
 - **Backup export and import** — the whole planner as one JSON file.
 
 Every page is fully responsive and works on the phone.
@@ -192,10 +191,10 @@ Four layers:
 
 | Layer | Count | Covers |
 | --- | --- | --- |
-| Python `unittest` | 44 | Server, storage, config, reminders, integrations. |
+| Python `unittest` | 22 | Server, storage, configuration, and the optional mascot integration. |
 | Vitest | 324 | Models and rules, against malformed and boundary input. |
 | ESLint + `tsc --noEmit` | — | Strict types, no `any`, no deep relative imports. |
-| Node `--test` + Chrome | 47 | The production bundle in a real browser. |
+| Node `--test` + Chrome | 49 | The production bundle in a real browser. |
 
 The browser tests assert **pinned contracts** — text, computed styles, geometry
 and tolerant image signatures — so an accidental visual change fails the build.
@@ -228,18 +227,11 @@ variables take precedence. Keep credentials out of Git.
 | `YUAN_PLANNER_HOST` | `0.0.0.0` (all interfaces); use `127.0.0.1` for local-only access |
 | `YUAN_PLANNER_PORT` | `8765` |
 | `YUAN_PLANNER_DB_PATH` | `data/planner.db`; relative paths resolve from the project root |
-| `YUAN_PLANNER_TIMEZONE` | `Europe/Helsinki` |
 | `OPENAI_API_KEY` | Optional key for mascot chat |
 | `YUAN_PLANNER_OPENAI_MODEL` | `gpt-5-mini` |
 | `YUAN_PLANNER_OPENAI_TIMEOUT_SECONDS` | `20` (clamped to 5–60 seconds) |
-| `YUAN_PLANNER_TELEGRAM_ENABLED` | `0`; set to `1` to enable reminders |
-| `YUAN_PLANNER_TELEGRAM_BOT_TOKEN` | Optional Telegram bot token |
-| `YUAN_PLANNER_TELEGRAM_CHAT_ID` | Optional destination chat ID |
 
-Both integrations are optional; the planner is fully usable without them.
-Telegram reminders need all three Telegram settings and a running backend — the
-browser can be closed. A timed reminder uses an event's start time, or a title
-beginning with a time such as `18:00`.
+The mascot integration is optional; the planner is fully usable without it.
 
 <br />
 

@@ -17,14 +17,10 @@ export interface PlannerTask {
   hours: number;
   id: string;
   label: string;
-  reminderMinutes: number;
-  reminderSentAt: string;
-  reminderSentFor: string;
   scheduledTime: string;
   sourceEventId: string;
   timerSeconds: number;
   timerStartedAt: string | null;
-  useSourceEventReminder: boolean;
 }
 
 export type TaskLogAction =
@@ -106,11 +102,6 @@ export function normalizeScheduledTime(value: unknown): string {
   return end ? `${start}-${end}` : start;
 }
 
-export function normalizeReminderMinutes(value: unknown): number {
-  const minutes = Number(value);
-  return Number.isFinite(minutes) && minutes > 0 ? Math.round(minutes) : 0;
-}
-
 function normalizeTask(candidate: unknown, fallbackCreatedAt: string, index: number): PlannerTask | null {
   if (!isRecord(candidate) || typeof candidate.label !== "string" || !candidate.label.trim()) return null;
   const sourceEventId = typeof candidate.sourceEventId === "string" ? candidate.sourceEventId : "";
@@ -128,11 +119,7 @@ function normalizeTask(candidate: unknown, fallbackCreatedAt: string, index: num
     createdAt: typeof candidate.createdAt === "string" && candidate.createdAt
       ? candidate.createdAt : fallbackCreatedAt,
     sourceEventId,
-    useSourceEventReminder: sourceEventId ? candidate.useSourceEventReminder !== false : false,
-    scheduledTime: normalizeScheduledTime(candidate.scheduledTime),
-    reminderMinutes: normalizeReminderMinutes(candidate.reminderMinutes),
-    reminderSentAt: typeof candidate.reminderSentAt === "string" ? candidate.reminderSentAt : "",
-    reminderSentFor: typeof candidate.reminderSentFor === "string" ? candidate.reminderSentFor : ""
+    scheduledTime: normalizeScheduledTime(candidate.scheduledTime)
   };
 }
 

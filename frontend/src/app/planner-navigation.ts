@@ -1,12 +1,41 @@
-// Reading and writing the planner's `?view=` and `?date=` query parameters.
+import { useCallback } from "react";
+import { useNavigate } from "react-router";
 
 import { toDateKey } from "../shared/planner-date";
 
-export function navigateToPlannerView(viewId: string, date: Date | string): void {
-  const url = new URL(window.location.href);
-  url.searchParams.set("date", typeof date === "string" ? date : toDateKey(date));
-  url.searchParams.set("view", viewId);
-  window.location.assign(url);
+export const PLANNER_ROUTES = [
+  { id: "todayView", label: "Dashboard", path: "/" },
+  { id: "journalView", label: "Journal", path: "/journal" },
+  { id: "moneyView", label: "Money", path: "/money" },
+  { id: "calendarView", label: "Calendar", path: "/calendar" },
+  { id: "skateView", label: "Skate", path: "/skate" },
+  { id: "guitarView", label: "Guitar", path: "/guitar" }
+] as const;
+
+export type PlannerViewId = typeof PLANNER_ROUTES[number]["id"];
+
+interface PlannerLocation {
+  pathname: string;
+  search: string;
+}
+
+export function plannerPathForView(viewId: string): string | null {
+  return PLANNER_ROUTES.find(({ id }) => id === viewId)?.path ?? null;
+}
+
+export function plannerLocation(viewId: PlannerViewId, date: Date | string): PlannerLocation {
+  const pathname = plannerPathForView(viewId) ?? "/";
+  const dateKey = typeof date === "string" ? date : toDateKey(date);
+  return { pathname, search: `?date=${encodeURIComponent(dateKey)}` };
+}
+
+export type PlannerNavigate = (viewId: PlannerViewId, date: Date | string) => void;
+
+export function usePlannerNavigation(): PlannerNavigate {
+  const navigate = useNavigate();
+  return useCallback((viewId, date) => {
+    void navigate(plannerLocation(viewId, date));
+  }, [navigate]);
 }
 
 export function plannerDateFromSearch(search: string, fallback: Date): Date {
