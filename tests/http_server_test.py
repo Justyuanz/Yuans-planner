@@ -1,6 +1,7 @@
 """Exercise the HTTP contract without real data or external integrations."""
 
 import http.client
+import gzip
 import json
 import sys
 import tempfile
@@ -43,14 +44,34 @@ class HttpTests(unittest.TestCase):
         body = None if payload is None else json.dumps(payload)
         return self.request_raw(method, path, body)
 
-    def request_raw(self, method, path, body=None):
+    def request_raw(self, method, path, body=None, headers=None):
         conn = http.client.HTTPConnection("127.0.0.1", self.port, timeout=5)
         try:
-            conn.request(method, path, body=body)
+            conn.request(method, path, body=body, headers=headers or {})
             response = conn.getresponse()
             return response.status, dict(response.getheaders()), response.read()
         finally:
             conn.close()
+
+    def test_large_json_responses_support_gzip(self):
+        self.request("PUT", "/api/kv", {
+            "key": "hivePlanner.large",
+            "value": "compress me " * 1000,
+        })
+
+        status, headers, body = self.request_raw(
+            "GET",
+            "/api/kv",
+            headers={"Accept-Encoding": "gzip"},
+        )
+
+        self.assertEqual(status, 200)
+        self.assertEqual(headers["Content-Encoding"], "gzip")
+        self.assertEqual(headers["Vary"], "Accept-Encoding")
+        self.assertEqual(
+            json.loads(gzip.decompress(body))["data"]["hivePlanner.large"],
+            "compress me " * 1000,
+        )
 
     def test_persistence_export_import_and_delete(self):
         self.assertEqual(json.loads(self.request("GET", "/api/kv")[2]), {"data": {}})

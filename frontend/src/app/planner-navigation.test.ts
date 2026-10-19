@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  plannerDateForRoute,
   plannerDateFromSearch,
   plannerLocation,
   plannerPathForView
@@ -23,6 +24,13 @@ describe("planner routes", () => {
       search: "?date=2026-09-13"
     });
   });
+
+  it("keeps the Dashboard URL date-free", () => {
+    expect(plannerLocation("todayView", new Date(2026, 8, 13))).toEqual({
+      pathname: "/",
+      search: ""
+    });
+  });
 });
 
 describe("plannerDateFromSearch", () => {
@@ -32,5 +40,17 @@ describe("plannerDateFromSearch", () => {
     expect(plannerDateFromSearch("?date=2026-09-13", fallback)).toEqual(new Date(2026, 8, 13));
     expect(plannerDateFromSearch("?date=2026-02-31", fallback)).toEqual(fallback);
     expect(plannerDateFromSearch("?date=not-a-date", fallback)).toEqual(fallback);
+  });
+});
+
+describe("plannerDateForRoute", () => {
+  it("uses the current day for the Dashboard unless previewing a date", () => {
+    const currentDate = new Date(2026, 9, 19);
+
+    expect(plannerDateForRoute("/", "?date=2026-10-18", currentDate)).toBe(currentDate);
+    expect(plannerDateForRoute("/", "?preview=1&date=2026-10-18", currentDate))
+      .toEqual(new Date(2026, 9, 18));
+    expect(plannerDateForRoute("/journal", "?date=2026-10-18", currentDate))
+      .toEqual(new Date(2026, 9, 18));
   });
 });

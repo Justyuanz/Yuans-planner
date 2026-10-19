@@ -17,6 +17,16 @@ const CHROME_CANDIDATES = [
   "/usr/bin/chromium-browser"
 ].filter(Boolean);
 
+function browserTestUrl(url) {
+  const parsed = new URL(url);
+  if (parsed.pathname === "/"
+    && parsed.searchParams.has("date")
+    && !parsed.searchParams.has("live")) {
+    parsed.searchParams.set("preview", "1");
+  }
+  return parsed.href;
+}
+
 function delay(milliseconds) {
   return new Promise(function (resolve) {
     setTimeout(resolve, milliseconds);
@@ -160,7 +170,9 @@ async function startChromeSession(executable) {
         return response.data;
       },
       async open(url) {
-        await waitForPageLoad("Page.navigate", { url });
+        // Existing visual contracts use fixed Dashboard dates. Mark those as
+        // intentional previews while live-date regression tests opt out.
+        await waitForPageLoad("Page.navigate", { url: browserTestUrl(url) });
       },
       async reload() {
         await waitForPageLoad("Page.reload", { ignoreCache: true });

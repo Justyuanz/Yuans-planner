@@ -25,6 +25,9 @@ export function plannerPathForView(viewId: string): string | null {
 
 export function plannerLocation(viewId: PlannerViewId, date: Date | string): PlannerLocation {
   const pathname = plannerPathForView(viewId) ?? "/";
+  if (viewId === "todayView") {
+    return { pathname, search: "" };
+  }
   const dateKey = typeof date === "string" ? date : toDateKey(date);
   return { pathname, search: `?date=${encodeURIComponent(dateKey)}` };
 }
@@ -52,4 +55,13 @@ export function plannerDateFromSearch(search: string, fallback: Date): Date {
     && candidate.getDate() === day
     ? candidate
     : fallback;
+}
+
+export function plannerDateForRoute(pathname: string, search: string, fallback: Date): Date {
+  // The Dashboard normally means today. Preview mode only supports dated test screenshots.
+  const isDashboardPreview = pathname === "/"
+    && new URLSearchParams(search).get("preview") === "1";
+  return pathname === "/" && !isDashboardPreview
+    ? fallback
+    : plannerDateFromSearch(search, fallback);
 }

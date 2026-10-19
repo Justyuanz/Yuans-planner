@@ -47,11 +47,6 @@ async function openReady(browser, url) {
   await browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
 }
 
-async function reloadReady(browser) {
-  await browser.reload();
-  await browser.waitForExpression('document.documentElement.dataset.plannerReady === "true"');
-}
-
 // The animated mascot is hidden before capture so it cannot add noise, while
 // its layout space is preserved.
 async function prepareScreenshot(browser) {
@@ -117,6 +112,9 @@ test("Dashboard is a direct React page with legacy layout and Pattern behavior",
   );
 
   await openReady(planner.browser, rootUrl);
+  const storeRequestsBeforeNavigation = await planner.browser.evaluate(
+    'performance.getEntriesByType("resource").filter(({ name }) => name.endsWith("/api/kv")).length'
+  );
   await planner.browser.evaluate('document.querySelector("[data-view-target=moneyView]").click()');
   await planner.browser.waitForExpression('location.pathname === "/money"');
   await planner.browser.waitForExpression(
@@ -124,6 +122,13 @@ test("Dashboard is a direct React page with legacy layout and Pattern behavior",
   );
   assert.equal(await planner.browser.evaluate('location.search.includes("date=2026-09-14")'), true);
   assert.equal(await planner.browser.evaluate('document.querySelectorAll("iframe").length'), 0);
+  assert.equal(storeRequestsBeforeNavigation, 1);
+  assert.equal(
+    await planner.browser.evaluate(
+      'performance.getEntriesByType("resource").filter(({ name }) => name.endsWith("/api/kv")).length'
+    ),
+    1
+  );
 
   await openReady(planner.browser, `${planner.server.url}/journal?date=${TEST_DATE}`);
   assert.deepEqual(
@@ -196,17 +201,11 @@ test("Dashboard is a direct React page with legacy layout and Pattern behavior",
   assert.deepEqual(planner.browser.errors(), []);
 });
 
-test("Refreshing the Dashboard moves a stale dated URL to today", { timeout: 90_000 }, async function (context) {
+test("Opening the Dashboard ignores a stale date and shows today immediately", { timeout: 90_000 }, async function (context) {
   const planner = await startBrowserPlanner(context);
   if (!planner) return;
 
-  await openReady(planner.browser, `${planner.server.url}/?date=2000-01-01`);
-  assert.equal(
-    await planner.browser.evaluate('document.getElementById("dashboardDate").textContent'),
-    "Sat Jan 1"
-  );
-
-  await reloadReady(planner.browser);
+  await openReady(planner.browser, `${planner.server.url}/?live=1&date=2000-01-01`);
   assert.equal(
     await planner.browser.evaluate(`(() => {
       const date = new Date();

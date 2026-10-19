@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import gzip
 import json
 import mimetypes
 from http.server import BaseHTTPRequestHandler
@@ -186,9 +187,17 @@ class PlannerHandler(BaseHTTPRequestHandler):
         status: int = 200,
     ) -> None:
         body = json.dumps(value, ensure_ascii=False).encode("utf-8")
+        accepts_gzip = "gzip" in self.headers.get("Accept-Encoding", "").lower()
+        compressed = accepts_gzip and len(body) >= 1024
+        if compressed:
+            body = gzip.compress(body)
+
         self.send_response(status)
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
+        if compressed:
+            self.send_header("Content-Encoding", "gzip")
+            self.send_header("Vary", "Accept-Encoding")
         if headers:
             for key, header_value in headers.items():
                 self.send_header(key, header_value)

@@ -229,7 +229,9 @@ test("Money quick log preserves entry, persistence, and visual behavior", { time
       && category.budgetCents === 13_000
       && category.weeklyBudgetCents === 2_600);
   });
-  await planner.browser.evaluate('document.querySelector(\'[data-view-target="todayView"]\').click()');
+  // Reopen the dated preview used by this calculation test. In the real app,
+  // clicking Dashboard intentionally returns to the actual current day.
+  await openDashboard(planner.browser, pageUrl);
   await planner.browser.waitForExpression('document.querySelector("#moneyQuickSummary .money-mini-stat strong").textContent === "€103.46"');
 
   // Reset to the stored state the pinned visual contract was captured from.
